@@ -1,0 +1,19 @@
+{
+    "name": "nav3d-examples",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "three": "^0.179.1"
+    },
+    "devDependencies": {
+        "@types/three": "^0.179.0",
+        "typescript": "^5.9.2",
+        "vite": "^6.0.5"
+    }
+}
