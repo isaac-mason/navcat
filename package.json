@@ -1,0 +1,38 @@
+{
+    "name": "nav3d",
+    "version": "0.0.0-placeholder-1",
+    "author": "Isaac Mason <isaac@isaacmason.com>",
+    "description": "",
+    "keywords": [],
+    "license": "MIT",
+    "type": "module",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "rm -rf ./dist && rollup --config rollup.config.mjs"
+    },
+    "packageManager": "pnpm@8.15.2+sha1.798034f615aa211c6c2ae00010cc20be5fc102ee",
+    "dependencies": {
+        "maaths": "0.0.0-placeholder-1"
+    },
+    "peerDependencies": {
+        "three": ">=0.179.1"
+    },
+    "peerDependenciesMeta": {
+        "three": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^2.2.0",
+        "@rollup/plugin-node-resolve": "^16.0.1",
+        "@rollup/plugin-typescript": "^12.1.4",
+        "@types/three": "^0.179.0",
+        "rollup": "^4.46.2",
+        "rollup-plugin-copy": "^3.5.0",
+        "rollup-plugin-filesize": "^10.0.0",
+        "three": "^0.179.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.2",
+        "vitest": "^3.2.4"
+    }
+}
