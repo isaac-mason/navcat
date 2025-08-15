@@ -10,7 +10,7 @@ importers:
     dependencies:
       maaths:
         specifier: 0.0.0-placeholder-1
-        version: link:../maaths
+        version: 0.0.0-placeholder-1
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.2.0
@@ -48,6 +48,9 @@ importers:
 
   examples:
     dependencies:
+      nav3d:
+        specifier: file:../
+        version: file:(three@0.179.1)
       three:
         specifier: ^0.179.1
         version: 0.179.1
@@ -1721,6 +1724,10 @@ packages:
     engines: {node: '>=12'}
     dev: true
 
+  /maaths@0.0.0-placeholder-1:
+    resolution: {integrity: sha512-kV8gnwCZEE24n5gKaiWhE7skM96V8pZrYFHpTWFvGjp19dHxfpFH9RU351GLdeF+VKrwdyxJace1SgPgU12aVA==}
+    dev: false
+
   /magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
     dependencies:
@@ -2885,3 +2892,17 @@ packages:
   /yallist@4.0.0:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
     dev: true
+
+  file:(three@0.179.1):
+    resolution: {directory: '', type: directory}
+    id: 'file:'
+    name: nav3d
+    peerDependencies:
+      three: '>=0.179.1'
+    peerDependenciesMeta:
+      three:
+        optional: true
+    dependencies:
+      maaths: 0.0.0-placeholder-1
+      three: 0.179.1
+    dev: false

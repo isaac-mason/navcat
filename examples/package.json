@@ -9,7 +9,8 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "three": "^0.179.1"
+        "three": "^0.179.1",
+        "nav3d": "file:../"
     },
     "devDependencies": {
         "@types/three": "^0.179.0",

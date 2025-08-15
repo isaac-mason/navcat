@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 
 /**
  * @typedef {{
@@ -10,9 +10,9 @@ import * as THREE from 'three';
 
 /**
  * @param {HTMLElement} container
- * @returns {ExampleBoilerplate}
+ * @returns {Promise<ExampleBoilerplate>}
  */
-export function createExample(container) {
+export const createExample = async (container) => {
     // scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
@@ -27,7 +27,7 @@ export function createExample(container) {
     camera.position.set(0, 0, 5);
 
     // renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGPURenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
@@ -47,6 +47,8 @@ export function createExample(container) {
         renderer.setSize(container.clientWidth, container.clientHeight);
     }
     window.addEventListener('resize', onWindowResize);
+    
+    await renderer.init();
 
     return {
         scene,
