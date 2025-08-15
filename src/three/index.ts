@@ -1,2 +1,2 @@
+export * from "./debug";
 export * from './get-positions-and-indices';
-export * from './navmesh-debug';
