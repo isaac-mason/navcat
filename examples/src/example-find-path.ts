@@ -175,6 +175,7 @@ if (pathResult.success) {
     }
 }
 
+/* start loop */
 function update() {
     requestAnimationFrame(update);
 

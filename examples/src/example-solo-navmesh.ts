@@ -84,6 +84,7 @@ const navMeshHelper = threeUtils.createNavMeshHelper(navMeshResult.navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
+/* start loop */
 function update() {
     requestAnimationFrame(update);
 
