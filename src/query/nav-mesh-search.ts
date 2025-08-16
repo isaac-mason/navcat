@@ -1,16 +1,16 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
-    type IntersectSegSeg2DResult,
     closestPtSeg2d,
-    createIntersectSegSeg2DResult,
     createIntersectSegmentPoly2DResult,
+    createIntersectSegSeg2DResult,
     distancePtSeg2dSqr,
-    intersectSegSeg2D,
+    type IntersectSegSeg2DResult,
     intersectSegmentPoly2D,
+    intersectSegSeg2D,
     pointInPoly,
     randomPointInConvexPoly,
-    triArea2D
+    triArea2D,
 } from '../geometry';
 import {
     type NavMesh,
@@ -19,8 +19,22 @@ import {
     type NavMeshTile,
     OffMeshConnectionSide,
 } from './nav-mesh';
-import { type NodeRef, NodeType, desNodeRef, getNodeRefType, serPolyNodeRef } from './node';
-import { createGetClosestPointOnPolyResult, getClosestPointOnPoly, getClosestPointOnPolyBoundary, getNodeAreaAndFlags, getTileAndPolyByRef } from './nav-mesh-query';
+import {
+    createFindNearestPolyResult,
+    createGetClosestPointOnPolyResult,
+    findNearestPoly,
+    getClosestPointOnPoly,
+    getClosestPointOnPolyBoundary,
+    getNodeAreaAndFlags,
+    getTileAndPolyByRef,
+} from './nav-mesh-query';
+import {
+    desNodeRef,
+    getNodeRefType,
+    type NodeRef,
+    NodeType,
+    serPolyNodeRef,
+} from './node';
 import { DEFAULT_QUERY_FILTER, type QueryFilter } from './query-filter';
 
 export const NODE_FLAG_OPEN = 0x01;
@@ -53,11 +67,7 @@ export type SearchNodePool = { [nodeRefAndState: SearchNodeRef]: SearchNode };
 
 export type SearchNodeQueue = SearchNode[];
 
-const bubbleUpQueue = (
-    queue: SearchNodeQueue,
-    i: number,
-    node: SearchNode,
-) => {
+const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
     // note: (index > 0) means there is a parent
     let parent = Math.floor((i - 1) / 2);
 
@@ -98,17 +108,12 @@ const trickleDownQueue = (
     queue[i] = node;
 };
 
-const pushNodeToQueue = (
-    queue: SearchNodeQueue,
-    node: SearchNode,
-): void => {
+const pushNodeToQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
     queue.push(node);
     bubbleUpQueue(queue, queue.length - 1, node);
-}
+};
 
-const popNodeFromQueue = (
-    queue: SearchNodeQueue,
-): SearchNode | undefined => {
+const popNodeFromQueue = (queue: SearchNodeQueue): SearchNode | undefined => {
     if (queue.length === 0) {
         return undefined;
     }
@@ -124,12 +129,12 @@ const popNodeFromQueue = (
     return node;
 };
 
-const reindexNodeInQueue = (
-    queue: SearchNodeQueue,
-    node: SearchNode,
-): void => {
+const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
     for (let i = 0; i < queue.length; i++) {
-        if (queue[i].nodeRef === node.nodeRef && queue[i].state === node.state) {
+        if (
+            queue[i].nodeRef === node.nodeRef &&
+            queue[i].state === node.state
+        ) {
             queue[i] = node;
             bubbleUpQueue(queue, i, node);
             return;
@@ -148,7 +153,7 @@ const getPortalPoints = (
     outRight: Vec3,
 ): boolean => {
     // find the link that points to the 'to' polygon.
-    let toLink: NavMeshLink | undefined = undefined;
+    let toLink: NavMeshLink | undefined;
 
     const fromPolyLinks = navMesh.nodes[fromNodeRef];
 
@@ -360,9 +365,6 @@ const HEURISTIC_SCALE = 0.999; // Search heuristic scale
  * If the end node cannot be reached through the navigation graph,
  * the last node in the path will be the nearest the end node.
  *
- * If the path array is to small to hold the full result, it will be filled as
- * far as possible from the start node toward the end node.
- *
  * The start and end positions are used to calculate traversal costs.
  * (The y-values impact the result.)
  *
@@ -442,7 +444,7 @@ export const findNodePath = (
         const currentNodeLinks = navMesh.nodes[currentNodeRef];
 
         // get parent node ref
-        let parentNodeRef: NodeRef | undefined = undefined;
+        let parentNodeRef: NodeRef | undefined;
         if (currentNode.parent) {
             const [nodeRef, _state] = currentNode.parent.split(':');
             parentNodeRef = nodeRef as NodeRef;
@@ -1012,6 +1014,126 @@ export const findStraightPath = (
     appendVertex(closestEndPos, endRef, path, NodeType.GROUND_POLY);
 
     return { success: true, path };
+};
+
+export type FindPathResult = {
+    /** whether the search completed successfully, with either a partial or complete path */
+    success: boolean;
+
+    /** the path, consisting of polygon node and offmesh link node references */
+    path: StraightPathPoint[];
+
+    /** the start poly node ref */
+    startNodeRef: NodeRef | null;
+
+    /** the start closest point */
+    startPoint: Vec3;
+
+    /** the end poly node ref */
+    endNodeRef: NodeRef | null;
+
+    /** the end closest point */
+    endPoint: Vec3;
+
+    /** the node path result */
+    nodePath: FindNodePathResult | null;
+};
+
+const _findPathStartNearestPolyResult = createFindNearestPolyResult();
+const _findPathEndNearestPolyResult = createFindNearestPolyResult();
+
+/**
+ * Find a path between two positions on a NavMesh.
+ *
+ * If the end node cannot be reached through the navigation graph,
+ * the last node in the path will be the nearest the end node.
+ *
+ * Internally:
+ * - finds the closest poly for the start and end positions with @see findNearestPoly
+ * - finds a nav mesh node path with @see findNodePath
+ * - finds a straight path with @see findStraightPath
+ *
+ * If you want more fine tuned behaviour you can call these methods directly.
+ * For example, for agent movement you might want to find a node path once but regularly re-call @see findStraightPath
+ *
+ * @param navMesh The navigation mesh.
+ * @param start The starting position in world space.
+ * @param end The ending position in world space.
+ * @param queryFilter The query filter.
+ * @returns The result of the pathfinding operation.
+ */
+export const findPath = (
+    navMesh: NavMesh,
+    start: Vec3,
+    end: Vec3,
+    halfExtents: Vec3,
+    queryFilter: QueryFilter,
+): FindPathResult => {
+    const result: FindPathResult = {
+        success: false,
+        path: [],
+        startNodeRef: null,
+        startPoint: [0, 0, 0],
+        endNodeRef: null,
+        endPoint: [0, 0, 0],
+        nodePath: null,
+    };
+
+    /* find start nearest poly */
+    const startNearestPolyResult = findNearestPoly(
+        _findPathStartNearestPolyResult,
+        navMesh,
+        start,
+        halfExtents,
+        queryFilter,
+    );
+    if (!startNearestPolyResult.success) return result;
+
+    vec3.copy(result.startPoint, startNearestPolyResult.nearestPoint);
+    result.startNodeRef = startNearestPolyResult.nearestPolyRef;
+
+    /* find end nearest poly */
+    const endNearestPolyResult = findNearestPoly(
+        _findPathEndNearestPolyResult,
+        navMesh,
+        end,
+        halfExtents,
+        queryFilter,
+    );
+    if (!endNearestPolyResult.success) return result;
+
+    vec3.copy(result.endPoint, endNearestPolyResult.nearestPoint);
+    result.endNodeRef = endNearestPolyResult.nearestPolyRef;
+
+    /* find node path */
+    const nodePath = findNodePath(
+        navMesh,
+        result.startNodeRef,
+        result.endNodeRef,
+        result.startPoint,
+        result.endPoint,
+        queryFilter,
+    );
+
+    result.nodePath = nodePath;
+
+    if (!nodePath) return result;
+
+    /* find straight path */
+    const straightPath = findStraightPath(
+        navMesh,
+        result.startPoint,
+        result.endPoint,
+        nodePath.path,
+    );
+
+    if (!straightPath) return result;
+
+    /* success */
+    result.success = true;
+    result.path = straightPath.path;
+
+    return result;
 };
 
 export type MoveAlongSurfaceResult = {

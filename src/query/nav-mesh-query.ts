@@ -4,16 +4,22 @@ import {
     closestPtSeg2d,
     distancePtSeg2dSqr,
     getHeightAtPoint,
-    pointInPoly
+    pointInPoly,
 } from '../geometry';
 import {
+    getTilesAt,
     type NavMesh,
     type NavMeshPoly,
     type NavMeshTile,
-    getTilesAt,
-    worldToTilePosition
+    worldToTilePosition,
 } from './nav-mesh';
-import { desNodeRef, getNodeRefType, NodeType, serPolyNodeRef, type NodeRef } from './node';
+import {
+    desNodeRef,
+    getNodeRefType,
+    type NodeRef,
+    NodeType,
+    serPolyNodeRef,
+} from './node';
 import type { QueryFilter } from './query-filter';
 
 export type GetNodeAreaAndFlagsResult = {
@@ -481,7 +487,6 @@ export const getClosestPointOnPolyBoundary = (
 
     return true;
 };
-
 
 export type FindNearestPolyResult = {
     success: boolean;

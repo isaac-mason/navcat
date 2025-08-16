@@ -9,6 +9,7 @@ import {
 } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 
+/* setup example scene */
 const container = document.getElementById('root')!;
 const { scene, camera, renderer } = await createExample(container);
 
@@ -20,6 +21,7 @@ orbitControls.enableDamping = true;
 const navTestModel = await loadGLTF('/models/nav-test.glb');
 scene.add(navTestModel.scene);
 
+/* generate navmesh */
 const walkableMeshes: THREE.Mesh[] = [];
 scene.traverse((object) => {
     if (object instanceof THREE.Mesh) {

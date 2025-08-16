@@ -1447,7 +1447,7 @@ export function createSearchNodesHelper(nodePool: SearchNodePool): DebugPrimitiv
     return primitives;
   }
 
-  const yOffset = 0.5; // matches Detour off = 0.5f
+  const yOffset = 0.5;
   const pointPositions: number[] = [];
   const pointColors: number[] = [];
   const linePositions: number[] = [];

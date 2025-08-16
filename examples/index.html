@@ -2,15 +2,16 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nav3D Examples</title>
     <style>
         /* mobile-first base styles */
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                sans-serif;
             background: #222;
             height: 100vh;
             display: flex;
@@ -265,7 +266,7 @@
             <h1>nav3d</h1>
         </div>
         <div class="search-container">
-            <input type="text" id="search-input" class="search-input" placeholder="Search examples...">
+            <input type="text" id="search-input" class="search-input" placeholder="Search examples..." />
         </div>
         <ul class="examples-list" id="examples-list"></ul>
     </div>
@@ -280,40 +281,47 @@
 
     <script>
         const examples = {
-            'solo-navmesh': {
-                title: 'Solo NavMesh',
-                description: 'Example of generating a single tile navmesh',
-                tags: ['basic', 'cube', 'rotation']
+            "solo-navmesh": {
+                title: "Solo NavMesh",
+                description: "Example of generating a single tile navmesh",
+                tags: ["navmesh generation"],
             },
-            'tiled-navmesh': {
-                title: 'Tiled NavMesh',
-                description: 'Example of generating a tiled navmesh',
-                tags: ['cube', 'animation', 'orange']
-            }
+            "tiled-navmesh": {
+                title: "Tiled NavMesh",
+                description: "Example of generating a tiled navmesh",
+                tags: ["navmesh generation"],
+            },
+            "find-path": {
+                title: "Find Path",
+                description: "Example of finding a path on the navmesh",
+                tags: ["path"],
+            },
         };
 
         function addExamplesToSidebar() {
-            const examplesList = document.getElementById('examples-list');
+            const examplesList = document.getElementById("examples-list");
 
-            const examplesHTML = Object.entries(examples).map(([key, example]) => {
-                const tagsHTML = example.tags.map(tag =>
-                    `<span class="example-tag">${tag}</span>`
-                ).join('');
+            const examplesHTML = Object.entries(examples)
+                .map(([key, example]) => {
+                    const tagsHTML = example.tags
+                        .map((tag) => `<span class="example-tag">${tag}</span>`)
+                        .join("");
 
-                return `
-          <li>
-            <div class="example-item" data-example="${key}">
-              <div class="example-preview">
-                <img src="./screenshots/${key}.png" alt="${example.title}" class="example-screenshot">
-                <div class="example-info">
-                  <h3 class="example-title">${example.title}</h3>
-                  <p class="example-description">${example.description}</p>
-                </div>
-              </div>
-            </div>
-          </li>
-        `;
-            }).join('');
+                    return `
+                <li>
+                    <div class="example-item" data-example="${key}">
+                    <div class="example-preview">
+                        <img src="./screenshots/${key}.png" alt="${example.title}" class="example-screenshot">
+                        <div class="example-info">
+                        <h3 class="example-title">${example.title}</h3>
+                        <p class="example-description">${example.description}</p>
+                        </div>
+                    </div>
+                    </div>
+                </li>
+            `;
+                })
+                .join("");
 
             examplesList.innerHTML = examplesHTML;
         }
@@ -321,61 +329,65 @@
         // initialize examples list
         addExamplesToSidebar();
 
-        const titleElement = document.getElementById('example-title');
-        const frameElement = document.getElementById('example-frame');
-        const hamburger = document.getElementById('hamburger');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.getElementById('sidebar-overlay');
-        const searchInput = document.getElementById('search-input');
+        const titleElement = document.getElementById("example-title");
+        const frameElement = document.getElementById("example-frame");
+        const hamburger = document.getElementById("hamburger");
+        const sidebar = document.getElementById("sidebar");
+        const sidebarOverlay = document.getElementById("sidebar-overlay");
+        const searchInput = document.getElementById("search-input");
 
         // search functionality
         function filterExamples() {
             const searchTerm = searchInput.value.toLowerCase();
-            const exampleItems = document.querySelectorAll('.examples-list li');
+            const exampleItems = document.querySelectorAll(".examples-list li");
 
-            exampleItems.forEach(item => {
-                const exampleKey = item.querySelector('.example-item').getAttribute('data-example');
+            exampleItems.forEach((item) => {
+                const exampleKey = item
+                    .querySelector(".example-item")
+                    .getAttribute("data-example");
                 const example = examples[exampleKey];
 
                 // search in title, description, and tags
                 const searchableText = [
                     example.title,
                     example.description,
-                    ...example.tags
-                ].join(' ').toLowerCase();
+                    ...example.tags,
+                ]
+                    .join(" ")
+                    .toLowerCase();
 
                 if (searchableText.includes(searchTerm)) {
-                    item.style.display = '';
+                    item.style.display = "";
                 } else {
-                    item.style.display = 'none';
+                    item.style.display = "none";
                 }
             });
         }
 
         // attach search event listener
-        searchInput.addEventListener('input', filterExamples);
+        searchInput.addEventListener("input", filterExamples);
 
         // handle sidebar clicks
         function attachEventListeners() {
-            const exampleItems = document.querySelectorAll('.example-item');
-            exampleItems.forEach(item => {
-                item.addEventListener('click', (e) => {
+            const exampleItems = document.querySelectorAll(".example-item");
+            exampleItems.forEach((item) => {
+                item.addEventListener("click", (e) => {
                     e.preventDefault();
-                    const exampleKey = item.getAttribute('data-example');
+                    const exampleKey = item.getAttribute("data-example");
                     loadExample(exampleKey);
                 });
             });
         }
 
         // mobile navigation
-        hamburger.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            sidebarOverlay.classList.toggle('show');
+        hamburger.addEventListener("click", () => {
+            sidebar.classList.toggle("open");
+            sidebarOverlay.classList.toggle("show");
         });
 
-        sidebarOverlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            sidebarOverlay.classList.remove('show');
+        sidebarOverlay.addEventListener("click", () => {
+            sidebar.classList.remove("open");
+            sidebarOverlay.classList.remove("show");
         });
 
         function loadExample(exampleKey) {
@@ -386,11 +398,11 @@
             frameElement.src = `./${exampleKey}.html`;
 
             // update active item
-            const exampleItems = document.querySelectorAll('.example-item');
-            exampleItems.forEach(item => {
-                item.classList.remove('active');
-                if (item.getAttribute('data-example') === exampleKey) {
-                    item.classList.add('active');
+            const exampleItems = document.querySelectorAll(".example-item");
+            exampleItems.forEach((item) => {
+                item.classList.remove("active");
+                if (item.getAttribute("data-example") === exampleKey) {
+                    item.classList.add("active");
                 }
             });
 
@@ -398,8 +410,8 @@
             window.location.hash = exampleKey;
 
             // close mobile sidebar
-            sidebar.classList.remove('open');
-            sidebarOverlay.classList.remove('show');
+            sidebar.classList.remove("open");
+            sidebarOverlay.classList.remove("show");
         }
 
         // handle hash changes
@@ -416,7 +428,7 @@
 
         // initialize
         attachEventListeners();
-        window.addEventListener('hashchange', handleHashChange);
+        window.addEventListener("hashchange", handleHashChange);
         handleHashChange(); // check initial hash or load default
     </script>
 </body>
