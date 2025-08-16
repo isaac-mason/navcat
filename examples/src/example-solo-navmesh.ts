@@ -22,7 +22,7 @@ orbitControls.enableDamping = true;
 const navTestModel = await loadGLTF('/models/nav-test.glb');
 scene.add(navTestModel.scene);
 
-/* setup navmesh generation parameters */
+/* navmesh generation parameters */
 const config = {
     cellSize: 0.15,
     cellHeight: 0.15,
@@ -40,7 +40,7 @@ const config = {
     detailSampleMaxError: 1,
 };
 
-/* setup debug helpers configuration */
+/* debug helpers configuration */
 const debugConfig = {
     showMesh: true,
     showTriangleAreaIds: false,
