@@ -1139,6 +1139,7 @@ export const findPath = (
 export type MoveAlongSurfaceResult = {
     success: boolean;
     resultPosition: Vec3;
+    resultRef: NodeRef;
     visited: NodeRef[];
 };
 
@@ -1175,7 +1176,8 @@ export const moveAlongSurface = (
 ): MoveAlongSurfaceResult => {
     const result: MoveAlongSurfaceResult = {
         success: false,
-        resultPosition: vec3.create(),
+        resultPosition: vec3.clone(startPosition),
+        resultRef: startRef,
         visited: [],
     };
 
@@ -1230,6 +1232,7 @@ export const moveAlongSurface = (
         const { tile, poly } = tileAndPoly;
 
         // collect vertices
+        // TODO: temporary allocate max vertices per polygon and reuse
         const nverts = poly.vertices.length;
         const verts: number[] = [];
         for (let i = 0; i < nverts; ++i) {
@@ -1378,6 +1381,7 @@ export const moveAlongSurface = (
 
     vec3.copy(result.resultPosition, bestPos);
     result.visited = visited;
+    result.resultRef = result.visited[result.visited.length - 1];
 
     return result;
 };

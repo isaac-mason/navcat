@@ -1,0 +1,261 @@
+import { type Vec3, vec3 } from 'maaths';
+import {
+    createFindNearestPolyResult,
+    createGetPolyHeightResult,
+    DEFAULT_QUERY_FILTER,
+    findNearestPoly,
+    getPolyHeight,
+    getTileAndPolyByRef,
+    moveAlongSurface,
+    three as threeUtils,
+} from 'nav3d';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { createExample } from './common/example-boilerplate';
+import {
+    generateTiledNavMesh,
+    type TiledNavMeshInput,
+    type TiledNavMeshOptions,
+} from './common/generate-tiled-nav-mesh';
+import { loadGLTF } from './common/load-gltf';
+
+/* setup example scene */
+const container = document.getElementById('root')!;
+const { scene, camera, renderer } = await createExample(container);
+
+camera.position.set(-2, 10, 10);
+
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.enableDamping = true;
+
+const navTestModel = await loadGLTF('/models/nav-test.glb');
+scene.add(navTestModel.scene);
+
+/* generate navmesh */
+const walkableMeshes: THREE.Mesh[] = [];
+scene.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+        walkableMeshes.push(object);
+    }
+});
+
+const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+
+const navMeshInput: TiledNavMeshInput = {
+    positions,
+    indices,
+};
+
+const cellSize = 0.1;
+const cellHeight = 0.1;
+
+const tileSizeVoxels = 64;
+const tileSizeWorld = tileSizeVoxels * cellSize;
+
+const walkableRadiusWorld = 0.2;
+const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+const walkableClimbWorld = 0.5;
+const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
+const walkableHeightWorld = 1;
+const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
+const walkableSlopeAngleDegrees = 45;
+
+const borderSize = 4;
+const minRegionArea = 8;
+const mergeRegionArea = 20;
+
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+
+const maxVerticesPerPoly = 5;
+const detailSampleDistance = 6;
+const detailSampleMaxError = 1;
+
+const navMeshConfig: TiledNavMeshOptions = {
+    cellSize,
+    cellHeight,
+    tileSizeVoxels,
+    tileSizeWorld,
+    walkableRadiusWorld,
+    walkableRadiusVoxels,
+    walkableClimbWorld,
+    walkableClimbVoxels,
+    walkableHeightWorld,
+    walkableHeightVoxels,
+    walkableSlopeAngleDegrees,
+    borderSize,
+    minRegionArea,
+    mergeRegionArea,
+    maxSimplificationError,
+    maxEdgeLength,
+    maxVerticesPerPoly,
+    detailSampleDistance,
+    detailSampleMaxError,
+};
+
+const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
+const navMesh = navMeshResult.navMesh;
+
+const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+navMeshHelper.object.position.y += 0.1;
+scene.add(navMeshHelper.object);
+
+/* create agent state */
+const agentState: {
+    position: Vec3;
+    input: {
+        left: boolean;
+        right: boolean;
+        up: boolean;
+        down: boolean;
+    };
+} = {
+    position: [-3.5, 0.26, 4.71],
+    input: {
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+    },
+};
+
+/* create agent mesh */
+const agentMesh = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.2, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+);
+agentMesh.geometry.translate(0, 0.3, 0);
+
+scene.add(agentMesh);
+
+/* create keyboard input listeners */
+window.addEventListener('keydown', (e) => {
+    switch (e.key) {
+        case 'a':
+            agentState.input.left = true;
+            break;
+        case 'd':
+            agentState.input.right = true;
+            break;
+        case 'w':
+            agentState.input.up = true;
+            break;
+        case 's':
+            agentState.input.down = true;
+            break;
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    switch (e.key) {
+        case 'a':
+            agentState.input.left = false;
+            break;
+        case 'd':
+            agentState.input.right = false;
+            break;
+        case 'w':
+            agentState.input.up = false;
+            break;
+        case 's':
+            agentState.input.down = false;
+            break;
+    }
+});
+
+/* loop */
+let time = performance.now();
+
+function updateAgentMovement(deltaTime: number) {
+    // get move request from input
+    const moveRequest: Vec3 = [0, 0, 0];
+
+    if (agentState.input.up) {
+        moveRequest[2] -= 1;
+    }
+    if (agentState.input.down) {
+        moveRequest[2] += 1;
+    }
+    if (agentState.input.left) {
+        moveRequest[0] -= 1;
+    }
+    if (agentState.input.right) {
+        moveRequest[0] += 1;
+    }
+
+    vec3.normalize(moveRequest, moveRequest);
+    vec3.scale(moveRequest, moveRequest, deltaTime * 5);
+
+    // get move target position
+    const moveRequestTarget = vec3.add(
+        vec3.create(),
+        agentState.position,
+        moveRequest,
+    );
+
+    // find start node
+    const nearestPolyResult = findNearestPoly(
+        createFindNearestPolyResult(),
+        navMesh,
+        agentState.position,
+        [0.1, 0.1, 0.1],
+        DEFAULT_QUERY_FILTER,
+    );
+
+    if (!nearestPolyResult.success) return;
+
+    vec3.copy(agentState.position, nearestPolyResult.nearestPoint);
+
+    if (vec3.length(moveRequest) <= 0) return;
+
+    // move along surface
+    const moveAlongSurfaceResult = moveAlongSurface(
+        navMesh,
+        nearestPolyResult.nearestPolyRef,
+        nearestPolyResult.nearestPoint,
+        moveRequestTarget,
+        DEFAULT_QUERY_FILTER,
+    );
+
+    if (!moveAlongSurfaceResult.success) return;
+
+    vec3.copy(agentState.position, moveAlongSurfaceResult.resultPosition);
+
+    // get poly and tile
+    const tileAndPoly = getTileAndPolyByRef(
+        moveAlongSurfaceResult.resultRef,
+        navMesh,
+    );
+
+    if (!tileAndPoly.success) return;
+
+    // get poly height
+    const polyHeightResult = getPolyHeight(
+        createGetPolyHeightResult(),
+        tileAndPoly.tile,
+        tileAndPoly.poly,
+        tileAndPoly.polyIndex,
+        nearestPolyResult.nearestPoint,
+    );
+
+    if (polyHeightResult.success) {
+        agentState.position[1] = polyHeightResult.height;
+    }
+}
+
+function update() {
+    requestAnimationFrame(update);
+
+    const now = performance.now();
+    const deltaTime = (now - time) / 1000;
+    time = now;
+
+    updateAgentMovement(deltaTime);
+
+    agentMesh.position.fromArray(agentState.position);
+
+    orbitControls.update();
+    renderer.render(scene, camera);
+}
+
+update();

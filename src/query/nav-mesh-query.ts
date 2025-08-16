@@ -60,17 +60,17 @@ export const getNodeAreaAndFlags = (
 
 export type GetTileAndPolyByRefResult =
     | {
-          success: false;
-          tile: NavMeshTile | null;
-          poly: NavMeshPoly | null;
-          polyIndex: number;
-      }
+        success: false;
+        tile: NavMeshTile | null;
+        poly: NavMeshPoly | null;
+        polyIndex: number;
+    }
     | {
-          success: true;
-          tile: NavMeshTile;
-          poly: NavMeshPoly;
-          polyIndex: number;
-      };
+        success: true;
+        tile: NavMeshTile;
+        poly: NavMeshPoly;
+        polyIndex: number;
+    };
 
 /**
  * Gets the tile and polygon from a polygon reference
@@ -115,6 +115,16 @@ const _getPolyHeightV0 = vec3.create();
 const _getPolyHeightV1 = vec3.create();
 const _getPolyHeightV2 = vec3.create();
 
+export type GetPolyHeightResult = {
+    success: boolean;
+    height: number;
+}
+
+export const createGetPolyHeightResult = (): GetPolyHeightResult => ({
+    success: false,
+    height: 0,
+});
+
 /**
  * Gets the height of a polygon at a given point using detail mesh if available
  * @param tile The tile containing the polygon
@@ -125,11 +135,15 @@ const _getPolyHeightV2 = vec3.create();
  * @returns True if height was found
  */
 export const getPolyHeight = (
+    result: GetPolyHeightResult,
     tile: NavMeshTile,
     poly: NavMeshPoly,
     polyIndex: number,
     pos: Vec3,
-): number => {
+): GetPolyHeightResult => {
+    result.success = false;
+    result.height = 0;
+
     // check if we have detail mesh data
     const detailMesh = tile.detailMeshes?.[polyIndex];
 
@@ -174,7 +188,9 @@ export const getPolyHeight = (
             // check if point is inside triangle and calculate height
             const h = getHeightAtPoint(v0, v1, v2, pos);
             if (h !== null) {
-                return h;
+                result.success = true;
+                result.height = h;
+                return result;
             }
         }
     }
@@ -192,11 +208,13 @@ export const getPolyHeight = (
         const h = getHeightAtPoint(v0, v1, v2, pos);
 
         if (h !== null) {
-            return h;
+            result.success = true;
+            result.height = h;
+            return result;
         }
     }
 
-    return Number.NaN;
+    return result;
 };
 
 const _closestOnDetailEdges: Vec3 = [0, 0, 0];
@@ -285,8 +303,8 @@ const _detailClosestPoint = vec3.create();
 
 const _getClosestPointOnPolyLineStart = vec3.create();
 const _getClosestPointOnPolyLineEnd = vec3.create();
+const _getClosestPointOnPolyHeightResult = createGetPolyHeightResult()
 
-// TODO: should this be renamed to closestPointOnNode and handle off-mesh connections? TBD
 export const getClosestPointOnPoly = (
     result: GetClosestPointOnPolyResult,
     navMesh: NavMesh,
@@ -323,10 +341,11 @@ export const getClosestPointOnPoly = (
         result.isOverPoly = true;
 
         // find height at the position
-        const height = getPolyHeight(tile, poly, polyIndex, point);
-        if (!Number.isNaN(height)) {
+        const getPolyHeightResult = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, polyIndex, point);
+
+        if (getPolyHeightResult.success) {
             result.closestPoint[0] = point[0];
-            result.closestPoint[1] = height;
+            result.closestPoint[1] = getPolyHeightResult.height;
             result.closestPoint[2] = point[2];
         } else {
             // fallback to polygon center height
