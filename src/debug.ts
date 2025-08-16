@@ -1023,8 +1023,8 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
     }
 
     // Draw polygon boundaries
-    const innerColor = [0, 48 / 255 * 32 / 255, 64 / 255 * 32 / 255];
-    const outerColor = [0, 48 / 255 * 220 / 255, 64 / 255 * 220 / 255];
+    const innerColor = [0.2, 0.2, 0.2];
+    const outerColor = [0.6, 0.6, 1];
 
     for (const polyId in tile.polys) {
       const poly = tile.polys[polyId];
@@ -1342,6 +1342,191 @@ export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
 
     const tilePrimitives = createNavMeshTileBvTreeHelper(tile);
     primitives.push(...tilePrimitives);
+  }
+
+  return primitives;
+}
+
+export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
+  const primitives: DebugPrimitive[] = [];
+
+  if (!navMesh.links || navMesh.links.length === 0) {
+    return primitives;
+  }
+
+  // Arrays for line data
+  const linePositions: number[] = [];
+  const lineColors: number[] = [];
+
+  // Color for navmesh links
+  const linkColor: [number, number, number] = [1, 1, 0]; // Bright yellow
+
+  // Helper function to lerp between two values
+  const lerp = (start: number, end: number, t: number): number => start + (end - start) * t;
+
+  // Helper function to calculate polygon center
+  const getPolyCenter = (tile: NavMeshTile, poly: any): [number, number, number] => {
+    let centerX = 0;
+    let centerY = 0; 
+    let centerZ = 0;
+    const nv = poly.vertices.length;
+
+    for (let i = 0; i < nv; i++) {
+      const vertIndex = poly.vertices[i] * 3;
+      centerX += tile.vertices[vertIndex];
+      centerY += tile.vertices[vertIndex + 1];
+      centerZ += tile.vertices[vertIndex + 2];
+    }
+
+    return [centerX / nv, centerY / nv, centerZ / nv];
+  };
+
+  // Process each link
+  for (const link of navMesh.links) {
+    if (!link) continue;
+
+    // Get source polygon info
+    const [, sourceTileId, sourcePolyId] = desNodeRef(link.ref);
+    const sourceTile = navMesh.tiles[sourceTileId];
+    const sourcePoly = sourceTile?.polys[sourcePolyId];
+    
+    // Get target polygon info
+    const [, targetTileId, targetPolyId] = desNodeRef(link.neighbourRef);
+    const targetTile = navMesh.tiles[targetTileId];
+    const targetPoly = targetTile?.polys[targetPolyId];
+
+    if (!sourceTile || !sourcePoly || !targetTile || !targetPoly) {
+      continue;
+    }
+
+    // Calculate polygon centers
+    const sourceCenter = getPolyCenter(sourceTile, sourcePoly);
+    const targetCenter = getPolyCenter(targetTile, targetPoly);
+
+    // Get the edge vertices for this link
+    const edgeIndex = link.edge;
+    const nextEdgeIndex = (edgeIndex + 1) % sourcePoly.vertices.length;
+    
+    const v0Index = sourcePoly.vertices[edgeIndex] * 3;
+    const v1Index = sourcePoly.vertices[nextEdgeIndex] * 3;
+    
+    const edgeStart = [
+      sourceTile.vertices[v0Index],
+      sourceTile.vertices[v0Index + 1],
+      sourceTile.vertices[v0Index + 2]
+    ];
+    const edgeEnd = [
+      sourceTile.vertices[v1Index],
+      sourceTile.vertices[v1Index + 1],
+      sourceTile.vertices[v1Index + 2]
+    ];
+
+    // Calculate edge midpoint
+    const edgeMidpoint = [
+      (edgeStart[0] + edgeEnd[0]) / 2,
+      (edgeStart[1] + edgeEnd[1]) / 2,
+      (edgeStart[2] + edgeEnd[2]) / 2
+    ];
+
+    // Move the edge midpoint slightly towards the polygon center (10% of the way)
+    const inwardFactor = 0.1;
+    const sourcePoint = [
+      lerp(edgeMidpoint[0], sourceCenter[0], inwardFactor),
+      lerp(edgeMidpoint[1], sourceCenter[1], inwardFactor) + 0.05, // slight y offset
+      lerp(edgeMidpoint[2], sourceCenter[2], inwardFactor)
+    ];
+
+    // For the target, use the target polygon center
+    const targetPoint = [
+      targetCenter[0],
+      targetCenter[1] + 0.05,
+      targetCenter[2]
+    ];
+
+    // Create arced line with multiple segments
+    const numSegments = 12;
+    const arcHeight = 0.3;
+    
+    for (let i = 0; i < numSegments; i++) {
+      const t0 = i / numSegments;
+      const t1 = (i + 1) / numSegments;
+      
+      // Calculate positions along arc with sinusoidal height
+      const x0 = lerp(sourcePoint[0], targetPoint[0], t0);
+      const y0 = lerp(sourcePoint[1], targetPoint[1], t0) + Math.sin(t0 * Math.PI) * arcHeight;
+      const z0 = lerp(sourcePoint[2], targetPoint[2], t0);
+      
+      const x1 = lerp(sourcePoint[0], targetPoint[0], t1);
+      const y1 = lerp(sourcePoint[1], targetPoint[1], t1) + Math.sin(t1 * Math.PI) * arcHeight;
+      const z1 = lerp(sourcePoint[2], targetPoint[2], t1);
+
+      // Add line segment
+      linePositions.push(x0, y0, z0, x1, y1, z1);
+      
+      // Add colors for both endpoints
+      lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
+      lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
+    }
+
+    // Add a simple arrow at the end to show direction
+    const arrowT = 0.85; // Position arrow near the end
+    const arrowX = lerp(sourcePoint[0], targetPoint[0], arrowT);
+    const arrowY = lerp(sourcePoint[1], targetPoint[1], arrowT) + Math.sin(arrowT * Math.PI) * arcHeight;
+    const arrowZ = lerp(sourcePoint[2], targetPoint[2], arrowT);
+    
+    // Calculate direction for arrow
+    const nextT = 0.95;
+    const nextX = lerp(sourcePoint[0], targetPoint[0], nextT);
+    const nextY = lerp(sourcePoint[1], targetPoint[1], nextT) + Math.sin(nextT * Math.PI) * arcHeight;
+    const nextZ = lerp(sourcePoint[2], targetPoint[2], nextT);
+    
+    const dirX = nextX - arrowX;
+    const dirY = nextY - arrowY;
+    const dirZ = nextZ - arrowZ;
+    const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ) || 1;
+    const nx = dirX / len;
+    const ny = dirY / len;
+    const nz = dirZ / len;
+    
+    // Create arrow head with two lines
+    const arrowLength = 0.15;
+    const arrowWidth = 0.08;
+    
+    // Calculate perpendicular vectors for arrow wings
+    const perpX = -nz;
+    const perpZ = nx;
+    
+    // Left wing
+    linePositions.push(
+      arrowX, arrowY, arrowZ,
+      arrowX - nx * arrowLength + perpX * arrowWidth, 
+      arrowY - ny * arrowLength, 
+      arrowZ - nz * arrowLength + perpZ * arrowWidth
+    );
+    
+    // Right wing
+    linePositions.push(
+      arrowX, arrowY, arrowZ,
+      arrowX - nx * arrowLength - perpX * arrowWidth, 
+      arrowY - ny * arrowLength, 
+      arrowZ - nz * arrowLength - perpZ * arrowWidth
+    );
+    
+    // Add colors for arrow (4 vertices = 2 line segments)
+    for (let k = 0; k < 4; k++) {
+      lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
+    }
+  }
+
+  if (linePositions.length > 0) {
+    primitives.push({
+      type: DebugPrimitiveType.Lines,
+      positions: linePositions,
+      colors: lineColors,
+      transparent: true,
+      opacity: 0.9,
+      lineWidth: 3.0,
+    });
   }
 
   return primitives;

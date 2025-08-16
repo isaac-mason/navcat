@@ -318,6 +318,11 @@ export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugOb
   return primitivesToThreeJS(primitives);
 }
 
+export function createNavMeshLinksHelper(navMesh: NavMesh): DebugObject {
+  const primitives = Debug.createNavMeshLinksHelper(navMesh);
+  return primitivesToThreeJS(primitives);
+}
+
 export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugObject {
   const primitives = Debug.createNavMeshBvTreeHelper(navMesh);
   return primitivesToThreeJS(primitives);

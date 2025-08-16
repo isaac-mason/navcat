@@ -100,6 +100,9 @@ const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
+const navMeshLinksHelper = threeUtils.createNavMeshLinksHelper(navMesh);
+scene.add(navMeshLinksHelper.object);
+
 /* create agent state */
 const agentState: {
     position: Vec3;
