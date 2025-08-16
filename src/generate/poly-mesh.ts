@@ -843,9 +843,9 @@ const removeVertex = (mesh: PolyMesh, remVertexIdx: number, maxTris: number): bo
     const hole: number[] = new Array(numRemovedVerts * nvp);
     let nhole = 0;
     const hreg: number[] = new Array(numRemovedVerts * nvp);
-    let nhreg = 0;
+    // let nhreg = 0;
     const harea: number[] = new Array(numRemovedVerts * nvp);
-    let nharea = 0;
+    // let nharea = 0;
 
     for (let i = 0; i < mesh.nPolys; i++) {
         const polyStart = i * nvp;
@@ -930,8 +930,8 @@ const removeVertex = (mesh: PolyMesh, remVertexIdx: number, maxTris: number): bo
     pushBack(edges[3], harea, nhareaRef);
 
     nhole = nholeRef.value;
-    nhreg = nhregRef.value;
-    nharea = nhareaRef.value;
+    // nhreg = nhregRef.value;
+    // nharea = nhareaRef.value;
 
     while (nedges > 0) {
         let match = false;
@@ -969,8 +969,8 @@ const removeVertex = (mesh: PolyMesh, remVertexIdx: number, maxTris: number): bo
             }
 
             nhole = nholeRef.value;
-            nhreg = nhregRef.value;
-            nharea = nhareaRef.value;
+            // nhreg = nhregRef.value;
+            // nharea = nhareaRef.value;
         }
 
         if (!match) {
