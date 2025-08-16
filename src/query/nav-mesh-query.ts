@@ -503,6 +503,7 @@ export const createFindNearestPolyResult = (): FindNearestPolyResult => {
 };
 
 const _findNearestPolyClosestPointResult = createGetClosestPointOnPolyResult();
+const _findNearestPolyDiff = vec3.create();
 
 export const findNearestPoly = (
     result: FindNearestPolyResult,
@@ -530,10 +531,27 @@ export const findNearestPoly = (
         );
 
         if (closestPoint.success) {
-            const distSqr = vec3.squaredDistance(
-                center,
-                closestPoint.closestPoint,
-            );
+            const tileAndPoly = getTileAndPolyByRef(polyRef, navMesh);
+
+            if (!tileAndPoly.success) {
+                continue;
+            }
+
+            const { tile } = tileAndPoly;
+
+            // calculate difference vector
+            vec3.sub(_findNearestPolyDiff, center, closestPoint.closestPoint);
+
+            let distSqr: number;
+
+            // if a point is directly over a polygon and closer than
+            // climb height, favor that instead of straight line nearest point.
+            if (closestPoint.isOverPoly) {
+                const heightDiff = Math.abs(_findNearestPolyDiff[1]) - tile.walkableClimb;
+                distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
+            } else {
+                distSqr = vec3.squaredLength(_findNearestPolyDiff);
+            }
 
             if (distSqr < nearestDistSqr) {
                 nearestDistSqr = distSqr;
