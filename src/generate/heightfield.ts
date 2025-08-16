@@ -1,13 +1,13 @@
-import { type Box3, type Vec2, type Vec3, box3, clamp, vec3 } from 'maaths';
+import { type Box3, box3, clamp, type Vec2, type Vec3, vec3 } from 'maaths';
+import { BuildContext, type BuildContextState } from './build-context';
 import {
+    type ArrayLike,
     AXIS_X,
     AXIS_Z,
-    type ArrayLike,
-    NULL_AREA,
     getDirOffsetX,
     getDirOffsetY,
+    NULL_AREA,
 } from './common';
-import { BuildContext, type BuildContextState } from './build-context';
 
 export type HeightfieldSpan = {
     /** the lower limit of the span */
@@ -474,7 +474,7 @@ export const rasterizeTriangles = (
                 flagMergeThreshold,
             )
         ) {
-            BuildContext.error(ctx, "Failed to rasterize triangle");
+            BuildContext.error(ctx, 'Failed to rasterize triangle');
             return false;
         }
     }

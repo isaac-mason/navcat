@@ -1,7 +1,13 @@
 import type { Box3 } from 'maaths';
-import { AREA_BORDER, BORDER_VERTEX, CONTOUR_REG_MASK, NOT_CONNECTED } from './common';
-import { BORDER_REG } from './common';
-import { getDirOffsetX, getDirOffsetY } from './common';
+import {
+    AREA_BORDER,
+    BORDER_REG,
+    BORDER_VERTEX,
+    CONTOUR_REG_MASK,
+    getDirOffsetX,
+    getDirOffsetY,
+    NOT_CONNECTED,
+} from './common';
 import type { CompactHeightfield } from './compact-heightfield';
 import { getCon } from './compact-heightfield';
 
@@ -1008,19 +1014,6 @@ const compareHoles = (a: ContourHole, b: ContourHole): number => {
         if (a.minx > b.minx) {
             return 1;
         }
-    }
-    return 0;
-};
-
-const compareDiagDist = (
-    a: PotentialDiagonal,
-    b: PotentialDiagonal,
-): number => {
-    if (a.dist < b.dist) {
-        return -1;
-    }
-    if (a.dist > b.dist) {
-        return 1;
     }
     return 0;
 };

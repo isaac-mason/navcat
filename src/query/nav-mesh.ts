@@ -1,8 +1,18 @@
-import { vec3, type Box3, type Vec2, type Vec3 } from 'maaths';
-import { POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
-import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly } from './nav-mesh-query';
+import { type Box3, type Vec2, type Vec3, vec3 } from 'maaths';
+import {
+    POLY_NEIS_FLAG_EXT_LINK,
+    POLY_NEIS_FLAG_EXT_LINK_DIR_MASK,
+} from '../generate';
+import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-query';
+import {
+    desNodeRef,
+    type NodeRef,
+    serOffMeshNodeRef,
+    serPolyNodeRef,
+} from './node';
+import { DEFAULT_QUERY_FILTER } from './query-filter';
 
-/** a navigation mesh based on tiles of convex polygons */
+/** A navigation mesh based on tiles of convex polygons */
 export type NavMesh = {
     /** the world space origin of the navigation mesh's tiles */
     origin: Vec3;
@@ -39,43 +49,6 @@ export type NavMesh = {
 
     /** states of the off mesh connections */
     offMeshConnectionStates: Record<string, NavMeshOffMeshConnectionState>;
-};
-
-export enum NodeType {
-    /** the node is a standard ground convex polygon that is part of the surface of the mesh */
-    GROUND_POLY = 0,
-    /** the node is an off-mesh connection */
-    OFFMESH_CONNECTION = 1,
-}
-
-/** A serialized node reference */
-export type NodeRef = GroundPolyNodeRef | OffMeshConnectionNodeRef;
-export type GroundPolyNodeRef = `${NodeType.GROUND_POLY},${number},${number}`;
-export type OffMeshConnectionNodeRef = `${NodeType.OFFMESH_CONNECTION},${number},${number}`;
-
-/** A deserialised node reference */
-export type DeserialisedNodeRef = DeserialisedGroundNodeRef | DeserialisedOffMeshConnectionNodeRef;
-export type DeserialisedGroundNodeRef = [nodeType: NodeType.GROUND_POLY, tileId: number, nodeIndex: number];
-export type DeserialisedOffMeshConnectionNodeRef = [
-    nodeType: NodeType.OFFMESH_CONNECTION,
-    offMeshConnectionIndex: number,
-    side: OffMeshConnectionSide,
-];
-
-export const serOffMeshNodeRef = (offMeshConnectionId: string, side: OffMeshConnectionSide): NodeRef => {
-    return `${NodeType.OFFMESH_CONNECTION},${offMeshConnectionId},${side}` as OffMeshConnectionNodeRef;
-};
-
-export function serPolyNodeRef(tileId: number, polyIndex: number): NodeRef {
-    return `${NodeType.GROUND_POLY},${tileId},${polyIndex}` as NodeRef;
-}
-
-export const getNodeRefType = (nodeRef: NodeRef): NodeType => {
-    return Number(nodeRef[0]) as NodeType;
-};
-
-export const desNodeRef = (nodeRef: NodeRef): DeserialisedNodeRef => {
-    return nodeRef.split(',').map(Number) as DeserialisedNodeRef;
 };
 
 export type NavMeshPoly = {
@@ -249,7 +222,7 @@ export type NavMeshTile = {
     walkableClimb: number;
 };
 
-export const create = (): NavMesh => {
+export const createNavMesh = (): NavMesh => {
     return {
         origin: [0, 0, 0],
         tileWidth: 0,
@@ -272,18 +245,35 @@ export const create = (): NavMesh => {
  * @param worldX the world tile x coordinate
  * @param worldY the world tile y coordinate (along the z axis)
  */
-export const worldToTilePosition = (outTilePosition: Vec2, navMesh: NavMesh, worldPosition: Vec3) => {
-    outTilePosition[0] = Math.floor((worldPosition[0] - navMesh.origin[0]) / navMesh.tileWidth);
-    outTilePosition[1] = Math.floor((worldPosition[2] - navMesh.origin[2]) / navMesh.tileHeight);
+export const worldToTilePosition = (
+    outTilePosition: Vec2,
+    navMesh: NavMesh,
+    worldPosition: Vec3,
+) => {
+    outTilePosition[0] = Math.floor(
+        (worldPosition[0] - navMesh.origin[0]) / navMesh.tileWidth,
+    );
+    outTilePosition[1] = Math.floor(
+        (worldPosition[2] - navMesh.origin[2]) / navMesh.tileHeight,
+    );
     return outTilePosition;
 };
 
-export const getTileAt = (navMesh: NavMesh, x: number, y: number, layer: number): NavMeshTile | undefined => {
+export const getTileAt = (
+    navMesh: NavMesh,
+    x: number,
+    y: number,
+    layer: number,
+): NavMeshTile | undefined => {
     const tileHash = getTilePositionHash(x, y, layer);
     return navMesh.tiles[tileHash];
 };
 
-export const getTilesAt = (navMesh: NavMesh, x: number, y: number): NavMeshTile[] => {
+export const getTilesAt = (
+    navMesh: NavMesh,
+    x: number,
+    y: number,
+): NavMeshTile[] => {
     const tiles: NavMeshTile[] = [];
 
     for (const tileIndex in navMesh.tiles) {
@@ -296,7 +286,12 @@ export const getTilesAt = (navMesh: NavMesh, x: number, y: number): NavMeshTile[
     return tiles;
 };
 
-const getNeighbourTilesAt = (navMesh: NavMesh, x: number, y: number, side: number): NavMeshTile[] => {
+const getNeighbourTilesAt = (
+    navMesh: NavMesh,
+    x: number,
+    y: number,
+    side: number,
+): NavMeshTile[] => {
     let nx = x;
     let ny = y;
 
@@ -390,7 +385,10 @@ const createInternalLinks = (navMesh: NavMesh, tile: NavMeshTile) => {
             // internal connection - create link
             const neighborPolyIndex = neiValue - 1; // convert back to 0-based indexing
 
-            if (neighborPolyIndex >= 0 && neighborPolyIndex < tile.polys.length) {
+            if (
+                neighborPolyIndex >= 0 &&
+                neighborPolyIndex < tile.polys.length
+            ) {
                 const linkIndex = allocateLink(navMesh);
                 const link = navMesh.links[linkIndex];
 
@@ -419,7 +417,13 @@ const getSlabCoord = (v: Vec3, side: number): number => {
 
 // Calculate 2D endpoints (u,y) for edge segment projected onto the portal axis plane.
 // For x-portals (side 0/4) we use u = z, for z-portals (2/6) u = x.
-const calcSlabEndPoints = (va: Vec3, vb: Vec3, bmin: Vec3, bmax: Vec3, side: number) => {
+const calcSlabEndPoints = (
+    va: Vec3,
+    vb: Vec3,
+    bmin: Vec3,
+    bmax: Vec3,
+    side: number,
+) => {
     if (side === 0 || side === 4) {
         if (va[2] < vb[2]) {
             bmin[0] = va[2];
@@ -448,7 +452,14 @@ const calcSlabEndPoints = (va: Vec3, vb: Vec3, bmin: Vec3, bmax: Vec3, side: num
 };
 
 // Overlap test of two edge slabs in (u,y) space, with tolerances px (horizontal pad) and py (vertical threshold)
-const overlapSlabs = (amin: Vec3, amax: Vec3, bmin: Vec3, bmax: Vec3, px: number, py: number): boolean => {
+const overlapSlabs = (
+    amin: Vec3,
+    amax: Vec3,
+    bmin: Vec3,
+    bmax: Vec3,
+    px: number,
+    py: number,
+): boolean => {
     const minx = Math.max(amin[0] + px, bmin[0] + px);
     const maxx = Math.min(amax[0] - px, bmax[0] - px);
     if (minx > maxx) return false; // no horizontal overlap
@@ -513,8 +524,16 @@ const findConnectingPolys = (
 
             const vcIndex = poly.vertices[j];
             const vdIndex = poly.vertices[(j + 1) % nv];
-            const vc: Vec3 = [target.vertices[vcIndex * 3], target.vertices[vcIndex * 3 + 1], target.vertices[vcIndex * 3 + 2]];
-            const vd: Vec3 = [target.vertices[vdIndex * 3], target.vertices[vdIndex * 3 + 1], target.vertices[vdIndex * 3 + 2]];
+            const vc: Vec3 = [
+                target.vertices[vcIndex * 3],
+                target.vertices[vcIndex * 3 + 1],
+                target.vertices[vcIndex * 3 + 2],
+            ];
+            const vd: Vec3 = [
+                target.vertices[vdIndex * 3],
+                target.vertices[vdIndex * 3 + 1],
+                target.vertices[vdIndex * 3 + 2],
+            ];
 
             const bpos = getSlabCoord(vc, side);
 
@@ -522,7 +541,17 @@ const findConnectingPolys = (
             if (Math.abs(apos - bpos) > 0.01) continue;
 
             calcSlabEndPoints(vc, vd, _bmin, _bmax, side);
-            if (!overlapSlabs(_amin, _amax, _bmin, _bmax, 0.01, target.walkableClimb)) continue;
+            if (
+                !overlapSlabs(
+                    _amin,
+                    _amax,
+                    _bmin,
+                    _bmax,
+                    0.01,
+                    target.walkableClimb,
+                )
+            )
+                continue;
 
             // record overlap interval
             results.push({
@@ -541,7 +570,12 @@ const findConnectingPolys = (
 const _va = vec3.create();
 const _vb = vec3.create();
 
-const connectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, target: NavMeshTile, side: number) => {
+const connectExternalLinks = (
+    navMesh: NavMesh,
+    tile: NavMeshTile,
+    target: NavMeshTile,
+    side: number,
+) => {
     // connect border links
     for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
         const poly = tile.polys[polyIndex];
@@ -561,11 +595,24 @@ const connectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, target: NavMe
             }
 
             // create new links
-            const va = vec3.fromBuffer(_va, tile.vertices, poly.vertices[j] * 3);
-            const vb = vec3.fromBuffer(_vb, tile.vertices, poly.vertices[(j + 1) % nv] * 3);
+            const va = vec3.fromBuffer(
+                _va,
+                tile.vertices,
+                poly.vertices[j] * 3,
+            );
+            const vb = vec3.fromBuffer(
+                _vb,
+                tile.vertices,
+                poly.vertices[(j + 1) % nv] * 3,
+            );
 
             // find overlaps against target tile along the opposite side direction
-            const overlaps = findConnectingPolys(va, vb, target, oppositeTile(dir));
+            const overlaps = findConnectingPolys(
+                va,
+                vb,
+                target,
+                oppositeTile(dir),
+            );
 
             for (const o of overlaps) {
                 // parameterize overlap interval along this edge to [0,1]
@@ -611,7 +658,11 @@ const connectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, target: NavMe
 /**
  * Disconnect external links from tile to target tile
  */
-export const disconnectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, target: NavMeshTile) => {
+const disconnectExternalLinks = (
+    navMesh: NavMesh,
+    tile: NavMeshTile,
+    target: NavMeshTile,
+) => {
     const targetId = target.id;
 
     for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
@@ -638,11 +689,21 @@ export const disconnectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, tar
     }
 };
 
-const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: string): boolean => {
-    const offMeshConnectionStartNodeRef = serOffMeshNodeRef(offMeshConnectionId, OffMeshConnectionSide.START);
-    const offMeshConnectionEndNodeRef = serOffMeshNodeRef(offMeshConnectionId, OffMeshConnectionSide.END);
+const disconnectOffMeshConnection = (
+    navMesh: NavMesh,
+    offMeshConnectionId: string,
+): boolean => {
+    const offMeshConnectionStartNodeRef = serOffMeshNodeRef(
+        offMeshConnectionId,
+        OffMeshConnectionSide.START,
+    );
+    const offMeshConnectionEndNodeRef = serOffMeshNodeRef(
+        offMeshConnectionId,
+        OffMeshConnectionSide.END,
+    );
 
-    const offMeshConnectionState = navMesh.offMeshConnectionStates[offMeshConnectionId];
+    const offMeshConnectionState =
+        navMesh.offMeshConnectionStates[offMeshConnectionId];
 
     // the off mesh connection is not connected, return false
     if (!offMeshConnectionState) return false;
@@ -656,7 +717,10 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: stri
         for (let i = startPolyLinks.length - 1; i >= 0; i--) {
             const linkId = startPolyLinks[i];
             const link = navMesh.links[linkId];
-            if (link.neighbourRef === offMeshConnectionStartNodeRef || link.neighbourRef === offMeshConnectionEndNodeRef) {
+            if (
+                link.neighbourRef === offMeshConnectionStartNodeRef ||
+                link.neighbourRef === offMeshConnectionEndNodeRef
+            ) {
                 releaseLink(navMesh, linkId);
                 startPolyLinks.splice(i, 1);
             }
@@ -669,7 +733,10 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: stri
         for (let i = endPolyLinks.length - 1; i >= 0; i--) {
             const linkId = endPolyLinks[i];
             const link = navMesh.links[linkId];
-            if (link.neighbourRef === offMeshConnectionStartNodeRef || link.neighbourRef === offMeshConnectionEndNodeRef) {
+            if (
+                link.neighbourRef === offMeshConnectionStartNodeRef ||
+                link.neighbourRef === offMeshConnectionEndNodeRef
+            ) {
                 releaseLink(navMesh, linkId);
                 endPolyLinks.splice(i, 1);
             }
@@ -706,6 +773,9 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: stri
     return true;
 };
 
+const _connectOffMeshConnectionNearestPolyStart = createFindNearestPolyResult();
+const _connectOffMeshConnectionNearestPolyEnd = createFindNearestPolyResult();
+
 const connectOffMeshConnection = (
     navMesh: NavMesh,
     offMeshConnectionId: string,
@@ -713,18 +783,26 @@ const connectOffMeshConnection = (
 ): boolean => {
     // find polys for the start and end positions
     const startTilePolyResult = findNearestPoly(
-        createFindNearestPolyResult(),
+        _connectOffMeshConnectionNearestPolyStart,
         navMesh,
         offMeshConnection.start,
-        [offMeshConnection.radius, offMeshConnection.radius, offMeshConnection.radius],
+        [
+            offMeshConnection.radius,
+            offMeshConnection.radius,
+            offMeshConnection.radius,
+        ],
         DEFAULT_QUERY_FILTER,
     );
 
     const endTilePolyResult = findNearestPoly(
-        createFindNearestPolyResult(),
+        _connectOffMeshConnectionNearestPolyEnd,
         navMesh,
         offMeshConnection.end,
-        [offMeshConnection.radius, offMeshConnection.radius, offMeshConnection.radius],
+        [
+            offMeshConnection.radius,
+            offMeshConnection.radius,
+            offMeshConnection.radius,
+        ],
         DEFAULT_QUERY_FILTER,
     );
 
@@ -741,13 +819,17 @@ const connectOffMeshConnection = (
     const endPolyLinks = navMesh.nodes[endPolyRef];
 
     // create a node for the off mesh connection start
-    const offMeshStartNodeRef = serOffMeshNodeRef(offMeshConnectionId, OffMeshConnectionSide.START);
+    const offMeshStartNodeRef = serOffMeshNodeRef(
+        offMeshConnectionId,
+        OffMeshConnectionSide.START,
+    );
     navMesh.nodes[offMeshStartNodeRef] = [];
     const offMeshStartNodeLinks = navMesh.nodes[offMeshStartNodeRef];
 
     // link the start poly to the off mesh node start
     const startPolyToOffMeshStartLinkIndex = allocateLink(navMesh);
-    const startPolyToOffMeshStartLink = navMesh.links[startPolyToOffMeshStartLinkIndex];
+    const startPolyToOffMeshStartLink =
+        navMesh.links[startPolyToOffMeshStartLinkIndex];
     startPolyToOffMeshStartLink.ref = startPolyRef;
     startPolyToOffMeshStartLink.neighbourRef = offMeshStartNodeRef;
     startPolyToOffMeshStartLink.bmin = 0; // not used for offmesh links
@@ -756,9 +838,10 @@ const connectOffMeshConnection = (
     startPolyToOffMeshStartLink.edge = 0; // not used for offmesh links
     startPolyLinks.push(startPolyToOffMeshStartLinkIndex);
 
-     // link the off mesh start node to the end poly
+    // link the off mesh start node to the end poly
     const offMeshStartToEndPolyLinkIndex = allocateLink(navMesh);
-    const offMeshStartToEndPolyLink = navMesh.links[offMeshStartToEndPolyLinkIndex];
+    const offMeshStartToEndPolyLink =
+        navMesh.links[offMeshStartToEndPolyLinkIndex];
     offMeshStartToEndPolyLink.ref = offMeshStartNodeRef;
     offMeshStartToEndPolyLink.neighbourRef = endPolyRef;
     offMeshStartToEndPolyLink.bmin = 0; // not used for offmesh links
@@ -767,15 +850,21 @@ const connectOffMeshConnection = (
     offMeshStartToEndPolyLink.edge = 0; // not used for offmesh links
     offMeshStartNodeLinks.push(offMeshStartToEndPolyLinkIndex);
 
-    if (offMeshConnection.direction === OffMeshConnectionDirection.BIDIRECTIONAL) {
+    if (
+        offMeshConnection.direction === OffMeshConnectionDirection.BIDIRECTIONAL
+    ) {
         // create a node for the off mesh connection end
-        const offMeshEndNodeRef = serOffMeshNodeRef(offMeshConnectionId, OffMeshConnectionSide.END);
+        const offMeshEndNodeRef = serOffMeshNodeRef(
+            offMeshConnectionId,
+            OffMeshConnectionSide.END,
+        );
         navMesh.nodes[offMeshEndNodeRef] = [];
         const offMeshEndNodeLinks = navMesh.nodes[offMeshEndNodeRef];
 
         // link the end poly node to the off mesh end node
         const endPolyToOffMeshEndLinkIndex = allocateLink(navMesh);
-        const endPolyToOffMeshEndLink = navMesh.links[endPolyToOffMeshEndLinkIndex];
+        const endPolyToOffMeshEndLink =
+            navMesh.links[endPolyToOffMeshEndLinkIndex];
         endPolyToOffMeshEndLink.ref = endPolyRef;
         endPolyToOffMeshEndLink.neighbourRef = offMeshEndNodeRef;
         endPolyToOffMeshEndLink.bmin = 0; // not used for offmesh links
@@ -786,7 +875,8 @@ const connectOffMeshConnection = (
 
         // link the off mesh end node to the start poly node
         const offMeshEndToStartPolyLinkIndex = allocateLink(navMesh);
-        const offMeshEndToStartPolyLink = navMesh.links[offMeshEndToStartPolyLinkIndex];
+        const offMeshEndToStartPolyLink =
+            navMesh.links[offMeshEndToStartPolyLinkIndex];
         offMeshEndToStartPolyLink.ref = offMeshEndNodeRef;
         offMeshEndToStartPolyLink.neighbourRef = startPolyRef;
         offMeshEndToStartPolyLink.bmin = 0; // not used for offmesh links
@@ -801,7 +891,8 @@ const connectOffMeshConnection = (
         startPolyRef,
         endPolyRef,
     };
-    navMesh.offMeshConnectionStates[offMeshConnectionId] = offMeshConnectionState;
+    navMesh.offMeshConnectionStates[offMeshConnectionId] =
+        offMeshConnectionState;
 
     // connected the off mesh connection, return true
     return true;
@@ -813,9 +904,16 @@ const connectOffMeshConnection = (
  * @param offMeshConnectionId the ID of the off mesh connection to reconnect
  * @returns whether the off mesh connection was successfully reconnected
  */
-export const reconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: string): boolean => {
+export const reconnectOffMeshConnection = (
+    navMesh: NavMesh,
+    offMeshConnectionId: string,
+): boolean => {
     disconnectOffMeshConnection(navMesh, offMeshConnectionId);
-    return connectOffMeshConnection(navMesh, offMeshConnectionId, navMesh.offMeshConnections[offMeshConnectionId]);
+    return connectOffMeshConnection(
+        navMesh,
+        offMeshConnectionId,
+        navMesh.offMeshConnections[offMeshConnectionId],
+    );
 };
 
 const updateOffMeshConnections = (navMesh: NavMesh) => {
@@ -829,7 +927,11 @@ const updateOffMeshConnections = (navMesh: NavMesh) => {
 };
 
 export const addTile = (navMesh: NavMesh, tile: NavMeshTile) => {
-    const tileHash = getTilePositionHash(tile.tileX, tile.tileY, tile.tileLayer);
+    const tileHash = getTilePositionHash(
+        tile.tileX,
+        tile.tileY,
+        tile.tileLayer,
+    );
 
     // increment id for this tile position
     tile.id = ++navMesh.tileIdCounter;
@@ -853,11 +955,21 @@ export const addTile = (navMesh: NavMesh, tile: NavMeshTile) => {
 
     // connect with neighbouring tiles
     for (let side = 0; side < 8; side++) {
-        const neighbourTiles = getNeighbourTilesAt(navMesh, tile.tileX, tile.tileY, side);
+        const neighbourTiles = getNeighbourTilesAt(
+            navMesh,
+            tile.tileX,
+            tile.tileY,
+            side,
+        );
 
         for (const neighbourTile of neighbourTiles) {
             connectExternalLinks(navMesh, tile, neighbourTile, side);
-            connectExternalLinks(navMesh, neighbourTile, tile, oppositeTile(side));
+            connectExternalLinks(
+                navMesh,
+                neighbourTile,
+                tile,
+                oppositeTile(side),
+            );
         }
     }
 
@@ -873,7 +985,12 @@ export const addTile = (navMesh: NavMesh, tile: NavMeshTile) => {
  * @param layer the layer of the tile
  * @returns true if the tile was removed, otherwise false
  */
-export const removeTile = (navMesh: NavMesh, x: number, y: number, layer: number): boolean => {
+export const removeTile = (
+    navMesh: NavMesh,
+    x: number,
+    y: number,
+    layer: number,
+): boolean => {
     const tileHash = getTilePositionHash(x, y, layer);
     const tileId = navMesh.tilePositionHashToTileId[tileHash];
     const tile = navMesh.tiles[tileId];
@@ -932,7 +1049,10 @@ export const removeTile = (navMesh: NavMesh, x: number, y: number, layer: number
  * @param offMeshConnection the off mesh connection to add
  * @returns the ID of the added off mesh connection
  */
-export const addOffMeshConnection = (navMesh: NavMesh, offMeshConnection: NavMeshOffMeshConnection): string => {
+export const addOffMeshConnection = (
+    navMesh: NavMesh,
+    offMeshConnection: NavMeshOffMeshConnection,
+): string => {
     const offMeshConnectionId = String(++navMesh.offMeshConnectionIdCounter);
 
     navMesh.offMeshConnections[offMeshConnectionId] = offMeshConnection;
@@ -947,7 +1067,10 @@ export const addOffMeshConnection = (navMesh: NavMesh, offMeshConnection: NavMes
  * @param navMesh the navmesh to remove the off mesh connection from
  * @param offMeshConnectionId the ID of the off mesh connection to remove
  */
-export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: string): void => {
+export const removeOffMeshConnection = (
+    navMesh: NavMesh,
+    offMeshConnectionId: string,
+): void => {
     const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
     if (!offMeshConnection) return;
 
@@ -955,8 +1078,12 @@ export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: s
     delete navMesh.offMeshConnections[offMeshConnectionId];
 };
 
-export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnectionId: string): boolean => {
-    const offMeshConnectionState = navMesh.offMeshConnectionStates[offMeshConnectionId];
+export const isOffMeshConnectionConnected = (
+    navMesh: NavMesh,
+    offMeshConnectionId: string,
+): boolean => {
+    const offMeshConnectionState =
+        navMesh.offMeshConnectionStates[offMeshConnectionId];
 
     // no off mesh connection state, not connected
     if (!offMeshConnectionState) return false;

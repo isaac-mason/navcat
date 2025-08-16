@@ -8,16 +8,5 @@ export const loadGLTF = (url: string): Promise<GLTF> => {
     const gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(dracoLoader);
 
-    return new Promise((resolve, reject) => {
-        gltfLoader.load(
-            url,
-            (gltf) => {
-                resolve(gltf);
-            },
-            undefined,
-            (error) => {
-                reject(error);
-            }
-        );
-    });
+    return gltfLoader.loadAsync(url);
 };

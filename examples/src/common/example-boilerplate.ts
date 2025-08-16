@@ -22,16 +22,20 @@ export const createExample = async (container: HTMLElement): Promise<ExampleBoil
 
     // renderer
     const renderer = new THREE.WebGPURenderer({ antialias: true });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+    
     container.appendChild(renderer.domElement);
 
     // lighting
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(1, 1, 1);
+    directionalLight.position.set(5, 5, 5);
     scene.add(directionalLight);
 
     // resize handling

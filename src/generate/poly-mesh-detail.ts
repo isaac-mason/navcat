@@ -90,7 +90,7 @@ const getHeight = (
     fx: number,
     fy: number,
     fz: number,
-    cs: number,
+    _cs: number,
     ics: number,
     ch: number,
     radius: number,
@@ -1245,7 +1245,6 @@ export const buildPolyMeshDetail = (
         height: 0,
     };
 
-    let nPolyVerts = 0;
     let maxhw = 0;
     let maxhh = 0;
 
@@ -1267,7 +1266,6 @@ export const buildPolyMeshDetail = (
             xmax = Math.max(xmax, polyMesh.vertices[v]);
             ymin = Math.min(ymin, polyMesh.vertices[v + 2]);
             ymax = Math.max(ymax, polyMesh.vertices[v + 2]);
-            nPolyVerts++;
         }
         bounds[i * 4] = Math.max(0, xmin - 1);
         bounds[i * 4 + 1] = Math.min(compactHeightfield.width, xmax + 1);

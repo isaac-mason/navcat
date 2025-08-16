@@ -1,5 +1,6 @@
 import { box3, vec2, vec3 } from 'maaths';
 import {
+    addTile,
     buildCompactHeightfield,
     BuildContext,
     buildContours,
@@ -14,13 +15,13 @@ import {
     ContourBuildFlags,
     type ContourSet,
     createHeightfield,
+    createNavMesh,
     erodeWalkableArea,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
     filterWalkableLowHeightSpans,
     type Heightfield,
     markWalkableTriangles,
-    navMesh,
     type NavMesh,
     type NavMeshTile,
     type PolyMesh,
@@ -39,8 +40,11 @@ export type SoloNavMeshInput = {
 export type SoloNavMeshOptions = {
     cellSize: number;
     cellHeight: number;
+    walkableRadiusVoxels: number;
     walkableRadiusWorld: number;
+    walkableClimbVoxels: number;
     walkableClimbWorld: number;
+    walkableHeightVoxels: number;
     walkableHeightWorld: number;
     walkableSlopeAngleDegrees: number;
     borderSize: number;
@@ -80,8 +84,11 @@ export function generateSoloNavMesh(
     const {
         cellSize,
         cellHeight,
+        walkableRadiusVoxels,
         walkableRadiusWorld,
+        walkableClimbVoxels,
         walkableClimbWorld,
+        walkableHeightVoxels,
         walkableHeightWorld,
         walkableSlopeAngleDegrees,
         borderSize,
@@ -93,10 +100,6 @@ export function generateSoloNavMesh(
         detailSampleDistance,
         detailSampleMaxError,
     } = options;
-
-    const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-    const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-    const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
     const ctx = BuildContext.create();
 
@@ -297,7 +300,7 @@ export function generateSoloNavMesh(
 
     /* create a single tile nav mesh */
 
-    const nav = navMesh.create();
+    const nav = createNavMesh();
     nav.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
     nav.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
     vec3.copy(nav.origin, polyMesh.bounds[0]);
@@ -331,7 +334,7 @@ export function generateSoloNavMesh(
 
     buildNavMeshBvTree(tile);
 
-    navMesh.addTile(nav, tile);
+    addTile(nav, tile);
 
     return {
         navMesh: nav,

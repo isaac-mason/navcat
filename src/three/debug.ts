@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import type {
-  DebugPrimitive,
-  DebugTriangles,
+  DebugBoxes,
   DebugLines,
   DebugPoints,
-  DebugBoxes,
+  DebugPrimitive,
+  DebugTriangles,
 } from '../debug';
-import { DebugPrimitiveType } from '../debug';
 import * as Debug from '../debug';
+import { DebugPrimitiveType } from '../debug';
 import type {
   ArrayLike,
   CompactHeightfield,
@@ -16,8 +16,7 @@ import type {
   PolyMesh,
   PolyMeshDetail,
 } from '../generate';
-import type { NavMesh, NavMeshTile, NodeRef } from '../query/nav-mesh';
-import type { SearchNodePool } from '../query/search';
+import type { NavMesh, NavMeshTile, NodeRef, SearchNodePool } from '../query';
 
 export type DebugObject = {
   object: THREE.Object3D;
@@ -34,7 +33,7 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
     case DebugPrimitiveType.Triangles: {
       const triPrimitive = primitive as DebugTriangles;
       const geometry = new THREE.BufferGeometry();
-      
+
       geometry.setAttribute(
         'position',
         new THREE.BufferAttribute(new Float32Array(triPrimitive.positions), 3)
@@ -43,7 +42,7 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
         'color',
         new THREE.BufferAttribute(new Float32Array(triPrimitive.colors), 3)
       );
-      
+
       if (triPrimitive.indices && triPrimitive.indices.length > 0) {
         geometry.setIndex(
           new THREE.BufferAttribute(new Uint32Array(triPrimitive.indices), 1)
@@ -58,14 +57,14 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
       });
 
       const mesh = new THREE.Mesh(geometry, material);
-      
+
       disposables.push(() => {
         geometry.dispose();
         material.dispose();
       });
-      
-      return { 
-        object: mesh, 
+
+      return {
+        object: mesh,
         dispose: () => {
           for (const dispose of disposables) {
             dispose();
@@ -77,7 +76,7 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
     case DebugPrimitiveType.Lines: {
       const linePrimitive = primitive as DebugLines;
       const geometry = new THREE.BufferGeometry();
-      
+
       geometry.setAttribute(
         'position',
         new THREE.BufferAttribute(new Float32Array(linePrimitive.positions), 3)
@@ -95,14 +94,14 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
       });
 
       const lines = new THREE.LineSegments(geometry, material);
-      
+
       disposables.push(() => {
         geometry.dispose();
         material.dispose();
       });
-      
-      return { 
-        object: lines, 
+
+      return {
+        object: lines,
         dispose: () => {
           for (const dispose of disposables) {
             dispose();
@@ -114,7 +113,7 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
     case DebugPrimitiveType.Points: {
       const pointPrimitive = primitive as DebugPoints;
       const geometry = new THREE.BufferGeometry();
-      
+
       geometry.setAttribute(
         'position',
         new THREE.BufferAttribute(new Float32Array(pointPrimitive.positions), 3)
@@ -133,14 +132,14 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
       });
 
       const points = new THREE.Points(geometry, material);
-      
+
       disposables.push(() => {
         geometry.dispose();
         material.dispose();
       });
-      
-      return { 
-        object: points, 
+
+      return {
+        object: points,
         dispose: () => {
           for (const dispose of disposables) {
             dispose();
@@ -152,11 +151,11 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
     case DebugPrimitiveType.Boxes: {
       const boxPrimitive = primitive as DebugBoxes;
       const group = new THREE.Group();
-      
+
       // Create instanced mesh for all boxes
       const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
       const numBoxes = boxPrimitive.positions.length / 3;
-      
+
       if (numBoxes > 0) {
         const material = new THREE.MeshBasicMaterial({
           vertexColors: true,
@@ -165,22 +164,22 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
         });
 
         const instancedMesh = new THREE.InstancedMesh(boxGeometry, material, numBoxes);
-        
+
         const matrix = new THREE.Matrix4();
-        
+
         for (let i = 0; i < numBoxes; i++) {
           const x = boxPrimitive.positions[i * 3];
           const y = boxPrimitive.positions[i * 3 + 1];
           const z = boxPrimitive.positions[i * 3 + 2];
-          
+
           const scaleX = boxPrimitive.scales ? boxPrimitive.scales[i * 3] : 1;
           const scaleY = boxPrimitive.scales ? boxPrimitive.scales[i * 3 + 1] : 1;
           const scaleZ = boxPrimitive.scales ? boxPrimitive.scales[i * 3 + 2] : 1;
-          
+
           matrix.makeScale(scaleX, scaleY, scaleZ);
           matrix.setPosition(x, y, z);
           instancedMesh.setMatrixAt(i, matrix);
-          
+
           const color = new THREE.Color(
             boxPrimitive.colors[i * 3],
             boxPrimitive.colors[i * 3 + 1],
@@ -188,23 +187,23 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
           );
           instancedMesh.setColorAt(i, color);
         }
-        
+
         instancedMesh.instanceMatrix.needsUpdate = true;
         if (instancedMesh.instanceColor) {
           instancedMesh.instanceColor.needsUpdate = true;
         }
-        
+
         group.add(instancedMesh);
-        
+
         disposables.push(() => {
           boxGeometry.dispose();
           material.dispose();
           instancedMesh.dispose();
         });
       }
-      
-      return { 
-        object: group, 
+
+      return {
+        object: group,
         dispose: () => {
           for (const dispose of disposables) {
             dispose();
@@ -216,7 +215,7 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
     default: {
       const exhaustiveCheck: never = primitive;
       console.warn('Unknown debug primitive type:', (exhaustiveCheck as any).type);
-      return { object: new THREE.Group(), dispose: () => {} };
+      return { object: new THREE.Group(), dispose: () => { } };
     }
   }
 }

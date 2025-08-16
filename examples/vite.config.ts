@@ -4,22 +4,20 @@ import { defineConfig } from 'vite';
 const input: Record<string, string> = {};
 
 const htmlFiles = fs
-    .readdirSync('./src')
+    .readdirSync('./')
     .filter((file) => file.endsWith('.html'));
 
 for (const path of htmlFiles) {
     const name = path.split('/').pop()?.replace('.html', '');
     if (name) {
-        input[name] = `./src/${path}`;
+        input[name] = `./${path}`;
     }
 }
 
-console.log(input);
-
 export default defineConfig({
-    root: './src',
+    root: './',
     build: {
-        outDir: '../dist',
+        outDir: './dist',
         rollupOptions: {
             input,
         },

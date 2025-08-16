@@ -12,9 +12,8 @@ import {
     POLY_NEIS_FLAG_EXT_LINK,
     WALKABLE_AREA,
 } from './generate';
-import type { NavMesh, NavMeshTile, NodeRef } from './query/nav-mesh';
-import { desNodeRef, OffMeshConnectionDirection } from './query/nav-mesh';
-import type { SearchNodePool, SearchNodeRef } from './query/search';
+import type { NavMesh, NavMeshTile, NodeRef, SearchNodePool, SearchNodeRef } from './query';
+import { desNodeRef, OffMeshConnectionDirection } from './query';
 
 // debug primitive types
 export enum DebugPrimitiveType {
@@ -102,7 +101,6 @@ function areaToColor(area: number): [number, number, number] {
     return hslToRgb(hue, 0.7, 0.6);
 }
 
-// Helper functions that return arrays of debug primitives
 export function createTriangleAreaIdsHelper(
     input: { positions: Float32Array; indices: Uint32Array },
     triAreaIds: ArrayLike<number>,

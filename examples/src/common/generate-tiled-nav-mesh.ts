@@ -1,5 +1,6 @@
 import { type Box3, box3, triangle3, vec2, vec3 } from 'maaths';
 import {
+    addTile,
     buildCompactHeightfield,
     BuildContext,
     type BuildContextState,
@@ -15,6 +16,7 @@ import {
     ContourBuildFlags,
     type ContourSet,
     createHeightfield,
+    createNavMesh,
     erodeWalkableArea,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
@@ -22,7 +24,6 @@ import {
     type Heightfield,
     markWalkableTriangles,
     type NavMesh,
-    navMesh,
     type NavMeshTile,
     type PolyMesh,
     type PolyMeshDetail,
@@ -41,8 +42,12 @@ export type TiledNavMeshOptions = {
     cellSize: number;
     cellHeight: number;
     tileSizeVoxels: number;
+    tileSizeWorld: number;
+    walkableRadiusVoxels: number;
     walkableRadiusWorld: number;
+    walkableClimbVoxels: number;
     walkableClimbWorld: number;
+    walkableHeightVoxels: number;
     walkableHeightWorld: number;
     walkableSlopeAngleDegrees: number;
     borderSize: number;
@@ -266,8 +271,12 @@ export function generateTiledNavMesh(
         cellSize,
         cellHeight,
         tileSizeVoxels,
+        tileSizeWorld,
+        walkableRadiusVoxels,
         walkableRadiusWorld,
+        walkableClimbVoxels,
         walkableClimbWorld,
+        walkableHeightVoxels,
         walkableHeightWorld,
         walkableSlopeAngleDegrees,
         borderSize,
@@ -280,11 +289,6 @@ export function generateTiledNavMesh(
         detailSampleMaxError,
     } = options;
 
-    const tileSizeWorld = tileSizeVoxels * cellSize;
-    const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-    const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-    const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
-
     const ctx = BuildContext.create();
 
     /* 1. calculate mesh bounds and create tiled nav mesh */
@@ -292,7 +296,7 @@ export function generateTiledNavMesh(
     const meshBounds = calculateMeshBounds(box3.create(), positions, indices);
     const gridSize = calculateGridSize(vec2.create(), meshBounds, cellSize);
 
-    const nav = navMesh.create();
+    const nav = createNavMesh();
     nav.tileWidth = tileSizeWorld;
     nav.tileHeight = tileSizeWorld;
     nav.origin = meshBounds[0];
@@ -366,6 +370,8 @@ export function generateTiledNavMesh(
                 detailSampleMaxError,
             );
 
+            if (polyMesh.vertices.length === 0) continue;
+
             intermediates.triAreaIds.push(triAreaIds);
             intermediates.heightfield.push(heightfield);
             intermediates.compactHeightfield.push(compactHeightfield);
@@ -402,7 +408,7 @@ export function generateTiledNavMesh(
 
             buildNavMeshBvTree(tile);
 
-            navMesh.addTile(nav, tile);
+            addTile(nav, tile);
         }
     }
 
