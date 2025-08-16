@@ -9,8 +9,9 @@
         "preview": "vite preview"
     },
     "dependencies": {
-        "three": "^0.179.1",
-        "nav3d": "workspace:*"
+        "lil-gui": "^0.20.0",
+        "nav3d": "workspace:*",
+        "three": "^0.179.1"
     },
     "devDependencies": {
         "@types/three": "^0.179.0",

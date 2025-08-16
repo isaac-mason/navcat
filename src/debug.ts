@@ -89,7 +89,7 @@ function regionToColor(regionId: number, alpha = 1.0): [number, number, number] 
     return [r * alpha, g * alpha, b * alpha];
 }
 
-function areaToColor(area: number): [number, number, number] {
+function areaToColor(area: number, alpha = 1.0): [number, number, number] {
     if (area === WALKABLE_AREA) {
         return [0, 192 / 255, 1];
     }
@@ -98,7 +98,8 @@ function areaToColor(area: number): [number, number, number] {
     }
     const hash = area * 137.5;
     const hue = hash % 360;
-    return hslToRgb(hue, 0.7, 0.6);
+    const [r, g, b] = hslToRgb(hue, 0.7, 0.6);
+    return [r * alpha, g * alpha, b * alpha];
 }
 
 export function createTriangleAreaIdsHelper(
@@ -119,8 +120,14 @@ export function createTriangleAreaIdsHelper(
 
         let color = areaToColorMap[areaId];
         if (!color) {
-            color = regionToColor(areaId);
-            areaToColorMap[areaId] = color;
+          if (areaId === WALKABLE_AREA) {
+            color = [0, 1, 0];
+          } else if (areaId === NULL_AREA) {
+            color = [1, 0, 0];
+          } else {
+            color = areaToColor(areaId);
+          }
+          areaToColorMap[areaId] = color;
         }
 
         positions[positionsIndex++] = input.positions[input.indices[triangle * 3] * 3];
@@ -156,7 +163,7 @@ export function createTriangleAreaIdsHelper(
         colors: vertexColors,
         indices: indices,
         transparent: true,
-        opacity: 0.5,
+        opacity: 1,
     }];
 }
 
@@ -186,6 +193,8 @@ export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitiv
     const cellSize = heightfield.cellSize;
     const cellHeight = heightfield.cellHeight;
 
+    const areaToColorMap: Record<number, [number, number, number]> = {};
+
     for (let z = 0; z < heightfield.height; z++) {
         for (let x = 0; x < heightfield.width; x++) {
             const columnIndex = x + z * heightfield.width;
@@ -199,9 +208,20 @@ export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitiv
 
                 positions.push(worldX, worldY, worldZ);
                 scales.push(cellSize * 0.9, spanHeight, cellSize * 0.9);
+                
+                let color = areaToColorMap[span.area];
+                if (!color) {
+                  if (span.area === WALKABLE_AREA) {
+                    color = [0, 1, 0];
+                  } else if (span.area === NULL_AREA) {
+                    color = [1, 0, 0];
+                  } else {
+                    color = areaToColor(span.area);
+                  }
+                  areaToColorMap[span.area] = color;
+                }
 
-                const spanColor = regionToColor(span.area);
-                colors.push(spanColor[0], spanColor[1], spanColor[2]);
+                colors.push(color[0], color[1], color[2]);
 
                 span = span.next || null;
             }
@@ -248,14 +268,7 @@ export function createCompactHeightfieldSolidHelper(
                 const span = chf.spans[i];
                 const area = chf.areas[i];
 
-                let color: [number, number, number];
-                if (area === WALKABLE_AREA) {
-                    color = [0, 192 / 255, 1];
-                } else if (area === NULL_AREA) {
-                    color = [0, 0, 0];
-                } else {
-                    color = regionToColor(area);
-                }
+                const color = areaToColor(area);
 
                 const fy = chf.bounds[0][1] + (span.y + 1) * chf.cellHeight;
 
@@ -980,8 +993,7 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
       if (!polyDetail) continue;
 
       // Get polygon color based on area
-      const color = areaToColor(poly.area);
-      const col = { r: color[0] * 64 / 255, g: color[1] * 64 / 255, b: color[2] * 64 / 255 };
+      const col = areaToColor(poly.area, 0.4);
 
       // Draw detail triangles for this polygon
       for (let j = 0; j < polyDetail.trianglesCount; j++) {
@@ -1013,7 +1025,7 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
           }
 
           triPositions.push(vx, vy, vz);
-          triColors.push(col.r, col.g, col.b);
+          triColors.push(...col);
         }
 
         // Add triangle indices
