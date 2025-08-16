@@ -1,6 +1,5 @@
 import { type Vec2, type Vec3, clamp, vec2, vec3 } from 'maaths';
 import {
-    type CircumCircleResult,
     circumCircle,
     distToPoly,
     distToTriMesh,
@@ -65,11 +64,6 @@ const getVec2XZ = (out: Vec2, arr: number[], index = 0): Vec2 => {
     out[0] = arr[index]; // x component
     out[1] = arr[index + 2]; // z component (skip y)
     return out;
-};
-
-const _circumCircleResult: CircumCircleResult = {
-    success: false,
-    radius: 0,
 };
 
 // Jitter functions for sampling
@@ -278,14 +272,12 @@ const completeFacet = (
                 vec3.fromBuffer(_circumCircleP1, points, s * 3);
                 vec3.fromBuffer(_circumCircleP2, points, t * 3);
                 vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                circumCircle(
-                    _circumCircleResult,
+                r = circumCircle(
                     _circumCircleP1,
                     _circumCircleP2,
                     _circumCircleP3,
                     c,
                 );
-                r = _circumCircleResult.radius;
                 continue;
             }
             getVec2XZ(_completeFacetCircleCenter, c, 0);
@@ -307,14 +299,12 @@ const completeFacet = (
                 vec3.fromBuffer(_circumCircleP1, points, s * 3);
                 vec3.fromBuffer(_circumCircleP2, points, t * 3);
                 vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                circumCircle(
-                    _circumCircleResult,
+                r = circumCircle(
                     _circumCircleP1,
                     _circumCircleP2,
                     _circumCircleP3,
                     c,
                 );
-                r = _circumCircleResult.radius;
             } else {
                 // Inside epsilon circumcircle, do extra tests to make sure the edge is valid.
                 if (overlapEdges(points, edges, nEdges.value, s, u)) continue;
@@ -324,14 +314,12 @@ const completeFacet = (
                 vec3.fromBuffer(_circumCircleP1, points, s * 3);
                 vec3.fromBuffer(_circumCircleP2, points, t * 3);
                 vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                circumCircle(
-                    _circumCircleResult,
+                r = circumCircle(
                     _circumCircleP1,
                     _circumCircleP2,
                     _circumCircleP3,
                     c,
                 );
-                r = _circumCircleResult.radius;
             }
         }
     }

@@ -1,9 +1,10 @@
-import type { Box3, Vec3 } from 'maaths';
+import type { Box3, Triangle3, Vec3 } from 'maaths';
 import { box3, vec2, vec3 } from 'maaths';
 import {
+    closestHeightPointTriangle,
     closestPtSeg2d,
+    distancePtSeg2d,
     distancePtSeg2dSqr,
-    getHeightAtPoint,
     pointInPoly,
 } from '../geometry';
 import {
@@ -111,10 +112,6 @@ export const getTileAndPolyByRef = (
     return result;
 };
 
-const _getPolyHeightV0 = vec3.create();
-const _getPolyHeightV1 = vec3.create();
-const _getPolyHeightV2 = vec3.create();
-
 export type GetPolyHeightResult = {
     success: boolean;
     height: number;
@@ -125,14 +122,19 @@ export const createGetPolyHeightResult = (): GetPolyHeightResult => ({
     height: 0,
 });
 
+const _getPolyHeightA = vec3.create();
+const _getPolyHeightB = vec3.create();
+const _getPolyHeightC = vec3.create();
+const _getPolyHeightTriangle: Triangle3 = [_getPolyHeightA, _getPolyHeightB, _getPolyHeightC];
+
 /**
- * Gets the height of a polygon at a given point using detail mesh if available
+ * Gets the height of a polygon at a given point using detail mesh if available.
+ * @param result The result object to populate
  * @param tile The tile containing the polygon
  * @param poly The polygon
  * @param polyIndex The index of the polygon in the tile
  * @param pos The position to get height for
- * @param height Output parameter for the height
- * @returns True if height was found
+ * @returns The result object with success flag and height
  */
 export const getPolyHeight = (
     result: GetPolyHeightResult,
@@ -144,93 +146,99 @@ export const getPolyHeight = (
     result.success = false;
     result.height = 0;
 
-    // check if we have detail mesh data
-    const detailMesh = tile.detailMeshes?.[polyIndex];
+    const detailMesh = tile.detailMeshes[polyIndex];
 
+    // build polygon vertices array
+    // TODO: can we avoid allocations here?
+    const nv = poly.vertices.length;
+    const verts = new Array<number>(nv * 3);
+    for (let i = 0; i < nv; ++i) {
+        const vertIndex = poly.vertices[i] * 3;
+        verts[i * 3 + 0] = tile.vertices[vertIndex + 0];
+        verts[i * 3 + 1] = tile.vertices[vertIndex + 1];
+        verts[i * 3 + 2] = tile.vertices[vertIndex + 2];
+    }
+    
+    // check if point is inside polygon (matches C++ dtPointInPolygon(pos, verts, nv))
+    if (!pointInPoly(nv, verts, pos)) {
+        return result;
+    }
+    
+    // point is inside polygon, find height at the location
     if (detailMesh) {
-        // use detail mesh for accurate height calculation
         for (let j = 0; j < detailMesh.trianglesCount; ++j) {
             const t = (detailMesh.trianglesBase + j) * 4;
             const detailTriangles = tile.detailTriangles;
-
-            const v0Index = detailTriangles[t + 0];
-            const v1Index = detailTriangles[t + 1];
-            const v2Index = detailTriangles[t + 2];
-
+            
             // get triangle vertices
-            const v0 = _getPolyHeightV0;
-            const v1 = _getPolyHeightV1;
-            const v2 = _getPolyHeightV2;
-
-            if (v0Index < tile.vertices.length / 3) {
-                // use main tile vertices
-                vec3.fromBuffer(v0, tile.vertices, v0Index * 3);
-            } else {
-                // use detail vertices
-                const detailIndex = (v0Index - tile.vertices.length / 3) * 3;
-                vec3.fromBuffer(v0, tile.detailVertices, detailIndex);
+            const v: Vec3[] = _getPolyHeightTriangle;
+            for (let k = 0; k < 3; ++k) {
+                const vertIndex = detailTriangles[t + k];
+                if (vertIndex < poly.vertices.length) {
+                    // use polygon vertex
+                    const polyVertIndex = poly.vertices[vertIndex] * 3;
+                    v[k][0] = tile.vertices[polyVertIndex + 0];
+                    v[k][1] = tile.vertices[polyVertIndex + 1];
+                    v[k][2] = tile.vertices[polyVertIndex + 2];
+                } else {
+                    // use detail vertices
+                    const detailVertIndex = (detailMesh.verticesBase + (vertIndex - poly.vertices.length)) * 3;
+                    v[k][0] = tile.detailVertices[detailVertIndex + 0];
+                    v[k][1] = tile.detailVertices[detailVertIndex + 1];
+                    v[k][2] = tile.detailVertices[detailVertIndex + 2];
+                }
             }
+            
+            const height = closestHeightPointTriangle(pos, v[0], v[1], v[2]);
 
-            if (v1Index < tile.vertices.length / 3) {
-                vec3.fromBuffer(v1, tile.vertices, v1Index * 3);
-            } else {
-                const detailIndex = (v1Index - tile.vertices.length / 3) * 3;
-                vec3.fromBuffer(v1, tile.detailVertices, detailIndex);
-            }
-
-            if (v2Index < tile.vertices.length / 3) {
-                vec3.fromBuffer(v2, tile.vertices, v2Index * 3);
-            } else {
-                const detailIndex = (v2Index - tile.vertices.length / 3) * 3;
-                vec3.fromBuffer(v2, tile.detailVertices, detailIndex);
-            }
-
-            // check if point is inside triangle and calculate height
-            const h = getHeightAtPoint(v0, v1, v2, pos);
-            if (h !== null) {
+            if (!Number.isNaN(height)) {
                 result.success = true;
-                result.height = h;
+                result.height = height;
                 return result;
             }
         }
     }
 
-    // fallback: use polygon vertices for height calculation
-    if (poly.vertices.length >= 3) {
-        const v0 = _getPolyHeightV0;
-        const v1 = _getPolyHeightV1;
-        const v2 = _getPolyHeightV2;
-
-        vec3.fromBuffer(v0, tile.vertices, poly.vertices[0] * 3);
-        vec3.fromBuffer(v1, tile.vertices, poly.vertices[1] * 3);
-        vec3.fromBuffer(v2, tile.vertices, poly.vertices[2] * 3);
-
-        const h = getHeightAtPoint(v0, v1, v2, pos);
-
-        if (h !== null) {
-            result.success = true;
-            result.height = h;
-            return result;
-        }
-    }
+    // if all triangle checks failed above (can happen with degenerate triangles
+    // or larger floating point values) the point is on an edge, so just select
+    // closest.
+    // this should almost never happen so the extra iteration here is ok.
+    const closest = vec3.create();
+    closestPointOnDetailEdges(tile, poly, detailMesh, pos, closest, false);
+    result.success = true;
+    result.height = closest[1];
 
     return result;
 };
 
-const _closestOnDetailEdges: Vec3 = [0, 0, 0];
-const _closestPointOnDetailEdgesVi: Vec3 = [0, 0, 0];
-const _closestPointOnDetailEdgesVk: Vec3 = [0, 0, 0];
+// boundary edge flags
+const DETAIL_EDGE_BOUNDARY = 0x01;
+
+/**
+ * Get flags for edge in detail triangle.
+ * @param[in]	triFlags		The flags for the triangle (last component of detail vertices above).
+ * @param[in]	edgeIndex		The index of the first vertex of the edge. For instance, if 0,
+ *								returns flags for edge AB.
+ * @returns The edge flags
+ */
+const getDetailTriEdgeFlags = (triFlags: number, edgeIndex: number): number => {
+    return (triFlags >> (edgeIndex * 2)) & 0x3;
+};
 
 /**
  * Finds the closest point on detail mesh edges to a given point
  * @param tile The tile containing the detail mesh
+ * @param poly The polygon
  * @param detailMesh The detail mesh
  * @param pos The position to find closest point for
  * @param closest Output parameter for the closest point
+ * @param onlyBoundary If true, only consider boundary edges
  * @returns The squared distance to the closest point
+ *  closest point
  */
 const closestPointOnDetailEdges = (
     tile: NavMeshTile,
+    poly: NavMeshPoly,
     detailMesh: {
         verticesBase: number;
         verticesCount: number;
@@ -239,46 +247,72 @@ const closestPointOnDetailEdges = (
     },
     pos: Vec3,
     closest: Vec3,
+    onlyBoundary = false,
 ): number => {
     let dmin = Number.MAX_VALUE;
+    let tmin = 0;
+    let pmin: Vec3 | null = null;
+    let pmax: Vec3 | null = null;
 
     for (let i = 0; i < detailMesh.trianglesCount; ++i) {
         const t = (detailMesh.trianglesBase + i) * 4;
         const detailTriangles = tile.detailTriangles;
 
-        for (let j = 0; j < 3; ++j) {
-            const k = (j + 1) % 3;
-
-            const viIndex = detailTriangles[t + j];
-            const vkIndex = detailTriangles[t + k];
-
-            // get vertices
-            const vi = _closestPointOnDetailEdgesVi;
-            const vk = _closestPointOnDetailEdgesVk;
-
-            if (viIndex < tile.vertices.length / 3) {
-                vec3.fromBuffer(vi, tile.vertices, viIndex * 3);
-            } else {
-                const detailIndex = (viIndex - tile.vertices.length / 3) * 3;
-
-                vec3.fromBuffer(vi, tile.detailVertices, detailIndex);
-            }
-
-            if (vkIndex < tile.vertices.length / 3) {
-                vec3.fromBuffer(vk, tile.vertices, vkIndex * 3);
-            } else {
-                const detailIndex = (vkIndex - tile.vertices.length / 3) * 3;
-                vec3.fromBuffer(vk, tile.detailVertices, detailIndex);
-            }
-
-            closestPtSeg2d(_closestOnDetailEdges, pos, vi, vk);
-            const d = distancePtSeg2dSqr(pos, vi, vk);
-
-            if (d < dmin) {
-                dmin = d;
-                vec3.copy(closest, _closestOnDetailEdges);
+        // check if triangle has boundary edges (if onlyBoundary is true)
+        if (onlyBoundary) {
+            const triFlags = detailTriangles[t + 3];
+            const ANY_BOUNDARY_EDGE =
+                (DETAIL_EDGE_BOUNDARY << 0) |
+                (DETAIL_EDGE_BOUNDARY << 2) |
+                (DETAIL_EDGE_BOUNDARY << 4);
+            if ((triFlags & ANY_BOUNDARY_EDGE) === 0) {
+                continue;
             }
         }
+
+        // get triangle vertices
+        const v: Vec3[] = [vec3.create(), vec3.create(), vec3.create()];
+        for (let j = 0; j < 3; ++j) {
+            const vertexIndex = detailTriangles[t + j];
+            if (vertexIndex < poly.vertices.length) {
+                // use main polygon vertices - vertexIndex is an index into poly.vertices
+                vec3.fromBuffer(v[j], tile.vertices, poly.vertices[vertexIndex] * 3);
+            } else {
+                // use detail vertices - (vertexIndex - poly.vertices.length) gives offset from verticesBase
+                const detailIndex = detailMesh.verticesBase + (vertexIndex - poly.vertices.length);
+                vec3.fromBuffer(v[j], tile.detailVertices, detailIndex * 3);
+            }
+        }
+
+        // check each edge of the triangle
+        for (let k = 0, j = 2; k < 3; j = k++) {
+            const triFlags = detailTriangles[t + 3];
+            const edgeFlags = getDetailTriEdgeFlags(triFlags, j);
+
+            // skip internal edges if we want only boundaries, or skip duplicate internal edges
+            if ((edgeFlags & DETAIL_EDGE_BOUNDARY) === 0 &&
+                (onlyBoundary || detailTriangles[t + j] < detailTriangles[t + k])) {
+                    // only looking at boundary edges and this is internal, or
+					// this is an inner edge that we will see again or have already seen.
+                    continue;
+            }
+
+            const result = distancePtSeg2d(pos, v[j], v[k]);
+
+            if (result.dist < dmin) {
+                dmin = result.dist;
+                tmin = result.t;
+                pmin = v[j];
+                pmax = v[k];
+            }
+        }
+    }
+
+    // interpolate the final closest point
+    if (pmin && pmax) {
+        vec3.lerp(closest, pmin, pmax, tmin);
+    } else {
+        vec3.copy(closest, pos);
     }
 
     return dmin;
@@ -402,6 +436,7 @@ export const getClosestPointOnPoly = (
         if (detailMesh) {
             const detailDist = closestPointOnDetailEdges(
                 tile,
+                poly,
                 detailMesh,
                 point,
                 _detailClosestPoint,

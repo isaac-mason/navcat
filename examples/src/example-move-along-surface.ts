@@ -201,7 +201,7 @@ function updateAgentMovement(deltaTime: number) {
         createFindNearestPolyResult(),
         navMesh,
         agentState.position,
-        [0.1, 0.1, 0.1],
+        [0.5, 0.5, 0.5],
         DEFAULT_QUERY_FILTER,
     );
 
@@ -221,6 +221,13 @@ function updateAgentMovement(deltaTime: number) {
     );
 
     if (!moveAlongSurfaceResult.success) return;
+
+    // log diff
+    const diff = vec3.length(vec3.subtract(vec3.create(), agentState.position, moveAlongSurfaceResult.resultPosition));
+
+    if (diff > 1) {
+        console.log("diff", diff, [...agentState.position], [...moveAlongSurfaceResult.resultPosition]);
+    }
 
     vec3.copy(agentState.position, moveAlongSurfaceResult.resultPosition);
 
