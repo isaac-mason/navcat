@@ -1,9 +1,7 @@
 import { box3, vec2, vec3 } from 'maaths';
 import {
-    BuildContext,
-    ContourBuildFlags,
-    WALKABLE_AREA,
     buildCompactHeightfield,
+    BuildContext,
     buildContours,
     buildDistanceField,
     buildNavMeshBvTree,
@@ -12,66 +10,68 @@ import {
     buildRegions,
     calculateGridSize,
     calculateMeshBounds,
+    type CompactHeightfield,
+    ContourBuildFlags,
+    type ContourSet,
     createHeightfield,
     erodeWalkableArea,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
     filterWalkableLowHeightSpans,
+    type Heightfield,
     markWalkableTriangles,
     navMesh,
+    type NavMesh,
+    type NavMeshTile,
+    type PolyMesh,
+    type PolyMeshDetail,
     polyMeshDetailToTileDetailMesh,
     polyMeshToTilePolys,
     rasterizeTriangles,
+    WALKABLE_AREA,
 } from 'nav3d';
 
-/**
- * @typedef {Object} SoloNavMeshInput
- * @property {Float32Array} positions - The input mesh positions
- * @property {Uint32Array} indices - The input mesh indices
- */
+export type SoloNavMeshInput = {
+    positions: Float32Array;
+    indices: Uint32Array;
+};
 
-/**
- * @typedef {Object} SoloNavMeshOptions
- * @property {number} cellSize - The size of the voxel cells in world units
- * @property {number} cellHeight - The height of the voxel cells in world units
- * @property {number} walkableRadiusWorld - The radius of the agent in world units
- * @property {number} walkableClimbWorld - The maximum height the agent can climb in world units
- * @property {number} walkableHeightWorld - The minimum height clearance for the agent in world units
- * @property {number} walkableSlopeAngleDegrees - The maximum slope angle in degrees that the agent can walk on
- * @property {number} borderSize - The size of the border around the heightfield
- * @property {number} minRegionArea - The minimum area of a region
- * @property {number} mergeRegionArea - The area threshold for merging regions
- * @property {number} maxSimplificationError - The maximum error allowed during contour simplification
- * @property {number} maxEdgeLength - The maximum edge length for contours
- * @property {number} maxVerticesPerPoly - The maximum number of vertices per polygon
- * @property {number} detailSampleDistance - The sampling distance for detail mesh generation
- * @property {number} detailSampleMaxError - The maximum error for detail mesh sampling
- */
+export type SoloNavMeshOptions = {
+    cellSize: number;
+    cellHeight: number;
+    walkableRadiusWorld: number;
+    walkableClimbWorld: number;
+    walkableHeightWorld: number;
+    walkableSlopeAngleDegrees: number;
+    borderSize: number;
+    minRegionArea: number;
+    mergeRegionArea: number;
+    maxSimplificationError: number;
+    maxEdgeLength: number;
+    maxVerticesPerPoly: number;
+    detailSampleDistance: number;
+    detailSampleMaxError: number;
+};
 
-/**
- * @typedef {Object} SoloNavMeshIntermediates
- * @property {SoloNavMeshInput} input - The input mesh data
- * @property {Uint8Array} triAreaIds - Triangle area IDs marking walkable triangles
- * @property {import('nav3d').Heightfield} heightfield - The voxel heightfield
- * @property {import('nav3d').CompactHeightfield} compactHeightfield - The compact heightfield
- * @property {import('nav3d').ContourSet} contourSet - The contour set
- * @property {import('nav3d').PolyMesh} polyMesh - The polygon mesh
- * @property {import('nav3d').PolyMeshDetail} polyMeshDetail - The detailed polygon mesh
- */
+export type SoloNavMeshIntermediates = {
+    input: SoloNavMeshInput;
+    triAreaIds: Uint8Array;
+    heightfield: Heightfield;
+    compactHeightfield: CompactHeightfield;
+    contourSet: ContourSet;
+    polyMesh: PolyMesh;
+    polyMeshDetail: PolyMeshDetail;
+};
 
-/**
- * @typedef {Object} SoloNavMeshResult
- * @property {import('nav3d').NavMesh} navMesh - The generated navigation mesh
- * @property {SoloNavMeshIntermediates} intermediates - Intermediate data structures for debugging
- */
+export type SoloNavMeshResult = {
+    navMesh: NavMesh;
+    intermediates: SoloNavMeshIntermediates;
+};
 
-/**
- * Generates a solo navigation mesh from input geometry.
- * 
- * @param {SoloNavMeshOptions} options - Configuration options for navmesh generation
- * @returns {SoloNavMeshResult} The generated navigation mesh and intermediate data
- */
-export function generateSoloNavMesh(input, options) {
+export function generateSoloNavMesh(
+    input: SoloNavMeshInput,
+    options: SoloNavMeshOptions,
+): SoloNavMeshResult {
     console.time('navmesh generation');
 
     const { positions, indices } = input;
@@ -106,7 +106,12 @@ export function generateSoloNavMesh(input, options) {
 
     /* 2. mark walkable triangles */
     const triAreaIds = new Uint8Array(indices.length / 3).fill(0);
-    markWalkableTriangles(positions, indices, triAreaIds, walkableSlopeAngleDegrees);
+    markWalkableTriangles(
+        positions,
+        indices,
+        triAreaIds,
+        walkableSlopeAngleDegrees,
+    );
 
     console.timeEnd('mark walkable triangles');
 
@@ -115,11 +120,28 @@ export function generateSoloNavMesh(input, options) {
     console.time('rasterize triangles');
 
     const bounds = calculateMeshBounds(box3.create(), positions, indices);
-    const [heightfieldWidth, heightfieldHeight] = calculateGridSize(vec2.create(), bounds, cellSize);
+    const [heightfieldWidth, heightfieldHeight] = calculateGridSize(
+        vec2.create(),
+        bounds,
+        cellSize,
+    );
 
-    const heightfield = createHeightfield(heightfieldWidth, heightfieldHeight, bounds, cellSize, cellHeight);
+    const heightfield = createHeightfield(
+        heightfieldWidth,
+        heightfieldHeight,
+        bounds,
+        cellSize,
+        cellHeight,
+    );
 
-    rasterizeTriangles(ctx, heightfield, positions, indices, triAreaIds, walkableClimbVoxels);
+    rasterizeTriangles(
+        ctx,
+        heightfield,
+        positions,
+        indices,
+        triAreaIds,
+        walkableClimbVoxels,
+    );
 
     console.timeEnd('rasterize triangles');
 
@@ -145,7 +167,11 @@ export function generateSoloNavMesh(input, options) {
 
     console.time('build compact heightfield');
 
-    const compactHeightfield = buildCompactHeightfield(walkableHeightVoxels, walkableClimbVoxels, heightfield);
+    const compactHeightfield = buildCompactHeightfield(
+        walkableHeightVoxels,
+        walkableClimbVoxels,
+        heightfield,
+    );
 
     console.timeEnd('build compact heightfield');
 
@@ -195,7 +221,13 @@ export function generateSoloNavMesh(input, options) {
     //     if you have large open areas with small obstacles (not a problem if you use tiles)
     //   * good choice to use for tiled navmesh with medium and small sized tiles
 
-    buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
+    buildRegions(
+        ctx,
+        compactHeightfield,
+        borderSize,
+        minRegionArea,
+        mergeRegionArea,
+    );
     // buildRegionsMonotone(compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
     // buildLayerRegions(compactHeightfield, borderSize, minRegionArea);
 
@@ -236,7 +268,13 @@ export function generateSoloNavMesh(input, options) {
 
     console.time('build detail mesh from contours');
 
-    const polyMeshDetail = buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, detailSampleDistance, detailSampleMaxError);
+    const polyMeshDetail = buildPolyMeshDetail(
+        ctx,
+        polyMesh,
+        compactHeightfield,
+        detailSampleDistance,
+        detailSampleMaxError,
+    );
 
     console.timeEnd('build detail mesh from contours');
 
@@ -244,8 +282,7 @@ export function generateSoloNavMesh(input, options) {
 
     /* store intermediates for debugging */
 
-    /** @type {SoloNavMeshIntermediates} */
-    const intermediates = {
+    const intermediates: SoloNavMeshIntermediates = {
         input: {
             positions,
             indices,
@@ -267,10 +304,13 @@ export function generateSoloNavMesh(input, options) {
 
     const tilePolys = polyMeshToTilePolys(polyMesh);
 
-    const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
+    const tileDetailMesh = polyMeshDetailToTileDetailMesh(
+        tilePolys.polys,
+        maxVerticesPerPoly,
+        polyMeshDetail,
+    );
 
-    /** @type {import('nav3d').NavMeshTile} */
-    const tile = {
+    const tile: NavMeshTile = {
         id: -1,
         bounds: polyMesh.bounds,
         vertices: tilePolys.vertices,

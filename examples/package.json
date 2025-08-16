@@ -5,12 +5,12 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
+        "build": "rm -rf ./dist && vite build",
         "preview": "vite preview"
     },
     "dependencies": {
         "three": "^0.179.1",
-        "nav3d": "file:../"
+        "nav3d": "workspace:*"
     },
     "devDependencies": {
         "@types/three": "^0.179.0",

@@ -1,17 +1,31 @@
+import fs from 'node:fs';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
-  root: '.',
-  build: {
-    rollupOptions: {
-      input: {
-        main: 'index.html',
-        'placeholder-1': 'placeholder-1.html',
-        'placeholder-2': 'placeholder-2.html'
-      }
+const input: Record<string, string> = {};
+
+const htmlFiles = fs
+    .readdirSync('./src')
+    .filter((file) => file.endsWith('.html'));
+
+for (const path of htmlFiles) {
+    const name = path.split('/').pop()?.replace('.html', '');
+    if (name) {
+        input[name] = `./src/${path}`;
     }
-  },
-  server: {
-    open: '/index.html'
-  }
+}
+
+console.log(input);
+
+export default defineConfig({
+    root: './src',
+    build: {
+        outDir: '../dist',
+        rollupOptions: {
+            input,
+        },
+        target: 'esnext',
+    },
+    server: {
+        open: '/index.html',
+    },
 });

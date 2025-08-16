@@ -1,13 +1,7 @@
-import { DRACOLoader, GLTFLoader } from 'three/examples/jsm/Addons.js';
-
+import { DRACOLoader, type GLTF, GLTFLoader } from 'three/examples/jsm/Addons.js';
 import dracoWasmUrl from 'three/examples/jsm/libs/draco/draco_decoder.wasm?url';
 
-/**
- * Loads a GLTF model.
- * @param {string} url
- * @returns {Promise<import('three/examples/jsm/Addons.js').GLTF>}
- */
-export const loadGLTF = (url) => {
+export const loadGLTF = (url: string): Promise<GLTF> => {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath(dracoWasmUrl);
 

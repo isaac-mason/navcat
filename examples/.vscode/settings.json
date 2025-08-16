@@ -1,0 +1,17 @@
+{
+  "typescript.suggest.autoImports": true,
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.validate.enable": true,
+  "javascript.validate.enable": true,
+  "html.suggest.html5": true,
+  "typescript.preferences.quoteStyle": "single",
+  "typescript.suggest.includeAutomaticOptionalChainCompletions": true,
+  "html.validate.scripts": true,
+  "html.validate.styles": true,
+  "emmet.includeLanguages": {
+    "html": "html"
+  },
+  "typescript.inlayHints.parameterNames.enabled": "all",
+  "typescript.inlayHints.variableTypes.enabled": true,
+  "typescript.inlayHints.functionLikeReturnTypes.enabled": true
+}
