@@ -1547,7 +1547,7 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
 export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugPrimitive[] {
   const primitives: DebugPrimitive[] = [];
 
-  const padx = 0.04; // horizontal pad like Detour (purely visual)
+  const padx = 0.04; // (purely visual)
   const pady = navMeshTile.walkableClimb; // vertical extent
 
   // Colors approximating duRGBA values

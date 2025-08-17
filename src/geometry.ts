@@ -233,7 +233,6 @@ export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
 
 /**
  * Calculates the closest height point on a triangle using barycentric coordinates.
- * This is an exact port of dtClosestHeightPointTriangle from Detour.
  * @param p The point to project
  * @param a First triangle vertex
  * @param b Second triangle vertex
@@ -422,7 +421,6 @@ export const overlapSegSeg2d = (
 
 /**
  * 2D signed area in XZ plane (positive if c is to the left of ab)
- * Matches C++ dtTriArea2D: return acx*abz - abx*acz;
  */
 export const triArea2D = (a: Vec3, b: Vec3, c: Vec3): number => {
     const abx = b[0] - a[0];
@@ -556,6 +554,7 @@ export const intersectSegmentPoly2D = (
     result: IntersectSegmentPoly2DResult,
     startPos: Vec3,
     endPos: Vec3,
+    nv: number,
     verts: number[],
 ): IntersectSegmentPoly2DResult => {
     result.intersects = false;
@@ -571,7 +570,6 @@ export const intersectSegmentPoly2D = (
     const edge = _intersectSegmentPoly2DEdge;
     const diff = _intersectSegmentPoly2DToStart;
 
-    const nv = verts.length / 3;
     for (let i = 0, j = nv - 1; i < nv; j = i, i++) {
         vec3.fromBuffer(vi, verts, i * 3);
         vec3.fromBuffer(vj, verts, j * 3);
@@ -636,13 +634,12 @@ const _randomPointInConvexPolyVc = vec3.create();
  */
 export const randomPointInConvexPoly = (
     out: Vec3,
+    nv: number,
     verts: number[],
     areas: number[],
     s: number,
     t: number,
 ): Vec3 => {
-    const nv = verts.length / 3;
-
     // calculate cumulative triangle areas for weighted selection
     let areaSum = 0;
     for (let i = 2; i < nv; i++) {
