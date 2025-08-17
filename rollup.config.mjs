@@ -4,23 +4,24 @@ import typescript from '@rollup/plugin-typescript';
 import filesize from 'rollup-plugin-filesize';
 
 export default [
-  {
-    input: `./src/index.ts`,
-    output: [
-      {
-        dir: `dist`,
-        format: 'es',
-        sourcemap: true,
-        exports: 'named',
-      },
-    ],
-    plugins: [
-      nodeResolve(),
-      typescript({
-        tsconfig: path.resolve(import.meta.dirname, './tsconfig.json'),
-        emitDeclarationOnly: true,
-      }),
-      filesize(),
-    ],
-  },
+    {
+        input: './src/index.ts',
+        external: ['three', 'maaths'],
+        output: [
+            {
+                dir: `dist`,
+                format: 'es',
+                sourcemap: true,
+                exports: 'named',
+            },
+        ],
+        plugins: [
+            nodeResolve(),
+            typescript({
+                tsconfig: path.resolve(import.meta.dirname, './tsconfig.json'),
+                emitDeclarationOnly: true,
+            }),
+            filesize(),
+        ],
+    },
 ];
