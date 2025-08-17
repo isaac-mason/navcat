@@ -140,12 +140,19 @@ const subdivide = (
  * @param navMeshTile the nav mesh tile to build the BV tree for
  * @returns
  */
-export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
-    // Build tree
+export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): boolean => {
+    // fail if the tile has no polys
+    if (navMeshTile.polys.length === 0) {
+        return false;
+    }
+
+    // use cellSize for quantization factor
     const quantFactor = 1 / navMeshTile.cellSize;
+
+    // allocate bv tree nodes for polys
     const items: NavMeshBvNode[] = new Array(Object.keys(navMeshTile.polys).length);
 
-    // Calculate bounds for each polygon
+    // calculate bounds for each polygon
     for (let i = 0; i < navMeshTile.polys.length; i++) {
         const item: NavMeshBvNode = {
             bounds: [
@@ -155,15 +162,15 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
             i,
         };
 
-        // Use detail meshes if available, otherwise use polygon vertices
+        // use detail meshes if available, otherwise use polygon vertices
         if (navMeshTile.detailMeshes.length > 0 && navMeshTile.detailVertices.length > 0) {
-            // Use detail mesh vertices for more accurate bounds
+            // use detail mesh vertices for more accurate bounds
             const detailMesh = navMeshTile.detailMeshes[i];
             const vb = detailMesh.verticesBase;
             const ndv = detailMesh.verticesCount;
 
             if (ndv > 0) {
-                // Get first detail vertex
+                // get first detail vertex
                 const firstVertIndex = vb * 3;
 
                 item.bounds[0][0] = navMeshTile.detailVertices[firstVertIndex];
@@ -174,7 +181,7 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
                 item.bounds[1][1] = navMeshTile.detailVertices[firstVertIndex + 1];
                 item.bounds[1][2] = navMeshTile.detailVertices[firstVertIndex + 2];
 
-                // Find min/max across all detail vertices
+                // find min/max across all detail vertices
                 for (let j = 1; j < ndv; j++) {
                     const vertIndex = (vb + j) * 3;
                     const x = navMeshTile.detailVertices[vertIndex];
@@ -190,7 +197,7 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
                     if (z > item.bounds[1][2]) item.bounds[1][2] = z;
                 }
 
-                // BV-tree uses cellSize for all dimensions, quantize relative to tile bounds
+                // bv tree uses cellSize for all dimensions, quantize relative to tile bounds
                 item.bounds[0][0] = (item.bounds[0][0] - navMeshTile.bounds[0][0]) * quantFactor;
                 item.bounds[0][1] = (item.bounds[0][1] - navMeshTile.bounds[0][1]) * quantFactor;
                 item.bounds[0][2] = (item.bounds[0][2] - navMeshTile.bounds[0][2]) * quantFactor;
@@ -200,7 +207,7 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
                 item.bounds[1][2] = (item.bounds[1][2] - navMeshTile.bounds[0][2]) * quantFactor;
             }
         } else {
-            // Use polygon vertices
+            // use polygon vertices
             const poly = navMeshTile.polys[i];
             const nvp = poly.vertices.length;
 
@@ -214,6 +221,7 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
                 for (let j = 1; j < nvp; j++) {
                     const vertexIndex = poly.vertices[j];
                     if (vertexIndex === MESH_NULL_IDX) break;
+
                     const vertIndex = vertexIndex * 3;
                     const x = navMeshTile.vertices[vertIndex];
                     const y = navMeshTile.vertices[vertIndex + 1];
@@ -228,7 +236,7 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
                     if (z > item.bounds[1][2]) item.bounds[1][2] = z;
                 }
 
-                // BV-tree uses cellSize for all dimensions, quantize relative to tile bounds
+                // bv tree uses cellSize for all dimensions, quantize relative to tile bounds
                 item.bounds[0][0] = (item.bounds[0][0] - navMeshTile.bounds[0][0]) * quantFactor;
                 item.bounds[0][1] = (item.bounds[0][1] - navMeshTile.bounds[0][1]) * quantFactor;
                 item.bounds[0][2] = (item.bounds[0][2] - navMeshTile.bounds[0][2]) * quantFactor;
@@ -248,11 +256,13 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): void => {
 
     subdivide(items, 0, nPolys, curNode, nodes);
 
-    // Trim the nodes array to actual size
+    // trim the nodes array to actual size
     const trimmedNodes = nodes.slice(0, curNode.value);
 
     navMeshTile.bvTree = {
         nodes: trimmedNodes,
         quantFactor: quantFactor,
     };
+
+    return true;
 };
