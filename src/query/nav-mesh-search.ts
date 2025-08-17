@@ -1136,6 +1136,8 @@ export const findPath = (
     return result;
 };
 
+const _moveAlongSurfaceVertices: number[] = [];
+
 export type MoveAlongSurfaceResult = {
     success: boolean;
     resultPosition: Vec3;
@@ -1233,24 +1235,24 @@ export const moveAlongSurface = (
 
         // collect vertices
         // TODO: temporary allocate max vertices per polygon and reuse
-        const nverts = poly.vertices.length;
-        const verts: number[] = [];
-        for (let i = 0; i < nverts; ++i) {
-            const vertIndex = poly.vertices[i] * 3;
-            verts.push(tile.vertices[vertIndex]);
-            verts.push(tile.vertices[vertIndex + 1]);
-            verts.push(tile.vertices[vertIndex + 2]);
+        const nv = poly.vertices.length;
+        const vertices = _moveAlongSurfaceVertices;
+        for (let i = 0; i < nv; ++i) {
+            const start = poly.vertices[i] * 3;
+            vertices[i * 3] = tile.vertices[start];
+            vertices[i * 3 + 1] = tile.vertices[start + 1];
+            vertices[i * 3 + 2] = tile.vertices[start + 2];
         }
 
         // if target is inside the poly, stop search
-        if (pointInPoly(nverts, verts, endPosition)) {
+        if (pointInPoly(nv, vertices, endPosition)) {
             bestNode = curNode;
             vec3.copy(bestPos, endPosition);
             break;
         }
 
         // find wall edges and find nearest point inside the walls
-        for (let i = 0, j = nverts - 1; i < nverts; j = i++) {
+        for (let i = 0, j = nv - 1; i < nv; j = i++) {
             // find links to neighbours
             const neis: NodeRef[] = [];
 
@@ -1281,14 +1283,14 @@ export const moveAlongSurface = (
             if (neis.length === 0) {
                 // wall edge, calc distance
                 const vj = [
-                    verts[j * 3],
-                    verts[j * 3 + 1],
-                    verts[j * 3 + 2],
+                    vertices[j * 3],
+                    vertices[j * 3 + 1],
+                    vertices[j * 3 + 2],
                 ] as Vec3;
                 const vi = [
-                    verts[i * 3],
-                    verts[i * 3 + 1],
-                    verts[i * 3 + 2],
+                    vertices[i * 3],
+                    vertices[i * 3 + 1],
+                    vertices[i * 3 + 2],
                 ] as Vec3;
                 const distSqr = distancePtSeg2dSqr(endPosition, vj, vi);
                 if (distSqr < bestDist) {
@@ -1333,14 +1335,14 @@ export const moveAlongSurface = (
 
                     // skip the link if it is too far from search constraint
                     const vj = [
-                        verts[j * 3],
-                        verts[j * 3 + 1],
-                        verts[j * 3 + 2],
+                        vertices[j * 3],
+                        vertices[j * 3 + 1],
+                        vertices[j * 3 + 2],
                     ] as Vec3;
                     const vi = [
-                        verts[i * 3],
-                        verts[i * 3 + 1],
-                        verts[i * 3 + 2],
+                        vertices[i * 3],
+                        vertices[i * 3 + 1],
+                        vertices[i * 3 + 2],
                     ] as Vec3;
                     const distSqr = distancePtSeg2dSqr(searchPos, vj, vi);
                     if (distSqr > searchRadSqr) continue;
@@ -1385,6 +1387,8 @@ export const moveAlongSurface = (
 
     return result;
 };
+
+const _raycastVertices: number[] = [];
 
 export type RaycastResult = {
     /** The hit parameter along the segment. A value of Number.MAX_VALUE indicates no wall hit. */
@@ -1445,12 +1449,13 @@ export const raycast = (
         const { tile, poly } = tileAndPolyResult;
 
         // collect current poly vertices
-        const polyVerts: number[] = [];
-        for (let i = 0; i < poly.vertices.length; i++) {
-            const vertIndex = poly.vertices[i] * 3;
-            polyVerts.push(tile.vertices[vertIndex]);
-            polyVerts.push(tile.vertices[vertIndex + 1]);
-            polyVerts.push(tile.vertices[vertIndex + 2]);
+        const nv = poly.vertices.length;
+        const vertices = _raycastVertices;
+        for (let i = 0; i < nv; i++) {
+            const start = poly.vertices[i] * 3;
+            vertices[i * 3] = tile.vertices[start];
+            vertices[i * 3 + 1] = tile.vertices[start + 1];
+            vertices[i * 3 + 2] = tile.vertices[start + 2];
         }
 
         // cast ray against current polygon
@@ -1458,7 +1463,8 @@ export const raycast = (
             intersectSegmentPoly2DResult,
             startPosition,
             endPosition,
-            polyVerts,
+            nv,
+            vertices,
         );
         if (!intersectSegmentPoly2DResult.intersects) {
             // could not hit the polygon, keep the old t and report hit
@@ -1587,8 +1593,8 @@ export const raycast = (
                     poly.vertices.length
                         ? intersectSegmentPoly2DResult.segMax + 1
                         : 0;
-                const va = vec3.fromBuffer(vec3.create(), polyVerts, a * 3);
-                const vb = vec3.fromBuffer(vec3.create(), polyVerts, b * 3);
+                const va = vec3.fromBuffer(vec3.create(), vertices, a * 3);
+                const vb = vec3.fromBuffer(vec3.create(), vertices, b * 3);
                 const dx = vb[0] - va[0];
                 const dz = vb[2] - va[2];
                 result.hitNormal[0] = dz;
@@ -1606,6 +1612,8 @@ export const raycast = (
 
     return result;
 };
+
+const _findRandomPointVertices: number[] = [];
 
 export type FindRandomPointResult = {
     success: boolean;
@@ -1699,20 +1707,21 @@ export const findRandomPoint = (
     }
 
     // randomly pick point on polygon
-    const verts: number[] = [];
-    for (let j = 0; j < selectedPoly.vertices.length; j++) {
-        const vertexIndex = selectedPoly.vertices[j] * 3;
-        verts.push(selectedTile.vertices[vertexIndex]);
-        verts.push(selectedTile.vertices[vertexIndex + 1]);
-        verts.push(selectedTile.vertices[vertexIndex + 2]);
+    const nv = selectedPoly.vertices.length;
+    const vertices = _findRandomPointVertices;
+    for (let j = 0; j < nv; j++) {
+        const start = selectedPoly.vertices[j] * 3;
+        vertices[j * 3] = selectedTile.vertices[start];
+        vertices[j * 3 + 1] = selectedTile.vertices[start + 1];
+        vertices[j * 3 + 2] = selectedTile.vertices[start + 2];
     }
 
     const s = rand();
     const t = rand();
-    const areas = new Array(selectedPoly.vertices.length);
+    const areas = new Array(nv);
     const pt: Vec3 = [0, 0, 0];
 
-    randomPointInConvexPoly(pt, verts, areas, s, t);
+    randomPointInConvexPoly(pt, nv, vertices, areas, s, t);
 
     // project point onto polygon surface to ensure it's exactly on the mesh
     const closestPointResult = createGetClosestPointOnPolyResult();
@@ -1730,6 +1739,8 @@ export const findRandomPoint = (
     return result;
 };
 
+const _findRandomPointAroundCircleVertices: number[] = [];
+
 export type FindRandomPointAroundCircleResult = {
     success: boolean;
     randomRef: NodeRef;
@@ -1738,7 +1749,6 @@ export type FindRandomPointAroundCircleResult = {
 
 /**
  * Finds a random point within a circle around a center position on the navigation mesh.
- * This is a port of dtNavMeshQuery::findRandomPointAroundCircle from Detour.
  *
  * Uses Dijkstra-like search to explore reachable polygons within the circle,
  * then selects a random polygon weighted by area, and finally generates
@@ -1955,20 +1965,21 @@ export const findRandomPointAroundCircle = (
     }
 
     // randomly pick point on polygon
-    const verts: number[] = [];
-    for (let j = 0; j < randomPoly.vertices.length; j++) {
-        const vertexIndex = randomPoly.vertices[j] * 3;
-        verts.push(randomTile.vertices[vertexIndex]);
-        verts.push(randomTile.vertices[vertexIndex + 1]);
-        verts.push(randomTile.vertices[vertexIndex + 2]);
+    const nv = randomPoly.vertices.length;
+    const vertices = _findRandomPointAroundCircleVertices;
+    for (let j = 0; j < nv; j++) {
+        const start = randomPoly.vertices[j] * 3;
+        vertices[j * 3] = randomTile.vertices[start];
+        vertices[j * 3 + 1] = randomTile.vertices[start + 1];
+        vertices[j * 3 + 2] = randomTile.vertices[start + 2];
     }
 
     const s = rand();
     const t = rand();
-    const areas = new Array(randomPoly.vertices.length);
+    const areas = new Array(nv);
     const pt: Vec3 = [0, 0, 0];
 
-    randomPointInConvexPoly(pt, verts, areas, s, t);
+    randomPointInConvexPoly(pt, nv, vertices, areas, s, t);
 
     // project point onto polygon surface to ensure it's exactly on the mesh
     const closestPointResult = createGetClosestPointOnPolyResult();

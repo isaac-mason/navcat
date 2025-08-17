@@ -112,6 +112,12 @@ export const getTileAndPolyByRef = (
     return result;
 };
 
+const _getPolyHeightA = vec3.create();
+const _getPolyHeightB = vec3.create();
+const _getPolyHeightC = vec3.create();
+const _getPolyHeightTriangle: Triangle3 = [_getPolyHeightA, _getPolyHeightB, _getPolyHeightC];
+const _getPolyHeightVertices: number[] = [];
+
 export type GetPolyHeightResult = {
     success: boolean;
     height: number;
@@ -121,11 +127,6 @@ export const createGetPolyHeightResult = (): GetPolyHeightResult => ({
     success: false,
     height: 0,
 });
-
-const _getPolyHeightA = vec3.create();
-const _getPolyHeightB = vec3.create();
-const _getPolyHeightC = vec3.create();
-const _getPolyHeightTriangle: Triangle3 = [_getPolyHeightA, _getPolyHeightB, _getPolyHeightC];
 
 /**
  * Gets the height of a polygon at a given point using detail mesh if available.
@@ -149,18 +150,17 @@ export const getPolyHeight = (
     const detailMesh = tile.detailMeshes[polyIndex];
 
     // build polygon vertices array
-    // TODO: can we avoid allocations here?
-    const nv = poly.vertices.length;
-    const verts = new Array<number>(nv * 3);
-    for (let i = 0; i < nv; ++i) {
+    const verticesCount = poly.vertices.length;
+    const vertices = _getPolyHeightVertices; 
+    for (let i = 0; i < verticesCount; ++i) {
         const vertIndex = poly.vertices[i] * 3;
-        verts[i * 3 + 0] = tile.vertices[vertIndex + 0];
-        verts[i * 3 + 1] = tile.vertices[vertIndex + 1];
-        verts[i * 3 + 2] = tile.vertices[vertIndex + 2];
+        vertices[i * 3] = tile.vertices[vertIndex];
+        vertices[i * 3 + 1] = tile.vertices[vertIndex + 1];
+        vertices[i * 3 + 2] = tile.vertices[vertIndex + 2];
     }
     
-    // check if point is inside polygon (matches C++ dtPointInPolygon(pos, verts, nv))
-    if (!pointInPoly(nv, verts, pos)) {
+    // check if point is inside polygon
+    if (!pointInPoly(verticesCount, vertices, pos)) {
         return result;
     }
     
@@ -338,6 +338,7 @@ const _detailClosestPoint = vec3.create();
 const _getClosestPointOnPolyLineStart = vec3.create();
 const _getClosestPointOnPolyLineEnd = vec3.create();
 const _getClosestPointOnPolyHeightResult = createGetPolyHeightResult()
+const _getClosestPointOnPolyVertices: number[] = [];
 
 export const getClosestPointOnPoly = (
     result: GetClosestPointOnPolyResult,
@@ -361,17 +362,17 @@ export const getClosestPointOnPoly = (
 
     // get polygon vertices
     const nv = poly.vertices.length;
-    const verts = new Array(nv * 3);
+    const vertices = _getClosestPointOnPolyVertices;
 
     for (let i = 0; i < nv; ++i) {
-        const vertIndex = poly.vertices[i] * 3;
-        verts[i * 3] = tile.vertices[vertIndex];
-        verts[i * 3 + 1] = tile.vertices[vertIndex + 1];
-        verts[i * 3 + 2] = tile.vertices[vertIndex + 2];
+        const start = poly.vertices[i] * 3;
+        vertices[i * 3] = tile.vertices[start];
+        vertices[i * 3 + 1] = tile.vertices[start + 1];
+        vertices[i * 3 + 2] = tile.vertices[start + 2];
     }
 
     // check if point is over polygon
-    if (pointInPoly(nv, verts, point)) {
+    if (pointInPoly(nv, vertices, point)) {
         result.isOverPoly = true;
 
         // find height at the position
@@ -385,7 +386,7 @@ export const getClosestPointOnPoly = (
             // fallback to polygon center height
             let avgY = 0;
             for (let i = 0; i < nv; ++i) {
-                avgY += verts[i * 3 + 1];
+                avgY += vertices[i * 3 + 1];
             }
             result.closestPoint[0] = point[0];
             result.closestPoint[1] = avgY / nv;
@@ -402,13 +403,13 @@ export const getClosestPointOnPoly = (
 
     for (let i = 0; i < nv; ++i) {
         const j = (i + 1) % nv;
-        lineStart[0] = verts[i * 3];
-        lineStart[1] = verts[i * 3 + 1];
-        lineStart[2] = verts[i * 3 + 2];
+        lineStart[0] = vertices[i * 3];
+        lineStart[1] = vertices[i * 3 + 1];
+        lineStart[2] = vertices[i * 3 + 2];
 
-        lineEnd[0] = verts[j * 3];
-        lineEnd[1] = verts[j * 3 + 1];
-        lineEnd[2] = verts[j * 3 + 2];
+        lineEnd[0] = vertices[j * 3];
+        lineEnd[1] = vertices[j * 3 + 1];
+        lineEnd[2] = vertices[j * 3 + 2];
 
         const d = distancePtSeg2dSqr(point, lineStart, lineEnd);
         if (d < dmin) {
@@ -420,13 +421,13 @@ export const getClosestPointOnPoly = (
     if (imin >= 0) {
         const j = (imin + 1) % nv;
 
-        lineStart[0] = verts[imin * 3];
-        lineStart[1] = verts[imin * 3 + 1];
-        lineStart[2] = verts[imin * 3 + 2];
+        lineStart[0] = vertices[imin * 3];
+        lineStart[1] = vertices[imin * 3 + 1];
+        lineStart[2] = vertices[imin * 3 + 2];
 
-        lineEnd[0] = verts[j * 3];
-        lineEnd[1] = verts[j * 3 + 1];
-        lineEnd[2] = verts[j * 3 + 2];
+        lineEnd[0] = vertices[j * 3];
+        lineEnd[1] = vertices[j * 3 + 1];
+        lineEnd[2] = vertices[j * 3 + 2];
 
         closestPtSeg2d(result.closestPoint, point, lineStart, lineEnd);
 
@@ -461,6 +462,7 @@ export const getClosestPointOnPoly = (
 
 const _closestPointOnPolyBoundaryLineStart = vec3.create();
 const _closestPointOnPolyBoundaryLineEnd = vec3.create();
+const _closestPointOnPolyBoundaryVertices: number[] = [];
 
 export const getClosestPointOnPolyBoundary = (
     navMesh: NavMesh,
@@ -480,17 +482,17 @@ export const getClosestPointOnPolyBoundary = (
     const lineEnd = _closestPointOnPolyBoundaryLineEnd;
 
     // collect vertices
-    const nv = poly.vertices.length;
-    const verts = new Array<number>(nv * 3);
-    for (let i = 0; i < nv; ++i) {
+    const verticesCount = poly.vertices.length;
+    const vertices = _closestPointOnPolyBoundaryVertices;
+    for (let i = 0; i < verticesCount; ++i) {
         const vIndex = poly.vertices[i] * 3;
-        verts[i * 3 + 0] = tile.vertices[vIndex + 0];
-        verts[i * 3 + 1] = tile.vertices[vIndex + 1];
-        verts[i * 3 + 2] = tile.vertices[vIndex + 2];
+        vertices[i * 3] = tile.vertices[vIndex];
+        vertices[i * 3 + 1] = tile.vertices[vIndex + 1];
+        vertices[i * 3 + 2] = tile.vertices[vIndex + 2];
     }
 
     // if inside polygon, return the point as-is
-    if (pointInPoly(nv, verts, point)) {
+    if (pointInPoly(verticesCount, vertices, point)) {
         vec3.copy(outClosestPoint, point);
         return true;
     }
@@ -498,16 +500,16 @@ export const getClosestPointOnPolyBoundary = (
     // otherwise clamp to nearest edge
     let dmin = Number.MAX_VALUE;
     let imin = 0;
-    for (let i = 0; i < nv; ++i) {
-        const j = (i + 1) % nv;
+    for (let i = 0; i < verticesCount; ++i) {
+        const j = (i + 1) % verticesCount;
         const vaIndex = i * 3;
         const vbIndex = j * 3;
-        lineStart[0] = verts[vaIndex + 0];
-        lineStart[1] = verts[vaIndex + 1];
-        lineStart[2] = verts[vaIndex + 2];
-        lineEnd[0] = verts[vbIndex + 0];
-        lineEnd[1] = verts[vbIndex + 1];
-        lineEnd[2] = verts[vbIndex + 2];
+        lineStart[0] = vertices[vaIndex + 0];
+        lineStart[1] = vertices[vaIndex + 1];
+        lineStart[2] = vertices[vaIndex + 2];
+        lineEnd[0] = vertices[vbIndex + 0];
+        lineEnd[1] = vertices[vbIndex + 1];
+        lineEnd[2] = vertices[vbIndex + 2];
         const d = distancePtSeg2dSqr(point, lineStart, lineEnd);
         if (d < dmin) {
             dmin = d;
@@ -515,15 +517,15 @@ export const getClosestPointOnPolyBoundary = (
         }
     }
 
-    const j = (imin + 1) % nv;
+    const j = (imin + 1) % verticesCount;
     const vaIndex = imin * 3;
     const vbIndex = j * 3;
-    const va0 = verts[vaIndex + 0];
-    const va1 = verts[vaIndex + 1];
-    const va2 = verts[vaIndex + 2];
-    const vb0 = verts[vbIndex + 0];
-    const vb1 = verts[vbIndex + 1];
-    const vb2 = verts[vbIndex + 2];
+    const va0 = vertices[vaIndex + 0];
+    const va1 = vertices[vaIndex + 1];
+    const va2 = vertices[vaIndex + 2];
+    const vb0 = vertices[vbIndex + 0];
+    const vb1 = vertices[vbIndex + 1];
+    const vb2 = vertices[vbIndex + 2];
 
     // compute t on segment (xz plane)
     const pqx = vb0 - va0;
