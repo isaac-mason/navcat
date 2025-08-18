@@ -449,7 +449,7 @@ export const intersectSegSeg2D = (
     b: Vec3,
     c: Vec3,
     d: Vec3,
-): boolean => {
+): IntersectSegSeg2DResult => {
     const bax = b[0] - a[0];
     const baz = b[2] - a[2];
     const dcx = d[0] - c[0];
@@ -461,7 +461,7 @@ export const intersectSegSeg2D = (
         out.hit = false;
         out.s = 0;
         out.t = 0;
-        return false;
+        return out;
     }
     const s = (dcx * acz - dcz * acx) / denom;
     const t = (bax * acz - baz * acx) / denom;
@@ -469,7 +469,7 @@ export const intersectSegSeg2D = (
     out.hit = hit;
     out.s = s;
     out.t = t;
-    return hit;
+    return out;
 };
 
 const _polyMinExtentPt: Vec3 = vec3.create();

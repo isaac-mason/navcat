@@ -1,11 +1,8 @@
 import { type Vec3, vec3 } from 'maaths';
 import {
     createFindNearestPolyResult,
-    createGetPolyHeightResult,
     DEFAULT_QUERY_FILTER,
     findNearestPoly,
-    getPolyHeight,
-    getTileAndPolyByRef,
     moveAlongSurface,
     three as threeUtils,
 } from 'nav3d';
@@ -230,27 +227,6 @@ function updateAgentMovement(deltaTime: number) {
     }
 
     vec3.copy(agentState.position, moveAlongSurfaceResult.resultPosition);
-
-    // get poly and tile
-    const tileAndPoly = getTileAndPolyByRef(
-        moveAlongSurfaceResult.resultRef,
-        navMesh,
-    );
-
-    if (!tileAndPoly.success) return;
-
-    // get poly height
-    const polyHeightResult = getPolyHeight(
-        createGetPolyHeightResult(),
-        tileAndPoly.tile,
-        tileAndPoly.poly,
-        tileAndPoly.polyIndex,
-        nearestPolyResult.nearestPoint,
-    );
-
-    if (polyHeightResult.success) {
-        agentState.position[1] = polyHeightResult.height;
-    }
 }
 
 function update() {

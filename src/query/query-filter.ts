@@ -1,7 +1,7 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import type { NavMesh } from './nav-mesh';
-import { desNodeRef, getNodeRefType, NodeType, type NodeRef } from './node';
+import { desNodeRef, getNodeRefType, type NodeRef, NodeType } from './node';
 
 export type QueryFilter = {
     /**

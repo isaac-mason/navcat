@@ -20,14 +20,14 @@ import {
     OffMeshConnectionSide,
 } from './nav-mesh';
 import {
-    createFindNearestPolyResult,
     createGetClosestPointOnPolyResult,
-    findNearestPoly,
+    createGetPolyHeightResult,
     getClosestPointOnPoly,
     getClosestPointOnPolyBoundary,
     getNodeAreaAndFlags,
+    getPolyHeight,
     getTileAndPolyByRef,
-} from './nav-mesh-query';
+} from './nav-mesh-api';
 import {
     desNodeRef,
     getNodeRefType,
@@ -603,7 +603,7 @@ export const findNodePath = (
     if (lastBestNode.nodeRef !== endRef) {
         return {
             status: FindNodePathStatus.PARTIAL_PATH,
-            success: true,
+            success: false,
             path,
             intermediates: {
                 nodes,
@@ -633,24 +633,52 @@ export type StraightPathPoint = {
     nodeRef: NodeRef | null;
 };
 
+enum AppendVertexStatus {
+    SUCCESS = 0x1,
+    MAX_POINTS_REACHED = 0x2,
+    IN_PROGRESS = 0x4,
+}
+
 const appendVertex = (
-    pt: Vec3,
+    point: Vec3,
     ref: NodeRef | null,
     outPoints: StraightPathPoint[],
     nodeType: NodeType,
-): void => {
-    // dedupe last
+    isEnd: boolean,
+    maxPoints: number | null = null,
+): AppendVertexStatus => {
     if (
         outPoints.length > 0 &&
-        vec3.equals(outPoints[outPoints.length - 1].position, pt)
+        vec3.equals(outPoints[outPoints.length - 1].position, point)
     ) {
-        return;
+        // the vertices are equal, update
+        outPoints[outPoints.length - 1].nodeRef = ref;
+        outPoints[outPoints.length - 1].type = nodeType;
+
+        return AppendVertexStatus.IN_PROGRESS;
     }
+
+    // append new vertex
     outPoints.push({
-        position: [pt[0], pt[1], pt[2]],
+        position: [point[0], point[1], point[2]],
         type: nodeType,
         nodeRef: ref,
     });
+
+    // if there is no space to append more vertices, return
+    if (maxPoints !== null && outPoints.length >= maxPoints) {
+        return (
+            AppendVertexStatus.SUCCESS & AppendVertexStatus.MAX_POINTS_REACHED
+        );
+    }
+
+    // if reached end of path, return
+    if (isEnd) {
+        return AppendVertexStatus.SUCCESS;
+    }
+
+    // else, continue appending points
+    return AppendVertexStatus.IN_PROGRESS;
 };
 
 const _intersectSegSeg2DResult: IntersectSegSeg2DResult =
@@ -668,7 +696,8 @@ const appendPortals = (
     path: NodeRef[],
     outPoints: StraightPathPoint[],
     options: number,
-): void => {
+    maxPoints: number | null = null,
+): AppendVertexStatus => {
     const startPos = outPoints[outPoints.length - 1].position;
 
     for (let i = startIdx; i < endIdx; i++) {
@@ -685,40 +714,59 @@ const appendPortals = (
             }
         }
 
-        if (
-            !getPortalPoints(
-                navMesh,
-                from,
-                to,
-                _appendPortalsLeft,
-                _appendPortalsRight,
-            )
-        )
+        // calculate portal
+        const left = _appendPortalsLeft;
+        const right = _appendPortalsRight;
+        if (!getPortalPoints(navMesh, from, to, left, right)) {
             break;
+        }
 
-        intersectSegSeg2D(
+        // append intersection
+        const intersectResult = intersectSegSeg2D(
             _intersectSegSeg2DResult,
             startPos,
             endPos,
-            _appendPortalsLeft,
-            _appendPortalsRight,
+            left,
+            right,
         );
 
-        if (_intersectSegSeg2DResult.hit) {
-            vec3.lerp(
-                _appendPortalsPoint,
-                _appendPortalsLeft,
-                _appendPortalsRight,
-                _intersectSegSeg2DResult.t,
-            );
-            const toType = getNodeRefType(to);
-            appendVertex(_appendPortalsPoint, to, outPoints, toType);
+        if (!intersectResult.hit) continue;
+
+        const point = vec3.lerp(
+            _appendPortalsPoint,
+            left,
+            right,
+            intersectResult.t,
+        );
+
+        const toType = getNodeRefType(to);
+
+        const stat = appendVertex(
+            point,
+            to,
+            outPoints,
+            toType,
+            false,
+            maxPoints,
+        );
+
+        if (stat !== AppendVertexStatus.IN_PROGRESS) {
+            return stat;
         }
     }
+
+    return AppendVertexStatus.IN_PROGRESS;
 };
+
+export enum FindStraightPathStatus {
+    INVALID_INPUT = 0,
+    PARTIAL_PATH = 1,
+    COMPLETE_PATH = 2,
+}
 
 export type FindStraightPathResult = {
     success: boolean;
+    status: FindStraightPathStatus;
     path: StraightPathPoint[];
 };
 
@@ -736,6 +784,7 @@ const _findStraightPathRightPortalPoint = vec3.create();
  * @param start The start position in world space.
  * @param end The end position in world space.
  * @param pathNodeRefs The list of polygon node references that form the path, generally obtained from `findNodePath`
+ * @param maxPoints The maximum number of points to return in the straight path. If null, no limit is applied.
  * @param straightPathOptions
  * @returns The straight path
  */
@@ -744,11 +793,17 @@ export const findStraightPath = (
     start: Vec3,
     end: Vec3,
     pathNodeRefs: NodeRef[],
+    maxPoints: number | null = null,
     straightPathOptions = 0,
 ): FindStraightPathResult => {
     const path: StraightPathPoint[] = [];
+
     if (!vec3.finite(start) || !vec3.finite(end) || pathNodeRefs.length === 0) {
-        return { success: false, path };
+        return {
+            success: false,
+            path,
+            status: FindStraightPathStatus.INVALID_INPUT,
+        };
     }
 
     // clamp start & end to poly boundaries
@@ -761,7 +816,11 @@ export const findStraightPath = (
             closestStartPos,
         )
     )
-        return { success: false, path };
+        return {
+            success: false,
+            path,
+            status: FindStraightPathStatus.INVALID_INPUT,
+        };
 
     const closestEndPos = vec3.create();
     if (
@@ -772,15 +831,29 @@ export const findStraightPath = (
             closestEndPos,
         )
     )
-        return { success: false, path };
+        return {
+            success: false,
+            path,
+            status: FindStraightPathStatus.INVALID_INPUT,
+        };
 
     // add start point
-    appendVertex(
-        closestStartPos,
-        pathNodeRefs[0],
-        path,
-        getNodeRefType(pathNodeRefs[0]),
-    );
+    if (
+        !appendVertex(
+            closestStartPos,
+            pathNodeRefs[0],
+            path,
+            getNodeRefType(pathNodeRefs[0]),
+            false,
+            maxPoints,
+        )
+    ) {
+        return {
+            success: true,
+            path,
+            status: FindStraightPathStatus.PARTIAL_PATH,
+        }; // reached max points early
+    }
 
     const portalApex = vec3.create();
     const portalLeft = vec3.create();
@@ -797,10 +870,10 @@ export const findStraightPath = (
         let leftIndex = 0;
         let rightIndex = 0;
 
-        let leftPolyRef: NodeRef | null = pathNodeRefs[0];
-        let rightPolyRef: NodeRef | null = pathNodeRefs[0];
-        let leftPolyType: NodeType = NodeType.GROUND_POLY;
-        let rightPolyType: NodeType = NodeType.GROUND_POLY;
+        let leftNodeRef: NodeRef | null = pathNodeRefs[0];
+        let rightNodeRef: NodeRef | null = pathNodeRefs[0];
+        let leftNodeType: NodeType = NodeType.GROUND_POLY;
+        let rightNodeType: NodeType = NodeType.GROUND_POLY;
 
         for (let i = 0; i < pathSize; ++i) {
             let toType: NodeType = NodeType.GROUND_POLY;
@@ -834,7 +907,11 @@ export const findStraightPath = (
                             endClamp,
                         )
                     )
-                        return { success: false, path };
+                        return {
+                            success: false,
+                            path,
+                            status: FindStraightPathStatus.INVALID_INPUT,
+                        };
 
                     // append portals along the current straight path segment.
                     if (
@@ -842,6 +919,7 @@ export const findStraightPath = (
                         (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
                             FIND_STRAIGHT_PATH_ALL_CROSSINGS)
                     ) {
+                        // ignore status return value as we're just about to return
                         appendPortals(
                             navMesh,
                             apexIndex,
@@ -850,17 +928,29 @@ export const findStraightPath = (
                             pathNodeRefs,
                             path,
                             straightPathOptions,
+                            maxPoints,
                         );
                     }
 
+                    const nodeType = getNodeRefType(pathNodeRefs[i]);
+                    const isEnd = !leftNodeRef;
+
+                    // ignore status return value as we're just about to return
                     appendVertex(
                         endClamp,
                         pathNodeRefs[i],
                         path,
-                        getNodeRefType(pathNodeRefs[i]),
+                        nodeType,
+                        isEnd,
+                        maxPoints,
                     );
 
-                    return { success: true, path };
+                    // return partial result
+                    return {
+                        success: true,
+                        path,
+                        status: FindStraightPathStatus.PARTIAL_PATH,
+                    };
                 }
 
                 if (i === 0) {
@@ -882,9 +972,9 @@ export const findStraightPath = (
                     triArea2D(portalApex, portalLeft, right) > 0.0
                 ) {
                     vec3.copy(portalRight, right);
-                    rightPolyRef =
+                    rightNodeRef =
                         i + 1 < pathSize ? pathNodeRefs[i + 1] : null;
-                    rightPolyType = toType;
+                    rightNodeType = toType;
                     rightIndex = i;
                 } else {
                     // append portals along current straight segment
@@ -893,7 +983,7 @@ export const findStraightPath = (
                         (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
                             FIND_STRAIGHT_PATH_ALL_CROSSINGS)
                     ) {
-                        appendPortals(
+                        const appendStatus = appendPortals(
                             navMesh,
                             apexIndex,
                             leftIndex,
@@ -901,19 +991,42 @@ export const findStraightPath = (
                             pathNodeRefs,
                             path,
                             straightPathOptions,
+                            maxPoints,
                         );
+
+                        if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
+                            return {
+                                success: true,
+                                path,
+                                status: FindStraightPathStatus.PARTIAL_PATH,
+                            };
+                        }
                     }
 
                     vec3.copy(portalApex, portalLeft);
                     apexIndex = leftIndex;
+                    const isEnd = !leftNodeRef;
 
-                    // add/update vertex
-                    appendVertex(
+                    // append or update vertex
+                    const appendStatus = appendVertex(
                         portalApex,
-                        leftPolyRef,
+                        leftNodeRef,
                         path,
-                        leftPolyRef ? leftPolyType : NodeType.GROUND_POLY,
+                        leftNodeRef ? leftNodeType : NodeType.GROUND_POLY,
+                        isEnd,
+                        maxPoints,
                     );
+
+                    if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
+                        const status =
+                            isEnd &&
+                            (appendStatus &
+                                AppendVertexStatus.MAX_POINTS_REACHED) ===
+                                0
+                                ? FindStraightPathStatus.COMPLETE_PATH
+                                : FindStraightPathStatus.PARTIAL_PATH;
+                        return { success: true, path, status };
+                    }
 
                     vec3.copy(portalLeft, portalApex);
                     vec3.copy(portalRight, portalApex);
@@ -944,8 +1057,8 @@ export const findStraightPath = (
                     ) < 0.0
                 ) {
                     vec3.copy(portalLeft, _findStraightPathLeftPortalPoint);
-                    leftPolyRef = i + 1 < pathSize ? pathNodeRefs[i + 1] : null;
-                    leftPolyType = toType;
+                    leftNodeRef = i + 1 < pathSize ? pathNodeRefs[i + 1] : null;
+                    leftNodeType = toType;
                     leftIndex = i;
                 } else {
                     // append portals along current straight segment
@@ -954,7 +1067,7 @@ export const findStraightPath = (
                         (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
                             FIND_STRAIGHT_PATH_ALL_CROSSINGS)
                     ) {
-                        appendPortals(
+                        const appendStatus = appendPortals(
                             navMesh,
                             apexIndex,
                             rightIndex,
@@ -962,19 +1075,42 @@ export const findStraightPath = (
                             pathNodeRefs,
                             path,
                             straightPathOptions,
+                            maxPoints,
                         );
+
+                        if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
+                            return {
+                                success: true,
+                                path,
+                                status: FindStraightPathStatus.PARTIAL_PATH,
+                            };
+                        }
                     }
 
                     vec3.copy(portalApex, portalRight);
                     apexIndex = rightIndex;
+                    const isEnd = !rightNodeRef;
 
                     // add/update vertex
-                    appendVertex(
+                    const appendStatus = appendVertex(
                         portalApex,
-                        rightPolyRef,
+                        rightNodeRef,
                         path,
-                        rightPolyRef ? rightPolyType : NodeType.GROUND_POLY,
+                        rightNodeRef ? rightNodeType : NodeType.GROUND_POLY,
+                        isEnd,
+                        maxPoints,
                     );
+
+                    if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
+                        const status =
+                            isEnd &&
+                            (appendStatus &
+                                AppendVertexStatus.MAX_POINTS_REACHED) ===
+                                0
+                                ? FindStraightPathStatus.COMPLETE_PATH
+                                : FindStraightPathStatus.PARTIAL_PATH;
+                        return { success: true, path, status };
+                    }
 
                     vec3.copy(portalLeft, portalApex);
                     vec3.copy(portalRight, portalApex);
@@ -995,7 +1131,7 @@ export const findStraightPath = (
             (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
                 FIND_STRAIGHT_PATH_ALL_CROSSINGS)
         ) {
-            appendPortals(
+            const appendStatus = appendPortals(
                 navMesh,
                 apexIndex,
                 pathSize - 1,
@@ -1003,7 +1139,16 @@ export const findStraightPath = (
                 pathNodeRefs,
                 path,
                 straightPathOptions,
+                maxPoints,
             );
+
+            if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
+                return {
+                    success: true,
+                    path,
+                    status: FindStraightPathStatus.PARTIAL_PATH,
+                };
+            }
         }
     }
 
@@ -1011,132 +1156,26 @@ export const findStraightPath = (
     // attach the last poly ref if available for the end point for easier identification
     const endRef =
         pathNodeRefs.length > 0 ? pathNodeRefs[pathNodeRefs.length - 1] : null;
-    appendVertex(closestEndPos, endRef, path, NodeType.GROUND_POLY);
+    const isEnd = true;
 
-    return { success: true, path };
-};
+    appendVertex(
+        closestEndPos,
+        endRef,
+        path,
+        NodeType.GROUND_POLY,
+        isEnd,
+        maxPoints,
+    );
 
-export type FindPathResult = {
-    /** whether the search completed successfully, with either a partial or complete path */
-    success: boolean;
-
-    /** the path, consisting of polygon node and offmesh link node references */
-    path: StraightPathPoint[];
-
-    /** the start poly node ref */
-    startNodeRef: NodeRef | null;
-
-    /** the start closest point */
-    startPoint: Vec3;
-
-    /** the end poly node ref */
-    endNodeRef: NodeRef | null;
-
-    /** the end closest point */
-    endPoint: Vec3;
-
-    /** the node path result */
-    nodePath: FindNodePathResult | null;
-};
-
-const _findPathStartNearestPolyResult = createFindNearestPolyResult();
-const _findPathEndNearestPolyResult = createFindNearestPolyResult();
-
-/**
- * Find a path between two positions on a NavMesh.
- *
- * If the end node cannot be reached through the navigation graph,
- * the last node in the path will be the nearest the end node.
- *
- * Internally:
- * - finds the closest poly for the start and end positions with @see findNearestPoly
- * - finds a nav mesh node path with @see findNodePath
- * - finds a straight path with @see findStraightPath
- *
- * If you want more fine tuned behaviour you can call these methods directly.
- * For example, for agent movement you might want to find a node path once but regularly re-call @see findStraightPath
- *
- * @param navMesh The navigation mesh.
- * @param start The starting position in world space.
- * @param end The ending position in world space.
- * @param queryFilter The query filter.
- * @returns The result of the pathfinding operation.
- */
-export const findPath = (
-    navMesh: NavMesh,
-    start: Vec3,
-    end: Vec3,
-    halfExtents: Vec3,
-    queryFilter: QueryFilter,
-): FindPathResult => {
-    const result: FindPathResult = {
-        success: false,
-        path: [],
-        startNodeRef: null,
-        startPoint: [0, 0, 0],
-        endNodeRef: null,
-        endPoint: [0, 0, 0],
-        nodePath: null,
+    return {
+        success: true,
+        path,
+        status: FindStraightPathStatus.COMPLETE_PATH,
     };
-
-    /* find start nearest poly */
-    const startNearestPolyResult = findNearestPoly(
-        _findPathStartNearestPolyResult,
-        navMesh,
-        start,
-        halfExtents,
-        queryFilter,
-    );
-    if (!startNearestPolyResult.success) return result;
-
-    vec3.copy(result.startPoint, startNearestPolyResult.nearestPoint);
-    result.startNodeRef = startNearestPolyResult.nearestPolyRef;
-
-    /* find end nearest poly */
-    const endNearestPolyResult = findNearestPoly(
-        _findPathEndNearestPolyResult,
-        navMesh,
-        end,
-        halfExtents,
-        queryFilter,
-    );
-    if (!endNearestPolyResult.success) return result;
-
-    vec3.copy(result.endPoint, endNearestPolyResult.nearestPoint);
-    result.endNodeRef = endNearestPolyResult.nearestPolyRef;
-
-    /* find node path */
-    const nodePath = findNodePath(
-        navMesh,
-        result.startNodeRef,
-        result.endNodeRef,
-        result.startPoint,
-        result.endPoint,
-        queryFilter,
-    );
-
-    result.nodePath = nodePath;
-
-    if (!nodePath) return result;
-
-    /* find straight path */
-    const straightPath = findStraightPath(
-        navMesh,
-        result.startPoint,
-        result.endPoint,
-        nodePath.path,
-    );
-
-    if (!straightPath) return result;
-
-    /* success */
-    result.success = true;
-    result.path = straightPath.path;
-
-    return result;
 };
 
 const _moveAlongSurfaceVertices: number[] = [];
+const _moveAlongSurfacePolyHeightResult = createGetPolyHeightResult();
 
 export type MoveAlongSurfaceResult = {
     success: boolean;
@@ -1155,11 +1194,7 @@ export type MoveAlongSurfaceResult = {
  * The resultPosition will equal the endPosition if the end is reached.
  * Otherwise the closest reachable position will be returned.
  *
- * The resultPosition is not projected onto the surface of the navigation
- * mesh. Use getPolyHeight if this is needed.
- *
- * This method treats the end position in the same manner as
- * the raycast method. (As a 2D point.)
+ * The resulting position is projected onto the surface of the navigation mesh with @see getPolyHeight.
  *
  * @param result The result object to populate
  * @param navMesh The navigation mesh
@@ -1384,6 +1419,22 @@ export const moveAlongSurface = (
     vec3.copy(result.resultPosition, bestPos);
     result.visited = visited;
     result.resultRef = result.visited[result.visited.length - 1];
+
+    // fixup height with getPolyHeight
+    const tileAndPoly = getTileAndPolyByRef(result.resultRef, navMesh);
+
+    if (tileAndPoly.success) {
+        const polyHeightResult = getPolyHeight(
+            _moveAlongSurfacePolyHeightResult,
+            tileAndPoly.tile,
+            tileAndPoly.poly,
+            tileAndPoly.polyIndex,
+            result.resultPosition,
+        );
+        if (polyHeightResult.success) {
+            result.resultPosition[1] = polyHeightResult.height;
+        }
+    }
 
     return result;
 };
