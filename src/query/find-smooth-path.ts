@@ -1,18 +1,9 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
-import {
-    FindStraightPathStatus,
-    findStraightPath,
-    type StraightPathPoint,
-} from './find-straight-path';
+import { FindStraightPathStatus, findStraightPath, type StraightPathPoint } from './find-straight-path';
 import { type NavMesh, OffMeshConnectionSide } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import {
-    type FindNodePathResult,
-    FindNodePathStatus,
-    findNodePath,
-    moveAlongSurface,
-} from './nav-mesh-search';
+import { type FindNodePathResult, FindNodePathStatus, findNodePath, moveAlongSurface } from './nav-mesh-search';
 import { desNodeRef, type NodeRef, NodeType } from './node';
 import type { QueryFilter } from './query-filter';
 
@@ -114,13 +105,7 @@ export const findSmoothPath = (
     result.startNodeRef = startNearestPolyResult.nearestPolyRef;
 
     /* find end nearest poly */
-    const endNearestPolyResult = findNearestPoly(
-        _findSmoothPathEndNearestPolyResult,
-        navMesh,
-        end,
-        halfExtents,
-        queryFilter,
-    );
+    const endNearestPolyResult = findNearestPoly(_findSmoothPathEndNearestPolyResult, navMesh, end, halfExtents, queryFilter);
     if (!endNearestPolyResult.success) return result;
 
     vec3.copy(result.endPoint, endNearestPolyResult.nearestPoint);
@@ -157,13 +142,7 @@ export const findSmoothPath = (
 
     while (polys.length > 0 && smoothPath.length < maxPoints) {
         // find location to steer towards
-        const steerTarget = getSteerTarget(
-            navMesh,
-            iterPos,
-            targetPos,
-            slop,
-            polys,
-        );
+        const steerTarget = getSteerTarget(navMesh, iterPos, targetPos, slop, polys);
 
         if (!steerTarget.success) {
             break;
@@ -185,21 +164,10 @@ export const findSmoothPath = (
             len = stepSize / len;
         }
 
-        const moveTarget = vec3.scaleAndAdd(
-            _findSmoothPathMoveTarget,
-            iterPos,
-            delta,
-            len,
-        );
+        const moveTarget = vec3.scaleAndAdd(_findSmoothPathMoveTarget, iterPos, delta, len);
 
         // move along surface
-        const moveAlongSurfaceResult = moveAlongSurface(
-            navMesh,
-            polys[0],
-            iterPos,
-            moveTarget,
-            queryFilter,
-        );
+        const moveAlongSurfaceResult = moveAlongSurface(navMesh, polys[0], iterPos, moveTarget, queryFilter);
 
         if (!moveAlongSurfaceResult.success) {
             break;
@@ -226,10 +194,7 @@ export const findSmoothPath = (
             }
 
             break;
-        } else if (
-            isOffMeshConnection &&
-            inRange(iterPos, steerTarget.steerPos, slop, 1.0)
-        ) {
+        } else if (isOffMeshConnection && inRange(iterPos, steerTarget.steerPos, slop, 1.0)) {
             // reached off-mesh connection
             const offMeshConRef = steerTarget.steerPosRef;
 
@@ -246,10 +211,8 @@ export const findSmoothPath = (
             polys.splice(0, npos);
 
             // handle the off-mesh connection
-            const [, offMeshConnectionId, offMeshConnectionSide] =
-                desNodeRef(offMeshConRef);
-            const offMeshConnection =
-                navMesh.offMeshConnections[offMeshConnectionId];
+            const [, offMeshConnectionId, offMeshConnectionSide] = desNodeRef(offMeshConRef);
+            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
 
             if (offMeshConnection) {
                 if (smoothPath.length < maxPoints) {
@@ -260,9 +223,7 @@ export const findSmoothPath = (
                     });
 
                     const endPosition =
-                        offMeshConnectionSide === OffMeshConnectionSide.START
-                            ? offMeshConnection.end
-                            : offMeshConnection.start;
+                        offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.end : offMeshConnection.start;
 
                     vec3.copy(iterPos, endPosition);
                 }
@@ -272,8 +233,7 @@ export const findSmoothPath = (
         // store results - add a point for each iteration to create smooth path
         if (smoothPath.length < maxPoints) {
             // determine the current ref from the current position
-            const currentNodeRef =
-                polys.length > 0 ? polys[0] : result.endNodeRef;
+            const currentNodeRef = polys.length > 0 ? polys[0] : result.endNodeRef;
             smoothPath.push({
                 position: vec3.clone(iterPos),
                 type: NodeType.GROUND_POLY,
@@ -316,14 +276,7 @@ const getSteerTarget = (
     };
 
     const maxStraightPathPoints = 3;
-    const straightPath = findStraightPath(
-        navMesh,
-        start,
-        end,
-        pathPolys,
-        maxStraightPathPoints,
-        0,
-    );
+    const straightPath = findStraightPath(navMesh, start, end, pathPolys, maxStraightPathPoints, 0);
 
     if (!straightPath.success || straightPath.path.length === 0) {
         return result;
@@ -341,10 +294,7 @@ const getSteerTarget = (
         }
 
         // if the point is the end, we should steer to it regardless of minTargetDist
-        if (
-            straightPath.status === FindStraightPathStatus.COMPLETE_PATH &&
-            ns === straightPath.path.length - 1
-        ) {
+        if (straightPath.status === FindStraightPathStatus.COMPLETE_PATH && ns === straightPath.path.length - 1) {
             result.end = true;
             break;
         }
@@ -378,10 +328,7 @@ const inRange = (a: Vec3, b: Vec3, r: number, h: number): boolean => {
     return dx * dx + dz * dz < r * r && Math.abs(dy) < h;
 };
 
-const fixupCorridor = (
-    pathPolys: NodeRef[],
-    visitedPolyRefs: NodeRef[],
-): void => {
+const fixupCorridor = (pathPolys: NodeRef[], visitedPolyRefs: NodeRef[]): void => {
     const maxPath = 256; // reasonable limit
     let furthestPath = -1;
     let furthestVisited = -1;
@@ -464,11 +411,7 @@ const fixupShortcuts = (pathPolys: NodeRef[], navMesh: NavMesh): void => {
     // in the path, short cut to that polygon directly.
     const maxLookAhead = 6;
     let cut = 0;
-    for (
-        let i = Math.min(maxLookAhead, pathPolys.length) - 1;
-        i > 1 && cut === 0;
-        i--
-    ) {
+    for (let i = Math.min(maxLookAhead, pathPolys.length) - 1; i > 1 && cut === 0; i--) {
         for (let j = 0; j < nneis; j++) {
             if (pathPolys[i] === neis[j]) {
                 cut = i;

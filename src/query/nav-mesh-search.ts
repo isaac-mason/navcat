@@ -8,13 +8,7 @@ import {
     randomPointInConvexPoly,
     triArea2D,
 } from '../geometry';
-import {
-    type NavMesh,
-    type NavMeshLink,
-    type NavMeshPoly,
-    type NavMeshTile,
-    OffMeshConnectionSide,
-} from './nav-mesh';
+import { type NavMesh, type NavMeshLink, type NavMeshPoly, type NavMeshTile, OffMeshConnectionSide } from './nav-mesh';
 import {
     createGetClosestPointOnPolyResult,
     createGetPolyHeightResult,
@@ -22,13 +16,7 @@ import {
     getPolyHeight,
     getTileAndPolyByRef,
 } from './nav-mesh-api';
-import {
-    desNodeRef,
-    getNodeRefType,
-    type NodeRef,
-    NodeType,
-    serPolyNodeRef,
-} from './node';
+import { desNodeRef, getNodeRefType, type NodeRef, NodeType, serPolyNodeRef } from './node';
 import { DEFAULT_QUERY_FILTER, type QueryFilter } from './query-filter';
 
 export const NODE_FLAG_OPEN = 0x01;
@@ -74,11 +62,7 @@ const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
     queue[i] = node;
 };
 
-const trickleDownQueue = (
-    queue: SearchNodeQueue,
-    i: number,
-    node: SearchNode,
-) => {
+const trickleDownQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
     const count = queue.length;
     let child = 2 * i + 1;
 
@@ -125,10 +109,7 @@ const popNodeFromQueue = (queue: SearchNodeQueue): SearchNode | undefined => {
 
 const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
     for (let i = 0; i < queue.length; i++) {
-        if (
-            queue[i].nodeRef === node.nodeRef &&
-            queue[i].state === node.state
-        ) {
+        if (queue[i].nodeRef === node.nodeRef && queue[i].state === node.state) {
             queue[i] = node;
             bubbleUpQueue(queue, i, node);
             return;
@@ -176,16 +157,11 @@ export const getPortalPoints = (
 
     // handle from offmesh connection to poly
     if (fromNodeType === NodeType.OFFMESH_CONNECTION) {
-        const [, offMeshConnectionId, offMeshConnectionSide] =
-            desNodeRef(fromNodeRef);
-        const offMeshConnection =
-            navMesh.offMeshConnections[offMeshConnectionId];
+        const [, offMeshConnectionId, offMeshConnectionSide] = desNodeRef(fromNodeRef);
+        const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
         if (!offMeshConnection) return false;
 
-        const position =
-            offMeshConnectionSide === OffMeshConnectionSide.START
-                ? offMeshConnection.start
-                : offMeshConnection.end;
+        const position = offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
 
         vec3.copy(outLeft, position);
         vec3.copy(outRight, position);
@@ -194,16 +170,11 @@ export const getPortalPoints = (
 
     // handle from poly to offmesh connection
     if (toNodeType === NodeType.OFFMESH_CONNECTION) {
-        const [, offMeshConnectionId, offMeshConnectionSide] =
-            desNodeRef(toNodeRef);
-        const offMeshConnection =
-            navMesh.offMeshConnections[offMeshConnectionId];
+        const [, offMeshConnectionId, offMeshConnectionSide] = desNodeRef(toNodeRef);
+        const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
         if (!offMeshConnection) return false;
 
-        const position =
-            offMeshConnectionSide === OffMeshConnectionSide.START
-                ? offMeshConnection.start
-                : offMeshConnection.end;
+        const position = offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
 
         vec3.copy(outLeft, position);
         vec3.copy(outRight, position);
@@ -219,8 +190,7 @@ export const getPortalPoints = (
 
     // find portal vertices
     const v0Index = fromPoly.vertices[toLink.edge];
-    const v1Index =
-        fromPoly.vertices[(toLink.edge + 1) % fromPoly.vertices.length];
+    const v1Index = fromPoly.vertices[(toLink.edge + 1) % fromPoly.vertices.length];
 
     vec3.fromBuffer(outLeft, fromTile.vertices, v0Index * 3);
     vec3.fromBuffer(outRight, fromTile.vertices, v1Index * 3);
@@ -233,28 +203,10 @@ export const getPortalPoints = (
             const tmin = toLink.bmin * s;
             const tmax = toLink.bmax * s;
 
-            vec3.fromBuffer(
-                _getPortalPointsStart,
-                fromTile.vertices,
-                v0Index * 3,
-            );
-            vec3.fromBuffer(
-                _getPortalPointsEnd,
-                fromTile.vertices,
-                v1Index * 3,
-            );
-            vec3.lerp(
-                outLeft,
-                _getPortalPointsStart,
-                _getPortalPointsEnd,
-                tmin,
-            );
-            vec3.lerp(
-                outRight,
-                _getPortalPointsStart,
-                _getPortalPointsEnd,
-                tmax,
-            );
+            vec3.fromBuffer(_getPortalPointsStart, fromTile.vertices, v0Index * 3);
+            vec3.fromBuffer(_getPortalPointsEnd, fromTile.vertices, v1Index * 3);
+            vec3.lerp(outLeft, _getPortalPointsStart, _getPortalPointsEnd, tmin);
+            vec3.lerp(outRight, _getPortalPointsStart, _getPortalPointsEnd, tmax);
         }
     }
 
@@ -264,30 +216,14 @@ export const getPortalPoints = (
 const _edgeMidPointPortalLeft = vec3.create();
 const _edgeMidPointPortalRight = vec3.create();
 
-const getEdgeMidPoint = (
-    navMesh: NavMesh,
-    fromNodeRef: NodeRef,
-    toNodeRef: NodeRef,
-    outMidPoint: Vec3,
-): boolean => {
-    if (
-        !getPortalPoints(
-            navMesh,
-            fromNodeRef,
-            toNodeRef,
-            _edgeMidPointPortalLeft,
-            _edgeMidPointPortalRight,
-        )
-    ) {
+const getEdgeMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: NodeRef, outMidPoint: Vec3): boolean => {
+    if (!getPortalPoints(navMesh, fromNodeRef, toNodeRef, _edgeMidPointPortalLeft, _edgeMidPointPortalRight)) {
         return false;
     }
 
-    outMidPoint[0] =
-        (_edgeMidPointPortalLeft[0] + _edgeMidPointPortalRight[0]) * 0.5;
-    outMidPoint[1] =
-        (_edgeMidPointPortalLeft[1] + _edgeMidPointPortalRight[1]) * 0.5;
-    outMidPoint[2] =
-        (_edgeMidPointPortalLeft[2] + _edgeMidPointPortalRight[2]) * 0.5;
+    outMidPoint[0] = (_edgeMidPointPortalLeft[0] + _edgeMidPointPortalRight[0]) * 0.5;
+    outMidPoint[1] = (_edgeMidPointPortalLeft[1] + _edgeMidPointPortalRight[1]) * 0.5;
+    outMidPoint[2] = (_edgeMidPointPortalLeft[2] + _edgeMidPointPortalRight[2]) * 0.5;
 
     return true;
 };
@@ -319,8 +255,7 @@ const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
 
     if (nodeType === NodeType.OFFMESH_CONNECTION) {
         const [, offMeshConnectionId] = desNodeRef(nodeRef);
-        const offMeshConnection =
-            navMesh.offMeshConnections[offMeshConnectionId];
+        const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
         // TODO: check if off mesh connection is connected?
         return !!offMeshConnection;
     }
@@ -455,10 +390,7 @@ export const findNodePath = (
             }
 
             // check whether neighbour passes the filter
-            if (
-                filter.passFilter &&
-                filter.passFilter(neighbourNodeRef, navMesh, filter) === false
-            ) {
+            if (filter.passFilter && filter.passFilter(neighbourNodeRef, navMesh, filter) === false) {
                 continue;
             }
 
@@ -486,12 +418,7 @@ export const findNodePath = (
 
             // if this node is being visited for the first time, calculate the node position
             if (neighbourNode.flags === 0) {
-                getEdgeMidPoint(
-                    navMesh,
-                    currentNodeRef,
-                    neighbourNodeRef,
-                    neighbourNode.position,
-                );
+                getEdgeMidPoint(navMesh, currentNodeRef, neighbourNodeRef, neighbourNode.position);
             }
 
             // calculate cost and heuristic
@@ -509,14 +436,7 @@ export const findNodePath = (
                     undefined,
                 );
 
-                const endCost = getCost(
-                    neighbourNode.position,
-                    endPos,
-                    navMesh,
-                    neighbourNodeRef,
-                    currentNodeRef,
-                    undefined,
-                );
+                const endCost = getCost(neighbourNode.position, endPos, navMesh, neighbourNodeRef, currentNodeRef, undefined);
 
                 cost = currentNode.cost + curCost + endCost;
                 heuristic = 0;
@@ -530,26 +450,18 @@ export const findNodePath = (
                     neighbourNodeRef,
                 );
                 cost = currentNode.cost + curCost;
-                heuristic =
-                    vec3.distance(neighbourNode.position, endPos) *
-                    HEURISTIC_SCALE;
+                heuristic = vec3.distance(neighbourNode.position, endPos) * HEURISTIC_SCALE;
             }
 
             const total = cost + heuristic;
 
             // if the node is already in the open list, and the new result is worse, skip
-            if (
-                neighbourNode.flags & NODE_FLAG_OPEN &&
-                total >= neighbourNode.total
-            ) {
+            if (neighbourNode.flags & NODE_FLAG_OPEN && total >= neighbourNode.total) {
                 continue;
             }
 
             // if the node is already visited and in the closed list, and the new result is worse, skip
-            if (
-                neighbourNode.flags & NODE_FLAG_CLOSED &&
-                total >= neighbourNode.total
-            ) {
+            if (neighbourNode.flags & NODE_FLAG_CLOSED && total >= neighbourNode.total) {
                 continue;
             }
 
@@ -666,12 +578,7 @@ export const moveAlongSurface = (
         visited: [],
     };
 
-    if (
-        !isValidNodeRef(navMesh, startRef) ||
-        !vec3.finite(startPosition) ||
-        !vec3.finite(endPosition) ||
-        !filter
-    ) {
+    if (!isValidNodeRef(navMesh, startRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition) || !filter) {
         return result;
     }
 
@@ -697,8 +604,7 @@ export const moveAlongSurface = (
     // search constraints
     const searchPos = vec3.create();
     vec3.lerp(searchPos, startPosition, endPosition, 0.5);
-    const searchRadSqr =
-        (vec3.distance(startPosition, endPosition) / 2.0 + 0.001) ** 2;
+    const searchRadSqr = (vec3.distance(startPosition, endPosition) / 2.0 + 0.001) ** 2;
 
     // breadth-first search queue (no priority needed for this algorithm)
     const queue: SearchNodeQueue = [startNode];
@@ -748,10 +654,7 @@ export const moveAlongSurface = (
                 // check if this link corresponds to edge j
                 if (link.edge === j) {
                     // check filter
-                    if (
-                        filter.passFilter &&
-                        !filter.passFilter(neighbourRef, navMesh, filter)
-                    ) {
+                    if (filter.passFilter && !filter.passFilter(neighbourRef, navMesh, filter)) {
                         continue;
                     }
 
@@ -761,22 +664,10 @@ export const moveAlongSurface = (
 
             if (neis.length === 0) {
                 // wall edge, calc distance
-                const vj = vec3.fromBuffer(
-                    _moveAlongSurfaceWallEdgeVj,
-                    vertices,
-                    j * 3,
-                );
-                const vi = vec3.fromBuffer(
-                    _moveAlongSurfaceWallEdgeVi,
-                    vertices,
-                    i * 3,
-                );
+                const vj = vec3.fromBuffer(_moveAlongSurfaceWallEdgeVj, vertices, j * 3);
+                const vi = vec3.fromBuffer(_moveAlongSurfaceWallEdgeVi, vertices, i * 3);
 
-                const { distSqr, t: tSeg } = distancePtSegSqr2d(
-                    endPosition,
-                    vj,
-                    vi,
-                );
+                const { distSqr, t: tSeg } = distancePtSegSqr2d(endPosition, vj, vi);
 
                 if (distSqr < bestDist) {
                     // update nearest distance
@@ -806,22 +697,10 @@ export const moveAlongSurface = (
                     if (neighbourNode.flags & NODE_FLAG_CLOSED) continue;
 
                     // skip the link if it is too far from search constraint
-                    const vj = vec3.fromBuffer(
-                        _moveAlongSurfaceLinkVj,
-                        vertices,
-                        j * 3,
-                    );
-                    const vi = vec3.fromBuffer(
-                        _moveAlongSurfaceLinkVi,
-                        vertices,
-                        i * 3,
-                    );
+                    const vj = vec3.fromBuffer(_moveAlongSurfaceLinkVj, vertices, j * 3);
+                    const vi = vec3.fromBuffer(_moveAlongSurfaceLinkVi, vertices, i * 3);
 
-                    const distSqr = distancePtSegSqr2d(
-                        searchPos,
-                        vj,
-                        vi,
-                    ).distSqr;
+                    const distSqr = distancePtSegSqr2d(searchPos, vj, vi).distSqr;
 
                     if (distSqr > searchRadSqr) continue;
 
@@ -853,7 +732,7 @@ export const moveAlongSurface = (
 
         // fixup height with getPolyHeight
         const tileAndPoly = getTileAndPolyByRef(result.resultRef, navMesh);
-    
+
         if (tileAndPoly.success) {
             const polyHeightResult = getPolyHeight(
                 _moveAlongSurfacePolyHeightResult,
@@ -913,12 +792,7 @@ export const raycast = (
     };
 
     // validate input
-    if (
-        !isValidNodeRef(navMesh, startRef) ||
-        !vec3.finite(startPosition) ||
-        !vec3.finite(endPosition) ||
-        !filter
-    ) {
+    if (!isValidNodeRef(navMesh, startRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition) || !filter) {
         return result;
     }
 
@@ -943,13 +817,7 @@ export const raycast = (
         }
 
         // cast ray against current polygon
-        intersectSegmentPoly2D(
-            intersectSegmentPoly2DResult,
-            startPosition,
-            endPosition,
-            nv,
-            vertices,
-        );
+        intersectSegmentPoly2D(intersectSegmentPoly2DResult, startPosition, endPosition, nv, vertices);
         if (!intersectSegmentPoly2DResult.intersects) {
             // could not hit the polygon, keep the old t and report hit
             return result;
@@ -984,25 +852,14 @@ export const raycast = (
             if (link.edge !== intersectSegmentPoly2DResult.segMax) continue;
 
             // skip off-mesh connections
-            if (
-                getNodeRefType(link.neighbourRef) ===
-                NodeType.OFFMESH_CONNECTION
-            )
-                continue;
+            if (getNodeRefType(link.neighbourRef) === NodeType.OFFMESH_CONNECTION) continue;
 
             // get pointer to the next polygon
-            const nextTileAndPolyResult = getTileAndPolyByRef(
-                link.neighbourRef,
-                navMesh,
-            );
+            const nextTileAndPolyResult = getTileAndPolyByRef(link.neighbourRef, navMesh);
             if (!nextTileAndPolyResult.success) continue;
 
             // skip links based on filter
-            if (
-                filter.passFilter &&
-                !filter.passFilter(link.neighbourRef, navMesh, filter)
-            )
-                continue;
+            if (filter.passFilter && !filter.passFilter(link.neighbourRef, navMesh, filter)) continue;
 
             // if the link is internal, just return the ref
             if (link.side === 0xff) {
@@ -1019,16 +876,8 @@ export const raycast = (
             // check for partial edge links
             const v0 = poly.vertices[link.edge];
             const v1 = poly.vertices[(link.edge + 1) % poly.vertices.length];
-            const left = [
-                tile.vertices[v0 * 3],
-                tile.vertices[v0 * 3 + 1],
-                tile.vertices[v0 * 3 + 2],
-            ] as Vec3;
-            const right = [
-                tile.vertices[v1 * 3],
-                tile.vertices[v1 * 3 + 1],
-                tile.vertices[v1 * 3 + 2],
-            ] as Vec3;
+            const left = [tile.vertices[v0 * 3], tile.vertices[v0 * 3 + 1], tile.vertices[v0 * 3 + 2]] as Vec3;
+            const right = [tile.vertices[v1 * 3], tile.vertices[v1 * 3 + 1], tile.vertices[v1 * 3 + 2]] as Vec3;
 
             // check that the intersection lies inside the link portal
             if (link.side === 0 || link.side === 4) {
@@ -1039,10 +888,7 @@ export const raycast = (
                 if (lmin > lmax) [lmin, lmax] = [lmax, lmin];
 
                 // find Z intersection
-                const z =
-                    startPosition[2] +
-                    (endPosition[2] - startPosition[2]) *
-                        intersectSegmentPoly2DResult.tmax;
+                const z = startPosition[2] + (endPosition[2] - startPosition[2]) * intersectSegmentPoly2DResult.tmax;
                 if (z >= lmin && z <= lmax) {
                     nextRef = link.neighbourRef;
                     break;
@@ -1055,10 +901,7 @@ export const raycast = (
                 if (lmin > lmax) [lmin, lmax] = [lmax, lmin];
 
                 // find X intersection
-                const x =
-                    startPosition[0] +
-                    (endPosition[0] - startPosition[0]) *
-                        intersectSegmentPoly2DResult.tmax;
+                const x = startPosition[0] + (endPosition[0] - startPosition[0]) * intersectSegmentPoly2DResult.tmax;
                 if (x >= lmin && x <= lmax) {
                     nextRef = link.neighbourRef;
                     break;
@@ -1073,10 +916,7 @@ export const raycast = (
             if (intersectSegmentPoly2DResult.segMax >= 0) {
                 const a = intersectSegmentPoly2DResult.segMax;
                 const b =
-                    intersectSegmentPoly2DResult.segMax + 1 <
-                    poly.vertices.length
-                        ? intersectSegmentPoly2DResult.segMax + 1
-                        : 0;
+                    intersectSegmentPoly2DResult.segMax + 1 < poly.vertices.length ? intersectSegmentPoly2DResult.segMax + 1 : 0;
                 const va = vec3.fromBuffer(vec3.create(), vertices, a * 3);
                 const vb = vec3.fromBuffer(vec3.create(), vertices, b * 3);
                 const dx = vb[0] - va[0];
@@ -1113,11 +953,7 @@ export type FindRandomPointResult = {
  * @param rand - Function that returns random values [0,1]
  * @returns The result object with success flag, random point, and polygon reference
  */
-export const findRandomPoint = (
-    navMesh: NavMesh,
-    filter: QueryFilter,
-    rand: () => number,
-): FindRandomPointResult => {
+export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () => number): FindRandomPointResult => {
     const result: FindRandomPointResult = {
         success: false,
         ref: '' as NodeRef,
@@ -1168,11 +1004,7 @@ export const findRandomPoint = (
         const vc = vec3.create();
         for (let j = 2; j < poly.vertices.length; j++) {
             vec3.fromBuffer(va, selectedTile.vertices, poly.vertices[0] * 3);
-            vec3.fromBuffer(
-                vb,
-                selectedTile.vertices,
-                poly.vertices[j - 1] * 3,
-            );
+            vec3.fromBuffer(vb, selectedTile.vertices, poly.vertices[j - 1] * 3);
             vec3.fromBuffer(vc, selectedTile.vertices, poly.vertices[j] * 3);
             polyArea += triArea2D(va, vb, vc);
         }
@@ -1262,12 +1094,7 @@ export const findRandomPointAroundCircle = (
     };
 
     // validate input
-    if (
-        !isValidNodeRef(navMesh, startRef) ||
-        !vec3.finite(centerPosition) ||
-        maxRadius < 0 ||
-        !Number.isFinite(maxRadius)
-    ) {
+    if (!isValidNodeRef(navMesh, startRef) || !vec3.finite(centerPosition) || maxRadius < 0 || !Number.isFinite(maxRadius)) {
         return result;
     }
 
@@ -1329,11 +1156,7 @@ export const findRandomPointAroundCircle = (
         const v2 = vec3.create();
         for (let j = 2; j < bestPoly.vertices.length; j++) {
             vec3.fromBuffer(v0, bestTile.vertices, bestPoly.vertices[0] * 3);
-            vec3.fromBuffer(
-                v1,
-                bestTile.vertices,
-                bestPoly.vertices[j - 1] * 3,
-            );
+            vec3.fromBuffer(v1, bestTile.vertices, bestPoly.vertices[j - 1] * 3);
             vec3.fromBuffer(v2, bestTile.vertices, bestPoly.vertices[j] * 3);
             polyArea += triArea2D(v0, v1, v2);
         }
@@ -1368,17 +1191,11 @@ export const findRandomPointAroundCircle = (
             }
 
             // expand to neighbour
-            const neighbourTileAndPoly = getTileAndPolyByRef(
-                neighbourRef,
-                navMesh,
-            );
+            const neighbourTileAndPoly = getTileAndPolyByRef(neighbourRef, navMesh);
             if (!neighbourTileAndPoly.success) continue;
 
             // do not advance if the polygon is excluded by the filter
-            if (
-                filter.passFilter &&
-                !filter.passFilter(neighbourRef, navMesh, filter)
-            ) {
+            if (filter.passFilter && !filter.passFilter(neighbourRef, navMesh, filter)) {
                 continue;
             }
 
@@ -1419,15 +1236,10 @@ export const findRandomPointAroundCircle = (
                 vec3.lerp(neighbourNode.position, va, vb, 0.5);
             }
 
-            const total =
-                bestNode.total +
-                vec3.distance(bestNode.position, neighbourNode.position);
+            const total = bestNode.total + vec3.distance(bestNode.position, neighbourNode.position);
 
             // the node is already in open list and the new result is worse, skip
-            if (
-                neighbourNode.flags & NODE_FLAG_OPEN &&
-                total >= neighbourNode.total
-            ) {
+            if (neighbourNode.flags & NODE_FLAG_OPEN && total >= neighbourNode.total) {
                 continue;
             }
 

@@ -21,11 +21,7 @@ export type QueryFilter = {
      * @param filter The query filter.
      * @returns Whether the node reference passes the filter.
      */
-    passFilter?: (
-        nodeRef: NodeRef,
-        navMesh: NavMesh,
-        filter: QueryFilter,
-    ) => boolean;
+    passFilter?: (nodeRef: NodeRef, navMesh: NavMesh, filter: QueryFilter) => boolean;
 
     /**
      * Calculates the cost of moving from one point to another.
@@ -51,13 +47,9 @@ export const DEFAULT_QUERY_FILTER = {
     includeFlags: 0xffffffff,
     excludeFlags: 0,
     getCost: (pa, pb, navMesh, _prevRef, _curRef, nextRef) => {
-        if (
-            nextRef &&
-            getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION
-        ) {
+        if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION) {
             const [, offMeshConnectionId] = desNodeRef(nextRef);
-            const offMeshConnection =
-                navMesh.offMeshConnections[offMeshConnectionId];
+            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
             if (offMeshConnection.cost !== undefined) {
                 return offMeshConnection.cost;
             }
@@ -76,14 +68,10 @@ export const DEFAULT_QUERY_FILTER = {
             flags = poly.flags;
         } else if (nodeType === NodeType.OFFMESH_CONNECTION) {
             const [, offMeshConnectionId] = desNodeRef(nodeRef);
-            const offMeshConnection =
-                navMesh.offMeshConnections[offMeshConnectionId];
+            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
             flags = offMeshConnection.flags;
         }
 
-        return (
-            (flags & filter.includeFlags) !== 0 &&
-            (flags & filter.excludeFlags) === 0
-        );
+        return (flags & filter.includeFlags) !== 0 && (flags & filter.excludeFlags) === 0;
     },
 } satisfies QueryFilter;

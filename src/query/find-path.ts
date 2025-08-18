@@ -1,17 +1,9 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
-import {
-    FindStraightPathStatus,
-    findStraightPath,
-    type StraightPathPoint,
-} from './find-straight-path';
+import { FindStraightPathStatus, findStraightPath, type StraightPathPoint } from './find-straight-path';
 import type { NavMesh } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import {
-    type FindNodePathResult,
-    FindNodePathStatus,
-    findNodePath,
-} from './nav-mesh-search';
+import { type FindNodePathResult, FindNodePathStatus, findNodePath } from './nav-mesh-search';
 import type { NodeRef } from './node';
 import type { QueryFilter } from './query-filter';
 
@@ -91,26 +83,14 @@ export const findPath = (
     };
 
     /* find start nearest poly */
-    const startNearestPolyResult = findNearestPoly(
-        _findPathStartNearestPolyResult,
-        navMesh,
-        start,
-        halfExtents,
-        queryFilter,
-    );
+    const startNearestPolyResult = findNearestPoly(_findPathStartNearestPolyResult, navMesh, start, halfExtents, queryFilter);
     if (!startNearestPolyResult.success) return result;
 
     vec3.copy(result.startPoint, startNearestPolyResult.nearestPoint);
     result.startNodeRef = startNearestPolyResult.nearestPolyRef;
 
     /* find end nearest poly */
-    const endNearestPolyResult = findNearestPoly(
-        _findPathEndNearestPolyResult,
-        navMesh,
-        end,
-        halfExtents,
-        queryFilter,
-    );
+    const endNearestPolyResult = findNearestPoly(_findPathEndNearestPolyResult, navMesh, end, halfExtents, queryFilter);
     if (!endNearestPolyResult.success) return result;
 
     vec3.copy(result.endPoint, endNearestPolyResult.nearestPoint);
@@ -134,12 +114,7 @@ export const findPath = (
     }
 
     /* find straight path */
-    const straightPath = findStraightPath(
-        navMesh,
-        result.startPoint,
-        result.endPoint,
-        nodePath.path,
-    );
+    const straightPath = findStraightPath(navMesh, result.startPoint, result.endPoint, nodePath.path);
 
     if (!straightPath.success) {
         result.status = FindPathStatus.FIND_STRAIGHT_PATH_FAILED;
@@ -150,8 +125,7 @@ export const findPath = (
     result.success = true;
     result.path = straightPath.path;
     result.status =
-        nodePath.status === FindNodePathStatus.COMPLETE_PATH &&
-        straightPath.status === FindStraightPathStatus.COMPLETE_PATH
+        nodePath.status === FindNodePathStatus.COMPLETE_PATH && straightPath.status === FindStraightPathStatus.COMPLETE_PATH
             ? FindPathStatus.COMPLETE_PATH
             : FindPathStatus.PARTIAL_PATH;
 
