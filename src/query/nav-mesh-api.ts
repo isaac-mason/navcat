@@ -689,18 +689,18 @@ export const queryPolygonsInTile = (
             for (let j = 1; j < poly.vertices.length; j++) {
                 const vertexIndex = poly.vertices[j];
                 vec3.fromBuffer(_queryPolygonsInTileVertex, tile.vertices, vertexIndex * 3);
-                vec3.min(_queryPolygonsInTileBmax, _queryPolygonsInTileBmax, _queryPolygonsInTileVertex);
-                vec3.max(_queryPolygonsInTileBmin, _queryPolygonsInTileBmin, _queryPolygonsInTileVertex);
+                vec3.min(_queryPolygonsInTileBmin, _queryPolygonsInTileBmin, _queryPolygonsInTileVertex);
+                vec3.max(_queryPolygonsInTileBmax, _queryPolygonsInTileBmax, _queryPolygonsInTileVertex);
             }
 
             // check overlap with query bounds
             if (
-                qmin[0] <= _queryPolygonsInTileBmin[0] &&
-                qmax[0] >= _queryPolygonsInTileBmax[0] &&
-                qmin[1] <= _queryPolygonsInTileBmin[1] &&
-                qmax[1] >= _queryPolygonsInTileBmax[1] &&
-                qmin[2] <= _queryPolygonsInTileBmin[2] &&
-                qmax[2] >= _queryPolygonsInTileBmax[2]
+                qmin[0] <= _queryPolygonsInTileBmax[0] &&
+                qmax[0] >= _queryPolygonsInTileBmin[0] &&
+                qmin[1] <= _queryPolygonsInTileBmax[1] &&
+                qmax[1] >= _queryPolygonsInTileBmin[1] &&
+                qmin[2] <= _queryPolygonsInTileBmax[2] &&
+                qmax[2] >= _queryPolygonsInTileBmin[2]
             ) {
                 out.push(polyRef);
             }
