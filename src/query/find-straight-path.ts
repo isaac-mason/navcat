@@ -18,10 +18,22 @@ import { getNodeRefType, type NodeRef, NodeType } from './node';
 export const FIND_STRAIGHT_PATH_AREA_CROSSINGS = 1;
 export const FIND_STRAIGHT_PATH_ALL_CROSSINGS = 2;
 
+export enum FindStraightPathStatus {
+    INVALID_INPUT = 0,
+    PARTIAL_PATH = 1,
+    COMPLETE_PATH = 2,
+}
+
 export type StraightPathPoint = {
     position: Vec3;
     type: NodeType;
     nodeRef: NodeRef | null;
+};
+
+export type FindStraightPathResult = {
+    success: boolean;
+    status: FindStraightPathStatus;
+    path: StraightPathPoint[];
 };
 
 enum AppendVertexStatus {
@@ -147,18 +159,6 @@ const appendPortals = (
     }
 
     return AppendVertexStatus.IN_PROGRESS;
-};
-
-export enum FindStraightPathStatus {
-    INVALID_INPUT = 0,
-    PARTIAL_PATH = 1,
-    COMPLETE_PATH = 2,
-}
-
-export type FindStraightPathResult = {
-    success: boolean;
-    status: FindStraightPathStatus;
-    path: StraightPathPoint[];
 };
 
 const _findStraightPathLeftPortalPoint = vec3.create();
