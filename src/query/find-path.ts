@@ -1,14 +1,16 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
+import {
+    FindStraightPathStatus,
+    findStraightPath,
+    type StraightPathPoint,
+} from './find-straight-path';
 import type { NavMesh } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
 import {
     type FindNodePathResult,
     FindNodePathStatus,
-    FindStraightPathStatus,
     findNodePath,
-    findStraightPath,
-    type StraightPathPoint,
 } from './nav-mesh-search';
 import type { NodeRef } from './node';
 import type { QueryFilter } from './query-filter';
