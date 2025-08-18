@@ -330,7 +330,7 @@ export const getPolyHeight = (
     // closest.
     // this should almost never happen so the extra iteration here is ok.
     const closest = vec3.create();
-    closestPointOnDetailEdges(tile, poly, detailMesh, pos, closest, false);
+    closestPointOnDetailEdges(tile, poly, polyIndex, pos, closest, false);
     result.success = true;
     result.height = closest[1];
 
@@ -371,16 +371,13 @@ const _closestPointOnDetailEdgesTriangleVertices: Vec3[] = [
 const closestPointOnDetailEdges = (
     tile: NavMeshTile,
     poly: NavMeshPoly,
-    detailMesh: {
-        verticesBase: number;
-        verticesCount: number;
-        trianglesBase: number;
-        trianglesCount: number;
-    },
+    polyIndex: number,
     pos: Vec3,
     outClosest: Vec3,
     onlyBoundary = false,
 ): number => {
+    const detailMesh = tile.detailMeshes?.[polyIndex];
+
     let dmin = Number.MAX_VALUE;
     let tmin = 0;
     let pmin: Vec3 | null = null;
@@ -511,9 +508,7 @@ export const getClosestPointOnPoly = (
         return result;
     }
 
-    const detailMesh = tile.detailMeshes?.[polyIndex];
-    const success = closestPointOnDetailEdges(tile, poly, detailMesh, point, _getClosestPointOnPolyDetailClosestPoint);
-    if (success) {
+    if (closestPointOnDetailEdges(tile, poly, polyIndex, point, _getClosestPointOnPolyDetailClosestPoint)) {
         vec3.copy(result.closestPoint, _getClosestPointOnPolyDetailClosestPoint);
         result.success = true;
         return result;
