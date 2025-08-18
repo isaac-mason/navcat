@@ -402,7 +402,6 @@ export const createGetClosestPointOnPolyResult = (): GetClosestPointOnPolyResult
     };
 };
 
-const _getClosestPointOnPolyDetailClosestPoint = vec3.create();
 const _getClosestPointOnPolyHeightResult = createGetPolyHeightResult();
 
 export const getClosestPointOnPoly = (
@@ -426,15 +425,13 @@ export const getClosestPointOnPoly = (
     if (polyHeight.success) {
         vec3.copy(result.closestPoint, point);
         result.closestPoint[1] = polyHeight.height;
+        result.isOverPoly = true;
         result.success = true;
         return result;
     }
 
-    if (closestPointOnDetailEdges(tile, poly, polyIndex, point, _getClosestPointOnPolyDetailClosestPoint)) {
-        vec3.copy(result.closestPoint, _getClosestPointOnPolyDetailClosestPoint);
-        result.success = true;
-        return result;
-    }
+    closestPointOnDetailEdges(tile, poly, polyIndex, point, result.closestPoint, true);
+    result.success = true;
 
     return result;
 };
