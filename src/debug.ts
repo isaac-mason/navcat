@@ -1395,7 +1395,7 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
 
   // Process each link
   for (const link of navMesh.links) {
-    if (!link) continue;
+    if (!link.allocated) continue;
 
     // Get source polygon info
     const [, sourceTileId, sourcePolyId] = desNodeRef(link.ref);

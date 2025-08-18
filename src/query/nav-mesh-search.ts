@@ -1,9 +1,8 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
-    closestPtSeg2d,
     createIntersectSegmentPoly2DResult,
-    distancePtSeg2dSqr,
+    distancePtSegSqr2d,
     intersectSegmentPoly2D,
     pointInPoly,
     randomPointInConvexPoly,
@@ -621,6 +620,10 @@ export const findNodePath = (
 
 const _moveAlongSurfaceVertices: number[] = [];
 const _moveAlongSurfacePolyHeightResult = createGetPolyHeightResult();
+const _moveAlongSurfaceWallEdgeVj = vec3.create();
+const _moveAlongSurfaceWallEdgeVi = vec3.create();
+const _moveAlongSurfaceLinkVj = vec3.create();
+const _moveAlongSurfaceLinkVi = vec3.create();
 
 export type MoveAlongSurfaceResult = {
     success: boolean;
@@ -675,7 +678,6 @@ export const moveAlongSurface = (
     result.success = true;
 
     const nodes: SearchNodePool = {};
-    const visited: NodeRef[] = [];
 
     const startNode: SearchNode = {
         cost: 0,
@@ -690,7 +692,7 @@ export const moveAlongSurface = (
 
     const bestPos = vec3.clone(startPosition);
     let bestDist = Number.MAX_VALUE;
-    let bestNode: SearchNode | null = startNode;
+    let bestNode: SearchNode | null = null;
 
     // search constraints
     const searchPos = vec3.create();
@@ -702,7 +704,6 @@ export const moveAlongSurface = (
     const queue: SearchNodeQueue = [startNode];
 
     while (queue.length > 0) {
-        // pop front (breadth-first)
         const curNode = queue.shift()!;
 
         // get poly and tile
@@ -735,11 +736,9 @@ export const moveAlongSurface = (
         for (let i = 0, j = nv - 1; i < nv; j = i++) {
             // find links to neighbours
             const neis: NodeRef[] = [];
+            const links = navMesh.nodes[curRef] || [];
 
-            // expand search with neighbours
-            const linkIndices = navMesh.nodes[curRef] || [];
-
-            for (const linkIndex of linkIndices) {
+            for (const linkIndex of links) {
                 const link = navMesh.links[linkIndex];
                 if (!link) continue;
 
@@ -762,39 +761,32 @@ export const moveAlongSurface = (
 
             if (neis.length === 0) {
                 // wall edge, calc distance
-                const vj = [
-                    vertices[j * 3],
-                    vertices[j * 3 + 1],
-                    vertices[j * 3 + 2],
-                ] as Vec3;
-                const vi = [
-                    vertices[i * 3],
-                    vertices[i * 3 + 1],
-                    vertices[i * 3 + 2],
-                ] as Vec3;
-                const distSqr = distancePtSeg2dSqr(endPosition, vj, vi);
+                const vj = vec3.fromBuffer(
+                    _moveAlongSurfaceWallEdgeVj,
+                    vertices,
+                    j * 3,
+                );
+                const vi = vec3.fromBuffer(
+                    _moveAlongSurfaceWallEdgeVi,
+                    vertices,
+                    i * 3,
+                );
+
+                const { distSqr, t: tSeg } = distancePtSegSqr2d(
+                    endPosition,
+                    vj,
+                    vi,
+                );
+
                 if (distSqr < bestDist) {
                     // update nearest distance
-                    closestPtSeg2d(bestPos, endPosition, vj, vi);
+                    vec3.lerp(bestPos, vj, vi, tSeg);
                     bestDist = distSqr;
                     bestNode = curNode;
                 }
             } else {
                 for (const neighbourRef of neis) {
-                    // handle tile boundary crossings like findNodePath
-                    let crossSide = 0;
-                    const linkIndex = linkIndices.find(
-                        (idx) =>
-                            navMesh.links[idx]?.neighbourRef === neighbourRef,
-                    );
-                    if (linkIndex !== undefined) {
-                        const link = navMesh.links[linkIndex];
-                        if (link.side !== 0xff) {
-                            crossSide = link.side >> 1;
-                        }
-                    }
-
-                    const neighbourSearchNodeRef: SearchNodeRef = `${neighbourRef}:${crossSide}`;
+                    const neighbourSearchNodeRef: SearchNodeRef = `${neighbourRef}:0`;
                     let neighbourNode = nodes[neighbourSearchNodeRef];
 
                     if (!neighbourNode) {
@@ -803,7 +795,7 @@ export const moveAlongSurface = (
                             total: 0,
                             parent: null,
                             nodeRef: neighbourRef,
-                            state: crossSide,
+                            state: 0,
                             flags: 0,
                             position: structuredClone(endPosition),
                         };
@@ -814,32 +806,28 @@ export const moveAlongSurface = (
                     if (neighbourNode.flags & NODE_FLAG_CLOSED) continue;
 
                     // skip the link if it is too far from search constraint
-                    const vj = [
-                        vertices[j * 3],
-                        vertices[j * 3 + 1],
-                        vertices[j * 3 + 2],
-                    ] as Vec3;
-                    const vi = [
-                        vertices[i * 3],
-                        vertices[i * 3 + 1],
-                        vertices[i * 3 + 2],
-                    ] as Vec3;
-                    const distSqr = distancePtSeg2dSqr(searchPos, vj, vi);
-                    if (distSqr > searchRadSqr) continue;
+                    const vj = vec3.fromBuffer(
+                        _moveAlongSurfaceLinkVj,
+                        vertices,
+                        j * 3,
+                    );
+                    const vi = vec3.fromBuffer(
+                        _moveAlongSurfaceLinkVi,
+                        vertices,
+                        i * 3,
+                    );
 
-                    // calculate node position if first visit
-                    if (neighbourNode.flags === 0) {
-                        getEdgeMidPoint(
-                            navMesh,
-                            curRef,
-                            neighbourRef,
-                            neighbourNode.position,
-                        );
-                    }
+                    const distSqr = distancePtSegSqr2d(
+                        searchPos,
+                        vj,
+                        vi,
+                    ).distSqr;
+
+                    if (distSqr > searchRadSqr) continue;
 
                     // mark as visited and add to queue
                     neighbourNode.parent = `${curNode.nodeRef}:${curNode.state}`;
-                    neighbourNode.flags = NODE_FLAG_CLOSED;
+                    neighbourNode.flags |= NODE_FLAG_CLOSED;
                     queue.push(neighbourNode);
                 }
             }
@@ -849,7 +837,7 @@ export const moveAlongSurface = (
     if (bestNode) {
         let currentNode: SearchNode | null = bestNode;
         while (currentNode) {
-            visited.push(currentNode.nodeRef);
+            result.visited.push(currentNode.nodeRef);
 
             if (currentNode.parent) {
                 currentNode = nodes[currentNode.parent];
@@ -858,26 +846,26 @@ export const moveAlongSurface = (
             }
         }
 
-        visited.reverse();
-    }
+        result.visited.reverse();
 
-    vec3.copy(result.resultPosition, bestPos);
-    result.visited = visited;
-    result.resultRef = result.visited[result.visited.length - 1];
+        vec3.copy(result.resultPosition, bestPos);
+        result.resultRef = bestNode.nodeRef;
 
-    // fixup height with getPolyHeight
-    const tileAndPoly = getTileAndPolyByRef(result.resultRef, navMesh);
+        // fixup height with getPolyHeight
+        const tileAndPoly = getTileAndPolyByRef(result.resultRef, navMesh);
+    
+        if (tileAndPoly.success) {
+            const polyHeightResult = getPolyHeight(
+                _moveAlongSurfacePolyHeightResult,
+                tileAndPoly.tile,
+                tileAndPoly.poly,
+                tileAndPoly.polyIndex,
+                result.resultPosition,
+            );
 
-    if (tileAndPoly.success) {
-        const polyHeightResult = getPolyHeight(
-            _moveAlongSurfacePolyHeightResult,
-            tileAndPoly.tile,
-            tileAndPoly.poly,
-            tileAndPoly.polyIndex,
-            result.resultPosition,
-        );
-        if (polyHeightResult.success) {
-            result.resultPosition[1] = polyHeightResult.height;
+            if (polyHeightResult.success) {
+                result.resultPosition[1] = polyHeightResult.height;
+            }
         }
     }
 
@@ -1400,7 +1388,7 @@ export const findRandomPointAroundCircle = (
             }
 
             // if the circle is not touching the next polygon, skip it
-            const distSqr = distancePtSeg2dSqr(centerPosition, va, vb);
+            const distSqr = distancePtSegSqr2d(centerPosition, va, vb).distSqr;
             if (distSqr > radiusSqr) {
                 continue;
             }

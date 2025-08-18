@@ -77,6 +77,9 @@ export type NavMeshPolyDetail = {
 };
 
 export type NavMeshLink = {
+    /** whether the link is currently allocated (ie in use), or false if it's pooled */
+    allocated: boolean;
+
     /** node reference that owns this link */
     ref: NodeRef;
 

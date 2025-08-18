@@ -7,8 +7,7 @@ import {
 import {
     closestHeightPointTriangle,
     closestPtSeg2d,
-    distancePtSeg2d,
-    distancePtSeg2dSqr,
+    distancePtSegSqr2d,
     pointInPoly,
 } from '../geometry';
 import {
@@ -19,7 +18,7 @@ import {
     type NavMeshPoly,
     type NavMeshTile,
     OffMeshConnectionDirection,
-    OffMeshConnectionSide
+    OffMeshConnectionSide,
 } from './nav-mesh';
 import {
     desNodeRef,
@@ -27,7 +26,7 @@ import {
     type NodeRef,
     NodeType,
     serOffMeshNodeRef,
-    serPolyNodeRef
+    serPolyNodeRef,
 } from './node';
 import type { QueryFilter } from './query-filter';
 import { DEFAULT_QUERY_FILTER } from './query-filter';
@@ -274,17 +273,17 @@ export const getPolyHeight = (
     const detailMesh = tile.detailMeshes[polyIndex];
 
     // build polygon vertices array
-    const verticesCount = poly.vertices.length;
+    const nv = poly.vertices.length;
     const vertices = _getPolyHeightVertices;
-    for (let i = 0; i < verticesCount; ++i) {
-        const vertIndex = poly.vertices[i] * 3;
-        vertices[i * 3] = tile.vertices[vertIndex];
-        vertices[i * 3 + 1] = tile.vertices[vertIndex + 1];
-        vertices[i * 3 + 2] = tile.vertices[vertIndex + 2];
+    for (let i = 0; i < nv; ++i) {
+        const start = poly.vertices[i] * 3;
+        vertices[i * 3] = tile.vertices[start];
+        vertices[i * 3 + 1] = tile.vertices[start + 1];
+        vertices[i * 3 + 2] = tile.vertices[start + 2];
     }
 
     // check if point is inside polygon
-    if (!pointInPoly(verticesCount, vertices, pos)) {
+    if (!pointInPoly(nv, vertices, pos)) {
         return result;
     }
 
@@ -352,13 +351,19 @@ const getDetailTriEdgeFlags = (triFlags: number, edgeIndex: number): number => {
     return (triFlags >> (edgeIndex * 2)) & 0x3;
 };
 
+const _closestPointOnDetailEdgesTriangleVertices: Vec3[] = [
+    vec3.create(),
+    vec3.create(),
+    vec3.create(),
+];
+
 /**
  * Finds the closest point on detail mesh edges to a given point
  * @param tile The tile containing the detail mesh
  * @param poly The polygon
  * @param detailMesh The detail mesh
  * @param pos The position to find closest point for
- * @param closest Output parameter for the closest point
+ * @param outClosest Output parameter for the closest point
  * @param onlyBoundary If true, only consider boundary edges
  * @returns The squared distance to the closest point
  *  closest point
@@ -373,7 +378,7 @@ const closestPointOnDetailEdges = (
         trianglesCount: number;
     },
     pos: Vec3,
-    closest: Vec3,
+    outClosest: Vec3,
     onlyBoundary = false,
 ): number => {
     let dmin = Number.MAX_VALUE;
@@ -398,22 +403,27 @@ const closestPointOnDetailEdges = (
         }
 
         // get triangle vertices
-        const v: Vec3[] = [vec3.create(), vec3.create(), vec3.create()];
+        const triangleVertices = _closestPointOnDetailEdgesTriangleVertices;
         for (let j = 0; j < 3; ++j) {
             const vertexIndex = detailTriangles[t + j];
             if (vertexIndex < poly.vertices.length) {
                 // use main polygon vertices - vertexIndex is an index into poly.vertices
                 vec3.fromBuffer(
-                    v[j],
+                    triangleVertices[j],
                     tile.vertices,
                     poly.vertices[vertexIndex] * 3,
                 );
             } else {
                 // use detail vertices - (vertexIndex - poly.vertices.length) gives offset from verticesBase
                 const detailIndex =
-                    detailMesh.verticesBase +
-                    (vertexIndex - poly.vertices.length);
-                vec3.fromBuffer(v[j], tile.detailVertices, detailIndex * 3);
+                    (detailMesh.verticesBase +
+                        (vertexIndex - poly.vertices.length)) *
+                    3;
+                vec3.fromBuffer(
+                    triangleVertices[j],
+                    tile.detailVertices,
+                    detailIndex,
+                );
             }
         }
 
@@ -433,22 +443,26 @@ const closestPointOnDetailEdges = (
                 continue;
             }
 
-            const result = distancePtSeg2d(pos, v[j], v[k]);
+            const result = distancePtSegSqr2d(
+                pos,
+                triangleVertices[j],
+                triangleVertices[k],
+            );
 
-            if (result.dist < dmin) {
-                dmin = result.dist;
+            if (result.distSqr < dmin) {
+                dmin = result.distSqr;
                 tmin = result.t;
-                pmin = v[j];
-                pmax = v[k];
+                pmin = triangleVertices[j];
+                pmax = triangleVertices[k];
             }
         }
     }
 
     // interpolate the final closest point
     if (pmin && pmax) {
-        vec3.lerp(closest, pmin, pmax, tmin);
+        vec3.lerp(outClosest, pmin, pmax, tmin);
     } else {
-        vec3.copy(closest, pos);
+        vec3.copy(outClosest, pos);
     }
 
     return dmin;
@@ -469,12 +483,8 @@ export const createGetClosestPointOnPolyResult =
         };
     };
 
-const _detailClosestPoint = vec3.create();
-
-const _getClosestPointOnPolyLineStart = vec3.create();
-const _getClosestPointOnPolyLineEnd = vec3.create();
+const _getClosestPointOnPolyDetailClosestPoint = vec3.create();
 const _getClosestPointOnPolyHeightResult = createGetPolyHeightResult();
-const _getClosestPointOnPolyVertices: number[] = [];
 
 export const getClosestPointOnPoly = (
     result: GetClosestPointOnPolyResult,
@@ -490,113 +500,23 @@ export const getClosestPointOnPoly = (
     if (!tileAndPoly.success) {
         return result;
     }
-
+    
     const { tile, poly, polyIndex } = tileAndPoly;
+    const polyHeight = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, polyIndex, point);
 
-    const lineStart = _getClosestPointOnPolyLineStart;
-    const lineEnd = _getClosestPointOnPolyLineEnd;
-
-    // get polygon vertices
-    const nv = poly.vertices.length;
-    const vertices = _getClosestPointOnPolyVertices;
-
-    for (let i = 0; i < nv; ++i) {
-        const start = poly.vertices[i] * 3;
-        vertices[i * 3] = tile.vertices[start];
-        vertices[i * 3 + 1] = tile.vertices[start + 1];
-        vertices[i * 3 + 2] = tile.vertices[start + 2];
-    }
-
-    // check if point is over polygon
-    if (pointInPoly(nv, vertices, point)) {
-        result.isOverPoly = true;
-
-        // find height at the position
-        const getPolyHeightResult = getPolyHeight(
-            _getClosestPointOnPolyHeightResult,
-            tile,
-            poly,
-            polyIndex,
-            point,
-        );
-
-        if (getPolyHeightResult.success) {
-            result.closestPoint[0] = point[0];
-            result.closestPoint[1] = getPolyHeightResult.height;
-            result.closestPoint[2] = point[2];
-        } else {
-            // fallback to polygon center height
-            let avgY = 0;
-            for (let i = 0; i < nv; ++i) {
-                avgY += vertices[i * 3 + 1];
-            }
-            result.closestPoint[0] = point[0];
-            result.closestPoint[1] = avgY / nv;
-            result.closestPoint[2] = point[2];
-        }
-
+    if (polyHeight.success) {
+        vec3.copy(result.closestPoint, point);
+        result.closestPoint[1] = polyHeight.height;
         result.success = true;
         return result;
     }
 
-    // point is outside polygon, find closest point on polygon boundary
-    let dmin = Number.MAX_VALUE;
-    let imin = -1;
-
-    for (let i = 0; i < nv; ++i) {
-        const j = (i + 1) % nv;
-        lineStart[0] = vertices[i * 3];
-        lineStart[1] = vertices[i * 3 + 1];
-        lineStart[2] = vertices[i * 3 + 2];
-
-        lineEnd[0] = vertices[j * 3];
-        lineEnd[1] = vertices[j * 3 + 1];
-        lineEnd[2] = vertices[j * 3 + 2];
-
-        const d = distancePtSeg2dSqr(point, lineStart, lineEnd);
-        if (d < dmin) {
-            dmin = d;
-            imin = i;
-        }
-    }
-
-    if (imin >= 0) {
-        const j = (imin + 1) % nv;
-
-        lineStart[0] = vertices[imin * 3];
-        lineStart[1] = vertices[imin * 3 + 1];
-        lineStart[2] = vertices[imin * 3 + 2];
-
-        lineEnd[0] = vertices[j * 3];
-        lineEnd[1] = vertices[j * 3 + 1];
-        lineEnd[2] = vertices[j * 3 + 2];
-
-        closestPtSeg2d(result.closestPoint, point, lineStart, lineEnd);
-
-        // try to get more accurate height from detail mesh if available
-        const detailMesh = tile.detailMeshes?.[polyIndex];
-
-        if (detailMesh) {
-            const detailDist = closestPointOnDetailEdges(
-                tile,
-                poly,
-                detailMesh,
-                point,
-                _detailClosestPoint,
-            );
-
-            // use detail mesh result if it's closer
-            const currentDist = vec3.squaredDistance(
-                result.closestPoint,
-                point,
-            );
-
-            if (detailDist < currentDist) {
-                vec3.copy(result.closestPoint, _detailClosestPoint);
-            }
-        }
-
+    const detailMesh = tile.detailMeshes?.[polyIndex];
+    const success = closestPointOnDetailEdges(tile, poly, detailMesh, point, _getClosestPointOnPolyDetailClosestPoint);
+    if (success) {
+        vec3.copy(result.closestPoint, _getClosestPointOnPolyDetailClosestPoint);
         result.success = true;
+        return result;
     }
 
     return result;
@@ -652,7 +572,7 @@ export const getClosestPointOnPolyBoundary = (
         lineEnd[0] = vertices[vbIndex + 0];
         lineEnd[1] = vertices[vbIndex + 1];
         lineEnd[2] = vertices[vbIndex + 2];
-        const d = distancePtSeg2dSqr(point, lineStart, lineEnd);
+        const d = distancePtSegSqr2d(point, lineStart, lineEnd).distSqr;
         if (d < dmin) {
             dmin = d;
             imin = i;
@@ -951,7 +871,6 @@ export const queryPolygons = (
     return result;
 };
 
-
 /**
  * Allocates a link and returns it's index
  */
@@ -960,11 +879,13 @@ const allocateLink = (navMesh: NavMesh) => {
     const freeLinkIndex = navMesh.freeLinkIndices.pop();
 
     if (freeLinkIndex !== undefined) {
+        navMesh.links[freeLinkIndex].allocated = true;
         return freeLinkIndex;
     }
 
     // create a new link
     const newLink: NavMeshLink = {
+        allocated: true,
         ref: '' as NodeRef,
         neighbourRef: '' as NodeRef,
         edge: 0,
@@ -979,9 +900,10 @@ const allocateLink = (navMesh: NavMesh) => {
 };
 
 /**
- * Releases a link into the free links pool
+ * Releases a link
  */
 const releaseLink = (navMesh: NavMesh, index: number) => {
+    navMesh.links[index].allocated = false;
     navMesh.freeLinkIndices.push(index);
 };
 

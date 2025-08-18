@@ -2,7 +2,7 @@ import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
     createIntersectSegSeg2DResult,
-    distancePtSeg2dSqr,
+    distancePtSegSqr2d,
     type IntersectSegSeg2DResult,
     intersectSegSeg2D,
     triArea2D,
@@ -348,7 +348,7 @@ export const findStraightPath = (
 
                 if (i === 0) {
                     // if starting really close to the portal, advance
-                    const d2 = distancePtSeg2dSqr(portalApex, left, right);
+                    const d2 = distancePtSegSqr2d(portalApex, left, right).distSqr;
                     if (d2 < 1e-6) continue;
                 }
             } else {

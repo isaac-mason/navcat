@@ -50,7 +50,7 @@ export const pointInPoly = (
         const vj = vec3.fromBuffer(_pointInPolyVJ, verts, j * 3);
 
         if (
-            vi[2] > p[2] !== vj[2] > p[2] &&
+            ((vi[2] > p[2]) !== (vj[2] > p[2])) &&
             p[0] < ((vj[0] - vi[0]) * (p[2] - vi[2])) / (vj[2] - vi[2]) + vi[0]
         ) {
             c = !c;
@@ -152,7 +152,7 @@ export const distancePtSeg2d = (pt: Vec3, p: Vec3, q: Vec3) => {
     return { dist, t };
 };
 
-export const distancePtSeg2dSqr = (pt: Vec3, p: Vec3, q: Vec3): number => {
+export const distancePtSegSqr2d = (pt: Vec3, p: Vec3, q: Vec3) => {
     const pqx = q[0] - p[0];
     const pqz = q[2] - p[2];
     const dx = pt[0] - p[0];
@@ -170,7 +170,9 @@ export const distancePtSeg2dSqr = (pt: Vec3, p: Vec3, q: Vec3): number => {
     const distX = closestX - pt[0];
     const distZ = closestZ - pt[2];
 
-    return distX * distX + distZ * distZ;
+    const distSqr = distX * distX + distZ * distZ;
+
+    return { distSqr, t };
 };
 
 const _distPtTriA: Vec3 = vec3.create();
