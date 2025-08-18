@@ -15,13 +15,9 @@ import {
 import { getPortalPoints } from './nav-mesh-search';
 import { getNodeRefType, type NodeRef, NodeType } from './node';
 
-export const FIND_STRAIGHT_PATH_AREA_CROSSINGS = 1;
-export const FIND_STRAIGHT_PATH_ALL_CROSSINGS = 2;
-
-export enum FindStraightPathStatus {
-    INVALID_INPUT = 0,
-    PARTIAL_PATH = 1,
-    COMPLETE_PATH = 2,
+export enum FindStraightPathOptions {
+    ALL_CROSSINGS = 1,
+    AREA_CROSSINGS = 2,
 }
 
 export type StraightPathPoint = {
@@ -29,6 +25,12 @@ export type StraightPathPoint = {
     type: NodeType;
     nodeRef: NodeRef | null;
 };
+
+export enum FindStraightPathStatus {
+    INVALID_INPUT = 0,
+    PARTIAL_PATH = 1,
+    COMPLETE_PATH = 2,
+}
 
 export type FindStraightPathResult = {
     success: boolean;
@@ -108,7 +110,7 @@ const appendPortals = (
         const to = path[i + 1];
 
         // skip intersection if only area crossings requested and areas equal.
-        if (options & FIND_STRAIGHT_PATH_AREA_CROSSINGS) {
+        if (options & FindStraightPathOptions.AREA_CROSSINGS) {
             const a = getNodeAreaAndFlags(from, navMesh);
             const b = getNodeAreaAndFlags(to, navMesh);
 
@@ -176,7 +178,7 @@ const _findStraightPathRightPortalPoint = vec3.create();
  * @param end The end position in world space.
  * @param pathNodeRefs The list of polygon node references that form the path, generally obtained from `findNodePath`
  * @param maxPoints The maximum number of points to return in the straight path. If null, no limit is applied.
- * @param straightPathOptions
+ * @param straightPathOptions @see FindStraightPathOptions
  * @returns The straight path
  */
 export const findStraightPath = (
@@ -307,8 +309,8 @@ export const findStraightPath = (
                     // append portals along the current straight path segment.
                     if (
                         straightPathOptions &
-                        (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
-                            FIND_STRAIGHT_PATH_ALL_CROSSINGS)
+                        (FindStraightPathOptions.AREA_CROSSINGS |
+                            FindStraightPathOptions.ALL_CROSSINGS)
                     ) {
                         // ignore status return value as we're just about to return
                         appendPortals(
@@ -371,8 +373,8 @@ export const findStraightPath = (
                     // append portals along current straight segment
                     if (
                         straightPathOptions &
-                        (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
-                            FIND_STRAIGHT_PATH_ALL_CROSSINGS)
+                        (FindStraightPathOptions.AREA_CROSSINGS |
+                            FindStraightPathOptions.ALL_CROSSINGS)
                     ) {
                         const appendStatus = appendPortals(
                             navMesh,
@@ -455,8 +457,8 @@ export const findStraightPath = (
                     // append portals along current straight segment
                     if (
                         straightPathOptions &
-                        (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
-                            FIND_STRAIGHT_PATH_ALL_CROSSINGS)
+                        (FindStraightPathOptions.AREA_CROSSINGS |
+                            FindStraightPathOptions.ALL_CROSSINGS)
                     ) {
                         const appendStatus = appendPortals(
                             navMesh,
@@ -519,8 +521,8 @@ export const findStraightPath = (
         // append portals along the current straight path segment
         if (
             straightPathOptions &
-            (FIND_STRAIGHT_PATH_AREA_CROSSINGS |
-                FIND_STRAIGHT_PATH_ALL_CROSSINGS)
+            (FindStraightPathOptions.AREA_CROSSINGS |
+                FindStraightPathOptions.ALL_CROSSINGS)
         ) {
             const appendStatus = appendPortals(
                 navMesh,
