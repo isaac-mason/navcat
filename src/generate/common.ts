@@ -17,11 +17,11 @@ export const DIR_OFFSETS = [
 
 export const getDirOffsetX = (dir: number): number => {
     return DIR_OFFSETS[dir & 0x03][0];
-}
+};
 
 export const getDirOffsetY = (dir: number): number => {
     return DIR_OFFSETS[dir & 0x03][1];
-}
+};
 
 export const getDirForOffset = (x: number, y: number): number => {
     for (let i = 0; i < DIR_OFFSETS.length; i++) {

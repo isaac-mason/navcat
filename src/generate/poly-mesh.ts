@@ -713,7 +713,7 @@ export const buildPolyMesh = (contourSet: ContourSet, maxVerticesPerPoly: number
         }
     }
 
-     // trim arrays to size
+    // trim arrays to size
     mesh.polys.length = mesh.nPolys * maxVerticesPerPoly;
     mesh.regions.length = mesh.nPolys;
     mesh.flags.length = mesh.nPolys;

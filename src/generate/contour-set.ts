@@ -1,13 +1,5 @@
 import type { Box3 } from 'maaths';
-import {
-    AREA_BORDER,
-    BORDER_REG,
-    BORDER_VERTEX,
-    CONTOUR_REG_MASK,
-    getDirOffsetX,
-    getDirOffsetY,
-    NOT_CONNECTED,
-} from './common';
+import { AREA_BORDER, BORDER_REG, BORDER_VERTEX, CONTOUR_REG_MASK, getDirOffsetX, getDirOffsetY, NOT_CONNECTED } from './common';
 import type { CompactHeightfield } from './compact-heightfield';
 import { getCon } from './compact-heightfield';
 
@@ -84,8 +76,7 @@ const getCornerHeight = (
         if (getCon(as, dirp) !== NOT_CONNECTED) {
             const ax2 = ax + getDirOffsetX(dirp);
             const ay2 = ay + getDirOffsetY(dirp);
-            const ai2 =
-                chf.cells[ax2 + ay2 * chf.width].index + getCon(as, dirp);
+            const ai2 = chf.cells[ax2 + ay2 * chf.width].index + getCon(as, dirp);
             const as2 = chf.spans[ai2];
             ch = Math.max(ch, as2.y);
             regs[2] = chf.spans[ai2].region | (chf.areas[ai2] << 16);
@@ -101,8 +92,7 @@ const getCornerHeight = (
         if (getCon(as, dir) !== NOT_CONNECTED) {
             const ax2 = ax + getDirOffsetX(dir);
             const ay2 = ay + getDirOffsetY(dir);
-            const ai2 =
-                chf.cells[ax2 + ay2 * chf.width].index + getCon(as, dir);
+            const ai2 = chf.cells[ax2 + ay2 * chf.width].index + getCon(as, dir);
             const as2 = chf.spans[ai2];
             ch = Math.max(ch, as2.y);
             regs[2] = chf.spans[ai2].region | (chf.areas[ai2] << 16);
@@ -118,12 +108,10 @@ const getCornerHeight = (
 
         // The vertex is a border vertex there are two same exterior cells in a row,
         // followed by two interior cells and none of the regions are out of bounds.
-        const twoSameExts =
-            (regs[a] & regs[b] & BORDER_REG) !== 0 && regs[a] === regs[b];
+        const twoSameExts = (regs[a] & regs[b] & BORDER_REG) !== 0 && regs[a] === regs[b];
         const twoInts = ((regs[c] | regs[d]) & BORDER_REG) === 0;
         const intsSameArea = regs[c] >> 16 === regs[d] >> 16;
-        const noZeros =
-            regs[a] !== 0 && regs[b] !== 0 && regs[c] !== 0 && regs[d] !== 0;
+        const noZeros = regs[a] !== 0 && regs[b] !== 0 && regs[c] !== 0 && regs[d] !== 0;
         if (twoSameExts && twoInts && intsSameArea && noZeros) {
             isBorderVertex.value = true;
             break;
@@ -134,14 +122,7 @@ const getCornerHeight = (
 };
 
 // Helper function to walk contour
-const walkContour = (
-    x: number,
-    y: number,
-    i: number,
-    chf: CompactHeightfield,
-    flags: number[],
-    points: number[],
-): void => {
+const walkContour = (x: number, y: number, i: number, chf: CompactHeightfield, flags: number[], points: number[]): void => {
     // Choose the first non-connected edge
     let dir = 0;
     while ((flags[i] & (1 << dir)) === 0) {
@@ -164,14 +145,7 @@ const walkContour = (
             const isBorderVertex = { value: false };
             let isAreaBorder = false;
             let px = currentX;
-            const py = getCornerHeight(
-                currentX,
-                currentY,
-                currentI,
-                dir,
-                chf,
-                isBorderVertex,
-            );
+            const py = getCornerHeight(currentX, currentY, currentI, dir, chf, isBorderVertex);
             let pz = currentY;
             switch (dir) {
                 case 0:
@@ -190,8 +164,7 @@ const walkContour = (
             if (getCon(s, dir) !== NOT_CONNECTED) {
                 const ax = currentX + getDirOffsetX(dir);
                 const ay = currentY + getDirOffsetY(dir);
-                const ai =
-                    chf.cells[ax + ay * chf.width].index + getCon(s, dir);
+                const ai = chf.cells[ax + ay * chf.width].index + getCon(s, dir);
                 r = chf.spans[ai].region;
                 if (area !== chf.areas[ai]) {
                     isAreaBorder = true;
@@ -236,14 +209,7 @@ const walkContour = (
 };
 
 // Helper function to calculate distance from point to line segment
-const distancePtSeg = (
-    x: number,
-    z: number,
-    px: number,
-    pz: number,
-    qx: number,
-    qz: number,
-): number => {
+const distancePtSeg = (x: number, z: number, px: number, pz: number, qx: number, qz: number): number => {
     const pqx = qx - px;
     const pqz = qz - pz;
     const dx = x - px;
@@ -287,12 +253,8 @@ const simplifyContour = (
         // Add a new point to every location where the region changes.
         for (let i = 0, ni = Math.floor(points.length / 4); i < ni; ++i) {
             const ii = (i + 1) % ni;
-            const differentRegs =
-                (points[i * 4 + 3] & CONTOUR_REG_MASK) !==
-                (points[ii * 4 + 3] & CONTOUR_REG_MASK);
-            const areaBorders =
-                (points[i * 4 + 3] & AREA_BORDER) !==
-                (points[ii * 4 + 3] & AREA_BORDER);
+            const differentRegs = (points[i * 4 + 3] & CONTOUR_REG_MASK) !== (points[ii * 4 + 3] & CONTOUR_REG_MASK);
+            const areaBorders = (points[i * 4 + 3] & AREA_BORDER) !== (points[ii * 4 + 3] & AREA_BORDER);
             if (differentRegs || areaBorders) {
                 simplified.push(points[i * 4 + 0]);
                 simplified.push(points[i * 4 + 1]);
@@ -386,19 +348,9 @@ const simplifyContour = (
         }
 
         // Tessellate only outer edges or edges between areas.
-        if (
-            (points[ci * 4 + 3] & CONTOUR_REG_MASK) === 0 ||
-            points[ci * 4 + 3] & AREA_BORDER
-        ) {
+        if ((points[ci * 4 + 3] & CONTOUR_REG_MASK) === 0 || points[ci * 4 + 3] & AREA_BORDER) {
             while (ci !== endi) {
-                const d = distancePtSeg(
-                    points[ci * 4 + 0],
-                    points[ci * 4 + 2],
-                    segAx,
-                    segAz,
-                    segBx,
-                    segBz,
-                );
+                const d = distancePtSeg(points[ci * 4 + 0], points[ci * 4 + 2], segAx, segAz, segBx, segBz);
                 if (d > maxd) {
                     maxd = d;
                     maxi = ci;
@@ -433,10 +385,7 @@ const simplifyContour = (
     // Split too long edges.
     if (
         maxEdgeLen > 0 &&
-        (buildFlags &
-            (ContourBuildFlags.CONTOUR_TESS_WALL_EDGES |
-                ContourBuildFlags.CONTOUR_TESS_AREA_EDGES)) !==
-            0
+        (buildFlags & (ContourBuildFlags.CONTOUR_TESS_WALL_EDGES | ContourBuildFlags.CONTOUR_TESS_AREA_EDGES)) !== 0
     ) {
         for (let i = 0; i < Math.floor(simplified.length / 4); ) {
             const ii = (i + 1) % Math.floor(simplified.length / 4);
@@ -456,17 +405,11 @@ const simplifyContour = (
             // Tessellate only outer edges or edges between areas.
             let tess = false;
             // Wall edges.
-            if (
-                buildFlags & ContourBuildFlags.CONTOUR_TESS_WALL_EDGES &&
-                (points[ci * 4 + 3] & CONTOUR_REG_MASK) === 0
-            ) {
+            if (buildFlags & ContourBuildFlags.CONTOUR_TESS_WALL_EDGES && (points[ci * 4 + 3] & CONTOUR_REG_MASK) === 0) {
                 tess = true;
             }
             // Edges between areas.
-            if (
-                buildFlags & ContourBuildFlags.CONTOUR_TESS_AREA_EDGES &&
-                points[ci * 4 + 3] & AREA_BORDER
-            ) {
+            if (buildFlags & ContourBuildFlags.CONTOUR_TESS_AREA_EDGES && points[ci * 4 + 3] & AREA_BORDER) {
                 tess = true;
             }
 
@@ -517,9 +460,7 @@ const simplifyContour = (
         // and the neighbour region is take from the next raw point.
         const ai = (simplified[i * 4 + 3] + 1) % pn;
         const bi = simplified[i * 4 + 3];
-        simplified[i * 4 + 3] =
-            (points[ai * 4 + 3] & (CONTOUR_REG_MASK | AREA_BORDER)) |
-            (points[bi * 4 + 3] & BORDER_VERTEX);
+        simplified[i * 4 + 3] = (points[ai * 4 + 3] & (CONTOUR_REG_MASK | AREA_BORDER)) | (points[bi * 4 + 3] & BORDER_VERTEX);
     }
 };
 
@@ -549,10 +490,8 @@ const area2 = (
     const endOffset = endVertexIdx * 4;
     const testOffset = testVertexIdx * 4;
     return (
-        (verticesA[endOffset] - verticesA[startOffset]) *
-            (verticesB[testOffset + 2] - verticesA[startOffset + 2]) -
-        (verticesB[testOffset] - verticesA[startOffset]) *
-            (verticesA[endOffset + 2] - verticesA[startOffset + 2])
+        (verticesA[endOffset] - verticesA[startOffset]) * (verticesB[testOffset + 2] - verticesA[startOffset + 2]) -
+        (verticesB[testOffset] - verticesA[startOffset]) * (verticesA[endOffset + 2] - verticesA[startOffset + 2])
     );
 };
 
@@ -567,15 +506,7 @@ const left = (
     verticesB: number[],
     testVertexIdx: number,
 ): boolean => {
-    return (
-        area2(
-            verticesA,
-            startVertexIdx,
-            endVertexIdx,
-            verticesB,
-            testVertexIdx,
-        ) < 0
-    );
+    return area2(verticesA, startVertexIdx, endVertexIdx, verticesB, testVertexIdx) < 0;
 };
 
 const leftOn = (
@@ -585,15 +516,7 @@ const leftOn = (
     verticesB: number[],
     testVertexIdx: number,
 ): boolean => {
-    return (
-        area2(
-            verticesA,
-            startVertexIdx,
-            endVertexIdx,
-            verticesB,
-            testVertexIdx,
-        ) <= 0
-    );
+    return area2(verticesA, startVertexIdx, endVertexIdx, verticesB, testVertexIdx) <= 0;
 };
 
 const collinear = (
@@ -603,15 +526,7 @@ const collinear = (
     verticesB: number[],
     testVertexIdx: number,
 ): boolean => {
-    return (
-        area2(
-            verticesA,
-            startVertexIdx,
-            endVertexIdx,
-            verticesB,
-            testVertexIdx,
-        ) === 0
-    );
+    return area2(verticesA, startVertexIdx, endVertexIdx, verticesB, testVertexIdx) === 0;
 };
 
 const intersectProp = (
@@ -624,70 +539,22 @@ const intersectProp = (
 ): boolean => {
     // Eliminate improper cases.
     if (
-        collinear(
-            segmentVertices,
-            segmentStartIdx,
-            segmentEndIdx,
-            lineVertices,
-            lineStartIdx,
-        ) ||
-        collinear(
-            segmentVertices,
-            segmentStartIdx,
-            segmentEndIdx,
-            lineVertices,
-            lineEndIdx,
-        ) ||
-        collinear(
-            lineVertices,
-            lineStartIdx,
-            lineEndIdx,
-            segmentVertices,
-            segmentStartIdx,
-        ) ||
-        collinear(
-            lineVertices,
-            lineStartIdx,
-            lineEndIdx,
-            segmentVertices,
-            segmentEndIdx,
-        )
+        collinear(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx) ||
+        collinear(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineEndIdx) ||
+        collinear(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentStartIdx) ||
+        collinear(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentEndIdx)
     ) {
         return false;
     }
 
     return (
         xorb(
-            left(
-                segmentVertices,
-                segmentStartIdx,
-                segmentEndIdx,
-                lineVertices,
-                lineStartIdx,
-            ),
-            left(
-                segmentVertices,
-                segmentStartIdx,
-                segmentEndIdx,
-                lineVertices,
-                lineEndIdx,
-            ),
+            left(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx),
+            left(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineEndIdx),
         ) &&
         xorb(
-            left(
-                lineVertices,
-                lineStartIdx,
-                lineEndIdx,
-                segmentVertices,
-                segmentStartIdx,
-            ),
-            left(
-                lineVertices,
-                lineStartIdx,
-                lineEndIdx,
-                segmentVertices,
-                segmentEndIdx,
-            ),
+            left(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentStartIdx),
+            left(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentEndIdx),
         )
     );
 };
@@ -699,15 +566,7 @@ const between = (
     testVertices: number[],
     testVertexIdx: number,
 ): boolean => {
-    if (
-        !collinear(
-            lineVertices,
-            lineStartIdx,
-            lineEndIdx,
-            testVertices,
-            testVertexIdx,
-        )
-    ) {
+    if (!collinear(lineVertices, lineStartIdx, lineEndIdx, testVertices, testVertexIdx)) {
         return false;
     }
     const lineStartOffset = lineStartIdx * 4;
@@ -718,8 +577,7 @@ const between = (
         return (
             (lineVertices[lineStartOffset] <= testVertices[testOffset] &&
                 testVertices[testOffset] <= lineVertices[lineEndOffset]) ||
-            (lineVertices[lineStartOffset] >= testVertices[testOffset] &&
-                testVertices[testOffset] >= lineVertices[lineEndOffset])
+            (lineVertices[lineStartOffset] >= testVertices[testOffset] && testVertices[testOffset] >= lineVertices[lineEndOffset])
         );
     }
     return (
@@ -738,65 +596,24 @@ const intersect = (
     lineStartIdx: number,
     lineEndIdx: number,
 ): boolean => {
-    if (
-        intersectProp(
-            segmentVertices,
-            segmentStartIdx,
-            segmentEndIdx,
-            lineVertices,
-            lineStartIdx,
-            lineEndIdx,
-        )
-    ) {
+    if (intersectProp(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx, lineEndIdx)) {
         return true;
     }
     if (
-        between(
-            segmentVertices,
-            segmentStartIdx,
-            segmentEndIdx,
-            lineVertices,
-            lineStartIdx,
-        ) ||
-        between(
-            segmentVertices,
-            segmentStartIdx,
-            segmentEndIdx,
-            lineVertices,
-            lineEndIdx,
-        ) ||
-        between(
-            lineVertices,
-            lineStartIdx,
-            lineEndIdx,
-            segmentVertices,
-            segmentStartIdx,
-        ) ||
-        between(
-            lineVertices,
-            lineStartIdx,
-            lineEndIdx,
-            segmentVertices,
-            segmentEndIdx,
-        )
+        between(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx) ||
+        between(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineEndIdx) ||
+        between(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentStartIdx) ||
+        between(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentEndIdx)
     ) {
         return true;
     }
     return false;
 };
 
-const vequal = (
-    verticesA: number[],
-    vertexAIdx: number,
-    verticesB: number[],
-    vertexBIdx: number,
-): boolean => {
+const vequal = (verticesA: number[], vertexAIdx: number, verticesB: number[], vertexBIdx: number): boolean => {
     const offsetA = vertexAIdx * 4;
     const offsetB = vertexBIdx * 4;
-    return (
-        verticesA[offsetA] === verticesB[offsetB] &&
-        verticesA[offsetA + 2] === verticesB[offsetB + 2]
-    );
+    return verticesA[offsetA] === verticesB[offsetB] && verticesA[offsetA + 2] === verticesB[offsetB + 2];
 };
 
 const intersectSegContour = (
@@ -824,16 +641,7 @@ const intersectSegContour = (
             continue;
         }
 
-        if (
-            intersect(
-                segmentVertices,
-                segmentStartIdx,
-                segmentEndIdx,
-                contourVertices,
-                k,
-                k1,
-            )
-        ) {
+        if (intersect(segmentVertices, segmentStartIdx, segmentEndIdx, contourVertices, k, k1)) {
             return true;
         }
     }
@@ -841,24 +649,12 @@ const intersectSegContour = (
 };
 
 // Helper function to check if a point is in the cone of a vertex - taking point coordinates directly
-const inConePoint = (
-    vertices: number[],
-    vertexIdx: number,
-    numVertices: number,
-    pointX: number,
-    pointZ: number,
-): boolean => {
+const inConePoint = (vertices: number[], vertexIdx: number, numVertices: number, pointX: number, pointZ: number): boolean => {
     const nextVertexIdx = next(vertexIdx, numVertices);
     const prevVertexIdx = prev(vertexIdx, numVertices);
 
     // If P[vertexIdx] is a convex vertex [ next left or on (prev,vertex) ].
-    const convex = leftOn(
-        vertices,
-        prevVertexIdx,
-        vertexIdx,
-        vertices,
-        nextVertexIdx,
-    );
+    const convex = leftOn(vertices, prevVertexIdx, vertexIdx, vertices, nextVertexIdx);
     if (convex) {
         // Check if point (pointX,pointZ) is left of line from vertex to prev vertex
         // AND if next vertex is left of line from point to vertex
@@ -869,14 +665,8 @@ const inConePoint = (
         const next_x = vertices[nextVertexIdx * 4];
         const next_z = vertices[nextVertexIdx * 4 + 2];
 
-        const leftOfFirst =
-            (pointX - vertex_x) * (prev_z - vertex_z) -
-                (prev_x - vertex_x) * (pointZ - vertex_z) <
-            0;
-        const leftOfSecond =
-            (next_x - pointX) * (vertex_z - pointZ) -
-                (vertex_x - pointX) * (next_z - pointZ) <
-            0;
+        const leftOfFirst = (pointX - vertex_x) * (prev_z - vertex_z) - (prev_x - vertex_x) * (pointZ - vertex_z) < 0;
+        const leftOfSecond = (next_x - pointX) * (vertex_z - pointZ) - (vertex_x - pointX) * (next_z - pointZ) < 0;
 
         return leftOfFirst && leftOfSecond;
     }
@@ -889,14 +679,8 @@ const inConePoint = (
     const next_x = vertices[nextVertexIdx * 4];
     const next_z = vertices[nextVertexIdx * 4 + 2];
 
-    const leftOnFirst =
-        (pointX - vertex_x) * (next_z - vertex_z) -
-            (next_x - vertex_x) * (pointZ - vertex_z) <=
-        0;
-    const leftOnSecond =
-        (prev_x - pointX) * (vertex_z - pointZ) -
-            (vertex_x - pointX) * (prev_z - pointZ) <=
-        0;
+    const leftOnFirst = (pointX - vertex_x) * (next_z - vertex_z) - (next_x - vertex_x) * (pointZ - vertex_z) <= 0;
+    const leftOnSecond = (prev_x - pointX) * (vertex_z - pointZ) - (vertex_x - pointX) * (prev_z - pointZ) <= 0;
 
     return !(leftOnFirst && leftOnSecond);
 };
@@ -922,12 +706,7 @@ const removeDegenerateSegments = (simplified: number[]): void => {
     }
 };
 
-const mergeContours = (
-    ca: Contour,
-    cb: Contour,
-    ia: number,
-    ib: number,
-): boolean => {
+const mergeContours = (ca: Contour, cb: Contour, ia: number, ib: number): boolean => {
     const maxVerts = ca.nVertices + cb.nVertices + 2;
     const verts = new Array(maxVerts * 4);
 
@@ -981,9 +760,7 @@ type PotentialDiagonal = {
 };
 
 // Finds the lowest leftmost vertex of a contour.
-const findLeftMostVertex = (
-    contour: Contour,
-): { minx: number; minz: number; leftmost: number } => {
+const findLeftMostVertex = (contour: Contour): { minx: number; minz: number; leftmost: number } => {
     let minx = contour.vertices[0];
     let minz = contour.vertices[2];
     let leftmost = 0;
@@ -1062,15 +839,7 @@ const mergeRegionHoles = (region: ContourRegion): void => {
             for (let j = 0; j < outline.nVertices; j++) {
                 const holeX = hole.vertices[bestVertex * 4 + 0];
                 const holeZ = hole.vertices[bestVertex * 4 + 2];
-                if (
-                    inConePoint(
-                        outline.vertices,
-                        j,
-                        outline.nVertices,
-                        holeX,
-                        holeZ,
-                    )
-                ) {
+                if (inConePoint(outline.vertices, j, outline.nVertices, holeX, holeZ)) {
                     const dx = outline.vertices[j * 4 + 0] - holeX;
                     const dz = outline.vertices[j * 4 + 2] - holeZ;
                     diags[ndiags].vert = j;
@@ -1112,14 +881,7 @@ const mergeRegionHoles = (region: ContourRegion): void => {
                 diagonalVerts[6] = hole.vertices[holeVertIdx + 2];
                 diagonalVerts[7] = hole.vertices[holeVertIdx + 3];
 
-                let intersectFound = intersectSegContour(
-                    diagonalVerts,
-                    0,
-                    1,
-                    outline.vertices,
-                    diags[j].vert,
-                    outline.nVertices,
-                );
+                let intersectFound = intersectSegContour(diagonalVerts, 0, 1, outline.vertices, diags[j].vert, outline.nVertices);
 
                 for (let k = i; k < region.nholes && !intersectFound; k++) {
                     intersectFound = intersectSegContour(
@@ -1146,9 +908,7 @@ const mergeRegionHoles = (region: ContourRegion): void => {
         }
 
         if (index === -1) {
-            console.warn(
-                'mergeHoles: Failed to find merge points for outline and hole.',
-            );
+            console.warn('mergeHoles: Failed to find merge points for outline and hole.');
             continue;
         }
         if (!mergeContours(region.outline!, hole, index, bestVertex)) {
@@ -1197,10 +957,7 @@ export const buildContours = (
             for (let i = c.index; i < c.index + c.count; ++i) {
                 let res = 0;
                 const s = compactHeightfield.spans[i];
-                if (
-                    !compactHeightfield.spans[i].region ||
-                    compactHeightfield.spans[i].region & BORDER_REG
-                ) {
+                if (!compactHeightfield.spans[i].region || compactHeightfield.spans[i].region & BORDER_REG) {
                     flags[i] = 0;
                     continue;
                 }
@@ -1209,9 +966,7 @@ export const buildContours = (
                     if (getCon(s, dir) !== NOT_CONNECTED) {
                         const ax = x + getDirOffsetX(dir);
                         const ay = y + getDirOffsetY(dir);
-                        const ai =
-                            compactHeightfield.cells[ax + ay * width].index +
-                            getCon(s, dir);
+                        const ai = compactHeightfield.cells[ax + ay * width].index + getCon(s, dir);
                         r = compactHeightfield.spans[ai].region;
                     }
                     if (r === compactHeightfield.spans[i].region) {
@@ -1244,13 +999,7 @@ export const buildContours = (
                 simplified.length = 0;
 
                 walkContour(x, y, i, compactHeightfield, flags, verts);
-                simplifyContour(
-                    verts,
-                    simplified,
-                    maxSimplificationError,
-                    maxEdgeLength,
-                    buildFlags,
-                );
+                simplifyContour(verts, simplified, maxSimplificationError, maxEdgeLength, buildFlags);
                 removeDegenerateSegments(simplified);
 
                 // Create contour.
@@ -1291,10 +1040,7 @@ export const buildContours = (
         for (let i = 0; i < contourSet.contours.length; ++i) {
             const contour = contourSet.contours[i];
             // If the contour is wound backwards, it is a hole.
-            winding[i] =
-                calcAreaOfPolygon2D(contour.vertices, contour.nVertices) < 0
-                    ? -1
-                    : 1;
+            winding[i] = calcAreaOfPolygon2D(contour.vertices, contour.nVertices) < 0 ? -1 : 1;
             if (winding[i] < 0) {
                 nholes++;
             }
@@ -1328,9 +1074,7 @@ export const buildContours = (
                 // Positively wound contours are outlines, negative holes.
                 if (winding[i] > 0) {
                     if (regions[contour.reg].outline) {
-                        console.error(
-                            `buildContours: Multiple outlines for region ${contour.reg}.`,
-                        );
+                        console.error(`buildContours: Multiple outlines for region ${contour.reg}.`);
                     }
                     regions[contour.reg].outline = contour;
                 } else {
@@ -1367,9 +1111,7 @@ export const buildContours = (
                     // The region does not have an outline.
                     // This can happen if the contour becaomes selfoverlapping because of
                     // too aggressive simplification settings.
-                    console.error(
-                        `buildContours: Bad outline for region ${i}, contour simplification is likely too aggressive.`,
-                    );
+                    console.error(`buildContours: Bad outline for region ${i}, contour simplification is likely too aggressive.`);
                 }
             }
         }

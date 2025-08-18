@@ -1,20 +1,6 @@
 import { type Vec2, type Vec3, clamp, vec2, vec3 } from 'maaths';
-import {
-    circumCircle,
-    distToPoly,
-    distToTriMesh,
-    distancePtSeg,
-    overlapSegSeg2d,
-    polyMinExtent
-} from '../geometry';
-import {
-    MESH_NULL_IDX,
-    MULTIPLE_REGS,
-    NOT_CONNECTED,
-    getDirForOffset,
-    getDirOffsetX,
-    getDirOffsetY,
-} from './common';
+import { circumCircle, distToPoly, distToTriMesh, distancePtSeg, overlapSegSeg2d, polyMinExtent } from '../geometry';
+import { MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED, getDirForOffset, getDirOffsetX, getDirOffsetY } from './common';
 import type { CompactHeightfield } from './compact-heightfield';
 import { getCon } from './compact-heightfield';
 import type { PolyMesh } from './poly-mesh';
@@ -154,18 +140,10 @@ const getHeight = (
 };
 
 // Edge management functions for triangulation
-const findEdge = (
-    edges: number[],
-    nedges: number,
-    s: number,
-    t: number,
-): number => {
+const findEdge = (edges: number[], nedges: number, s: number, t: number): number => {
     for (let i = 0; i < nedges; i++) {
         const e = i * 4;
-        if (
-            (edges[e] === s && edges[e + 1] === t) ||
-            (edges[e] === t && edges[e + 1] === s)
-        ) {
+        if ((edges[e] === s && edges[e + 1] === t) || (edges[e] === t && edges[e + 1] === s)) {
             return i;
         }
     }
@@ -251,19 +229,10 @@ const completeFacet = (
         getVec2XZ(_completeFacetPointS, points, s * 3);
         getVec2XZ(_completeFacetPointT, points, t * 3);
         getVec2XZ(_completeFacetPointU, points, u * 3);
-        vec2.subtract(
-            _completeFacetPointT,
-            _completeFacetPointT,
-            _completeFacetPointS,
-        ); // t - s
-        vec2.subtract(
-            _completeFacetPointU,
-            _completeFacetPointU,
-            _completeFacetPointS,
-        ); // u - s
+        vec2.subtract(_completeFacetPointT, _completeFacetPointT, _completeFacetPointS); // t - s
+        vec2.subtract(_completeFacetPointU, _completeFacetPointU, _completeFacetPointS); // u - s
         const crossProduct =
-            _completeFacetPointT[0] * _completeFacetPointU[1] -
-            _completeFacetPointT[1] * _completeFacetPointU[0];
+            _completeFacetPointT[0] * _completeFacetPointU[1] - _completeFacetPointT[1] * _completeFacetPointU[0];
 
         if (crossProduct > EPS_FACET) {
             if (r < 0) {
@@ -272,20 +241,12 @@ const completeFacet = (
                 vec3.fromBuffer(_circumCircleP1, points, s * 3);
                 vec3.fromBuffer(_circumCircleP2, points, t * 3);
                 vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                r = circumCircle(
-                    _circumCircleP1,
-                    _circumCircleP2,
-                    _circumCircleP3,
-                    c,
-                );
+                r = circumCircle(_circumCircleP1, _circumCircleP2, _circumCircleP3, c);
                 continue;
             }
             getVec2XZ(_completeFacetCircleCenter, c, 0);
             getVec2XZ(_completeFacetDistanceCalc, points, u * 3);
-            const d = vec2.distance(
-                _completeFacetCircleCenter,
-                _completeFacetDistanceCalc,
-            );
+            const d = vec2.distance(_completeFacetCircleCenter, _completeFacetDistanceCalc);
             const tol = 0.001;
 
             if (d > r * (1 + tol)) {
@@ -299,12 +260,7 @@ const completeFacet = (
                 vec3.fromBuffer(_circumCircleP1, points, s * 3);
                 vec3.fromBuffer(_circumCircleP2, points, t * 3);
                 vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                r = circumCircle(
-                    _circumCircleP1,
-                    _circumCircleP2,
-                    _circumCircleP3,
-                    c,
-                );
+                r = circumCircle(_circumCircleP1, _circumCircleP2, _circumCircleP3, c);
             } else {
                 // Inside epsilon circumcircle, do extra tests to make sure the edge is valid.
                 if (overlapEdges(points, edges, nEdges.value, s, u)) continue;
@@ -314,12 +270,7 @@ const completeFacet = (
                 vec3.fromBuffer(_circumCircleP1, points, s * 3);
                 vec3.fromBuffer(_circumCircleP2, points, t * 3);
                 vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                r = circumCircle(
-                    _circumCircleP1,
-                    _circumCircleP2,
-                    _circumCircleP3,
-                    c,
-                );
+                r = circumCircle(_circumCircleP1, _circumCircleP2, _circumCircleP3, c);
             }
         }
     }
@@ -351,25 +302,14 @@ const completeFacet = (
     }
 };
 
-const updateLeftFace = (
-    edges: number[],
-    edgeIdx: number,
-    s: number,
-    t: number,
-    f: number,
-): void => {
+const updateLeftFace = (edges: number[], edgeIdx: number, s: number, t: number, f: number): void => {
     const e = edgeIdx * 4;
     if (edges[e] === s && edges[e + 1] === t && edges[e + 2] === EV_UNDEF) {
         edges[e + 2] = f;
-    } else if (
-        edges[e + 1] === s &&
-        edges[e] === t &&
-        edges[e + 3] === EV_UNDEF
-    ) {
+    } else if (edges[e + 1] === s && edges[e] === t && edges[e + 3] === EV_UNDEF) {
         edges[e + 3] = f;
     }
 };
-
 
 // Pre-allocated Vec2 objects for overlapEdges function
 const _overlapEdgesS0: Vec2 = vec2.create();
@@ -377,13 +317,7 @@ const _overlapEdgesT0: Vec2 = vec2.create();
 const _overlapEdgesS1: Vec2 = vec2.create();
 const _overlapEdgesT1: Vec2 = vec2.create();
 
-const overlapEdges = (
-    pts: number[],
-    edges: number[],
-    nedges: number,
-    s1: number,
-    t1: number,
-): boolean => {
+const overlapEdges = (pts: number[], edges: number[], nedges: number, s1: number, t1: number): boolean => {
     for (let i = 0; i < nedges; ++i) {
         const s0 = edges[i * 4];
         const t0 = edges[i * 4 + 1];
@@ -393,15 +327,7 @@ const overlapEdges = (
         getVec2XZ(_overlapEdgesT0, pts, t0 * 3);
         getVec2XZ(_overlapEdgesS1, pts, s1 * 3);
         getVec2XZ(_overlapEdgesT1, pts, t1 * 3);
-        if (
-            overlapSegSeg2d(
-                _overlapEdgesS0,
-                _overlapEdgesT0,
-                _overlapEdgesS1,
-                _overlapEdgesT1,
-            )
-        )
-            return true;
+        if (overlapSegSeg2d(_overlapEdgesS0, _overlapEdgesT0, _overlapEdgesS1, _overlapEdgesT1)) return true;
     }
     return false;
 };
@@ -430,28 +356,10 @@ const delaunayHull = (
     let currentEdge = 0;
     while (currentEdge < nedges.value) {
         if (edges[currentEdge * 4 + 2] === EV_UNDEF) {
-            completeFacet(
-                ctx,
-                pts,
-                npts,
-                edges,
-                nedges,
-                maxEdges,
-                nfaces,
-                currentEdge,
-            );
+            completeFacet(ctx, pts, npts, edges, nedges, maxEdges, nfaces, currentEdge);
         }
         if (edges[currentEdge * 4 + 3] === EV_UNDEF) {
-            completeFacet(
-                ctx,
-                pts,
-                npts,
-                edges,
-                nedges,
-                maxEdges,
-                nfaces,
-                currentEdge,
-            );
+            completeFacet(ctx, pts, npts, edges, nedges, maxEdges, nfaces, currentEdge);
         }
         currentEdge++;
     }
@@ -506,13 +414,7 @@ const delaunayHull = (
 };
 
 // Hull triangulation function (fallback when delaunay is not used)
-const triangulateHull = (
-    verts: number[],
-    nhull: number,
-    hull: number[],
-    nin: number,
-    tris: number[],
-): void => {
+const triangulateHull = (verts: number[], nhull: number, hull: number[], nin: number, tris: number[]): void => {
     let start = 0;
     let left = 1;
     let right = nhull - 1;
@@ -589,12 +491,7 @@ const triangulateHull = (
 };
 
 // Check if edge is on hull
-const onHull = (
-    a: number,
-    b: number,
-    nhull: number,
-    hull: number[],
-): boolean => {
+const onHull = (a: number, b: number, nhull: number, hull: number[]): boolean => {
     // All internal sampled points come after the hull so we can early out for those.
     if (a >= nhull || b >= nhull) return false;
 
@@ -663,20 +560,10 @@ const seedArrayWithPolyCenter = (
             const ax = verts[poly[polyStart + j] * 3] + offset[k][0];
             const ay = verts[poly[polyStart + j] * 3 + 1];
             const az = verts[poly[polyStart + j] * 3 + 2] + offset[k][1];
-            if (
-                ax < hp.xmin ||
-                ax >= hp.xmin + hp.width ||
-                az < hp.ymin ||
-                az >= hp.ymin + hp.height
-            )
-                continue;
+            if (ax < hp.xmin || ax >= hp.xmin + hp.width || az < hp.ymin || az >= hp.ymin + hp.height) continue;
 
             const c = chf.cells[ax + bs + (az + bs) * chf.width];
-            for (
-                let i = c.index, ni = c.index + c.count;
-                i < ni && dmin > 0;
-                ++i
-            ) {
+            for (let i = c.index, ni = c.index + c.count; i < ni && dmin > 0; ++i) {
                 const s = chf.spans[i];
                 const d = Math.abs(ay - s.y);
                 if (d < dmin) {
@@ -707,9 +594,9 @@ const seedArrayWithPolyCenter = (
     hp.data.fill(0);
 
     // DFS to move to the center. Note that we need a DFS here and can not just move
-	// directly towards the center without recording intermediate nodes, even though the polygons
-	// are convex. In very rare we can get stuck due to contour simplification if we do not
-	// record nodes.
+    // directly towards the center without recording intermediate nodes, even though the polygons
+    // are convex. In very rare we can get stuck due to contour simplification if we do not
+    // record nodes.
     let cx = -1;
     let cy = -1;
     let ci = -1;
@@ -725,9 +612,9 @@ const seedArrayWithPolyCenter = (
 
         if (cx === pcx && cy === pcy) break;
 
-		// If we are already at the correct X-position, prefer direction
-		// directly towards the center in the Y-axis; otherwise prefer
-		// direction in the X-axis
+        // If we are already at the correct X-position, prefer direction
+        // directly towards the center in the Y-axis; otherwise prefer
+        // direction in the X-axis
         let directDir: number;
         if (cx === pcx) {
             directDir = getDirForOffset(0, pcy > cy ? 1 : -1);
@@ -735,7 +622,7 @@ const seedArrayWithPolyCenter = (
             directDir = getDirForOffset(pcx > cx ? 1 : -1, 0);
         }
 
-		// Push the direct dir last so we start with this on next iteration
+        // Push the direct dir last so we start with this on next iteration
         const temp = dirs[directDir];
         dirs[directDir] = dirs[3];
         dirs[3] = temp;
@@ -750,18 +637,12 @@ const seedArrayWithPolyCenter = (
 
             const hpx = newX - hp.xmin;
             const hpy = newY - hp.ymin;
-            if (hpx < 0 || hpx >= hp.width || hpy < 0 || hpy >= hp.height)
-                continue;
+            if (hpx < 0 || hpx >= hp.width || hpy < 0 || hpy >= hp.height) continue;
 
             if (hp.data[hpx + hpy * hp.width] !== 0) continue;
 
             hp.data[hpx + hpy * hp.width] = 1;
-            array.push(
-                newX,
-                newY,
-                chf.cells[newX + bs + (newY + bs) * chf.width].index +
-                getCon(cs, dir),
-            );
+            array.push(newX, newY, chf.cells[newX + bs + (newY + bs) * chf.width].index + getCon(cs, dir));
         }
 
         // Restore dirs array
@@ -821,9 +702,7 @@ const getHeightData = (
                             if (getCon(s, dir) !== NOT_CONNECTED) {
                                 const ax = x + getDirOffsetX(dir);
                                 const ay = y + getDirOffsetY(dir);
-                                const ai =
-                                    chf.cells[ax + ay * chf.width].index +
-                                    getCon(s, dir);
+                                const ai = chf.cells[ax + ay * chf.width].index + getCon(s, dir);
                                 const as = chf.spans[ai];
                                 if (as.region !== region) {
                                     border = true;
@@ -841,17 +720,7 @@ const getHeightData = (
 
     // if the polygon does not contain any points from the current region or if it could potentially be overlapping polygons
     if (empty) {
-        seedArrayWithPolyCenter(
-            ctx,
-            chf,
-            poly,
-            polyStart,
-            nPolys,
-            verts,
-            bs,
-            hp,
-            queue,
-        );
+        seedArrayWithPolyCenter(ctx, chf, poly, polyStart, nPolys, verts, bs, hp, queue);
     }
 
     let head = 0;
@@ -974,8 +843,7 @@ const buildPolyDetail = (
             const d = Math.sqrt(dx * dx + dz * dz);
             let nn = 1 + Math.floor(d / sampleDist);
             if (nn >= MAX_VERTS_PER_EDGE) nn = MAX_VERTS_PER_EDGE - 1;
-            if (nverts.value + nn >= MAX_VERTS)
-                nn = MAX_VERTS - 1 - nverts.value;
+            if (nverts.value + nn >= MAX_VERTS) nn = MAX_VERTS - 1 - nverts.value;
 
             for (let k = 0; k <= nn; ++k) {
                 const u = k / nn;
@@ -984,16 +852,8 @@ const buildPolyDetail = (
                 edge[pos + 1] = v1[1] + dy * u;
                 edge[pos + 2] = v1[2] + dz * u;
                 edge[pos + 1] =
-                    getHeight(
-                        edge[pos],
-                        edge[pos + 1],
-                        edge[pos + 2],
-                        cs,
-                        ics,
-                        chf.cellHeight,
-                        heightSearchRadius,
-                        hp,
-                    ) * chf.cellHeight;
+                    getHeight(edge[pos], edge[pos + 1], edge[pos + 2], cs, ics, chf.cellHeight, heightSearchRadius, hp) *
+                    chf.cellHeight;
             }
 
             // Simplify samples.
@@ -1002,7 +862,7 @@ const buildPolyDetail = (
             idx[1] = nn;
             let nidx = 2;
 
-            for (let k = 0; k < nidx - 1;) {
+            for (let k = 0; k < nidx - 1; ) {
                 const a = idx[k];
                 const b = idx[k + 1];
                 const va = a * 3;
@@ -1015,11 +875,7 @@ const buildPolyDetail = (
                     vec3.fromBuffer(_buildPolyDetailEdgePt, edge, m * 3);
                     vec3.fromBuffer(_buildPolyDetailEdgeA, edge, va);
                     vec3.fromBuffer(_buildPolyDetailEdgeB, edge, vb);
-                    const dev = distancePtSeg(
-                        _buildPolyDetailEdgePt,
-                        _buildPolyDetailEdgeA,
-                        _buildPolyDetailEdgeB,
-                    );
+                    const dev = distancePtSeg(_buildPolyDetailEdgePt, _buildPolyDetailEdgeA, _buildPolyDetailEdgeB);
                     if (dev > maxd) {
                         maxd = dev;
                         maxi = m;
@@ -1096,31 +952,12 @@ const buildPolyDetail = (
         samples.length = 0;
         for (let z = z0; z < z1; ++z) {
             for (let x = x0; x < x1; ++x) {
-                const pt = [
-                    x * sampleDist,
-                    (bmax[1] + bmin[1]) * 0.5,
-                    z * sampleDist,
-                ];
+                const pt = [x * sampleDist, (bmax[1] + bmin[1]) * 0.5, z * sampleDist];
                 // Make sure the samples are not too close to the edges.
                 vec3.set(_buildPolyDetailGridPt, pt[0], pt[1], pt[2]);
-                if (
-                    distToPoly(nin, inVerts, _buildPolyDetailGridPt) >
-                    -sampleDist / 2
-                )
-                    continue;
+                if (distToPoly(nin, inVerts, _buildPolyDetailGridPt) > -sampleDist / 2) continue;
                 samples.push(x);
-                samples.push(
-                    getHeight(
-                        pt[0],
-                        pt[1],
-                        pt[2],
-                        cs,
-                        ics,
-                        chf.cellHeight,
-                        heightSearchRadius,
-                        hp,
-                    ),
-                );
+                samples.push(getHeight(pt[0], pt[1], pt[2], cs, ics, chf.cellHeight, heightSearchRadius, hp));
                 samples.push(z);
                 samples.push(0); // Not added
             }
@@ -1144,12 +981,7 @@ const buildPolyDetail = (
                     samples[s + 2] * sampleDist + getJitterY(i) * cs * 0.1,
                 ];
                 vec3.set(_buildPolyDetailSamplePt, pt[0], pt[1], pt[2]);
-                const d = distToTriMesh(
-                    _buildPolyDetailSamplePt,
-                    verts,
-                    tris,
-                    tris.length / 4,
-                );
+                const d = distToTriMesh(_buildPolyDetailSamplePt, verts, tris, tris.length / 4);
                 if (d < 0) continue; // did not hit the mesh.
                 if (d > bestd) {
                     bestd = d;
@@ -1211,11 +1043,7 @@ export const buildPolyMeshDetail = (
     const nvp = polyMesh.maxVerticesPerPoly;
     const cs = polyMesh.cellSize;
     const ch = polyMesh.cellHeight;
-    const orig = [
-        polyMesh.bounds[0][0],
-        polyMesh.bounds[0][1],
-        polyMesh.bounds[0][2],
-    ];
+    const orig = [polyMesh.bounds[0][0], polyMesh.bounds[0][1], polyMesh.bounds[0][2]];
     const borderSize = polyMesh.borderSize;
     const heightSearchRadius = Math.max(1, Math.ceil(polyMesh.maxEdgeError));
 
@@ -1259,11 +1087,7 @@ export const buildPolyMeshDetail = (
         bounds[i * 4 + 1] = Math.min(compactHeightfield.width, xmax + 1);
         bounds[i * 4 + 2] = Math.max(0, ymin - 1);
         bounds[i * 4 + 3] = Math.min(compactHeightfield.height, ymax + 1);
-        if (
-            bounds[i * 4] >= bounds[i * 4 + 1] ||
-            bounds[i * 4 + 2] >= bounds[i * 4 + 3]
-        )
-            continue;
+        if (bounds[i * 4] >= bounds[i * 4 + 1] || bounds[i * 4 + 2] >= bounds[i * 4 + 3]) continue;
         maxhw = Math.max(maxhw, bounds[i * 4 + 1] - bounds[i * 4]);
         maxhh = Math.max(maxhh, bounds[i * 4 + 3] - bounds[i * 4 + 2]);
     }
@@ -1359,23 +1183,14 @@ export const buildPolyMeshDetail = (
 
         // Store vertices
         for (let j = 0; j < nverts.value; ++j) {
-            dmesh.vertices.push(
-                verts[j * 3],
-                verts[j * 3 + 1],
-                verts[j * 3 + 2],
-            );
+            dmesh.vertices.push(verts[j * 3], verts[j * 3 + 1], verts[j * 3 + 2]);
             dmesh.nVertices++;
         }
 
         // Store triangles
         for (let j = 0; j < ntris; ++j) {
             const t = j * 4;
-            dmesh.triangles.push(
-                tris[t],
-                tris[t + 1],
-                tris[t + 2],
-                tris[t + 3],
-            );
+            dmesh.triangles.push(tris[t], tris[t + 1], tris[t + 2], tris[t + 3]);
             dmesh.nTriangles++;
         }
     }

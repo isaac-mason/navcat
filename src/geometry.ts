@@ -37,11 +37,7 @@ const _pointInPolyVJ = vec3.create();
  * @param p The point to test
  * @returns True if the point is inside the polygon
  */
-export const pointInPoly = (
-    nvert: number,
-    verts: number[],
-    p: Vec3,
-): boolean => {
+export const pointInPoly = (nvert: number, verts: number[], p: Vec3): boolean => {
     let c = false;
     let j = nvert - 1;
 
@@ -49,10 +45,7 @@ export const pointInPoly = (
         const vi = vec3.fromBuffer(_pointInPolyVI, verts, i * 3);
         const vj = vec3.fromBuffer(_pointInPolyVJ, verts, j * 3);
 
-        if (
-            ((vi[2] > p[2]) !== (vj[2] > p[2])) &&
-            p[0] < ((vj[0] - vi[0]) * (p[2] - vi[2])) / (vj[2] - vi[2]) + vi[0]
-        ) {
+        if (vi[2] > p[2] !== vj[2] > p[2] && p[0] < ((vj[0] - vi[0]) * (p[2] - vi[2])) / (vj[2] - vi[2]) + vi[0]) {
             c = !c;
         }
     }
@@ -179,12 +172,7 @@ const _distPtTriA: Vec3 = vec3.create();
 const _distPtTriB: Vec3 = vec3.create();
 const _distPtTriC: Vec3 = vec3.create();
 
-export const distToTriMesh = (
-    p: Vec3,
-    verts: number[],
-    tris: number[],
-    ntris: number,
-): number => {
+export const distToTriMesh = (p: Vec3, verts: number[], tris: number[], ntris: number): number => {
     let dmin = Number.MAX_VALUE;
     for (let i = 0; i < ntris; ++i) {
         const va = tris[i * 4 + 0] * 3;
@@ -214,10 +202,7 @@ export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
         const vj = j * 3;
         if (
             verts[vi + 2] > p[2] !== verts[vj + 2] > p[2] &&
-            p[0] <
-                ((verts[vj] - verts[vi]) * (p[2] - verts[vi + 2])) /
-                    (verts[vj + 2] - verts[vi + 2]) +
-                    verts[vi]
+            p[0] < ((verts[vj] - verts[vi]) * (p[2] - verts[vi + 2])) / (verts[vj + 2] - verts[vi + 2]) + verts[vi]
         ) {
             c = c === 0 ? 1 : 0;
         }
@@ -225,10 +210,7 @@ export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
         vec3.fromBuffer(_distToPolyVj, verts, vj);
         vec3.fromBuffer(_distToPolyVi, verts, vi);
 
-        dmin = Math.min(
-            dmin,
-            distancePtSeg2d(p, _distToPolyVj, _distToPolyVi).dist,
-        );
+        dmin = Math.min(dmin, distancePtSeg2d(p, _distToPolyVj, _distToPolyVi).dist);
     }
     return c ? -dmin : dmin;
 };
@@ -241,12 +223,7 @@ export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
  * @param c Third triangle vertex
  * @returns Height at position, or NaN if point is not inside triangle
  */
-export const closestHeightPointTriangle = (
-    p: Vec3,
-    a: Vec3,
-    b: Vec3,
-    c: Vec3,
-): number => {
+export const closestHeightPointTriangle = (p: Vec3, a: Vec3, b: Vec3, c: Vec3): number => {
     const EPS = 1e-6;
 
     const v0x = c[0] - a[0];
@@ -325,19 +302,9 @@ export const circumCircle = (p1: Vec3, p2: Vec3, p3: Vec3, c: Vec3): number => {
     _circumCircleV3Proj[0] = v3[0];
     _circumCircleV3Proj[1] = v3[2];
 
-    vec2.subtract(
-        _circumCircleV2Proj,
-        _circumCircleV2Proj,
-        _circumCircleV1Proj,
-    ); // v2 - v1
-    vec2.subtract(
-        _circumCircleV3Proj,
-        _circumCircleV3Proj,
-        _circumCircleV1Proj,
-    ); // v3 - v1
-    const cp =
-        _circumCircleV2Proj[0] * _circumCircleV3Proj[1] -
-        _circumCircleV2Proj[1] * _circumCircleV3Proj[0];
+    vec2.subtract(_circumCircleV2Proj, _circumCircleV2Proj, _circumCircleV1Proj); // v2 - v1
+    vec2.subtract(_circumCircleV3Proj, _circumCircleV3Proj, _circumCircleV1Proj); // v3 - v1
+    const cp = _circumCircleV2Proj[0] * _circumCircleV3Proj[1] - _circumCircleV2Proj[1] * _circumCircleV3Proj[0];
 
     if (Math.abs(cp) > EPS) {
         _circumCircleV1Proj[0] = v1[0];
@@ -352,17 +319,9 @@ export const circumCircle = (p1: Vec3, p2: Vec3, p3: Vec3, c: Vec3): number => {
         const v1Sq = vec2.dot(_circumCircleV1Proj, _circumCircleV1Proj);
         const v2Sq = vec2.dot(_circumCircleV2Proj, _circumCircleV2Proj);
         const v3Sq = vec2.dot(_circumCircleV3Proj, _circumCircleV3Proj);
-        c[0] =
-            (v1Sq * (v2[2] - v3[2]) +
-                v2Sq * (v3[2] - v1[2]) +
-                v3Sq * (v1[2] - v2[2])) /
-            (2 * cp);
+        c[0] = (v1Sq * (v2[2] - v3[2]) + v2Sq * (v3[2] - v1[2]) + v3Sq * (v1[2] - v2[2])) / (2 * cp);
         c[1] = 0;
-        c[2] =
-            (v1Sq * (v3[0] - v2[0]) +
-                v2Sq * (v1[0] - v3[0]) +
-                v3Sq * (v2[0] - v1[0])) /
-            (2 * cp);
+        c[2] = (v1Sq * (v3[0] - v2[0]) + v2Sq * (v1[0] - v3[0]) + v3Sq * (v2[0] - v1[0])) / (2 * cp);
 
         _circumCircleCenter2D[0] = c[0];
         _circumCircleCenter2D[1] = c[2];
@@ -390,12 +349,7 @@ const _overlapSegAC: Vec2 = vec2.create();
 const _overlapSegCD: Vec2 = vec2.create();
 const _overlapSegCA: Vec2 = vec2.create();
 
-export const overlapSegSeg2d = (
-    a: Vec2,
-    b: Vec2,
-    c: Vec2,
-    d: Vec2,
-): boolean => {
+export const overlapSegSeg2d = (a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean => {
     // calculate cross products for line segment intersection test
     const ab = _overlapSegAB;
     const ad = _overlapSegAD;
@@ -445,13 +399,7 @@ export const createIntersectSegSeg2DResult = (): IntersectSegSeg2DResult => ({
  * Returns { hit, s, t } where
  *  P = a + s*(b-a) and Q = c + t*(d-c). Hit only if both s and t are within [0,1].
  */
-export const intersectSegSeg2D = (
-    out: IntersectSegSeg2DResult,
-    a: Vec3,
-    b: Vec3,
-    c: Vec3,
-    d: Vec3,
-): IntersectSegSeg2DResult => {
+export const intersectSegSeg2D = (out: IntersectSegSeg2DResult, a: Vec3, b: Vec3, c: Vec3, d: Vec3): IntersectSegSeg2DResult => {
     const bax = b[0] - a[0];
     const baz = b[2] - a[2];
     const dcx = d[0] - c[0];
@@ -495,11 +443,7 @@ export const polyMinExtent = (verts: number[], nverts: number): number => {
             vec3.fromBuffer(_polyMinExtentP1, verts, p1);
             vec3.fromBuffer(_polyMinExtentP2, verts, p2);
 
-            const { dist } = distancePtSeg2d(
-                _polyMinExtentPt,
-                _polyMinExtentP1,
-                _polyMinExtentP2,
-            );
+            const { dist } = distancePtSeg2d(_polyMinExtentPt, _polyMinExtentP1, _polyMinExtentP2);
             maxEdgeDist = Math.max(maxEdgeDist, dist);
         }
         minDist = Math.min(minDist, maxEdgeDist);
@@ -527,14 +471,13 @@ export type IntersectSegmentPoly2DResult = {
     segMax: number;
 };
 
-export const createIntersectSegmentPoly2DResult =
-    (): IntersectSegmentPoly2DResult => ({
-        intersects: false,
-        tmin: 0,
-        tmax: 0,
-        segMin: -1,
-        segMax: -1,
-    });
+export const createIntersectSegmentPoly2DResult = (): IntersectSegmentPoly2DResult => ({
+    intersects: false,
+    tmin: 0,
+    tmax: 0,
+    segMin: -1,
+    segMax: -1,
+});
 
 const _intersectSegmentPoly2DVi = vec3.create();
 const _intersectSegmentPoly2DVj = vec3.create();
@@ -634,23 +577,12 @@ const _randomPointInConvexPolyVc = vec3.create();
  * @param t - Random value [0,1] for point within triangle
  * @param out - Output point [x,y,z]
  */
-export const randomPointInConvexPoly = (
-    out: Vec3,
-    nv: number,
-    verts: number[],
-    areas: number[],
-    s: number,
-    t: number,
-): Vec3 => {
+export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], areas: number[], s: number, t: number): Vec3 => {
     // calculate cumulative triangle areas for weighted selection
     let areaSum = 0;
     for (let i = 2; i < nv; i++) {
         const va = [verts[0], verts[1], verts[2]] as Vec3;
-        const vb = [
-            verts[(i - 1) * 3],
-            verts[(i - 1) * 3 + 1],
-            verts[(i - 1) * 3 + 2],
-        ] as Vec3;
+        const vb = [verts[(i - 1) * 3], verts[(i - 1) * 3 + 1], verts[(i - 1) * 3 + 2]] as Vec3;
         const vc = [verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2]] as Vec3;
         areas[i] = triArea2D(va, vb, vc);
         areaSum += Math.max(0.001, areas[i]);
@@ -682,11 +614,7 @@ export const randomPointInConvexPoly = (
     const w = 1 - u - v;
 
     const va = vec3.fromBuffer(_randomPointInConvexPolyVa, verts, 0);
-    const vb = vec3.fromBuffer(
-        _randomPointInConvexPolyVb,
-        verts,
-        (tri - 1) * 3,
-    );
+    const vb = vec3.fromBuffer(_randomPointInConvexPolyVb, verts, (tri - 1) * 3);
     const vc = vec3.fromBuffer(_randomPointInConvexPolyVc, verts, tri * 3);
 
     out[0] = u * va[0] + v * vb[0] + w * vc[0];

@@ -1,13 +1,6 @@
 import { type Box3, box3, clamp, type Vec2, type Vec3, vec3 } from 'maaths';
 import { BuildContext, type BuildContextState } from './build-context';
-import {
-    type ArrayLike,
-    AXIS_X,
-    AXIS_Z,
-    getDirOffsetX,
-    getDirOffsetY,
-    NULL_AREA,
-} from './common';
+import { type ArrayLike, AXIS_X, AXIS_Z, getDirOffsetX, getDirOffsetY, NULL_AREA } from './common';
 
 export type HeightfieldSpan = {
     /** the lower limit of the span */
@@ -38,11 +31,7 @@ export type Heightfield = {
 const SPAN_MAX_HEIGHT = 0x1fff; // 8191
 const MAX_HEIGHTFIELD_HEIGHT = 0xffff;
 
-export const calculateGridSize = (
-    outGridSize: Vec2,
-    bounds: Box3,
-    cellSize: number,
-): [width: number, height: number] => {
+export const calculateGridSize = (outGridSize: Vec2, bounds: Box3, cellSize: number): [width: number, height: number] => {
     const minBounds = bounds[0];
     const maxBounds = bounds[1];
 
@@ -169,28 +158,15 @@ const dividePoly = (
     let poly1Vert = 0;
     let poly2Vert = 0;
 
-    for (
-        let inVertA = 0, inVertB = inVertsCount - 1;
-        inVertA < inVertsCount;
-        inVertB = inVertA, ++inVertA
-    ) {
+    for (let inVertA = 0, inVertB = inVertsCount - 1; inVertA < inVertsCount; inVertB = inVertA, ++inVertA) {
         // If the two vertices are on the same side of the separating axis
-        const sameSide =
-            inVertAxisDelta[inVertA] >= 0 === inVertAxisDelta[inVertB] >= 0;
+        const sameSide = inVertAxisDelta[inVertA] >= 0 === inVertAxisDelta[inVertB] >= 0;
 
         if (!sameSide) {
-            const s =
-                inVertAxisDelta[inVertB] /
-                (inVertAxisDelta[inVertB] - inVertAxisDelta[inVertA]);
-            outVerts1[poly1Vert * 3 + 0] =
-                inVerts[inVertB * 3 + 0] +
-                (inVerts[inVertA * 3 + 0] - inVerts[inVertB * 3 + 0]) * s;
-            outVerts1[poly1Vert * 3 + 1] =
-                inVerts[inVertB * 3 + 1] +
-                (inVerts[inVertA * 3 + 1] - inVerts[inVertB * 3 + 1]) * s;
-            outVerts1[poly1Vert * 3 + 2] =
-                inVerts[inVertB * 3 + 2] +
-                (inVerts[inVertA * 3 + 2] - inVerts[inVertB * 3 + 2]) * s;
+            const s = inVertAxisDelta[inVertB] / (inVertAxisDelta[inVertB] - inVertAxisDelta[inVertA]);
+            outVerts1[poly1Vert * 3 + 0] = inVerts[inVertB * 3 + 0] + (inVerts[inVertA * 3 + 0] - inVerts[inVertB * 3 + 0]) * s;
+            outVerts1[poly1Vert * 3 + 1] = inVerts[inVertB * 3 + 1] + (inVerts[inVertA * 3 + 1] - inVerts[inVertB * 3 + 1]) * s;
+            outVerts1[poly1Vert * 3 + 2] = inVerts[inVertB * 3 + 2] + (inVerts[inVertA * 3 + 2] - inVerts[inVertB * 3 + 2]) * s;
 
             // Copy to second polygon
             outVerts2[poly2Vert * 3 + 0] = outVerts1[poly1Vert * 3 + 0];
@@ -288,12 +264,8 @@ const rasterizeTriangle = (
     const inverseCellHeight = 1.0 / cellHeight;
 
     // Calculate the footprint of the triangle on the grid's z-axis
-    let z0 = Math.floor(
-        (triangleBoundsMin[2] - heightfieldBoundsMin[2]) * inverseCellSize,
-    );
-    let z1 = Math.floor(
-        (triangleBoundsMax[2] - heightfieldBoundsMin[2]) * inverseCellSize,
-    );
+    let z0 = Math.floor((triangleBoundsMin[2] - heightfieldBoundsMin[2]) * inverseCellSize);
+    let z1 = Math.floor((triangleBoundsMax[2] - heightfieldBoundsMin[2]) * inverseCellSize);
 
     // Use -1 rather than 0 to cut the polygon properly at the start of the tile
     z0 = clamp(z0, -1, h - 1);
@@ -321,14 +293,7 @@ const rasterizeTriangle = (
     for (let z = z0; z <= z1; ++z) {
         // Clip polygon to row. Store the remaining polygon as well
         const cellZ = heightfieldBoundsMin[2] + z * cellSize;
-        const [nvRow, nvIn2] = dividePoly(
-            inVerts,
-            nvIn,
-            inRow,
-            p1,
-            cellZ + cellSize,
-            AXIS_Z,
-        );
+        const [nvRow, nvIn2] = dividePoly(inVerts, nvIn, inRow, p1, cellZ + cellSize, AXIS_Z);
 
         // Swap arrays
         [inVerts, p1] = [p1, inVerts];
@@ -366,14 +331,7 @@ const rasterizeTriangle = (
         for (let x = x0; x <= x1; ++x) {
             // Clip polygon to column. Store the remaining polygon as well
             const cx = heightfieldBoundsMin[0] + x * cellSize;
-            const [nv, nv2New] = dividePoly(
-                inRow,
-                nv2,
-                p1,
-                p2,
-                cx + cellSize,
-                AXIS_X,
-            );
+            const [nv, nv2New] = dividePoly(inRow, nv2, p1, p2, cx + cellSize, AXIS_X);
 
             // Swap arrays
             [inRow, p2] = [p2, inRow];
@@ -413,28 +371,10 @@ const rasterizeTriangle = (
             }
 
             // Snap the span to the heightfield height grid
-            const spanMinCellIndex = clamp(
-                Math.floor(spanMin * inverseCellHeight),
-                0,
-                SPAN_MAX_HEIGHT,
-            );
-            const spanMaxCellIndex = clamp(
-                Math.ceil(spanMax * inverseCellHeight),
-                spanMinCellIndex + 1,
-                SPAN_MAX_HEIGHT,
-            );
+            const spanMinCellIndex = clamp(Math.floor(spanMin * inverseCellHeight), 0, SPAN_MAX_HEIGHT);
+            const spanMaxCellIndex = clamp(Math.ceil(spanMax * inverseCellHeight), spanMinCellIndex + 1, SPAN_MAX_HEIGHT);
 
-            if (
-                !addSpan(
-                    heightfield,
-                    x,
-                    z,
-                    spanMinCellIndex,
-                    spanMaxCellIndex,
-                    areaID,
-                    flagMergeThreshold,
-                )
-            ) {
+            if (!addSpan(heightfield, x, z, spanMinCellIndex, spanMaxCellIndex, areaID, flagMergeThreshold)) {
                 return false;
             }
         }
@@ -464,16 +404,7 @@ export const rasterizeTriangles = (
 
         const areaId = triAreaIds[triIndex];
 
-        if (
-            !rasterizeTriangle(
-                v0,
-                v1,
-                v2,
-                areaId,
-                heightfield,
-                flagMergeThreshold,
-            )
-        ) {
+        if (!rasterizeTriangle(v0, v1, v2, areaId, heightfield, flagMergeThreshold)) {
             BuildContext.error(ctx, 'Failed to rasterize triangle');
             return false;
         }
@@ -482,10 +413,7 @@ export const rasterizeTriangles = (
     return true;
 };
 
-export const filterLowHangingWalkableObstacles = (
-    heightfield: Heightfield,
-    walkableClimb: number,
-) => {
+export const filterLowHangingWalkableObstacles = (heightfield: Heightfield, walkableClimb: number) => {
     const xSize = heightfield.width;
     const zSize = heightfield.height;
 
@@ -504,12 +432,7 @@ export const filterLowHangingWalkableObstacles = (
 
                 // If current span is not walkable, but there is walkable span just below it and the height difference
                 // is small enough for the agent to walk over, mark the current span as walkable too.
-                if (
-                    !walkable &&
-                    previousWasWalkable &&
-                    previousSpan &&
-                    span.max - previousSpan.max <= walkableClimb
-                ) {
+                if (!walkable && previousWasWalkable && previousSpan && span.max - previousSpan.max <= walkableClimb) {
                     span.area = previousAreaID;
                 }
 
@@ -524,11 +447,7 @@ export const filterLowHangingWalkableObstacles = (
     }
 };
 
-export const filterLedgeSpans = (
-    heightfield: Heightfield,
-    walkableHeight: number,
-    walkableClimb: number,
-) => {
+export const filterLedgeSpans = (heightfield: Heightfield, walkableHeight: number, walkableClimb: number) => {
     const xSize = heightfield.width;
     const zSize = heightfield.height;
 
@@ -546,9 +465,7 @@ export const filterLedgeSpans = (
                 }
 
                 const floor = span.max;
-                const ceiling = span.next
-                    ? span.next.min
-                    : MAX_HEIGHTFIELD_HEIGHT;
+                const ceiling = span.next ? span.next.min : MAX_HEIGHTFIELD_HEIGHT;
 
                 // The difference between this walkable area and the lowest neighbor walkable area.
                 // This is the difference between the current span and all neighbor spans that have
@@ -564,12 +481,7 @@ export const filterLedgeSpans = (
                     const neighborZ = z + getDirOffsetY(direction);
 
                     // Skip neighbours which are out of bounds.
-                    if (
-                        neighborX < 0 ||
-                        neighborZ < 0 ||
-                        neighborX >= xSize ||
-                        neighborZ >= zSize
-                    ) {
+                    if (neighborX < 0 || neighborZ < 0 || neighborX >= xSize || neighborZ >= zSize) {
                         lowestNeighborFloorDifference = -walkableClimb - 1;
                         break;
                     }
@@ -579,15 +491,10 @@ export const filterLedgeSpans = (
 
                     // The most we can step down to the neighbor is the walkableClimb distance.
                     // Start with the area under the neighbor span
-                    let neighborCeiling = neighborSpan
-                        ? neighborSpan.min
-                        : MAX_HEIGHTFIELD_HEIGHT;
+                    let neighborCeiling = neighborSpan ? neighborSpan.min : MAX_HEIGHTFIELD_HEIGHT;
 
                     // Skip neighbour if the gap between the spans is too small.
-                    if (
-                        Math.min(ceiling, neighborCeiling) - floor >=
-                        walkableHeight
-                    ) {
+                    if (Math.min(ceiling, neighborCeiling) - floor >= walkableHeight) {
                         lowestNeighborFloorDifference = -walkableClimb - 1;
                         break;
                     }
@@ -595,41 +502,24 @@ export const filterLedgeSpans = (
                     // For each span in the neighboring column...
                     while (neighborSpan !== null) {
                         const neighborFloor = neighborSpan.max;
-                        neighborCeiling = neighborSpan.next
-                            ? neighborSpan.next.min
-                            : MAX_HEIGHTFIELD_HEIGHT;
+                        neighborCeiling = neighborSpan.next ? neighborSpan.next.min : MAX_HEIGHTFIELD_HEIGHT;
 
                         // Only consider neighboring areas that have enough overlap to be potentially traversable.
-                        if (
-                            Math.min(ceiling, neighborCeiling) -
-                                Math.max(floor, neighborFloor) <
-                            walkableHeight
-                        ) {
+                        if (Math.min(ceiling, neighborCeiling) - Math.max(floor, neighborFloor) < walkableHeight) {
                             // No space to traverse between them.
                             neighborSpan = neighborSpan.next;
                             continue;
                         }
 
                         const neighborFloorDifference = neighborFloor - floor;
-                        lowestNeighborFloorDifference = Math.min(
-                            lowestNeighborFloorDifference,
-                            neighborFloorDifference,
-                        );
+                        lowestNeighborFloorDifference = Math.min(lowestNeighborFloorDifference, neighborFloorDifference);
 
                         // Find min/max accessible neighbor height.
                         // Only consider neighbors that are at most walkableClimb away.
-                        if (
-                            Math.abs(neighborFloorDifference) <= walkableClimb
-                        ) {
+                        if (Math.abs(neighborFloorDifference) <= walkableClimb) {
                             // There is space to move to the neighbor cell and the slope isn't too much.
-                            lowestTraversableNeighborFloor = Math.min(
-                                lowestTraversableNeighborFloor,
-                                neighborFloor,
-                            );
-                            highestTraversableNeighborFloor = Math.max(
-                                highestTraversableNeighborFloor,
-                                neighborFloor,
-                            );
+                            lowestTraversableNeighborFloor = Math.min(lowestTraversableNeighborFloor, neighborFloor);
+                            highestTraversableNeighborFloor = Math.max(highestTraversableNeighborFloor, neighborFloor);
                         } else if (neighborFloorDifference < -walkableClimb) {
                             // We already know this will be considered a ledge span so we can early-out
                             break;
@@ -645,11 +535,7 @@ export const filterLedgeSpans = (
                     span.area = NULL_AREA;
                 }
                 // If the difference between all neighbor floors is too large, this is a steep slope, so mark the span as an unwalkable ledge.
-                else if (
-                    highestTraversableNeighborFloor -
-                        lowestTraversableNeighborFloor >
-                    walkableClimb
-                ) {
+                else if (highestTraversableNeighborFloor - lowestTraversableNeighborFloor > walkableClimb) {
                     span.area = NULL_AREA;
                 }
 
@@ -659,10 +545,7 @@ export const filterLedgeSpans = (
     }
 };
 
-export const filterWalkableLowHeightSpans = (
-    heightfield: Heightfield,
-    walkableHeight: number,
-) => {
+export const filterWalkableLowHeightSpans = (heightfield: Heightfield, walkableHeight: number) => {
     const xSize = heightfield.width;
     const zSize = heightfield.height;
 
@@ -675,9 +558,7 @@ export const filterWalkableLowHeightSpans = (
 
             while (span !== null) {
                 const floor = span.max;
-                const ceiling = span.next
-                    ? span.next.min
-                    : MAX_HEIGHTFIELD_HEIGHT;
+                const ceiling = span.next ? span.next.min : MAX_HEIGHTFIELD_HEIGHT;
 
                 if (ceiling - floor < walkableHeight) {
                     span.area = NULL_AREA;

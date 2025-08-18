@@ -1,17 +1,5 @@
-import type {
-    ArrayLike,
-    CompactHeightfield,
-    ContourSet,
-    Heightfield,
-    PolyMesh,
-    PolyMeshDetail,
-} from './generate';
-import {
-    MESH_NULL_IDX,
-    NULL_AREA,
-    POLY_NEIS_FLAG_EXT_LINK,
-    WALKABLE_AREA,
-} from './generate';
+import type { ArrayLike, CompactHeightfield, ContourSet, Heightfield, PolyMesh, PolyMeshDetail } from './generate';
+import { MESH_NULL_IDX, NULL_AREA, POLY_NEIS_FLAG_EXT_LINK, WALKABLE_AREA } from './generate';
 import type { NavMesh, NavMeshTile, NodeRef, SearchNodePool, SearchNodeRef } from './query';
 import { desNodeRef, OffMeshConnectionDirection } from './query';
 
@@ -25,9 +13,9 @@ export enum DebugPrimitiveType {
 
 export type DebugTriangles = {
     type: DebugPrimitiveType.Triangles;
-    positions: number[];  // x,y,z for each vertex
-    colors: number[];     // r,g,b for each vertex  
-    indices: number[];    // triangle indices
+    positions: number[]; // x,y,z for each vertex
+    colors: number[]; // r,g,b for each vertex
+    indices: number[]; // triangle indices
     transparent?: boolean;
     opacity?: number;
     doubleSided?: boolean;
@@ -35,8 +23,8 @@ export type DebugTriangles = {
 
 export type DebugLines = {
     type: DebugPrimitiveType.Lines;
-    positions: number[];  // x,y,z for each line endpoint
-    colors: number[];     // r,g,b for each line endpoint
+    positions: number[]; // x,y,z for each line endpoint
+    colors: number[]; // r,g,b for each line endpoint
     lineWidth?: number;
     transparent?: boolean;
     opacity?: number;
@@ -44,8 +32,8 @@ export type DebugLines = {
 
 export type DebugPoints = {
     type: DebugPrimitiveType.Points;
-    positions: number[];  // x,y,z for each point
-    colors: number[];     // r,g,b for each point
+    positions: number[]; // x,y,z for each point
+    colors: number[]; // r,g,b for each point
     size: number;
     sizeAttenuation?: boolean;
     transparent?: boolean;
@@ -54,19 +42,15 @@ export type DebugPoints = {
 
 export type DebugBoxes = {
     type: DebugPrimitiveType.Boxes;
-    positions: number[];  // x,y,z center for each box
-    colors: number[];     // r,g,b for each box
-    scales: number[];     // sx,sy,sz for each box
+    positions: number[]; // x,y,z center for each box
+    colors: number[]; // r,g,b for each box
+    scales: number[]; // sx,sy,sz for each box
     rotations?: number[]; // qx,qy,qz,qw for each box (optional)
     transparent?: boolean;
     opacity?: number;
 };
 
-export type DebugPrimitive = 
-    | DebugTriangles 
-    | DebugLines 
-    | DebugPoints 
-    | DebugBoxes;
+export type DebugPrimitive = DebugTriangles | DebugLines | DebugPoints | DebugBoxes;
 
 // Utility functions
 function hslToRgb(h: number, s: number, l: number): [number, number, number] {
@@ -120,14 +104,14 @@ export function createTriangleAreaIdsHelper(
 
         let color = areaToColorMap[areaId];
         if (!color) {
-          if (areaId === WALKABLE_AREA) {
-            color = [0, 1, 0];
-          } else if (areaId === NULL_AREA) {
-            color = [1, 0, 0];
-          } else {
-            color = areaToColor(areaId);
-          }
-          areaToColorMap[areaId] = color;
+            if (areaId === WALKABLE_AREA) {
+                color = [0, 1, 0];
+            } else if (areaId === NULL_AREA) {
+                color = [1, 0, 0];
+            } else {
+                color = areaToColor(areaId);
+            }
+            areaToColorMap[areaId] = color;
         }
 
         positions[positionsIndex++] = input.positions[input.indices[triangle * 3] * 3];
@@ -157,14 +141,16 @@ export function createTriangleAreaIdsHelper(
         return [];
     }
 
-    return [{
-        type: DebugPrimitiveType.Triangles,
-        positions: positions,
-        colors: vertexColors,
-        indices: indices,
-        transparent: true,
-        opacity: 1,
-    }];
+    return [
+        {
+            type: DebugPrimitiveType.Triangles,
+            positions: positions,
+            colors: vertexColors,
+            indices: indices,
+            transparent: true,
+            opacity: 1,
+        },
+    ];
 }
 
 export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitive[] {
@@ -208,17 +194,17 @@ export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitiv
 
                 positions.push(worldX, worldY, worldZ);
                 scales.push(cellSize * 0.9, spanHeight, cellSize * 0.9);
-                
+
                 let color = areaToColorMap[span.area];
                 if (!color) {
-                  if (span.area === WALKABLE_AREA) {
-                    color = [0, 1, 0];
-                  } else if (span.area === NULL_AREA) {
-                    color = [1, 0, 0];
-                  } else {
-                    color = areaToColor(span.area);
-                  }
-                  areaToColorMap[span.area] = color;
+                    if (span.area === WALKABLE_AREA) {
+                        color = [0, 1, 0];
+                    } else if (span.area === NULL_AREA) {
+                        color = [1, 0, 0];
+                    } else {
+                        color = areaToColor(span.area);
+                    }
+                    areaToColorMap[span.area] = color;
                 }
 
                 colors.push(color[0], color[1], color[2]);
@@ -228,17 +214,17 @@ export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitiv
         }
     }
 
-    return [{
-        type: DebugPrimitiveType.Boxes,
-        positions,
-        colors,
-        scales,
-    }];
+    return [
+        {
+            type: DebugPrimitiveType.Boxes,
+            positions,
+            colors,
+            scales,
+        },
+    ];
 }
 
-export function createCompactHeightfieldSolidHelper(
-    compactHeightfield: CompactHeightfield,
-): DebugPrimitive[] {
+export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[] {
     const chf = compactHeightfield;
 
     let totalQuads = 0;
@@ -294,20 +280,20 @@ export function createCompactHeightfieldSolidHelper(
         }
     }
 
-    return [{
-        type: DebugPrimitiveType.Triangles,
-        positions: positions,
-        colors: colors,
-        indices: indices,
-        transparent: true,
-        opacity: 0.6,
-        doubleSided: true,
-    }];
+    return [
+        {
+            type: DebugPrimitiveType.Triangles,
+            positions: positions,
+            colors: colors,
+            indices: indices,
+            transparent: true,
+            opacity: 0.6,
+            doubleSided: true,
+        },
+    ];
 }
 
-export function createCompactHeightfieldDistancesHelper(
-    compactHeightfield: CompactHeightfield,
-): DebugPrimitive[] {
+export function createCompactHeightfieldDistancesHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[] {
     const chf = compactHeightfield;
 
     if (!chf.distances) {
@@ -369,20 +355,20 @@ export function createCompactHeightfieldDistancesHelper(
         }
     }
 
-    return [{
-        type: DebugPrimitiveType.Triangles,
-        positions: positions,
-        colors: colors,
-        indices: indices,
-        transparent: true,
-        opacity: 0.8,
-        doubleSided: true,
-    }];
+    return [
+        {
+            type: DebugPrimitiveType.Triangles,
+            positions: positions,
+            colors: colors,
+            indices: indices,
+            transparent: true,
+            opacity: 0.8,
+            doubleSided: true,
+        },
+    ];
 }
 
-export function createCompactHeightfieldRegionsHelper(
-    compactHeightfield: CompactHeightfield,
-): DebugPrimitive[] {
+export function createCompactHeightfieldRegionsHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[] {
     const chf = compactHeightfield;
 
     let totalQuads = 0;
@@ -436,15 +422,17 @@ export function createCompactHeightfieldRegionsHelper(
         }
     }
 
-    return [{
-        type: DebugPrimitiveType.Triangles,
-        positions: positions,
-        colors: colors,
-        indices: indices,
-        transparent: true,
-        opacity: 0.9,
-        doubleSided: true,
-    }];
+    return [
+        {
+            type: DebugPrimitiveType.Triangles,
+            positions: positions,
+            colors: colors,
+            indices: indices,
+            transparent: true,
+            opacity: 0.9,
+            doubleSided: true,
+        },
+    ];
 }
 
 export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[] {
@@ -497,11 +485,7 @@ export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[
     for (let i = 0; i < contourSet.contours.length; ++i) {
         const c = contourSet.contours[i];
         const baseColor = regionToColor(c.reg, 0.8);
-        const darkenedColor: [number, number, number] = [
-            baseColor[0] * 0.5,
-            baseColor[1] * 0.5,
-            baseColor[2] * 0.5,
-        ];
+        const darkenedColor: [number, number, number] = [baseColor[0] * 0.5, baseColor[1] * 0.5, baseColor[2] * 0.5];
 
         for (let j = 0; j < c.nRawVertices; ++j) {
             const v = c.rawVertices.slice(j * 4, j * 4 + 4);
@@ -572,7 +556,7 @@ export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPri
 
         const baseColor = regionToColor(c.reg, 0.8);
         const whiteColor: [number, number, number] = [1, 1, 1];
-        
+
         // Lerp between colors
         const lerpColor = (t: number): [number, number, number] => {
             const f = t / 255.0;
@@ -610,11 +594,7 @@ export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPri
     for (let i = 0; i < contourSet.contours.length; ++i) {
         const c = contourSet.contours[i];
         const baseColor = regionToColor(c.reg, 0.8);
-        const darkenedColor: [number, number, number] = [
-            baseColor[0] * 0.5,
-            baseColor[1] * 0.5,
-            baseColor[2] * 0.5,
-        ];
+        const darkenedColor: [number, number, number] = [baseColor[0] * 0.5, baseColor[1] * 0.5, baseColor[2] * 0.5];
 
         for (let j = 0; j < c.nVertices; ++j) {
             const v = c.vertices.slice(j * 4, j * 4 + 4);
@@ -965,862 +945,828 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
 }
 
 export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  const triPositions: number[] = [];
-  const triColors: number[] = [];
-  const triIndices: number[] = [];
-  let triVertexIndex = 0;
+    const triPositions: number[] = [];
+    const triColors: number[] = [];
+    const triIndices: number[] = [];
+    let triVertexIndex = 0;
 
-  const interPolyLinePositions: number[] = [];
-  const interPolyLineColors: number[] = [];
-  const outerPolyLinePositions: number[] = [];
-  const outerPolyLineColors: number[] = [];
+    const interPolyLinePositions: number[] = [];
+    const interPolyLineColors: number[] = [];
+    const outerPolyLinePositions: number[] = [];
+    const outerPolyLineColors: number[] = [];
 
-  const vertexPositions: number[] = [];
-  const vertexColors: number[] = [];
+    const vertexPositions: number[] = [];
+    const vertexColors: number[] = [];
 
-  const POLY_NEIS_FLAG_EXT_LINK = 0x8000;
+    const POLY_NEIS_FLAG_EXT_LINK = 0x8000;
 
-  for (const tileId in navMesh.tiles) {
-    const tile = navMesh.tiles[tileId];
-    if (!tile) continue;
+    for (const tileId in navMesh.tiles) {
+        const tile = navMesh.tiles[tileId];
+        if (!tile) continue;
 
-    // Draw detail triangles for each polygon
-    for (const polyId in tile.polys) {
-      const poly = tile.polys[polyId];
-      const polyDetail = tile.detailMeshes[polyId];
-      if (!polyDetail) continue;
+        // Draw detail triangles for each polygon
+        for (const polyId in tile.polys) {
+            const poly = tile.polys[polyId];
+            const polyDetail = tile.detailMeshes[polyId];
+            if (!polyDetail) continue;
 
-      // Get polygon color based on area
-      const col = areaToColor(poly.area, 0.4);
+            // Get polygon color based on area
+            const col = areaToColor(poly.area, 0.4);
 
-      // Draw detail triangles for this polygon
-      for (let j = 0; j < polyDetail.trianglesCount; j++) {
-        const triBase = (polyDetail.trianglesBase + j) * 4;
-        const t0 = tile.detailTriangles[triBase];
-        const t1 = tile.detailTriangles[triBase + 1];
-        const t2 = tile.detailTriangles[triBase + 2];
+            // Draw detail triangles for this polygon
+            for (let j = 0; j < polyDetail.trianglesCount; j++) {
+                const triBase = (polyDetail.trianglesBase + j) * 4;
+                const t0 = tile.detailTriangles[triBase];
+                const t1 = tile.detailTriangles[triBase + 1];
+                const t2 = tile.detailTriangles[triBase + 2];
 
-        // Get triangle vertices
-        for (let k = 0; k < 3; k++) {
-          const vertIndex = k === 0 ? t0 : k === 1 ? t1 : t2;
-          let vx: number;
-          let vy: number;
-          let vz: number;
+                // Get triangle vertices
+                for (let k = 0; k < 3; k++) {
+                    const vertIndex = k === 0 ? t0 : k === 1 ? t1 : t2;
+                    let vx: number;
+                    let vy: number;
+                    let vz: number;
 
-          if (vertIndex < poly.vertices.length) {
-            // Vertex from main polygon
-            const polyVertIndex = poly.vertices[vertIndex];
-            const vBase = polyVertIndex * 3;
-            vx = tile.vertices[vBase];
-            vy = tile.vertices[vBase + 1];
-            vz = tile.vertices[vBase + 2];
-          } else {
-            // Vertex from detail mesh - transform to world space
-            const detailVertIndex = (polyDetail.verticesBase + vertIndex - poly.vertices.length) * 3;
-            vx = tile.bounds[0][0] + tile.detailVertices[detailVertIndex];
-            vy = tile.bounds[0][1] + tile.detailVertices[detailVertIndex + 1];
-            vz = tile.bounds[0][2] + tile.detailVertices[detailVertIndex + 2];
-          }
+                    if (vertIndex < poly.vertices.length) {
+                        // Vertex from main polygon
+                        const polyVertIndex = poly.vertices[vertIndex];
+                        const vBase = polyVertIndex * 3;
+                        vx = tile.vertices[vBase];
+                        vy = tile.vertices[vBase + 1];
+                        vz = tile.vertices[vBase + 2];
+                    } else {
+                        // Vertex from detail mesh - transform to world space
+                        const detailVertIndex = (polyDetail.verticesBase + vertIndex - poly.vertices.length) * 3;
+                        vx = tile.bounds[0][0] + tile.detailVertices[detailVertIndex];
+                        vy = tile.bounds[0][1] + tile.detailVertices[detailVertIndex + 1];
+                        vz = tile.bounds[0][2] + tile.detailVertices[detailVertIndex + 2];
+                    }
 
-          triPositions.push(vx, vy, vz);
-          triColors.push(...col);
+                    triPositions.push(vx, vy, vz);
+                    triColors.push(...col);
+                }
+
+                // Add triangle indices
+                triIndices.push(triVertexIndex, triVertexIndex + 1, triVertexIndex + 2);
+                triVertexIndex += 3;
+            }
         }
 
-        // Add triangle indices
-        triIndices.push(triVertexIndex, triVertexIndex + 1, triVertexIndex + 2);
-        triVertexIndex += 3;
-      }
-    }
+        // Draw polygon boundaries
+        const innerColor = [0.2, 0.2, 0.2];
+        const outerColor = [0.6, 0.6, 1];
 
-    // Draw polygon boundaries
-    const innerColor = [0.2, 0.2, 0.2];
-    const outerColor = [0.6, 0.6, 1];
+        for (const polyId in tile.polys) {
+            const poly = tile.polys[polyId];
 
-    for (const polyId in tile.polys) {
-      const poly = tile.polys[polyId];
+            for (let j = 0; j < poly.vertices.length; j++) {
+                const nj = (j + 1) % poly.vertices.length;
+                const nei = poly.neis[j];
 
-      for (let j = 0; j < poly.vertices.length; j++) {
-        const nj = (j + 1) % poly.vertices.length;
-        const nei = poly.neis[j];
+                // Check if this is a boundary edge
+                const isBoundary = (nei & POLY_NEIS_FLAG_EXT_LINK) !== 0;
 
-        // Check if this is a boundary edge
-        const isBoundary = (nei & POLY_NEIS_FLAG_EXT_LINK) !== 0;
+                // Get edge vertices
+                const polyVertIndex1 = poly.vertices[j];
+                const polyVertIndex2 = poly.vertices[nj];
 
-        // Get edge vertices
-        const polyVertIndex1 = poly.vertices[j];
-        const polyVertIndex2 = poly.vertices[nj];
+                const v1Base = polyVertIndex1 * 3;
+                const v2Base = polyVertIndex2 * 3;
 
-        const v1Base = polyVertIndex1 * 3;
-        const v2Base = polyVertIndex2 * 3;
+                const v1x = tile.vertices[v1Base];
+                const v1y = tile.vertices[v1Base + 1] + 0.01; // Slightly offset up
+                const v1z = tile.vertices[v1Base + 2];
 
-        const v1x = tile.vertices[v1Base];
-        const v1y = tile.vertices[v1Base + 1] + 0.01; // Slightly offset up
-        const v1z = tile.vertices[v1Base + 2];
+                const v2x = tile.vertices[v2Base];
+                const v2y = tile.vertices[v2Base + 1] + 0.01;
+                const v2z = tile.vertices[v2Base + 2];
 
-        const v2x = tile.vertices[v2Base];
-        const v2y = tile.vertices[v2Base + 1] + 0.01;
-        const v2z = tile.vertices[v2Base + 2];
-
-        if (isBoundary) {
-          // Outer boundary edge
-          outerPolyLinePositions.push(v1x, v1y, v1z);
-          outerPolyLineColors.push(outerColor[0], outerColor[1], outerColor[2]);
-          outerPolyLinePositions.push(v2x, v2y, v2z);
-          outerPolyLineColors.push(outerColor[0], outerColor[1], outerColor[2]);
-        } else {
-          // Inner polygon edge
-          interPolyLinePositions.push(v1x, v1y, v1z);
-          interPolyLineColors.push(innerColor[0], innerColor[1], innerColor[2]);
-          interPolyLinePositions.push(v2x, v2y, v2z);
-          interPolyLineColors.push(innerColor[0], innerColor[1], innerColor[2]);
+                if (isBoundary) {
+                    // Outer boundary edge
+                    outerPolyLinePositions.push(v1x, v1y, v1z);
+                    outerPolyLineColors.push(outerColor[0], outerColor[1], outerColor[2]);
+                    outerPolyLinePositions.push(v2x, v2y, v2z);
+                    outerPolyLineColors.push(outerColor[0], outerColor[1], outerColor[2]);
+                } else {
+                    // Inner polygon edge
+                    interPolyLinePositions.push(v1x, v1y, v1z);
+                    interPolyLineColors.push(innerColor[0], innerColor[1], innerColor[2]);
+                    interPolyLinePositions.push(v2x, v2y, v2z);
+                    interPolyLineColors.push(innerColor[0], innerColor[1], innerColor[2]);
+                }
+            }
         }
-      }
+
+        // Draw vertices
+        const vertexColor = [0, 0, 0];
+        for (let i = 0; i < tile.vertices.length; i += 3) {
+            const worldX = tile.vertices[i];
+            const worldY = tile.vertices[i + 1];
+            const worldZ = tile.vertices[i + 2];
+
+            vertexPositions.push(worldX, worldY, worldZ);
+            vertexColors.push(vertexColor[0], vertexColor[1], vertexColor[2]);
+        }
     }
 
-    // Draw vertices
-    const vertexColor = [0, 0, 0];
-    for (let i = 0; i < tile.vertices.length; i += 3) {
-      const worldX = tile.vertices[i];
-      const worldY = tile.vertices[i + 1];
-      const worldZ = tile.vertices[i + 2];
-
-      vertexPositions.push(worldX, worldY, worldZ);
-      vertexColors.push(vertexColor[0], vertexColor[1], vertexColor[2]);
+    // Add triangle mesh primitive
+    if (triPositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Triangles,
+            positions: triPositions,
+            colors: triColors,
+            indices: triIndices,
+            transparent: true,
+            opacity: 0.8,
+            doubleSided: true,
+        });
     }
-  }
 
-  // Add triangle mesh primitive
-  if (triPositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Triangles,
-      positions: triPositions,
-      colors: triColors,
-      indices: triIndices,
-      transparent: true,
-      opacity: 0.8,
-      doubleSided: true,
-    });
-  }
+    // Add inter-poly boundary lines
+    if (interPolyLinePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: interPolyLinePositions,
+            colors: interPolyLineColors,
+            transparent: true,
+            opacity: 0.3,
+            lineWidth: 1.5,
+        });
+    }
 
-  // Add inter-poly boundary lines
-  if (interPolyLinePositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions: interPolyLinePositions,
-      colors: interPolyLineColors,
-      transparent: true,
-      opacity: 0.3,
-      lineWidth: 1.5,
-    });
-  }
+    // Add outer poly boundary lines
+    if (outerPolyLinePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: outerPolyLinePositions,
+            colors: outerPolyLineColors,
+            transparent: true,
+            opacity: 0.9,
+            lineWidth: 2.5,
+        });
+    }
 
-  // Add outer poly boundary lines
-  if (outerPolyLinePositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions: outerPolyLinePositions,
-      colors: outerPolyLineColors,
-      transparent: true,
-      opacity: 0.9,
-      lineWidth: 2.5,
-    });
-  }
+    // Add vertex points
+    if (vertexPositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Points,
+            positions: vertexPositions,
+            colors: vertexColors,
+            size: 0.01,
+            sizeAttenuation: true,
+        });
+    }
 
-  // Add vertex points
-  if (vertexPositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Points,
-      positions: vertexPositions,
-      colors: vertexColors,
-      size: 0.01,
-      sizeAttenuation: true,
-    });
-  }
-
-  return primitives;
+    return primitives;
 }
 
 export function createNavMeshPolyHelper(
-  navMesh: NavMesh,
-  polyRef: NodeRef,
-  color: [number, number, number] = [0, 0.75, 1],
+    navMesh: NavMesh,
+    polyRef: NodeRef,
+    color: [number, number, number] = [0, 0.75, 1],
 ): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  // Get tile and polygon from reference
-  const [, tileId, polyId] = desNodeRef(polyRef);
+    // Get tile and polygon from reference
+    const [, tileId, polyId] = desNodeRef(polyRef);
 
-  const tile = navMesh.tiles[tileId];
-  if (!tile || !tile.polys[polyId]) {
-    // Return empty array if polygon not found
-    return primitives;
-  }
+    const tile = navMesh.tiles[tileId];
+    if (!tile || !tile.polys[polyId]) {
+        // Return empty array if polygon not found
+        return primitives;
+    }
 
-  const poly = tile.polys[polyId];
+    const poly = tile.polys[polyId];
 
-  // Get the detail mesh for this polygon
-  const detailMesh = tile.detailMeshes?.[polyId];
-  if (!detailMesh) {
-    // Fallback: draw basic polygon without detail mesh
+    // Get the detail mesh for this polygon
+    const detailMesh = tile.detailMeshes?.[polyId];
+    if (!detailMesh) {
+        // Fallback: draw basic polygon without detail mesh
+        const triPositions: number[] = [];
+        const triColors: number[] = [];
+        const triIndices: number[] = [];
+
+        // Create a simple triangle fan from the polygon vertices
+        if (poly.vertices.length >= 3) {
+            const baseColor = [color[0] * 0.25, color[1] * 0.25, color[2] * 0.25]; // Transparent
+
+            for (let i = 2; i < poly.vertices.length; i++) {
+                const v0Index = poly.vertices[0] * 3;
+                const v1Index = poly.vertices[i - 1] * 3;
+                const v2Index = poly.vertices[i] * 3;
+
+                // Add triangle vertices
+                triPositions.push(tile.vertices[v0Index], tile.vertices[v0Index + 1], tile.vertices[v0Index + 2]);
+                triPositions.push(tile.vertices[v1Index], tile.vertices[v1Index + 1], tile.vertices[v1Index + 2]);
+                triPositions.push(tile.vertices[v2Index], tile.vertices[v2Index + 1], tile.vertices[v2Index + 2]);
+
+                // Add colors
+                for (let j = 0; j < 3; j++) {
+                    triColors.push(baseColor[0], baseColor[1], baseColor[2]);
+                }
+
+                // Add indices
+                const baseIndex = (i - 2) * 3;
+                triIndices.push(baseIndex, baseIndex + 1, baseIndex + 2);
+            }
+        }
+
+        if (triPositions.length > 0) {
+            primitives.push({
+                type: DebugPrimitiveType.Triangles,
+                positions: triPositions,
+                colors: triColors,
+                indices: triIndices,
+                transparent: true,
+                opacity: 0.6,
+                doubleSided: true,
+            });
+        }
+
+        return primitives;
+    }
+
+    // Draw detail triangles for this polygon
     const triPositions: number[] = [];
     const triColors: number[] = [];
     const triIndices: number[] = [];
 
-    // Create a simple triangle fan from the polygon vertices
-    if (poly.vertices.length >= 3) {
-      const baseColor = [color[0] * 0.25, color[1] * 0.25, color[2] * 0.25]; // Transparent
+    const baseColor = [color[0] * 0.25, color[1] * 0.25, color[2] * 0.25]; // Make color transparent
 
-      for (let i = 2; i < poly.vertices.length; i++) {
-        const v0Index = poly.vertices[0] * 3;
-        const v1Index = poly.vertices[i - 1] * 3;
-        const v2Index = poly.vertices[i] * 3;
+    for (let i = 0; i < detailMesh.trianglesCount; ++i) {
+        const t = (detailMesh.trianglesBase + i) * 4;
+        const detailTriangles = tile.detailTriangles;
 
-        // Add triangle vertices
-        triPositions.push(
-          tile.vertices[v0Index],
-          tile.vertices[v0Index + 1],
-          tile.vertices[v0Index + 2],
-        );
-        triPositions.push(
-          tile.vertices[v1Index],
-          tile.vertices[v1Index + 1],
-          tile.vertices[v1Index + 2],
-        );
-        triPositions.push(
-          tile.vertices[v2Index],
-          tile.vertices[v2Index + 1],
-          tile.vertices[v2Index + 2],
-        );
+        for (let j = 0; j < 3; ++j) {
+            const vertIndex = detailTriangles[t + j];
 
-        // Add colors
-        for (let j = 0; j < 3; j++) {
-          triColors.push(baseColor[0], baseColor[1], baseColor[2]);
+            if (vertIndex < poly.vertices.length) {
+                const polyVertIndex = poly.vertices[vertIndex] * 3;
+                triPositions.push(
+                    tile.vertices[polyVertIndex],
+                    tile.vertices[polyVertIndex + 1],
+                    tile.vertices[polyVertIndex + 2],
+                );
+            } else {
+                const detailVertIndex = (detailMesh.verticesBase + vertIndex - poly.vertices.length) * 3;
+                triPositions.push(
+                    tile.detailVertices[detailVertIndex],
+                    tile.detailVertices[detailVertIndex + 1],
+                    tile.detailVertices[detailVertIndex + 2],
+                );
+            }
+
+            triColors.push(baseColor[0], baseColor[1], baseColor[2]);
         }
 
-        // Add indices
-        const baseIndex = (i - 2) * 3;
+        const baseIndex = i * 3;
         triIndices.push(baseIndex, baseIndex + 1, baseIndex + 2);
-      }
     }
 
     if (triPositions.length > 0) {
-      primitives.push({
-        type: DebugPrimitiveType.Triangles,
-        positions: triPositions,
-        colors: triColors,
-        indices: triIndices,
-        transparent: true,
-        opacity: 0.6,
-        doubleSided: true,
-      });
+        primitives.push({
+            type: DebugPrimitiveType.Triangles,
+            positions: triPositions,
+            colors: triColors,
+            indices: triIndices,
+            transparent: true,
+            opacity: 0.6,
+            doubleSided: true,
+        });
     }
 
     return primitives;
-  }
-
-  // Draw detail triangles for this polygon
-  const triPositions: number[] = [];
-  const triColors: number[] = [];
-  const triIndices: number[] = [];
-
-  const baseColor = [color[0] * 0.25, color[1] * 0.25, color[2] * 0.25]; // Make color transparent
-
-  for (let i = 0; i < detailMesh.trianglesCount; ++i) {
-    const t = (detailMesh.trianglesBase + i) * 4;
-    const detailTriangles = tile.detailTriangles;
-
-    for (let j = 0; j < 3; ++j) {
-      const vertIndex = detailTriangles[t + j];
-
-      if (vertIndex < poly.vertices.length) {
-        const polyVertIndex = poly.vertices[vertIndex] * 3;
-        triPositions.push(
-          tile.vertices[polyVertIndex],
-          tile.vertices[polyVertIndex + 1],
-          tile.vertices[polyVertIndex + 2],
-        );
-      } else {
-        const detailVertIndex = (detailMesh.verticesBase + vertIndex - poly.vertices.length) * 3;
-        triPositions.push(
-          tile.detailVertices[detailVertIndex],
-          tile.detailVertices[detailVertIndex + 1],
-          tile.detailVertices[detailVertIndex + 2],
-        );
-      }
-
-      triColors.push(baseColor[0], baseColor[1], baseColor[2]);
-    }
-
-    const baseIndex = i * 3;
-    triIndices.push(baseIndex, baseIndex + 1, baseIndex + 2);
-  }
-
-  if (triPositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Triangles,
-      positions: triPositions,
-      colors: triColors,
-      indices: triIndices,
-      transparent: true,
-      opacity: 0.6,
-      doubleSided: true,
-    });
-  }
-
-  return primitives;
 }
 
 export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  if (!navMeshTile.bvTree || navMeshTile.bvTree.nodes.length === 0) {
-    return primitives;
-  }
-
-  // Arrays for wireframe box edges
-  const linePositions: number[] = [];
-  const lineColors: number[] = [];
-
-  // Color for BV tree nodes (white with transparency)
-  const nodeColor = [1, 1, 1];
-
-  // Calculate inverse quantization factor (cs = 1.0f / tile->header->bvQuantFactor)
-  const cs = 1.0 / navMeshTile.bvTree.quantFactor;
-
-  // Draw BV nodes - only internal nodes (leaf indices are positive, internal are negative)
-  for (let i = 0; i < navMeshTile.bvTree.nodes.length; i++) {
-    const node = navMeshTile.bvTree.nodes[i];
-
-    // Leaf indices are positive.
-    if (node.i < 0) continue;
-
-    // Calculate world coordinates from quantized bounds
-    const minX = navMeshTile.bounds[0][0] + node.bounds[0][0] * cs;
-    const minY = navMeshTile.bounds[0][1] + node.bounds[0][1] * cs;
-    const minZ = navMeshTile.bounds[0][2] + node.bounds[0][2] * cs;
-    const maxX = navMeshTile.bounds[0][0] + node.bounds[1][0] * cs;
-    const maxY = navMeshTile.bounds[0][1] + node.bounds[1][1] * cs;
-    const maxZ = navMeshTile.bounds[0][2] + node.bounds[1][2] * cs;
-
-    // Create wireframe box edges
-    // Bottom face
-    linePositions.push(minX, minY, minZ, maxX, minY, minZ);
-    linePositions.push(maxX, minY, minZ, maxX, minY, maxZ);
-    linePositions.push(maxX, minY, maxZ, minX, minY, maxZ);
-    linePositions.push(minX, minY, maxZ, minX, minY, minZ);
-
-    // Top face
-    linePositions.push(minX, maxY, minZ, maxX, maxY, minZ);
-    linePositions.push(maxX, maxY, minZ, maxX, maxY, maxZ);
-    linePositions.push(maxX, maxY, maxZ, minX, maxY, maxZ);
-    linePositions.push(minX, maxY, maxZ, minX, maxY, minZ);
-
-    // Vertical edges
-    linePositions.push(minX, minY, minZ, minX, maxY, minZ);
-    linePositions.push(maxX, minY, minZ, maxX, maxY, minZ);
-    linePositions.push(maxX, minY, maxZ, maxX, maxY, maxZ);
-    linePositions.push(minX, minY, maxZ, minX, maxY, maxZ);
-
-    // Add colors for all line segments (24 vertices = 12 line segments)
-    for (let j = 0; j < 24; j++) {
-      lineColors.push(nodeColor[0], nodeColor[1], nodeColor[2]);
+    if (!navMeshTile.bvTree || navMeshTile.bvTree.nodes.length === 0) {
+        return primitives;
     }
-  }
 
-  // Create line segments primitive
-  if (linePositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions: linePositions,
-      colors: lineColors,
-      transparent: true,
-      opacity: 0.5,
-      lineWidth: 1.0,
-    });
-  }
+    // Arrays for wireframe box edges
+    const linePositions: number[] = [];
+    const lineColors: number[] = [];
 
-  return primitives;
+    // Color for BV tree nodes (white with transparency)
+    const nodeColor = [1, 1, 1];
+
+    // Calculate inverse quantization factor (cs = 1.0f / tile->header->bvQuantFactor)
+    const cs = 1.0 / navMeshTile.bvTree.quantFactor;
+
+    // Draw BV nodes - only internal nodes (leaf indices are positive, internal are negative)
+    for (let i = 0; i < navMeshTile.bvTree.nodes.length; i++) {
+        const node = navMeshTile.bvTree.nodes[i];
+
+        // Leaf indices are positive.
+        if (node.i < 0) continue;
+
+        // Calculate world coordinates from quantized bounds
+        const minX = navMeshTile.bounds[0][0] + node.bounds[0][0] * cs;
+        const minY = navMeshTile.bounds[0][1] + node.bounds[0][1] * cs;
+        const minZ = navMeshTile.bounds[0][2] + node.bounds[0][2] * cs;
+        const maxX = navMeshTile.bounds[0][0] + node.bounds[1][0] * cs;
+        const maxY = navMeshTile.bounds[0][1] + node.bounds[1][1] * cs;
+        const maxZ = navMeshTile.bounds[0][2] + node.bounds[1][2] * cs;
+
+        // Create wireframe box edges
+        // Bottom face
+        linePositions.push(minX, minY, minZ, maxX, minY, minZ);
+        linePositions.push(maxX, minY, minZ, maxX, minY, maxZ);
+        linePositions.push(maxX, minY, maxZ, minX, minY, maxZ);
+        linePositions.push(minX, minY, maxZ, minX, minY, minZ);
+
+        // Top face
+        linePositions.push(minX, maxY, minZ, maxX, maxY, minZ);
+        linePositions.push(maxX, maxY, minZ, maxX, maxY, maxZ);
+        linePositions.push(maxX, maxY, maxZ, minX, maxY, maxZ);
+        linePositions.push(minX, maxY, maxZ, minX, maxY, minZ);
+
+        // Vertical edges
+        linePositions.push(minX, minY, minZ, minX, maxY, minZ);
+        linePositions.push(maxX, minY, minZ, maxX, maxY, minZ);
+        linePositions.push(maxX, minY, maxZ, maxX, maxY, maxZ);
+        linePositions.push(minX, minY, maxZ, minX, maxY, maxZ);
+
+        // Add colors for all line segments (24 vertices = 12 line segments)
+        for (let j = 0; j < 24; j++) {
+            lineColors.push(nodeColor[0], nodeColor[1], nodeColor[2]);
+        }
+    }
+
+    // Create line segments primitive
+    if (linePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: linePositions,
+            colors: lineColors,
+            transparent: true,
+            opacity: 0.5,
+            lineWidth: 1.0,
+        });
+    }
+
+    return primitives;
 }
 
 export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  // Draw BV tree for all tiles in the nav mesh
-  for (const tileId in navMesh.tiles) {
-    const tile = navMesh.tiles[tileId];
-    if (!tile) continue;
+    // Draw BV tree for all tiles in the nav mesh
+    for (const tileId in navMesh.tiles) {
+        const tile = navMesh.tiles[tileId];
+        if (!tile) continue;
 
-    const tilePrimitives = createNavMeshTileBvTreeHelper(tile);
-    primitives.push(...tilePrimitives);
-  }
+        const tilePrimitives = createNavMeshTileBvTreeHelper(tile);
+        primitives.push(...tilePrimitives);
+    }
 
-  return primitives;
+    return primitives;
 }
 
 export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  if (!navMesh.links || navMesh.links.length === 0) {
+    if (!navMesh.links || navMesh.links.length === 0) {
+        return primitives;
+    }
+
+    // Arrays for line data
+    const linePositions: number[] = [];
+    const lineColors: number[] = [];
+
+    // Color for navmesh links
+    const linkColor: [number, number, number] = [1, 1, 0]; // Bright yellow
+
+    // Helper function to lerp between two values
+    const lerp = (start: number, end: number, t: number): number => start + (end - start) * t;
+
+    // Helper function to calculate polygon center
+    const getPolyCenter = (tile: NavMeshTile, poly: any): [number, number, number] => {
+        let centerX = 0;
+        let centerY = 0;
+        let centerZ = 0;
+        const nv = poly.vertices.length;
+
+        for (let i = 0; i < nv; i++) {
+            const vertIndex = poly.vertices[i] * 3;
+            centerX += tile.vertices[vertIndex];
+            centerY += tile.vertices[vertIndex + 1];
+            centerZ += tile.vertices[vertIndex + 2];
+        }
+
+        return [centerX / nv, centerY / nv, centerZ / nv];
+    };
+
+    // Process each link
+    for (const link of navMesh.links) {
+        if (!link.allocated) continue;
+
+        // Get source polygon info
+        const [, sourceTileId, sourcePolyId] = desNodeRef(link.ref);
+        const sourceTile = navMesh.tiles[sourceTileId];
+        const sourcePoly = sourceTile?.polys[sourcePolyId];
+
+        // Get target polygon info
+        const [, targetTileId, targetPolyId] = desNodeRef(link.neighbourRef);
+        const targetTile = navMesh.tiles[targetTileId];
+        const targetPoly = targetTile?.polys[targetPolyId];
+
+        if (!sourceTile || !sourcePoly || !targetTile || !targetPoly) {
+            continue;
+        }
+
+        // Calculate polygon centers
+        const sourceCenter = getPolyCenter(sourceTile, sourcePoly);
+        const targetCenter = getPolyCenter(targetTile, targetPoly);
+
+        // Get the edge vertices for this link
+        const edgeIndex = link.edge;
+        const nextEdgeIndex = (edgeIndex + 1) % sourcePoly.vertices.length;
+
+        const v0Index = sourcePoly.vertices[edgeIndex] * 3;
+        const v1Index = sourcePoly.vertices[nextEdgeIndex] * 3;
+
+        const edgeStart = [sourceTile.vertices[v0Index], sourceTile.vertices[v0Index + 1], sourceTile.vertices[v0Index + 2]];
+        const edgeEnd = [sourceTile.vertices[v1Index], sourceTile.vertices[v1Index + 1], sourceTile.vertices[v1Index + 2]];
+
+        // Calculate edge midpoint
+        const edgeMidpoint = [(edgeStart[0] + edgeEnd[0]) / 2, (edgeStart[1] + edgeEnd[1]) / 2, (edgeStart[2] + edgeEnd[2]) / 2];
+
+        // Move the edge midpoint slightly towards the polygon center (10% of the way)
+        const inwardFactor = 0.1;
+        const sourcePoint = [
+            lerp(edgeMidpoint[0], sourceCenter[0], inwardFactor),
+            lerp(edgeMidpoint[1], sourceCenter[1], inwardFactor) + 0.05, // slight y offset
+            lerp(edgeMidpoint[2], sourceCenter[2], inwardFactor),
+        ];
+
+        // For the target, use the target polygon center
+        const targetPoint = [targetCenter[0], targetCenter[1] + 0.05, targetCenter[2]];
+
+        // Create arced line with multiple segments
+        const numSegments = 12;
+        const arcHeight = 0.3;
+
+        for (let i = 0; i < numSegments; i++) {
+            const t0 = i / numSegments;
+            const t1 = (i + 1) / numSegments;
+
+            // Calculate positions along arc with sinusoidal height
+            const x0 = lerp(sourcePoint[0], targetPoint[0], t0);
+            const y0 = lerp(sourcePoint[1], targetPoint[1], t0) + Math.sin(t0 * Math.PI) * arcHeight;
+            const z0 = lerp(sourcePoint[2], targetPoint[2], t0);
+
+            const x1 = lerp(sourcePoint[0], targetPoint[0], t1);
+            const y1 = lerp(sourcePoint[1], targetPoint[1], t1) + Math.sin(t1 * Math.PI) * arcHeight;
+            const z1 = lerp(sourcePoint[2], targetPoint[2], t1);
+
+            // Add line segment
+            linePositions.push(x0, y0, z0, x1, y1, z1);
+
+            // Add colors for both endpoints
+            lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
+            lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
+        }
+
+        // Add a simple arrow at the end to show direction
+        const arrowT = 0.85; // Position arrow near the end
+        const arrowX = lerp(sourcePoint[0], targetPoint[0], arrowT);
+        const arrowY = lerp(sourcePoint[1], targetPoint[1], arrowT) + Math.sin(arrowT * Math.PI) * arcHeight;
+        const arrowZ = lerp(sourcePoint[2], targetPoint[2], arrowT);
+
+        // Calculate direction for arrow
+        const nextT = 0.95;
+        const nextX = lerp(sourcePoint[0], targetPoint[0], nextT);
+        const nextY = lerp(sourcePoint[1], targetPoint[1], nextT) + Math.sin(nextT * Math.PI) * arcHeight;
+        const nextZ = lerp(sourcePoint[2], targetPoint[2], nextT);
+
+        const dirX = nextX - arrowX;
+        const dirY = nextY - arrowY;
+        const dirZ = nextZ - arrowZ;
+        const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ) || 1;
+        const nx = dirX / len;
+        const ny = dirY / len;
+        const nz = dirZ / len;
+
+        // Create arrow head with two lines
+        const arrowLength = 0.15;
+        const arrowWidth = 0.08;
+
+        // Calculate perpendicular vectors for arrow wings
+        const perpX = -nz;
+        const perpZ = nx;
+
+        // Left wing
+        linePositions.push(
+            arrowX,
+            arrowY,
+            arrowZ,
+            arrowX - nx * arrowLength + perpX * arrowWidth,
+            arrowY - ny * arrowLength,
+            arrowZ - nz * arrowLength + perpZ * arrowWidth,
+        );
+
+        // Right wing
+        linePositions.push(
+            arrowX,
+            arrowY,
+            arrowZ,
+            arrowX - nx * arrowLength - perpX * arrowWidth,
+            arrowY - ny * arrowLength,
+            arrowZ - nz * arrowLength - perpZ * arrowWidth,
+        );
+
+        // Add colors for arrow (4 vertices = 2 line segments)
+        for (let k = 0; k < 4; k++) {
+            lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
+        }
+    }
+
+    if (linePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: linePositions,
+            colors: lineColors,
+            transparent: true,
+            opacity: 0.9,
+            lineWidth: 3.0,
+        });
+    }
+
     return primitives;
-  }
-
-  // Arrays for line data
-  const linePositions: number[] = [];
-  const lineColors: number[] = [];
-
-  // Color for navmesh links
-  const linkColor: [number, number, number] = [1, 1, 0]; // Bright yellow
-
-  // Helper function to lerp between two values
-  const lerp = (start: number, end: number, t: number): number => start + (end - start) * t;
-
-  // Helper function to calculate polygon center
-  const getPolyCenter = (tile: NavMeshTile, poly: any): [number, number, number] => {
-    let centerX = 0;
-    let centerY = 0; 
-    let centerZ = 0;
-    const nv = poly.vertices.length;
-
-    for (let i = 0; i < nv; i++) {
-      const vertIndex = poly.vertices[i] * 3;
-      centerX += tile.vertices[vertIndex];
-      centerY += tile.vertices[vertIndex + 1];
-      centerZ += tile.vertices[vertIndex + 2];
-    }
-
-    return [centerX / nv, centerY / nv, centerZ / nv];
-  };
-
-  // Process each link
-  for (const link of navMesh.links) {
-    if (!link.allocated) continue;
-
-    // Get source polygon info
-    const [, sourceTileId, sourcePolyId] = desNodeRef(link.ref);
-    const sourceTile = navMesh.tiles[sourceTileId];
-    const sourcePoly = sourceTile?.polys[sourcePolyId];
-    
-    // Get target polygon info
-    const [, targetTileId, targetPolyId] = desNodeRef(link.neighbourRef);
-    const targetTile = navMesh.tiles[targetTileId];
-    const targetPoly = targetTile?.polys[targetPolyId];
-
-    if (!sourceTile || !sourcePoly || !targetTile || !targetPoly) {
-      continue;
-    }
-
-    // Calculate polygon centers
-    const sourceCenter = getPolyCenter(sourceTile, sourcePoly);
-    const targetCenter = getPolyCenter(targetTile, targetPoly);
-
-    // Get the edge vertices for this link
-    const edgeIndex = link.edge;
-    const nextEdgeIndex = (edgeIndex + 1) % sourcePoly.vertices.length;
-    
-    const v0Index = sourcePoly.vertices[edgeIndex] * 3;
-    const v1Index = sourcePoly.vertices[nextEdgeIndex] * 3;
-    
-    const edgeStart = [
-      sourceTile.vertices[v0Index],
-      sourceTile.vertices[v0Index + 1],
-      sourceTile.vertices[v0Index + 2]
-    ];
-    const edgeEnd = [
-      sourceTile.vertices[v1Index],
-      sourceTile.vertices[v1Index + 1],
-      sourceTile.vertices[v1Index + 2]
-    ];
-
-    // Calculate edge midpoint
-    const edgeMidpoint = [
-      (edgeStart[0] + edgeEnd[0]) / 2,
-      (edgeStart[1] + edgeEnd[1]) / 2,
-      (edgeStart[2] + edgeEnd[2]) / 2
-    ];
-
-    // Move the edge midpoint slightly towards the polygon center (10% of the way)
-    const inwardFactor = 0.1;
-    const sourcePoint = [
-      lerp(edgeMidpoint[0], sourceCenter[0], inwardFactor),
-      lerp(edgeMidpoint[1], sourceCenter[1], inwardFactor) + 0.05, // slight y offset
-      lerp(edgeMidpoint[2], sourceCenter[2], inwardFactor)
-    ];
-
-    // For the target, use the target polygon center
-    const targetPoint = [
-      targetCenter[0],
-      targetCenter[1] + 0.05,
-      targetCenter[2]
-    ];
-
-    // Create arced line with multiple segments
-    const numSegments = 12;
-    const arcHeight = 0.3;
-    
-    for (let i = 0; i < numSegments; i++) {
-      const t0 = i / numSegments;
-      const t1 = (i + 1) / numSegments;
-      
-      // Calculate positions along arc with sinusoidal height
-      const x0 = lerp(sourcePoint[0], targetPoint[0], t0);
-      const y0 = lerp(sourcePoint[1], targetPoint[1], t0) + Math.sin(t0 * Math.PI) * arcHeight;
-      const z0 = lerp(sourcePoint[2], targetPoint[2], t0);
-      
-      const x1 = lerp(sourcePoint[0], targetPoint[0], t1);
-      const y1 = lerp(sourcePoint[1], targetPoint[1], t1) + Math.sin(t1 * Math.PI) * arcHeight;
-      const z1 = lerp(sourcePoint[2], targetPoint[2], t1);
-
-      // Add line segment
-      linePositions.push(x0, y0, z0, x1, y1, z1);
-      
-      // Add colors for both endpoints
-      lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
-      lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
-    }
-
-    // Add a simple arrow at the end to show direction
-    const arrowT = 0.85; // Position arrow near the end
-    const arrowX = lerp(sourcePoint[0], targetPoint[0], arrowT);
-    const arrowY = lerp(sourcePoint[1], targetPoint[1], arrowT) + Math.sin(arrowT * Math.PI) * arcHeight;
-    const arrowZ = lerp(sourcePoint[2], targetPoint[2], arrowT);
-    
-    // Calculate direction for arrow
-    const nextT = 0.95;
-    const nextX = lerp(sourcePoint[0], targetPoint[0], nextT);
-    const nextY = lerp(sourcePoint[1], targetPoint[1], nextT) + Math.sin(nextT * Math.PI) * arcHeight;
-    const nextZ = lerp(sourcePoint[2], targetPoint[2], nextT);
-    
-    const dirX = nextX - arrowX;
-    const dirY = nextY - arrowY;
-    const dirZ = nextZ - arrowZ;
-    const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ) || 1;
-    const nx = dirX / len;
-    const ny = dirY / len;
-    const nz = dirZ / len;
-    
-    // Create arrow head with two lines
-    const arrowLength = 0.15;
-    const arrowWidth = 0.08;
-    
-    // Calculate perpendicular vectors for arrow wings
-    const perpX = -nz;
-    const perpZ = nx;
-    
-    // Left wing
-    linePositions.push(
-      arrowX, arrowY, arrowZ,
-      arrowX - nx * arrowLength + perpX * arrowWidth, 
-      arrowY - ny * arrowLength, 
-      arrowZ - nz * arrowLength + perpZ * arrowWidth
-    );
-    
-    // Right wing
-    linePositions.push(
-      arrowX, arrowY, arrowZ,
-      arrowX - nx * arrowLength - perpX * arrowWidth, 
-      arrowY - ny * arrowLength, 
-      arrowZ - nz * arrowLength - perpZ * arrowWidth
-    );
-    
-    // Add colors for arrow (4 vertices = 2 line segments)
-    for (let k = 0; k < 4; k++) {
-      lineColors.push(linkColor[0], linkColor[1], linkColor[2]);
-    }
-  }
-
-  if (linePositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions: linePositions,
-      colors: lineColors,
-      transparent: true,
-      opacity: 0.9,
-      lineWidth: 3.0,
-    });
-  }
-
-  return primitives;
 }
 
 export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  const padx = 0.04; // (purely visual)
-  const pady = navMeshTile.walkableClimb; // vertical extent
+    const padx = 0.04; // (purely visual)
+    const pady = navMeshTile.walkableClimb; // vertical extent
 
-  // Colors approximating duRGBA values
-  const sideColors: Record<number, [number, number, number]> = {
-    0: [128 / 255, 0, 0], // red
-    2: [0, 128 / 255, 0], // green
-    4: [128 / 255, 0, 128 / 255], // magenta
-    6: [0, 128 / 255, 128 / 255], // cyan
-  };
+    // Colors approximating duRGBA values
+    const sideColors: Record<number, [number, number, number]> = {
+        0: [128 / 255, 0, 0], // red
+        2: [0, 128 / 255, 0], // green
+        4: [128 / 255, 0, 128 / 255], // magenta
+        6: [0, 128 / 255, 128 / 255], // cyan
+    };
 
-  const positions: number[] = [];
-  const colors: number[] = [];
+    const positions: number[] = [];
+    const colors: number[] = [];
 
-  // Iterate sides 0..7 but only draw for 0,2,4,6 per original implementation
-  const drawSides = [0, 2, 4, 6];
-  for (const side of drawSides) {
-    const matchMask = POLY_NEIS_FLAG_EXT_LINK | side;
-    const color = sideColors[side];
-    if (!color) continue;
+    // Iterate sides 0..7 but only draw for 0,2,4,6 per original implementation
+    const drawSides = [0, 2, 4, 6];
+    for (const side of drawSides) {
+        const matchMask = POLY_NEIS_FLAG_EXT_LINK | side;
+        const color = sideColors[side];
+        if (!color) continue;
 
-    for (const polyId in navMeshTile.polys) {
-      const poly = navMeshTile.polys[polyId];
-      const nv = poly.vertices.length;
-      for (let j = 0; j < nv; j++) {
-        if (poly.neis[j] !== matchMask) continue; // must be exact match
+        for (const polyId in navMeshTile.polys) {
+            const poly = navMeshTile.polys[polyId];
+            const nv = poly.vertices.length;
+            for (let j = 0; j < nv; j++) {
+                if (poly.neis[j] !== matchMask) continue; // must be exact match
 
-        const v0Index = poly.vertices[j];
-        const v1Index = poly.vertices[(j + 1) % nv];
+                const v0Index = poly.vertices[j];
+                const v1Index = poly.vertices[(j + 1) % nv];
 
-        const aBase = v0Index * 3;
-        const bBase = v1Index * 3;
+                const aBase = v0Index * 3;
+                const bBase = v1Index * 3;
 
-        const ax = navMeshTile.vertices[aBase];
-        const ay = navMeshTile.vertices[aBase + 1];
-        const az = navMeshTile.vertices[aBase + 2];
-        const bx = navMeshTile.vertices[bBase];
-        const by = navMeshTile.vertices[bBase + 1];
-        const bz = navMeshTile.vertices[bBase + 2];
+                const ax = navMeshTile.vertices[aBase];
+                const ay = navMeshTile.vertices[aBase + 1];
+                const az = navMeshTile.vertices[aBase + 2];
+                const bx = navMeshTile.vertices[bBase];
+                const by = navMeshTile.vertices[bBase + 1];
+                const bz = navMeshTile.vertices[bBase + 2];
 
-        if (side === 0 || side === 4) {
-          const x = ax + (side === 0 ? -padx : padx);
-          // Four edges of rectangle (8 vertices for 4 line segments)
-          positions.push(x, ay - pady, az, x, ay + pady, az);
-          positions.push(x, ay + pady, az, x, by + pady, bz);
-          positions.push(x, by + pady, bz, x, by - pady, bz);
-          positions.push(x, by - pady, bz, x, ay - pady, az);
-        } else if (side === 2 || side === 6) {
-          const z = az + (side === 2 ? -padx : padx);
-          positions.push(ax, ay - pady, z, ax, ay + pady, z);
-          positions.push(ax, ay + pady, z, bx, by + pady, z);
-          positions.push(bx, by + pady, z, bx, by - pady, z);
-          positions.push(bx, by - pady, z, ax, ay - pady, z);
+                if (side === 0 || side === 4) {
+                    const x = ax + (side === 0 ? -padx : padx);
+                    // Four edges of rectangle (8 vertices for 4 line segments)
+                    positions.push(x, ay - pady, az, x, ay + pady, az);
+                    positions.push(x, ay + pady, az, x, by + pady, bz);
+                    positions.push(x, by + pady, bz, x, by - pady, bz);
+                    positions.push(x, by - pady, bz, x, ay - pady, az);
+                } else if (side === 2 || side === 6) {
+                    const z = az + (side === 2 ? -padx : padx);
+                    positions.push(ax, ay - pady, z, ax, ay + pady, z);
+                    positions.push(ax, ay + pady, z, bx, by + pady, z);
+                    positions.push(bx, by + pady, z, bx, by - pady, z);
+                    positions.push(bx, by - pady, z, ax, ay - pady, z);
+                }
+
+                // Add color entries (8 vertices per rectangle)
+                for (let k = 0; k < 8; k++) {
+                    colors.push(color[0], color[1], color[2]);
+                }
+            }
         }
-
-        // Add color entries (8 vertices per rectangle)
-        for (let k = 0; k < 8; k++) {
-          colors.push(color[0], color[1], color[2]);
-        }
-      }
     }
-  }
 
-  if (positions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions,
-      colors,
-      transparent: true,
-      opacity: 0.5,
-      lineWidth: 2.0,
-    });
-  }
+    if (positions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions,
+            colors,
+            transparent: true,
+            opacity: 0.5,
+            lineWidth: 2.0,
+        });
+    }
 
-  return primitives;
+    return primitives;
 }
 
 export function createNavMeshPortalsHelper(navMesh: NavMesh): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  for (const tileId in navMesh.tiles) {
-    const tile = navMesh.tiles[tileId];
-    if (!tile) continue;
-    const tilePrimitives = createNavMeshTilePortalsHelper(tile);
-    primitives.push(...tilePrimitives);
-  }
+    for (const tileId in navMesh.tiles) {
+        const tile = navMesh.tiles[tileId];
+        if (!tile) continue;
+        const tilePrimitives = createNavMeshTilePortalsHelper(tile);
+        primitives.push(...tilePrimitives);
+    }
 
-  return primitives;
+    return primitives;
 }
 
 export function createSearchNodesHelper(nodePool: SearchNodePool): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  if (!nodePool || Object.keys(nodePool).length === 0) {
+    if (!nodePool || Object.keys(nodePool).length === 0) {
+        return primitives;
+    }
+
+    const yOffset = 0.5;
+    const pointPositions: number[] = [];
+    const pointColors: number[] = [];
+    const linePositions: number[] = [];
+    const lineColors: number[] = [];
+
+    // Color (255,192,0) -> (1, 0.7529, 0)
+    const pointColor = [1.0, 192 / 255, 0.0];
+    const lineColor = [1.0, 192 / 255, 0.0];
+
+    for (const key in nodePool) {
+        const node = nodePool[key as SearchNodeRef];
+        const [x, y, z] = node.position;
+        pointPositions.push(x, y + yOffset, z);
+        pointColors.push(pointColor[0], pointColor[1], pointColor[2]);
+    }
+
+    // Lines to parents
+    for (const key in nodePool) {
+        const node = nodePool[key as SearchNodeRef];
+        if (!node.parent) continue;
+        const parent = nodePool[node.parent];
+        if (!parent) continue;
+        const [cx, cy, cz] = node.position;
+        const [px, py, pz] = parent.position;
+        linePositions.push(cx, cy + yOffset, cz, px, py + yOffset, pz);
+        lineColors.push(lineColor[0], lineColor[1], lineColor[2], lineColor[0], lineColor[1], lineColor[2]);
+    }
+
+    if (pointPositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Points,
+            positions: pointPositions,
+            colors: pointColors,
+            size: 6,
+            sizeAttenuation: false,
+            transparent: true,
+            opacity: 1.0,
+        });
+    }
+
+    if (linePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: linePositions,
+            colors: lineColors,
+            transparent: true,
+            opacity: 0.5,
+            lineWidth: 2.0,
+        });
+    }
+
     return primitives;
-  }
-
-  const yOffset = 0.5;
-  const pointPositions: number[] = [];
-  const pointColors: number[] = [];
-  const linePositions: number[] = [];
-  const lineColors: number[] = [];
-
-  // Color (255,192,0) -> (1, 0.7529, 0)
-  const pointColor = [1.0, 192 / 255, 0.0];
-  const lineColor = [1.0, 192 / 255, 0.0];
-
-  for (const key in nodePool) {
-    const node = nodePool[key as SearchNodeRef];
-    const [x, y, z] = node.position;
-    pointPositions.push(x, y + yOffset, z);
-    pointColors.push(pointColor[0], pointColor[1], pointColor[2]);
-  }
-
-  // Lines to parents
-  for (const key in nodePool) {
-    const node = nodePool[key as SearchNodeRef];
-    if (!node.parent) continue;
-    const parent = nodePool[node.parent];
-    if (!parent) continue;
-    const [cx, cy, cz] = node.position;
-    const [px, py, pz] = parent.position;
-    linePositions.push(cx, cy + yOffset, cz, px, py + yOffset, pz);
-    lineColors.push(
-      lineColor[0],
-      lineColor[1],
-      lineColor[2],
-      lineColor[0],
-      lineColor[1],
-      lineColor[2],
-    );
-  }
-
-  if (pointPositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Points,
-      positions: pointPositions,
-      colors: pointColors,
-      size: 6,
-      sizeAttenuation: false,
-      transparent: true,
-      opacity: 1.0,
-    });
-  }
-
-  if (linePositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions: linePositions,
-      colors: lineColors,
-      transparent: true,
-      opacity: 0.5,
-      lineWidth: 2.0,
-    });
-  }
-
-  return primitives;
 }
 
 export function createNavMeshOffMeshConnectionsHelper(navMesh: NavMesh): DebugPrimitive[] {
-  const primitives: DebugPrimitive[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-  const arcSegments = 16;
-  const circleSegments = 20;
+    const arcSegments = 16;
+    const circleSegments = 20;
 
-  // Aggregated arrays for arcs & circles
-  const arcPositions: number[] = [];
-  const arcColors: number[] = [];
-  const circlePositions: number[] = [];
-  const circleColors: number[] = [];
+    // Aggregated arrays for arcs & circles
+    const arcPositions: number[] = [];
+    const arcColors: number[] = [];
+    const circlePositions: number[] = [];
+    const circleColors: number[] = [];
 
-  const arcColor: [number, number, number] = [255 / 255, 196 / 255, 0 / 255]; // main arc color
-  const pillarColor: [number, number, number] = [0 / 255, 48 / 255, 64 / 255]; // pillar color
-  const oneWayEndColor: [number, number, number] = [220 / 255, 32 / 255, 16 / 255]; // end marker if one-way
+    const arcColor: [number, number, number] = [255 / 255, 196 / 255, 0 / 255]; // main arc color
+    const pillarColor: [number, number, number] = [0 / 255, 48 / 255, 64 / 255]; // pillar color
+    const oneWayEndColor: [number, number, number] = [220 / 255, 32 / 255, 16 / 255]; // end marker if one-way
 
-  // Helper function to lerp between two values
-  const lerp = (start: number, end: number, t: number): number => start + (end - start) * t;
+    // Helper function to lerp between two values
+    const lerp = (start: number, end: number, t: number): number => start + (end - start) * t;
 
-  for (const id in navMesh.offMeshConnections) {
-    const con = navMesh.offMeshConnections[id];
-    if (!con) continue;
-    const start = con.start;
-    const end = con.end;
-    const radius = con.radius;
+    for (const id in navMesh.offMeshConnections) {
+        const con = navMesh.offMeshConnections[id];
+        if (!con) continue;
+        const start = con.start;
+        const end = con.end;
+        const radius = con.radius;
 
-    // Arc polyline (adds a vertical sinusoidal lift up to 0.25 at mid)
-    for (let i = 0; i < arcSegments; i++) {
-      const t0 = i / arcSegments;
-      const t1 = (i + 1) / arcSegments;
-      const x0 = lerp(start[0], end[0], t0);
-      const y0 = lerp(start[1], end[1], t0) + Math.sin(t0 * Math.PI) * 0.25;
-      const z0 = lerp(start[2], end[2], t0);
-      const x1 = lerp(start[0], end[0], t1);
-      const y1 = lerp(start[1], end[1], t1) + Math.sin(t1 * Math.PI) * 0.25;
-      const z1 = lerp(start[2], end[2], t1);
-      arcPositions.push(x0, y0, z0, x1, y1, z1);
-      for (let k = 0; k < 2; k++) arcColors.push(arcColor[0], arcColor[1], arcColor[2]);
+        // Arc polyline (adds a vertical sinusoidal lift up to 0.25 at mid)
+        for (let i = 0; i < arcSegments; i++) {
+            const t0 = i / arcSegments;
+            const t1 = (i + 1) / arcSegments;
+            const x0 = lerp(start[0], end[0], t0);
+            const y0 = lerp(start[1], end[1], t0) + Math.sin(t0 * Math.PI) * 0.25;
+            const z0 = lerp(start[2], end[2], t0);
+            const x1 = lerp(start[0], end[0], t1);
+            const y1 = lerp(start[1], end[1], t1) + Math.sin(t1 * Math.PI) * 0.25;
+            const z1 = lerp(start[2], end[2], t1);
+            arcPositions.push(x0, y0, z0, x1, y1, z1);
+            for (let k = 0; k < 2; k++) arcColors.push(arcColor[0], arcColor[1], arcColor[2]);
+        }
+
+        // One-way direction arrow in the middle of arc
+        if (con.direction === OffMeshConnectionDirection.START_TO_END) {
+            const tMid = 0.5;
+            const xMid = lerp(start[0], end[0], tMid);
+            const yMid = lerp(start[1], end[1], tMid) + 0.25;
+            const zMid = lerp(start[2], end[2], tMid);
+            const dirX = end[0] - start[0];
+            const dirZ = end[2] - start[2];
+            const len = Math.hypot(dirX, dirZ) || 1;
+            const nx = dirX / len;
+            const nz = dirZ / len;
+            const back = 0.3;
+            arcPositions.push(
+                xMid,
+                yMid,
+                zMid,
+                xMid - nx * back + nz * back * 0.5,
+                yMid - 0.05,
+                zMid - nz * back - nx * back * 0.5,
+                xMid,
+                yMid,
+                zMid,
+                xMid - nx * back - nz * back * 0.5,
+                yMid - 0.05,
+                zMid - nz * back + nx * back * 0.5,
+            );
+            for (let k = 0; k < 4; k++) arcColors.push(arcColor[0], arcColor[1], arcColor[2]);
+        }
+
+        const addCircle = (center: [number, number, number], color: [number, number, number]) => {
+            for (let i = 0; i < circleSegments; i++) {
+                const a0 = (i / circleSegments) * Math.PI * 2;
+                const a1 = ((i + 1) / circleSegments) * Math.PI * 2;
+                const x0 = center[0] + Math.cos(a0) * radius;
+                const z0 = center[2] + Math.sin(a0) * radius;
+                const x1 = center[0] + Math.cos(a1) * radius;
+                const z1 = center[2] + Math.sin(a1) * radius;
+                circlePositions.push(x0, center[1] + 0.1, z0, x1, center[1] + 0.1, z1);
+                for (let k = 0; k < 2; k++) circleColors.push(color[0], color[1], color[2]);
+            }
+            // Pillar
+            circlePositions.push(center[0], center[1], center[2], center[0], center[1] + 0.2, center[2]);
+            for (let k = 0; k < 2; k++) circleColors.push(pillarColor[0], pillarColor[1], pillarColor[2]);
+        };
+
+        addCircle(start, arcColor);
+        addCircle(end, con.direction === OffMeshConnectionDirection.BIDIRECTIONAL ? arcColor : oneWayEndColor);
     }
 
-    // One-way direction arrow in the middle of arc
-    if (con.direction === OffMeshConnectionDirection.START_TO_END) {
-      const tMid = 0.5;
-      const xMid = lerp(start[0], end[0], tMid);
-      const yMid = lerp(start[1], end[1], tMid) + 0.25;
-      const zMid = lerp(start[2], end[2], tMid);
-      const dirX = end[0] - start[0];
-      const dirZ = end[2] - start[2];
-      const len = Math.hypot(dirX, dirZ) || 1;
-      const nx = dirX / len;
-      const nz = dirZ / len;
-      const back = 0.3;
-      arcPositions.push(
-        xMid, yMid, zMid,
-        xMid - nx * back + nz * back * 0.5, yMid - 0.05, zMid - nz * back - nx * back * 0.5,
-        xMid, yMid, zMid,
-        xMid - nx * back - nz * back * 0.5, yMid - 0.05, zMid - nz * back + nx * back * 0.5,
-      );
-      for (let k = 0; k < 4; k++) arcColors.push(arcColor[0], arcColor[1], arcColor[2]);
+    if (arcPositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: arcPositions,
+            colors: arcColors,
+            transparent: true,
+            opacity: 0.9,
+            lineWidth: 2.0,
+        });
     }
 
-    const addCircle = (center: [number, number, number], color: [number, number, number]) => {
-      for (let i = 0; i < circleSegments; i++) {
-        const a0 = (i / circleSegments) * Math.PI * 2;
-        const a1 = ((i + 1) / circleSegments) * Math.PI * 2;
-        const x0 = center[0] + Math.cos(a0) * radius;
-        const z0 = center[2] + Math.sin(a0) * radius;
-        const x1 = center[0] + Math.cos(a1) * radius;
-        const z1 = center[2] + Math.sin(a1) * radius;
-        circlePositions.push(
-          x0, center[1] + 0.1, z0,
-          x1, center[1] + 0.1, z1,
-        );
-        for (let k = 0; k < 2; k++) circleColors.push(color[0], color[1], color[2]);
-      }
-      // Pillar
-      circlePositions.push(
-        center[0], center[1], center[2],
-        center[0], center[1] + 0.2, center[2],
-      );
-      for (let k = 0; k < 2; k++) circleColors.push(pillarColor[0], pillarColor[1], pillarColor[2]);
-    };
+    if (circlePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: circlePositions,
+            colors: circleColors,
+            transparent: true,
+            opacity: 0.8,
+            lineWidth: 1.5,
+        });
+    }
 
-    addCircle(start, arcColor);
-    addCircle(
-      end,
-      con.direction === OffMeshConnectionDirection.BIDIRECTIONAL
-        ? arcColor
-        : oneWayEndColor,
-    );
-  }
-
-  if (arcPositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions: arcPositions,
-      colors: arcColors,
-      transparent: true,
-      opacity: 0.9,
-      lineWidth: 2.0,
-    });
-  }
-
-  if (circlePositions.length > 0) {
-    primitives.push({
-      type: DebugPrimitiveType.Lines,
-      positions: circlePositions,
-      colors: circleColors,
-      transparent: true,
-      opacity: 0.8,
-      lineWidth: 1.5,
-    });
-  }
-
-  return primitives;
+    return primitives;
 }
 
 // All debug helper functions are now implemented

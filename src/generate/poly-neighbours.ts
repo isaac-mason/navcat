@@ -38,15 +38,9 @@ type Edge = {
 /**
  * Finds polygon edge neighbours, populates the neis array for each polygon.
  */
-export const buildMeshAdjacency = (
-    polys: NavMeshPoly[],
-    vertexCount: number,
-): void => {
+export const buildMeshAdjacency = (polys: NavMeshPoly[], vertexCount: number): void => {
     const polygonCount = polys.length;
-    const maxEdgeCount = polys.reduce(
-        (sum, poly) => sum + poly.vertices.length,
-        0,
-    );
+    const maxEdgeCount = polys.reduce((sum, poly) => sum + poly.vertices.length, 0);
     const firstEdge = new Array(vertexCount).fill(MESH_NULL_IDX);
     const nextEdge = new Array(maxEdgeCount).fill(MESH_NULL_IDX);
     let edgeCount = 0;
@@ -86,11 +80,7 @@ export const buildMeshAdjacency = (
             const v1 = poly.vertices[(j + 1) % poly.vertices.length];
 
             if (v0 > v1) {
-                for (
-                    let e = firstEdge[v1];
-                    e !== MESH_NULL_IDX;
-                    e = nextEdge[e]
-                ) {
+                for (let e = firstEdge[v1]; e !== MESH_NULL_IDX; e = nextEdge[e]) {
                     const edge = edges[e];
                     if (edge.vert[1] === v0 && edge.poly[0] === edge.poly[1]) {
                         edge.poly[1] = i;
