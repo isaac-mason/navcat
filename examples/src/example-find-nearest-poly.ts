@@ -92,10 +92,8 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-for (const polyMeshDetail of navMeshResult.intermediates.polyMeshDetail) {
-    const helper = threeUtils.createPolyMeshDetailHelper(polyMeshDetail);
-    scene.add(helper.object);
-}
+const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+scene.add(navMeshHelper.object);
 
 /* find nearest poly logic */
 const queryMesh = new THREE.Mesh(
