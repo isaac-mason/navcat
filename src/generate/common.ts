@@ -32,7 +32,6 @@ export const getDirForOffset = (x: number, y: number): number => {
     return 0; // Default to North if no match
 };
 
-// Constants
 export const AXIS_X = 0;
 export const AXIS_Y = 1;
 export const AXIS_Z = 2;

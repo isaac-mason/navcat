@@ -1,6 +1,6 @@
 import { type Box3, type Vec3, vec3 } from 'maaths';
-import { NULL_AREA, WALKABLE_AREA } from './common';
 import type { ArrayLike } from './common';
+import { NULL_AREA, WALKABLE_AREA } from './common';
 
 const _edge0 = vec3.create();
 const _edge1 = vec3.create();

@@ -1,10 +1,10 @@
-import { type Vec2, type Vec3, clamp, vec2, vec3 } from 'maaths';
-import { circumCircle, distToPoly, distToTriMesh, distancePtSeg, overlapSegSeg2d, polyMinExtent } from '../geometry';
-import { MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED, getDirForOffset, getDirOffsetX, getDirOffsetY } from './common';
+import { clamp, type Vec2, type Vec3, vec2, vec3 } from 'maaths';
+import { circumCircle, distancePtSeg, distToPoly, distToTriMesh, overlapSegSeg2d, polyMinExtent } from '../geometry';
+import { BuildContext, type BuildContextState } from './build-context';
+import { getDirForOffset, getDirOffsetX, getDirOffsetY, MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED } from './common';
 import type { CompactHeightfield } from './compact-heightfield';
 import { getCon } from './compact-heightfield';
 import type { PolyMesh } from './poly-mesh';
-import { type BuildContextState, BuildContext } from './build-context';
 
 /**
  * Contains triangle meshes that represent detailed height data associated
