@@ -25,8 +25,9 @@ export type PolyMeshDetail = {
     nTriangles: number;
 };
 
+export const DETAIL_EDGE_BOUNDARY = 0x1;
+
 const UNSET_HEIGHT = 0xffff;
-const DETAIL_EDGE_BOUNDARY = 0x1;
 const MAX_VERTS = 127;
 const MAX_TRIS = 255;
 const MAX_VERTS_PER_EDGE = 32;
