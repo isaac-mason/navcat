@@ -3,40 +3,43 @@ import type { NodeRef } from './node';
 
 /** A navigation mesh based on tiles of convex polygons */
 export type NavMesh = {
-    /** the world space origin of the navigation mesh's tiles */
+    /** The world space origin of the navigation mesh's tiles */
     origin: Vec3;
 
-    /** the width of each tile along the x axis */
+    /** The width of each tile along the x axis */
     tileWidth: number;
 
-    /** the height of each tile along the z axis */
+    /** The height of each tile along the z axis */
     tileHeight: number;
 
-    /** node ref to link indices */
+    /** Global node ref to link indices map */
     nodes: Record<NodeRef, number[]>;
 
-    /** global navmesh links pool */
+    /**
+     * The global navmesh tile links pool.
+     * When iterating, you can filter on @see NavMeshLink.allocated to only consider in-use links.
+     */
     links: NavMeshLink[];
 
-    /** free link indices */
+    /** Free link indices */
     freeLinkIndices: number[];
 
-    /** the tile id counter */
+    /** Tile id counter, used to ensure modified tiles in the same position have new node references */
     tileIdCounter: number;
 
-    /** map of tile ids to tiles */
+    /** Map of tile ids to tiles */
     tiles: Record<string, NavMeshTile>;
 
-    /** map of tile position hashes to tile ids */
+    /** Map of tile position hashes to tile ids */
     tilePositionHashToTileId: Record<string, number>;
 
-    /** the off mesh connection id counter */
+    /** Off mesh connection id counter */
     offMeshConnectionIdCounter: number;
 
-    /** off mesh connection definitions */
+    /** Off mesh connection definitions */
     offMeshConnections: Record<string, NavMeshOffMeshConnection>;
 
-    /** states of the off mesh connections */
+    /** Off mesh connection states */
     offMeshConnectionStates: Record<string, NavMeshOffMeshConnectionState>;
 };
 
@@ -66,18 +69,18 @@ export type NavMeshPolyDetail = {
      */
     verticesBase: number;
 
-    /** the offset of the triangles in the NavMeshTile detailTriangles array */
+    /** The offset of the triangles in the NavMeshTile detailTriangles array */
     trianglesBase: number;
 
-    /** the number of vertices in thde sub-mesh */
+    /** The number of vertices in thde sub-mesh */
     verticesCount: number;
 
-    /** the number of trianges in the sub-mesh */
+    /** The number of triangles in the sub-mesh */
     trianglesCount: number;
 };
 
 export type NavMeshLink = {
-    /** whether the link is currently allocated (ie in use), or false if it's pooled */
+    /** true if the link is allocated / in use, false if it's pooled */
     allocated: boolean;
 
     /** node reference that owns this link */
