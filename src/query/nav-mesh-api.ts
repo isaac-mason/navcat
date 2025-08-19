@@ -1,6 +1,6 @@
 import type { Box3, Triangle3, Vec2, Vec3 } from 'maaths';
 import { box3, vec2, vec3 } from 'maaths';
-import { POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
+import { DETAIL_EDGE_BOUNDARY, POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
 import { closestHeightPointTriangle, distancePtSegSqr2d, pointInPoly } from '../geometry';
 import {
     type NavMesh,
@@ -286,9 +286,6 @@ export const getPolyHeight = (
     return result;
 };
 
-// boundary edge flags
-const DETAIL_EDGE_BOUNDARY = 0x01;
-
 /**
  * Get flags for edge in detail triangle.
  * @param[in]	triFlags		The flags for the triangle (last component of detail vertices above).
@@ -321,7 +318,7 @@ export const closestPointOnDetailEdges = (
     outClosest: Vec3,
     onlyBoundary = false,
 ): number => {
-    const detailMesh = tile.detailMeshes?.[polyIndex];
+    const detailMesh = tile.detailMeshes[polyIndex];
 
     let dmin = Number.MAX_VALUE;
     let tmin = 0;
@@ -381,8 +378,6 @@ export const closestPointOnDetailEdges = (
     // interpolate the final closest point
     if (pmin && pmax) {
         vec3.lerp(outClosest, pmin, pmax, tmin);
-    } else {
-        vec3.copy(outClosest, pos);
     }
 
     return dmin;
@@ -557,35 +552,35 @@ export const findNearestPoly = (
     for (const polyRef of polys) {
         const closestPoint = getClosestPointOnPoly(_findNearestPolyClosestPointResult, navMesh, polyRef, center);
 
-        if (closestPoint.success) {
-            const tileAndPoly = getTileAndPolyByRef(polyRef, navMesh);
+        if (!closestPoint.success) continue;
 
-            if (!tileAndPoly.success) {
-                continue;
-            }
+        const tileAndPoly = getTileAndPolyByRef(polyRef, navMesh);
 
-            const { tile } = tileAndPoly;
+        if (!tileAndPoly.success) {
+            continue;
+        }
 
-            // calculate difference vector
-            vec3.sub(_findNearestPolyDiff, center, closestPoint.closestPoint);
+        const { tile } = tileAndPoly;
 
-            let distSqr: number;
+        // calculate difference vector
+        vec3.sub(_findNearestPolyDiff, center, closestPoint.closestPoint);
 
-            // if a point is directly over a polygon and closer than
-            // climb height, favor that instead of straight line nearest point.
-            if (closestPoint.isOverPoly) {
-                const heightDiff = Math.abs(_findNearestPolyDiff[1]) - tile.walkableClimb;
-                distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
-            } else {
-                distSqr = vec3.squaredLength(_findNearestPolyDiff);
-            }
+        let distSqr: number;
 
-            if (distSqr < nearestDistSqr) {
-                nearestDistSqr = distSqr;
-                result.nearestPolyRef = polyRef;
-                vec3.copy(result.nearestPoint, closestPoint.closestPoint);
-                result.success = true;
-            }
+        // if a point is directly over a polygon and closer than
+        // climb height, favor that instead of straight line nearest point.
+        if (closestPoint.isOverPoly) {
+            const heightDiff = Math.abs(_findNearestPolyDiff[1]) - tile.walkableClimb;
+            distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
+        } else {
+            distSqr = vec3.squaredLength(_findNearestPolyDiff);
+        }
+
+        if (distSqr < nearestDistSqr) {
+            nearestDistSqr = distSqr;
+            result.nearestPolyRef = polyRef;
+            vec3.copy(result.nearestPoint, closestPoint.closestPoint);
+            result.success = true;
         }
     }
 
