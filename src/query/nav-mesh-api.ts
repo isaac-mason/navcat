@@ -298,6 +298,8 @@ const getDetailTriEdgeFlags = (triFlags: number, edgeIndex: number): number => {
 };
 
 const _closestPointOnDetailEdgesTriangleVertices: Vec3[] = [vec3.create(), vec3.create(), vec3.create()];
+const _closestPointOnDetailEdgesPmin = vec3.create();
+const _closestPointOnDetailEdgesPmax = vec3.create();
 
 /**
  * Finds the closest point on detail mesh edges to a given point
@@ -322,10 +324,11 @@ export const closestPointOnDetailEdges = (
 
     let dmin = Number.MAX_VALUE;
     let tmin = 0;
-    let pmin: Vec3 | null = null;
-    let pmax: Vec3 | null = null;
 
-    for (let i = 0; i < detailMesh.trianglesCount; ++i) {
+    const pmin = vec3.set(_closestPointOnDetailEdgesPmin, 0, 0, 0);
+    const pmax = vec3.set(_closestPointOnDetailEdgesPmax, 0, 0, 0);
+
+    for (let i = 0; i < detailMesh.trianglesCount; i++) {
         const t = (detailMesh.trianglesBase + i) * 4;
         const detailTriangles = tile.detailTriangles;
 
@@ -369,8 +372,8 @@ export const closestPointOnDetailEdges = (
             if (result.distSqr < dmin) {
                 dmin = result.distSqr;
                 tmin = result.t;
-                pmin = triangleVertices[j];
-                pmax = triangleVertices[k];
+                vec3.copy(pmin, triangleVertices[j]);
+                vec3.copy(pmax, triangleVertices[k]);
             }
         }
     }
@@ -410,9 +413,12 @@ export const getClosestPointOnPoly = (
     vec3.copy(result.closestPoint, point);
 
     const tileAndPoly = getTileAndPolyByRef(ref, navMesh);
+
     if (!tileAndPoly.success) {
         return result;
     }
+
+    result.success = true;
 
     const { tile, poly, polyIndex } = tileAndPoly;
     const polyHeight = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, polyIndex, point);
@@ -421,12 +427,10 @@ export const getClosestPointOnPoly = (
         vec3.copy(result.closestPoint, point);
         result.closestPoint[1] = polyHeight.height;
         result.isOverPoly = true;
-        result.success = true;
         return result;
     }
 
     closestPointOnDetailEdges(tile, poly, polyIndex, point, result.closestPoint, true);
-    result.success = true;
 
     return result;
 };
@@ -574,6 +578,7 @@ export const findNearestPoly = (
             distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
         } else {
             distSqr = vec3.squaredLength(_findNearestPolyDiff);
+            console.log("_findNearestPolyDiff", _findNearestPolyDiff, "distSqr", distSqr, "center", center, "closestPoint.closestPoint", closestPoint.closestPoint)
         }
 
         if (distSqr < nearestDistSqr) {

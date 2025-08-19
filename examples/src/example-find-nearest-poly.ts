@@ -92,11 +92,12 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
-navMeshHelper.object.position.y += 0.1;
-scene.add(navMeshHelper.object);
+for (const polyMeshDetail of navMeshResult.intermediates.polyMeshDetail) {
+    const helper = threeUtils.createPolyMeshDetailHelper(polyMeshDetail);
+    scene.add(helper.object);
+}
 
-/* find random point logic */
+/* find nearest poly logic */
 const queryMesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.1, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0x0000ff }),
@@ -134,7 +135,7 @@ const updateNearestPoly = (point: Vec3) => {
     pointMesh.position.fromArray(nearestPoly.nearestPoint);
 
     arrow.setDirection(new THREE.Vector3(0, -1, 0));
-    arrow.position.fromArray(nearestPoly.nearestPoint);
+    arrow.position.copy(pointMesh.position);
     arrow.position.y += 1.5;
 
     const nearestPolyElement = document.getElementById('nearest-poly')!;

@@ -186,13 +186,6 @@ function updateAgentMovement(deltaTime: number) {
     vec3.normalize(moveRequest, moveRequest);
     vec3.scale(moveRequest, moveRequest, deltaTime * 5);
 
-    // get move target position
-    const moveRequestTarget = vec3.add(
-        vec3.create(),
-        agentState.position,
-        moveRequest,
-    );
-
     // find start node
     const nearestPolyResult = findNearestPoly(
         createFindNearestPolyResult(),
@@ -204,8 +197,13 @@ function updateAgentMovement(deltaTime: number) {
 
     if (!nearestPolyResult.success) return;
 
-    vec3.copy(agentState.position, nearestPolyResult.nearestPoint);
-
+     // get move target position
+    const moveRequestTarget = vec3.add(
+        vec3.create(),
+        nearestPolyResult.nearestPoint,
+        moveRequest,
+    );
+    
     if (vec3.length(moveRequest) <= 0) return;
 
     // move along surface
@@ -219,21 +217,16 @@ function updateAgentMovement(deltaTime: number) {
 
     if (!moveAlongSurfaceResult.success) return;
 
-    // log diff
-    const diff = vec3.length(vec3.subtract(vec3.create(), agentState.position, moveAlongSurfaceResult.resultPosition));
-
-    if (diff > 1) {
-        console.log("diff", diff, [...agentState.position], [...moveAlongSurfaceResult.resultPosition]);
-    }
-
     vec3.copy(agentState.position, moveAlongSurfaceResult.resultPosition);
 }
+
+const MAX_DT = 0.1;
 
 function update() {
     requestAnimationFrame(update);
 
     const now = performance.now();
-    const deltaTime = (now - time) / 1000;
+    const deltaTime = Math.min((now - time) / 1000, MAX_DT);
     time = now;
 
     updateAgentMovement(deltaTime);

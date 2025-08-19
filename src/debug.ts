@@ -1009,8 +1009,6 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
     const vertexPositions: number[] = [];
     const vertexColors: number[] = [];
 
-    const POLY_NEIS_FLAG_EXT_LINK = 0x8000;
-
     for (const tileId in navMesh.tiles) {
         const tile = navMesh.tiles[tileId];
         if (!tile) continue;
@@ -1554,7 +1552,6 @@ export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugP
     const padx = 0.04; // (purely visual)
     const pady = navMeshTile.walkableClimb; // vertical extent
 
-    // Colors approximating duRGBA values
     const sideColors: Record<number, [number, number, number]> = {
         0: [128 / 255, 0, 0], // red
         2: [0, 128 / 255, 0], // green
@@ -1565,7 +1562,6 @@ export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugP
     const positions: number[] = [];
     const colors: number[] = [];
 
-    // Iterate sides 0..7 but only draw for 0,2,4,6 per original implementation
     const drawSides = [0, 2, 4, 6];
     for (const side of drawSides) {
         const matchMask = POLY_NEIS_FLAG_EXT_LINK | side;
