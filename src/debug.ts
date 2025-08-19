@@ -35,7 +35,6 @@ export type DebugPoints = {
     positions: number[]; // x,y,z for each point
     colors: number[]; // r,g,b for each point
     size: number;
-    sizeAttenuation?: boolean;
     transparent?: boolean;
     opacity?: number;
 };
@@ -525,10 +524,8 @@ export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[
             type: DebugPrimitiveType.Points,
             positions: pointPositions,
             colors: pointColors,
-            size: 6,
-            sizeAttenuation: false,
+            size: 0.01,
             transparent: true,
-            opacity: 0.9,
         });
     }
 
@@ -633,10 +630,8 @@ export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPri
             type: DebugPrimitiveType.Points,
             positions: pointPositions,
             colors: pointColors,
-            size: 8,
-            sizeAttenuation: false,
+            size: 0.01,
             transparent: true,
-            opacity: 0.9,
         });
     }
 
@@ -761,10 +756,8 @@ export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[] {
             type: DebugPrimitiveType.Points,
             positions: vertexPositions,
             colors: vertexColors,
-            size: 8,
-            sizeAttenuation: false,
+            size: 0.01,
             transparent: true,
-            opacity: 0.9,
         });
     }
 
@@ -776,19 +769,11 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
         return [];
     }
 
-    const triPositions: number[] = [];
-    const triColors: number[] = [];
-    const triIndices: number[] = [];
-    const internalLinePositions: number[] = [];
-    const internalLineColors: number[] = [];
-    const externalLinePositions: number[] = [];
-    const externalLineColors: number[] = [];
-    const vertexPositions: number[] = [];
-    const vertexColors: number[] = [];
+    const primitives: DebugPrimitive[] = [];
 
-    let triVertexIndex = 0;
+    const edgeColor: [number, number, number] = [0, 0, 0];
+    const vertexColor: [number, number, number] = [0, 0, 0];
 
-    // Helper function to generate submesh color
     const submeshToColor = (submeshIndex: number): [number, number, number] => {
         const hash = submeshIndex * 137.5;
         const hue = hash % 360;
@@ -796,104 +781,54 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
         return [r * 0.3, g * 0.3, b * 0.3];
     };
 
-    // Process each submesh
-    for (let i = 0; i < polyMeshDetail.nMeshes; i++) {
-        const meshBase = i * 4;
-        const vertBase = polyMeshDetail.meshes[meshBase];
-        const vertCount = polyMeshDetail.meshes[meshBase + 1];
-        const triBase = polyMeshDetail.meshes[meshBase + 2];
-        const triCount = polyMeshDetail.meshes[meshBase + 3];
+    // 1. Draw triangles
+    const triPositions: number[] = [];
+    const triColors: number[] = [];
+    const triIndices: number[] = [];
+    let triVertexIndex = 0;
+
+    for (let i = 0; i < polyMeshDetail.nMeshes; ++i) {
+        const m = i * 4;
+        const bverts = polyMeshDetail.meshes[m + 0];
+        const btris = polyMeshDetail.meshes[m + 2];
+        const ntris = polyMeshDetail.meshes[m + 3];
+        const verts = bverts * 3;
+        const tris = btris * 4;
 
         const color = submeshToColor(i);
 
-        // Draw triangles for this submesh
-        for (let j = 0; j < triCount; j++) {
-            const triIndex = (triBase + j) * 4;
-            const t0 = polyMeshDetail.triangles[triIndex];
-            const t1 = polyMeshDetail.triangles[triIndex + 1];
-            const t2 = polyMeshDetail.triangles[triIndex + 2];
+        for (let j = 0; j < ntris; ++j) {
+            const triBase = tris + j * 4;
+            const t0 = polyMeshDetail.triangles[triBase + 0];
+            const t1 = polyMeshDetail.triangles[triBase + 1];
+            const t2 = polyMeshDetail.triangles[triBase + 2];
 
             // Add triangle vertices
-            for (let k = 0; k < 3; k++) {
-                const vertIndex = k === 0 ? t0 : k === 1 ? t1 : t2;
-                const vBase = (vertBase + vertIndex) * 3;
+            const v0Base = verts + t0 * 3;
+            const v1Base = verts + t1 * 3;
+            const v2Base = verts + t2 * 3;
 
-                triPositions.push(
-                    polyMeshDetail.vertices[vBase],
-                    polyMeshDetail.vertices[vBase + 1],
-                    polyMeshDetail.vertices[vBase + 2],
-                );
+            triPositions.push(
+                polyMeshDetail.vertices[v0Base],
+                polyMeshDetail.vertices[v0Base + 1],
+                polyMeshDetail.vertices[v0Base + 2],
+                polyMeshDetail.vertices[v1Base],
+                polyMeshDetail.vertices[v1Base + 1],
+                polyMeshDetail.vertices[v1Base + 2],
+                polyMeshDetail.vertices[v2Base],
+                polyMeshDetail.vertices[v2Base + 1],
+                polyMeshDetail.vertices[v2Base + 2],
+            );
+
+            // Add colors for all three vertices
+            for (let k = 0; k < 3; k++) {
                 triColors.push(color[0], color[1], color[2]);
             }
 
             triIndices.push(triVertexIndex, triVertexIndex + 1, triVertexIndex + 2);
             triVertexIndex += 3;
         }
-
-        // Draw edges for this submesh
-        for (let j = 0; j < triCount; j++) {
-            const triIndex = (triBase + j) * 4;
-            const t0 = polyMeshDetail.triangles[triIndex];
-            const t1 = polyMeshDetail.triangles[triIndex + 1];
-            const t2 = polyMeshDetail.triangles[triIndex + 2];
-            const flags = polyMeshDetail.triangles[triIndex + 3];
-
-            // Get triangle vertices
-            const v0Base = (vertBase + t0) * 3;
-            const v1Base = (vertBase + t1) * 3;
-            const v2Base = (vertBase + t2) * 3;
-
-            const v0 = [
-                polyMeshDetail.vertices[v0Base],
-                polyMeshDetail.vertices[v0Base + 1],
-                polyMeshDetail.vertices[v0Base + 2],
-            ];
-            const v1 = [
-                polyMeshDetail.vertices[v1Base],
-                polyMeshDetail.vertices[v1Base + 1],
-                polyMeshDetail.vertices[v1Base + 2],
-            ];
-            const v2 = [
-                polyMeshDetail.vertices[v2Base],
-                polyMeshDetail.vertices[v2Base + 1],
-                polyMeshDetail.vertices[v2Base + 2],
-            ];
-
-            // Draw each edge
-            const edges: [number[], number[], number][] = [
-                [v0, v1, (flags >> 0) & 1],
-                [v1, v2, (flags >> 1) & 1],
-                [v2, v0, (flags >> 2) & 1],
-            ];
-
-            for (const [va, vb, isExternal] of edges) {
-                const positions = isExternal ? externalLinePositions : internalLinePositions;
-                const colors = isExternal ? externalLineColors : internalLineColors;
-
-                positions.push(va[0], va[1], va[2]);
-                positions.push(vb[0], vb[1], vb[2]);
-
-                const edgeColor = isExternal ? [0.3, 0.3, 0.3] : [0.1, 0.1, 0.1];
-                colors.push(edgeColor[0], edgeColor[1], edgeColor[2]);
-                colors.push(edgeColor[0], edgeColor[1], edgeColor[2]);
-            }
-        }
-
-        // Draw vertices for this submesh
-        for (let j = 0; j < vertCount; j++) {
-            const vBase = (vertBase + j) * 3;
-            vertexPositions.push(
-                polyMeshDetail.vertices[vBase],
-                polyMeshDetail.vertices[vBase + 1],
-                polyMeshDetail.vertices[vBase + 2],
-            );
-
-            const vertColor: [number, number, number] = [0.2, 0.2, 0.2];
-            vertexColors.push(vertColor[0], vertColor[1], vertColor[2]);
-        }
     }
-
-    const primitives: DebugPrimitive[] = [];
 
     if (triPositions.length > 0) {
         primitives.push({
@@ -901,10 +836,58 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
             positions: triPositions,
             colors: triColors,
             indices: triIndices,
-            transparent: true,
-            opacity: 0.6,
-            doubleSided: true,
+            transparent: false,
+            opacity: 1.0,
         });
+    }
+
+    // 2. Draw internal edges
+    const internalLinePositions: number[] = [];
+    const internalLineColors: number[] = [];
+
+    for (let i = 0; i < polyMeshDetail.nMeshes; ++i) {
+        const m = i * 4;
+        const bverts = polyMeshDetail.meshes[m + 0];
+        const btris = polyMeshDetail.meshes[m + 2];
+        const ntris = polyMeshDetail.meshes[m + 3];
+        const verts = bverts * 3;
+        const tris = btris * 4;
+
+        for (let j = 0; j < ntris; ++j) {
+            const t = tris + j * 4;
+            const triVertices = [
+                polyMeshDetail.triangles[t + 0],
+                polyMeshDetail.triangles[t + 1],
+                polyMeshDetail.triangles[t + 2],
+            ];
+
+            for (let k = 0, kp = 2; k < 3; kp = k++) {
+                const ef = (polyMeshDetail.triangles[t + 3] >> (kp * 2)) & 0x3;
+                if (ef === 0) {
+                    // Internal edge
+                    const tkp = triVertices[kp];
+                    const tk = triVertices[k];
+                    if (tkp < tk) {
+                        const vkpBase = verts + tkp * 3;
+                        const vkBase = verts + tk * 3;
+
+                        internalLinePositions.push(
+                            polyMeshDetail.vertices[vkpBase],
+                            polyMeshDetail.vertices[vkpBase + 1],
+                            polyMeshDetail.vertices[vkpBase + 2],
+                            polyMeshDetail.vertices[vkBase],
+                            polyMeshDetail.vertices[vkBase + 1],
+                            polyMeshDetail.vertices[vkBase + 2],
+                        );
+
+                        // Add colors for both endpoints
+                        for (let l = 0; l < 2; l++) {
+                            internalLineColors.push(edgeColor[0], edgeColor[1], edgeColor[2]);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (internalLinePositions.length > 0) {
@@ -913,9 +896,56 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
             positions: internalLinePositions,
             colors: internalLineColors,
             transparent: true,
-            opacity: 0.5,
+            opacity: 0.4,
             lineWidth: 1.0,
         });
+    }
+
+    // 3. Draw external edges
+    const externalLinePositions: number[] = [];
+    const externalLineColors: number[] = [];
+
+    for (let i = 0; i < polyMeshDetail.nMeshes; ++i) {
+        const m = i * 4;
+        const bverts = polyMeshDetail.meshes[m + 0];
+        const btris = polyMeshDetail.meshes[m + 2];
+        const ntris = polyMeshDetail.meshes[m + 3];
+        const verts = bverts * 3;
+        const tris = btris * 4;
+
+        for (let j = 0; j < ntris; ++j) {
+            const t = tris + j * 4;
+            const triVertices = [
+                polyMeshDetail.triangles[t + 0],
+                polyMeshDetail.triangles[t + 1],
+                polyMeshDetail.triangles[t + 2],
+            ];
+
+            for (let k = 0, kp = 2; k < 3; kp = k++) {
+                const ef = (polyMeshDetail.triangles[t + 3] >> (kp * 2)) & 0x3;
+                if (ef !== 0) {
+                    // External edge
+                    const tkp = triVertices[kp];
+                    const tk = triVertices[k];
+                    const vkpBase = verts + tkp * 3;
+                    const vkBase = verts + tk * 3;
+
+                    externalLinePositions.push(
+                        polyMeshDetail.vertices[vkpBase],
+                        polyMeshDetail.vertices[vkpBase + 1],
+                        polyMeshDetail.vertices[vkpBase + 2],
+                        polyMeshDetail.vertices[vkBase],
+                        polyMeshDetail.vertices[vkBase + 1],
+                        polyMeshDetail.vertices[vkBase + 2],
+                    );
+
+                    // Add colors for both endpoints
+                    for (let l = 0; l < 2; l++) {
+                        externalLineColors.push(edgeColor[0], edgeColor[1], edgeColor[2]);
+                    }
+                }
+            }
+        }
     }
 
     if (externalLinePositions.length > 0) {
@@ -925,8 +955,29 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
             colors: externalLineColors,
             transparent: true,
             opacity: 0.8,
-            lineWidth: 2.0,
+            lineWidth: 10.0,
         });
+    }
+
+    // 4. Draw vertices as points
+    const vertexPositions: number[] = [];
+    const vertexColors: number[] = [];
+
+    for (let i = 0; i < polyMeshDetail.nMeshes; ++i) {
+        const m = i * 4;
+        const bverts = polyMeshDetail.meshes[m + 0];
+        const nverts = polyMeshDetail.meshes[m + 1];
+        const verts = bverts * 3;
+
+        for (let j = 0; j < nverts; ++j) {
+            const vBase = verts + j * 3;
+            vertexPositions.push(
+                polyMeshDetail.vertices[vBase],
+                polyMeshDetail.vertices[vBase + 1],
+                polyMeshDetail.vertices[vBase + 2],
+            );
+            vertexColors.push(vertexColor[0], vertexColor[1], vertexColor[2]);
+        }
     }
 
     if (vertexPositions.length > 0) {
@@ -934,10 +985,8 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
             type: DebugPrimitiveType.Points,
             positions: vertexPositions,
             colors: vertexColors,
-            size: 4,
-            sizeAttenuation: false,
+            size: 0.01,
             transparent: true,
-            opacity: 0.7,
         });
     }
 
@@ -1115,7 +1164,6 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
             positions: vertexPositions,
             colors: vertexColors,
             size: 0.01,
-            sizeAttenuation: true,
         });
     }
 
@@ -1634,8 +1682,7 @@ export function createSearchNodesHelper(nodePool: SearchNodePool): DebugPrimitiv
             type: DebugPrimitiveType.Points,
             positions: pointPositions,
             colors: pointColors,
-            size: 6,
-            sizeAttenuation: false,
+            size: 0.01,
             transparent: true,
             opacity: 1.0,
         });

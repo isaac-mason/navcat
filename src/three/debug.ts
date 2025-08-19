@@ -85,28 +85,60 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
 
         case DebugPrimitiveType.Points: {
             const pointPrimitive = primitive as DebugPoints;
-            const geometry = new THREE.BufferGeometry();
+            const group = new THREE.Group();
 
-            geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pointPrimitive.positions), 3));
-            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(pointPrimitive.colors), 3));
+            const numPoints = pointPrimitive.positions.length / 3;
 
-            const material = new THREE.PointsMaterial({
-                vertexColors: true,
-                transparent: pointPrimitive.transparent || false,
-                opacity: pointPrimitive.opacity || 1.0,
-                size: pointPrimitive.size || 1.0,
-                sizeAttenuation: pointPrimitive.sizeAttenuation !== false,
-            });
+            if (numPoints > 0) {
+                // Create sphere geometry for instancing
+                const sphereGeometry = new THREE.SphereGeometry(1, 8, 6); // Low-poly sphere for performance
+                
+                const material = new THREE.MeshBasicMaterial({
+                    vertexColors: true,
+                    transparent: pointPrimitive.transparent || false,
+                    opacity: pointPrimitive.opacity || 1.0,
+                });
 
-            const points = new THREE.Points(geometry, material);
+                const instancedMesh = new THREE.InstancedMesh(sphereGeometry, material, numPoints);
 
-            disposables.push(() => {
-                geometry.dispose();
-                material.dispose();
-            });
+                const matrix = new THREE.Matrix4();
+                const baseSize = pointPrimitive.size || 1.0;
+
+                for (let i = 0; i < numPoints; i++) {
+                    const x = pointPrimitive.positions[i * 3];
+                    const y = pointPrimitive.positions[i * 3 + 1];
+                    const z = pointPrimitive.positions[i * 3 + 2];
+
+                    const sphereSize = baseSize;
+
+                    matrix.makeScale(sphereSize, sphereSize, sphereSize);
+                    matrix.setPosition(x, y, z);
+                    instancedMesh.setMatrixAt(i, matrix);
+
+                    const color = new THREE.Color(
+                        pointPrimitive.colors[i * 3],
+                        pointPrimitive.colors[i * 3 + 1],
+                        pointPrimitive.colors[i * 3 + 2],
+                    );
+                    instancedMesh.setColorAt(i, color);
+                }
+
+                instancedMesh.instanceMatrix.needsUpdate = true;
+                if (instancedMesh.instanceColor) {
+                    instancedMesh.instanceColor.needsUpdate = true;
+                }
+
+                group.add(instancedMesh);
+
+                disposables.push(() => {
+                    sphereGeometry.dispose();
+                    material.dispose();
+                    instancedMesh.dispose();
+                });
+            }
 
             return {
-                object: points,
+                object: group,
                 dispose: () => {
                     for (const dispose of disposables) {
                         dispose();
