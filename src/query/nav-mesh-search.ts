@@ -598,8 +598,8 @@ export const moveAlongSurface = (
     nodes[`${startRef}:0`] = startNode;
 
     const bestPos = vec3.clone(startPosition);
-    let bestDist = Number.MAX_VALUE;
-    let bestNode: SearchNode | null = null;
+    let bestDist = Infinity;
+    let bestNode: SearchNode | null = startNode;
 
     // search constraints
     const searchPos = vec3.create();
@@ -649,7 +649,6 @@ export const moveAlongSurface = (
                 if (!link) continue;
 
                 const neighbourRef = link.neighbourRef;
-                if (!neighbourRef) continue;
 
                 // check if this link corresponds to edge j
                 if (link.edge === j) {
