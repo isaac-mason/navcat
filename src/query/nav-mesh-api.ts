@@ -578,7 +578,6 @@ export const findNearestPoly = (
             distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
         } else {
             distSqr = vec3.squaredLength(_findNearestPolyDiff);
-            console.log("_findNearestPolyDiff", _findNearestPolyDiff, "distSqr", distSqr, "center", center, "closestPoint.closestPoint", closestPoint.closestPoint)
         }
 
         if (distSqr < nearestDistSqr) {
