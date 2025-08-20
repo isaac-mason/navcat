@@ -636,8 +636,6 @@ export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], 
  * @returns True if the polygons overlap
  */
 export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: number[], nvertsB: number): boolean => {
-    const eps = 1e-6;
-
     // Check separation along each edge normal of polygon A
     for (let i = 0, j = nvertsA - 1; i < nvertsA; j = i++) {
         const va = [vertsA[j * 3], vertsA[j * 3 + 2]] as Vec2; // use X,Z
@@ -649,7 +647,7 @@ export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: num
 
         // Skip degenerate edges
         const nlen = Math.sqrt(nx * nx + nz * nz);
-        if (nlen < eps) continue;
+        if (nlen < EPS) continue;
 
         // Project polygon A onto the axis
         let aminA = Number.MAX_VALUE;
@@ -686,7 +684,7 @@ export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: num
 
         // Skip degenerate edges
         const nlen = Math.sqrt(nx * nx + nz * nz);
-        if (nlen < eps) continue;
+        if (nlen < EPS) continue;
 
         // Project polygon A onto the axis
         let aminA = Number.MAX_VALUE;

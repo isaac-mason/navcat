@@ -100,7 +100,7 @@ export const findLocalNeighbourhood = (
     // add start polygon to results
     result.resultRefs.push(startRef);
 
-    // Temporary arrays for polygon vertices
+    // temporary arrays for polygon vertices
     const polyVerticesA: number[] = [];
     const polyVerticesB: number[] = [];
 
