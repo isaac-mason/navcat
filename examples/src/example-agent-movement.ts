@@ -5,7 +5,6 @@ import {
     DEFAULT_QUERY_FILTER,
     findNearestPoly,
     findRandomPoint,
-    findRandomPointAroundCircle,
     type NavMesh,
     type QueryFilter,
     three as threeUtils,
@@ -123,13 +122,9 @@ const updateAgentVisualPath = (
 
 /* Leader and follower agents */
 
-// Leader agent that contains base agent + timing + visuals
+// Leader agent that contains base agent + visuals
 type LeaderAgent = {
     agent: Agent;
-
-    // Timing for leader behavior
-    lastTargetTime: number;
-    targetInterval: number;
 
     // Visual components
     mesh: THREE.Mesh;
@@ -172,8 +167,6 @@ const createLeaderAgent = (
 
     return {
         agent: createAgent(id, position, maxSpeed, radius),
-        lastTargetTime: 0,
-        targetInterval: 2000,
         mesh,
         targetMesh,
         pathLine: null,
@@ -209,39 +202,6 @@ const createFollowerAgent = (
         pathLine: null,
         polyHelpers: null,
     };
-};
-
-const updateLeaderBehavior = (leaderAgent: LeaderAgent, navMesh: NavMesh, filter: QueryFilter, currentTime: number): void => {
-    const timeSinceLastTarget = currentTime - leaderAgent.lastTargetTime;
-    const shouldGetNewTarget = timeSinceLastTarget > leaderAgent.targetInterval;
-
-    if (shouldGetNewTarget) {
-        const radius = 5.0;
-        const halfExtents: Vec3 = [1, 1, 1];
-        const nearestResult = createFindNearestPolyResult();
-        findNearestPoly(nearestResult, navMesh, leaderAgent.agent.position, halfExtents, filter);
-
-        if (nearestResult.success && nearestResult.nearestPolyRef) {
-            const randomResult = findRandomPointAroundCircle(
-                navMesh,
-                nearestResult.nearestPolyRef,
-                leaderAgent.agent.position,
-                radius,
-                filter,
-                Math.random,
-            );
-
-            if (randomResult.success) {
-                requestMoveTarget(leaderAgent.agent, randomResult.randomRef, randomResult.position, navMesh, filter);
-
-                leaderAgent.lastTargetTime = currentTime;
-                console.log(
-                    `Leader got new target: [${randomResult.position[0].toFixed(2)}, ${randomResult.position[1].toFixed(2)}, ${randomResult.position[2].toFixed(2)}]`,
-                );
-                return;
-            }
-        }
-    }
 };
 
 const updateFollowerBehavior = (
@@ -351,15 +311,28 @@ scene.add(navMeshHelper.object);
 
 /* create agents */
 const startPosition: Vec3 = [-3, 0.5, 4];
-const followerPosition: Vec3 = [-2, 0.5, 3];
+const followerPositions: Vec3[] = [
+    [-2, 0.5, 3],
+    [-1.5, 0.5, 3.5],
+    [-2.5, 0.5, 3.5],
+];
 
 // Create leader agent (blue)
 const leader = createLeaderAgent('leader', startPosition, scene, 0x0000ff, 5, 0.3);
-const follower = createFollowerAgent('follower', followerPosition, scene, 0x00ff00, 3, 0.25);
 
-console.log('Created agents:', { leader: leader.agent.id, follower: follower.agent.id });
+// Create three follower agents with different colors
+const followers = [
+    createFollowerAgent('follower1', followerPositions[0], scene, 0x00ff00, 3, 0.25), // Green
+    createFollowerAgent('follower2', followerPositions[1], scene, 0xff0000, 3, 0.25), // Red
+    createFollowerAgent('follower3', followerPositions[2], scene, 0xffff00, 3, 0.25), // Yellow
+];
+
+console.log('Created agents:', { 
+    leader: leader.agent.id, 
+    followers: followers.map(f => f.agent.id)
+});
 console.log('Leader mesh:', leader.mesh);
-console.log('Follower mesh:', follower.mesh);
+console.log('Follower meshes:', followers.map(f => f.mesh));
 
 // Initialize agents
 const filter = DEFAULT_QUERY_FILTER;
@@ -387,14 +360,45 @@ if (leaderNearestResult.success && leaderNearestResult.nearestPolyRef) {
     }
 }
 
-// Initialize follower
-const followerNearestResult = createFindNearestPolyResult();
-findNearestPoly(followerNearestResult, navMesh, follower.agent.position, halfExtents, filter);
-if (followerNearestResult.success && followerNearestResult.nearestPolyRef) {
-    resetCorridor(follower.agent.corridor, followerNearestResult.nearestPolyRef, followerNearestResult.nearestPoint);
-    vec3.copy(follower.agent.position, followerNearestResult.nearestPoint);
-    follower.agent.state = AgentState.WALKING;
+// Initialize followers
+for (let i = 0; i < followers.length; i++) {
+    const follower = followers[i];
+    const followerNearestResult = createFindNearestPolyResult();
+    findNearestPoly(followerNearestResult, navMesh, follower.agent.position, halfExtents, filter);
+    if (followerNearestResult.success && followerNearestResult.nearestPolyRef) {
+        resetCorridor(follower.agent.corridor, followerNearestResult.nearestPolyRef, followerNearestResult.nearestPoint);
+        vec3.copy(follower.agent.position, followerNearestResult.nearestPoint);
+        follower.agent.state = AgentState.WALKING;
+        console.log(`Follower ${i + 1} initialized`);
+    }
 }
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+const onPointerDown = (event: MouseEvent) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(navMeshHelper.object, true);
+    
+    if (intersects.length > 0) {
+        const intersectionPoint = intersects[0].point;
+        const targetPosition: Vec3 = [intersectionPoint.x, intersectionPoint.y, intersectionPoint.z];
+
+        const halfExtents: Vec3 = [1, 1, 1];
+        const nearestResult = createFindNearestPolyResult();
+        findNearestPoly(nearestResult, navMesh, targetPosition, halfExtents, filter);
+
+        if (nearestResult.success && nearestResult.nearestPolyRef) {
+            requestMoveTarget(leader.agent, nearestResult.nearestPolyRef, nearestResult.nearestPoint, navMesh, filter);
+        }
+    }
+};
+
+renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
 let lastTime = performance.now();
 
@@ -406,14 +410,17 @@ function update() {
     const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
 
-    // update leader behavior
-    updateLeaderBehavior(leader, navMesh, filter, currentTime);
+    // update leader behavior (now handled by mouse clicks)
+    // updateLeaderBehavior is no longer needed as it's controlled by clicks
 
-    // update follower behavior
-    updateFollowerBehavior(follower, leader, navMesh, filter);
+    // update follower behaviors
+    for (const follower of followers) {
+        updateFollowerBehavior(follower, leader, navMesh, filter);
+    }
 
-    // update agents
-    updateAgents([leader.agent, follower.agent], navMesh, filter, deltaTime);
+    // update all agents (leader + all followers)
+    const allAgents = [leader.agent, ...followers.map(f => f.agent)];
+    updateAgents(allAgents, navMesh, filter, deltaTime);
 
     // update leader visuals
     leader.mesh.position.fromArray(leader.agent.position);
@@ -427,15 +434,19 @@ function update() {
     );
 
     // update follower visuals
-    follower.mesh.position.fromArray(follower.agent.position);
-    [follower.pathLine, follower.polyHelpers] = updateAgentVisualPath(
-        follower.agent,
-        scene,
-        follower.targetMesh,
-        follower.pathLine,
-        follower.polyHelpers,
-        0x00ff00,
-    );
+    const followerColors = [0x00ff00, 0xff0000, 0xffff00]; // Green, Red, Yellow
+    for (let i = 0; i < followers.length; i++) {
+        const follower = followers[i];
+        follower.mesh.position.fromArray(follower.agent.position);
+        [follower.pathLine, follower.polyHelpers] = updateAgentVisualPath(
+            follower.agent,
+            scene,
+            follower.targetMesh,
+            follower.pathLine,
+            follower.polyHelpers,
+            followerColors[i],
+        );
+    }
 
     orbitControls.update();
     renderer.render(scene, camera);
