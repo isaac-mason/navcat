@@ -2,6 +2,7 @@ export * from './bv-tree';
 export * from './find-path';
 export * from './find-smooth-path';
 export * from './find-straight-path';
+export * from "./local-neighbourhood";
 export * from './nav-mesh';
 export * from './nav-mesh-api';
 export * from './nav-mesh-search';

@@ -623,3 +623,95 @@ export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], 
 
     return out;
 };
+
+/**
+ * Tests if two convex polygons overlap in 2D (XZ plane).
+ * Uses the separating axis theorem to check if any edge of either polygon
+ * can separate the two polygons.
+ *
+ * @param vertsA Vertices of the first polygon [x,y,z,x,y,z,...]
+ * @param nvertsA Number of vertices in the first polygon
+ * @param vertsB Vertices of the second polygon [x,y,z,x,y,z,...]
+ * @param nvertsB Number of vertices in the second polygon
+ * @returns True if the polygons overlap
+ */
+export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: number[], nvertsB: number): boolean => {
+    const eps = 1e-6;
+
+    // Check separation along each edge normal of polygon A
+    for (let i = 0, j = nvertsA - 1; i < nvertsA; j = i++) {
+        const va = [vertsA[j * 3], vertsA[j * 3 + 2]] as Vec2; // use X,Z
+        const vb = [vertsA[i * 3], vertsA[i * 3 + 2]] as Vec2; // use X,Z
+
+        // Calculate edge normal (perpendicular to edge)
+        const nx = vb[1] - va[1]; // Z component
+        const nz = va[0] - vb[0]; // negative X component
+
+        // Skip degenerate edges
+        const nlen = Math.sqrt(nx * nx + nz * nz);
+        if (nlen < eps) continue;
+
+        // Project polygon A onto the axis
+        let aminA = Number.MAX_VALUE;
+        let amaxA = -Number.MAX_VALUE;
+        for (let k = 0; k < nvertsA; k++) {
+            const dot = vertsA[k * 3] * nx + vertsA[k * 3 + 2] * nz;
+            aminA = Math.min(aminA, dot);
+            amaxA = Math.max(amaxA, dot);
+        }
+
+        // Project polygon B onto the axis
+        let aminB = Number.MAX_VALUE;
+        let amaxB = -Number.MAX_VALUE;
+        for (let k = 0; k < nvertsB; k++) {
+            const dot = vertsB[k * 3] * nx + vertsB[k * 3 + 2] * nz;
+            aminB = Math.min(aminB, dot);
+            amaxB = Math.max(amaxB, dot);
+        }
+
+        // Check if projections are separated
+        if (amaxA < aminB || amaxB < aminA) {
+            return false; // Separating axis found
+        }
+    }
+
+    // Check separation along each edge normal of polygon B
+    for (let i = 0, j = nvertsB - 1; i < nvertsB; j = i++) {
+        const va = [vertsB[j * 3], vertsB[j * 3 + 2]] as Vec2; // use X,Z
+        const vb = [vertsB[i * 3], vertsB[i * 3 + 2]] as Vec2; // use X,Z
+
+        // Calculate edge normal (perpendicular to edge)
+        const nx = vb[1] - va[1]; // Z component
+        const nz = va[0] - vb[0]; // negative X component
+
+        // Skip degenerate edges
+        const nlen = Math.sqrt(nx * nx + nz * nz);
+        if (nlen < eps) continue;
+
+        // Project polygon A onto the axis
+        let aminA = Number.MAX_VALUE;
+        let amaxA = -Number.MAX_VALUE;
+        for (let k = 0; k < nvertsA; k++) {
+            const dot = vertsA[k * 3] * nx + vertsA[k * 3 + 2] * nz;
+            aminA = Math.min(aminA, dot);
+            amaxA = Math.max(amaxA, dot);
+        }
+
+        // Project polygon B onto the axis
+        let aminB = Number.MAX_VALUE;
+        let amaxB = -Number.MAX_VALUE;
+        for (let k = 0; k < nvertsB; k++) {
+            const dot = vertsB[k * 3] * nx + vertsB[k * 3 + 2] * nz;
+            aminB = Math.min(aminB, dot);
+            amaxB = Math.max(amaxB, dot);
+        }
+
+        // Check if projections are separated
+        if (amaxA < aminB || amaxB < aminA) {
+            return false; // Separating axis found
+        }
+    }
+
+    // No separating axis found, polygons overlap
+    return true;
+};

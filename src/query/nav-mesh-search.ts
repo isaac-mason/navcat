@@ -49,7 +49,7 @@ export type SearchNodePool = { [nodeRefAndState: SearchNodeRef]: SearchNode };
 
 export type SearchNodeQueue = SearchNode[];
 
-const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
+export const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
     // note: (index > 0) means there is a parent
     let parent = Math.floor((i - 1) / 2);
 
@@ -86,12 +86,12 @@ const trickleDownQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) =
     queue[i] = node;
 };
 
-const pushNodeToQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
+export const pushNodeToQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
     queue.push(node);
     bubbleUpQueue(queue, queue.length - 1, node);
 };
 
-const popNodeFromQueue = (queue: SearchNodeQueue): SearchNode | undefined => {
+export const popNodeFromQueue = (queue: SearchNodeQueue): SearchNode | undefined => {
     if (queue.length === 0) {
         return undefined;
     }
@@ -107,7 +107,7 @@ const popNodeFromQueue = (queue: SearchNodeQueue): SearchNode | undefined => {
     return node;
 };
 
-const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
+export const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
     for (let i = 0; i < queue.length; i++) {
         if (queue[i].nodeRef === node.nodeRef && queue[i].state === node.state) {
             queue[i] = node;
@@ -228,7 +228,7 @@ const getEdgeMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: Node
     return true;
 };
 
-const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
+export const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
     const nodeType = getNodeRefType(nodeRef);
 
     if (nodeType === NodeType.GROUND_POLY) {
@@ -608,21 +608,21 @@ export const initSlicedFindNodePath = (
     filter: QueryFilter,
     flags: number = 0
 ): SlicedFindNodePathStatusFlags => {
-    // Reset query state
-    query.status = SlicedFindNodePathStatusFlags.FAILURE;
+    // set search parameters
     query.startRef = startRef;
     query.endRef = endRef;
     vec3.copy(query.startPos, startPos);
     vec3.copy(query.endPos, endPos);
     query.filter = filter;
     
-    // Clear search structures
+    // reset search state
+    query.status = SlicedFindNodePathStatusFlags.FAILURE;
     query.nodes = {};
     query.openList = [];
     query.lastBestNode = null;
     query.lastBestNodeCost = Infinity;
     
-    // Validate input
+    // validate input
     if (!isValidNodeRef(navMesh, startRef) || 
         !isValidNodeRef(navMesh, endRef) ||
         !vec3.finite(startPos) || 
@@ -635,18 +635,23 @@ export const initSlicedFindNodePath = (
     if (flags & SlicedFindNodePathInitFlags.ANY_ANGLE) {
         // Set raycast limit for any-angle pathfinding
         query.raycastLimitSqr = 25.0; // Reasonable default value
+        // TODO: limiting to several times the character radius yields nice results. It is not sensitive 
+        // so it is enough to compute it from the first tile.
+        // const dtMeshTile* tile = m_nav->getTileByRef(startRef);
+        // float agentRadius = tile->header->walkableRadius;
+        // m_query.raycastLimitSqr = dtSqr(agentRadius * DT_RAY_CAST_LIMIT_PROPORTIONS);
     } else {
         // Clear raycast optimization
         query.raycastLimitSqr = null;
     }
     
-    // Early exit if start == end
+    // early exit if the start poly is the end poly
     if (startRef === endRef) {
         query.status = SlicedFindNodePathStatusFlags.SUCCESS;
         return query.status;
     }
     
-    // Initialize start node
+    // start node
     const startNode: SearchNode = {
         cost: 0,
         total: vec3.distance(startPos, endPos) * HEURISTIC_SCALE,
@@ -682,12 +687,12 @@ export const updateSlicedFindNodePath = (
 ): { status: SlicedFindNodePathStatusFlags; itersDone: number } => {
     let itersDone = 0;
     
-    // Check if query is in valid state
+    // check if query is in valid state
     if (!(query.status & SlicedFindNodePathStatusFlags.IN_PROGRESS)) {
         return { status: query.status, itersDone };
     }
     
-    // Validate refs are still valid
+    // validate refs are still valid
     if (!isValidNodeRef(navMesh, query.startRef) || 
         !isValidNodeRef(navMesh, query.endRef)) {
         query.status = SlicedFindNodePathStatusFlags.FAILURE;
@@ -699,52 +704,52 @@ export const updateSlicedFindNodePath = (
     while (itersDone < maxIter && query.openList.length > 0) {
         itersDone++;
         
-        // Remove best node from open list and close it
+        // remove best node from open list and close it
         const bestNode = popNodeFromQueue(query.openList)!;
         bestNode.flags &= ~NODE_FLAG_OPEN;
         bestNode.flags |= NODE_FLAG_CLOSED;
         
-        // Check if we've reached the goal
+        // check if we've reached the goal
         if (bestNode.nodeRef === query.endRef) {
             query.lastBestNode = bestNode;
             query.status = SlicedFindNodePathStatusFlags.SUCCESS;
             return { status: query.status, itersDone };
         }
         
-        // Get current node info
+        // get current node info
         const currentNodeRef = bestNode.nodeRef;
         const currentNodeLinks = navMesh.nodes[currentNodeRef];
         
-        // Get parent for backtracking prevention
+        // get parent for backtracking prevention
         let parentNodeRef: NodeRef | undefined;
         if (bestNode.parent) {
             const [nodeRef] = bestNode.parent.split(':');
             parentNodeRef = nodeRef as NodeRef;
         }
         
-        // Expand to neighbors
+        // expand to neighbors
         for (const linkIndex of currentNodeLinks) {
             const link = navMesh.links[linkIndex];
             const neighbourNodeRef = link.neighbourRef;
             
-            // Skip invalid or parent nodes
+            // skip invalid or parent nodes
             if (!neighbourNodeRef || neighbourNodeRef === parentNodeRef) {
                 continue;
             }
             
-            // Apply filter
+            // apply filter
             if (query.filter.passFilter && 
                 !query.filter.passFilter(neighbourNodeRef, navMesh, query.filter)) {
                 continue;
             }
             
-            // Handle tile boundary crossing
+            // handle tile boundary crossing
             let crossSide = 0;
             if (link.side !== 0xff) {
                 crossSide = link.side >> 1;
             }
             
-            // Get or create neighbor node
+            // get or create neighbor node
             const neighbourSearchNodeRef: SearchNodeRef = `${neighbourNodeRef}:${crossSide}`;
             let neighbourNode = query.nodes[neighbourSearchNodeRef];
             
@@ -761,19 +766,19 @@ export const updateSlicedFindNodePath = (
                 query.nodes[neighbourSearchNodeRef] = neighbourNode;
             }
             
-            // Set position on first visit
+            // set position on first visit
             if (neighbourNode.flags === 0) {
                 getEdgeMidPoint(navMesh, currentNodeRef, neighbourNodeRef, neighbourNode.position);
             }
             
-            // Calculate costs
+            // calculate costs
             let cost = 0;
             let heuristic = 0;
             
-            // Check for raycast shortcut (if enabled)
+            // check for raycast shortcut (if enabled)
             let foundShortcut = false;
             if (query.raycastLimitSqr && bestNode.parent) {
-                // Get grandparent node for potential raycast shortcut
+                // get grandparent node for potential raycast shortcut
                 const grandparentSearchNodeRef = bestNode.parent;
                 const grandparentNode = query.nodes[grandparentSearchNodeRef];
                 
@@ -781,7 +786,7 @@ export const updateSlicedFindNodePath = (
                     const rayLength = vec3.distance(grandparentNode.position, neighbourNode.position);
                     
                     if (rayLength < Math.sqrt(query.raycastLimitSqr)) {
-                        // Attempt raycast from grandparent to current neighbor
+                        // attempt raycast from grandparent to current neighbor
                         const rayResult = raycast(
                             navMesh,
                             grandparentNode.nodeRef,
@@ -790,7 +795,7 @@ export const updateSlicedFindNodePath = (
                             query.filter
                         );
                         
-                        // If raycast didn't hit anything, we can use shortcut
+                        // if the raycast didn't hit anything, we can take the shortcut
                         if (rayResult.t >= 1.0) {
                             foundShortcut = true;
                             const shortcutCost = getCost(
@@ -822,7 +827,7 @@ export const updateSlicedFindNodePath = (
                 }
             }
             
-            // Normal cost calculation (if no shortcut found)
+            // normal cost calculation (if no shortcut found)
             if (!foundShortcut) {
                 if (neighbourNodeRef === query.endRef) {
                     const curCost = getCost(
@@ -859,19 +864,19 @@ export const updateSlicedFindNodePath = (
             
             const total = cost + heuristic;
             
-            // Skip if worse than existing
+            // skip if worse than existing
             if ((neighbourNode.flags & NODE_FLAG_OPEN && total >= neighbourNode.total) ||
                 (neighbourNode.flags & NODE_FLAG_CLOSED && total >= neighbourNode.total)) {
                 continue;
             }
             
-            // Update node
+            // update node
             neighbourNode.parent = foundShortcut ? bestNode.parent : `${bestNode.nodeRef}:${bestNode.state}`;
             neighbourNode.cost = cost;
             neighbourNode.total = total;
             neighbourNode.flags &= ~NODE_FLAG_CLOSED;
             
-            // Mark as detached parent if raycast shortcut was used
+            // mark as detached parent if raycast shortcut was used
             if (foundShortcut) {
                 neighbourNode.flags |= NODE_FLAG_PARENT_DETACHED;
             } else {
@@ -885,7 +890,7 @@ export const updateSlicedFindNodePath = (
                 pushNodeToQueue(query.openList, neighbourNode);
             }
             
-            // Update best node tracking
+            // update best node tracking
             if (heuristic < query.lastBestNodeCost) {
                 query.lastBestNodeCost = heuristic;
                 query.lastBestNode = neighbourNode;
@@ -893,7 +898,7 @@ export const updateSlicedFindNodePath = (
         }
     }
     
-    // Check if search is exhausted
+    // check if the search is exhausted
     if (query.openList.length === 0) {
         query.status = SlicedFindNodePathStatusFlags.SUCCESS | SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
     }
@@ -921,22 +926,22 @@ export const finalizeSlicedFindNodePath = (
         return { ...result, status: query.status };
     }
     
-    // Handle same start/end case
+    // handle same start/end case
     if (query.startRef === query.endRef) {
         result.path.push(query.startRef);
         result.pathCount = 1;
         result.status = SlicedFindNodePathStatusFlags.SUCCESS;
-        // Reset query
+        // reset query
         query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
         return result;
     }
     
-    // Check for partial result
+    // check for partial result
     if (query.lastBestNode.nodeRef !== query.endRef) {
         query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
     }
     
-    // Reconstruct path
+    // reconstruct path
     const tempPath: NodeRef[] = [];
     let currentNode: SearchNode | null = query.lastBestNode;
     
@@ -950,12 +955,12 @@ export const finalizeSlicedFindNodePath = (
         }
     }
     
-    // Reverse to get correct order
+    // reverse to get correct order
     result.path = tempPath.reverse();
     result.pathCount = result.path.length;
     result.status = SlicedFindNodePathStatusFlags.SUCCESS | (query.status & SlicedFindNodePathStatusFlags.PARTIAL_RESULT);
     
-    // Reset query
+    // reset query
     query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
     
     return result;
@@ -979,13 +984,13 @@ export const finalizeSlicedFindNodePathPartial = (
         pathCount: 0
     };
     
-    // Find furthest visited node from existing path
+    // Ffind furthest visited node from existing path
     let furthestNode: SearchNode | null = null;
     
     for (let i = existingPath.length - 1; i >= 0; i--) {
         const targetNodeRef = existingPath[i];
         
-        // Search through all nodes to find one with matching nodeRef (regardless of state)
+        // search through all nodes to find one with matching nodeRef (regardless of state)
         for (const searchNodeRef in query.nodes) {
             const node = query.nodes[searchNodeRef as SearchNodeRef];
             if (node.nodeRef === targetNodeRef) {
@@ -1009,20 +1014,20 @@ export const finalizeSlicedFindNodePathPartial = (
         return { ...result, status: query.status };
     }
     
-    // Handle same start/end case
+    // handle same start/end case
     if (query.startRef === query.endRef) {
         result.path.push(query.startRef);
         result.pathCount = 1;
         result.status = SlicedFindNodePathStatusFlags.SUCCESS;
-        // Reset query
+        // reset query
         query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
         return result;
     }
     
-    // Mark as partial result since we're working with an incomplete search
+    // mark as partial result since we're working with an incomplete search
     query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
     
-    // Reconstruct path from furthest node
+    // reconstruct path from furthest node
     const tempPath: NodeRef[] = [];
     let currentNode: SearchNode | null = furthestNode;
     
@@ -1036,12 +1041,12 @@ export const finalizeSlicedFindNodePathPartial = (
         }
     }
     
-    // Reverse to get correct order
+    // reverse to get correct order
     result.path = tempPath.reverse();
     result.pathCount = result.path.length;
     result.status = SlicedFindNodePathStatusFlags.SUCCESS | SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
     
-    // Reset query
+    // reset query
     query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
     
     return result;
