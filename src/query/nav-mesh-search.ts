@@ -530,6 +530,523 @@ export const findNodePath = (
     };
 };
 
+
+export enum SlicedFindNodePathStatusFlags {
+    NOT_INITIALIZED = 0,
+    IN_PROGRESS = 1,
+    SUCCESS = 2,
+    PARTIAL_RESULT = 4,
+    FAILURE = 8,
+    OUT_OF_NODES = 16,
+    INVALID_PARAM = 32,
+}
+
+export enum SlicedFindNodePathInitFlags {
+    /** Enable any-angle pathfinding with raycast optimization */
+    ANY_ANGLE = 1,
+}
+
+export type SlicedNodePathQuery = {
+    status: SlicedFindNodePathStatusFlags;
+    
+    // search parameters
+    startRef: NodeRef;
+    endRef: NodeRef;
+    startPos: Vec3;
+    endPos: Vec3;
+    filter: QueryFilter;
+    
+    // search state
+    nodes: SearchNodePool;
+    openList: SearchNodeQueue;
+    lastBestNode: SearchNode | null;
+    lastBestNodeCost: number;
+    
+    // raycast optimization state
+    raycastLimitSqr: number | null;
+};
+
+/**
+ * Creates a new sliced path query object with default values.
+ * 
+ * @returns A new sliced path query ready for initialization
+ */
+export const createSlicedNodePathQuery = (): SlicedNodePathQuery => ({
+    status: SlicedFindNodePathStatusFlags.NOT_INITIALIZED,
+    startRef: '' as NodeRef,
+    endRef: '' as NodeRef,
+    startPos: [0, 0, 0],
+    endPos: [0, 0, 0],
+    filter: DEFAULT_QUERY_FILTER,
+    nodes: {},
+    openList: [],
+    lastBestNode: null,
+    lastBestNodeCost: Infinity,
+    raycastLimitSqr: null,
+});
+
+/**
+ * Initializes a sliced path query.
+ * 
+ * @param navMesh The navigation mesh
+ * @param query The sliced path query to initialize
+ * @param startRef The reference ID of the starting node
+ * @param endRef The reference ID of the ending node
+ * @param startPos The starting position in world space
+ * @param endPos The ending position in world space
+ * @param filter The query filter
+ * @param flags Optional flags for the query (@see SlicedFindNodePathInitFlags)
+ * @returns The status of the initialization
+ */
+export const initSlicedFindNodePath = (
+    navMesh: NavMesh,
+    query: SlicedNodePathQuery,
+    startRef: NodeRef,
+    endRef: NodeRef,
+    startPos: Vec3,
+    endPos: Vec3,
+    filter: QueryFilter,
+    flags: number = 0
+): SlicedFindNodePathStatusFlags => {
+    // Reset query state
+    query.status = SlicedFindNodePathStatusFlags.FAILURE;
+    query.startRef = startRef;
+    query.endRef = endRef;
+    vec3.copy(query.startPos, startPos);
+    vec3.copy(query.endPos, endPos);
+    query.filter = filter;
+    
+    // Clear search structures
+    query.nodes = {};
+    query.openList = [];
+    query.lastBestNode = null;
+    query.lastBestNodeCost = Infinity;
+    
+    // Validate input
+    if (!isValidNodeRef(navMesh, startRef) || 
+        !isValidNodeRef(navMesh, endRef) ||
+        !vec3.finite(startPos) || 
+        !vec3.finite(endPos)) {
+        query.status = SlicedFindNodePathStatusFlags.FAILURE | SlicedFindNodePathStatusFlags.INVALID_PARAM;
+        return query.status;
+    }
+    
+    // Handle raycast optimization
+    if (flags & SlicedFindNodePathInitFlags.ANY_ANGLE) {
+        // Set raycast limit for any-angle pathfinding
+        query.raycastLimitSqr = 25.0; // Reasonable default value
+    } else {
+        // Clear raycast optimization
+        query.raycastLimitSqr = null;
+    }
+    
+    // Early exit if start == end
+    if (startRef === endRef) {
+        query.status = SlicedFindNodePathStatusFlags.SUCCESS;
+        return query.status;
+    }
+    
+    // Initialize start node
+    const startNode: SearchNode = {
+        cost: 0,
+        total: vec3.distance(startPos, endPos) * HEURISTIC_SCALE,
+        parent: null,
+        nodeRef: startRef,
+        state: 0,
+        flags: NODE_FLAG_OPEN,
+        position: structuredClone(startPos),
+    };
+    
+    query.nodes[`${startRef}:0`] = startNode;
+    pushNodeToQueue(query.openList, startNode);
+    
+    query.status = SlicedFindNodePathStatusFlags.IN_PROGRESS;
+    query.lastBestNode = startNode;
+    query.lastBestNodeCost = startNode.total;
+    
+    return query.status;
+};
+
+/**
+ * Updates an in-progress sliced path query.
+ * 
+ * @param navMesh The navigation mesh
+ * @param query The sliced path query to update
+ * @param maxIter The maximum number of iterations to perform
+ * @returns Object containing the status and number of iterations performed
+ */
+export const updateSlicedFindNodePath = (
+    navMesh: NavMesh,
+    query: SlicedNodePathQuery,
+    maxIter: number
+): { status: SlicedFindNodePathStatusFlags; itersDone: number } => {
+    let itersDone = 0;
+    
+    // Check if query is in valid state
+    if (!(query.status & SlicedFindNodePathStatusFlags.IN_PROGRESS)) {
+        return { status: query.status, itersDone };
+    }
+    
+    // Validate refs are still valid
+    if (!isValidNodeRef(navMesh, query.startRef) || 
+        !isValidNodeRef(navMesh, query.endRef)) {
+        query.status = SlicedFindNodePathStatusFlags.FAILURE;
+        return { status: query.status, itersDone };
+    }
+    
+    const getCost = query.filter.getCost ?? DEFAULT_QUERY_FILTER.getCost;
+    
+    while (itersDone < maxIter && query.openList.length > 0) {
+        itersDone++;
+        
+        // Remove best node from open list and close it
+        const bestNode = popNodeFromQueue(query.openList)!;
+        bestNode.flags &= ~NODE_FLAG_OPEN;
+        bestNode.flags |= NODE_FLAG_CLOSED;
+        
+        // Check if we've reached the goal
+        if (bestNode.nodeRef === query.endRef) {
+            query.lastBestNode = bestNode;
+            query.status = SlicedFindNodePathStatusFlags.SUCCESS;
+            return { status: query.status, itersDone };
+        }
+        
+        // Get current node info
+        const currentNodeRef = bestNode.nodeRef;
+        const currentNodeLinks = navMesh.nodes[currentNodeRef];
+        
+        // Get parent for backtracking prevention
+        let parentNodeRef: NodeRef | undefined;
+        if (bestNode.parent) {
+            const [nodeRef] = bestNode.parent.split(':');
+            parentNodeRef = nodeRef as NodeRef;
+        }
+        
+        // Expand to neighbors
+        for (const linkIndex of currentNodeLinks) {
+            const link = navMesh.links[linkIndex];
+            const neighbourNodeRef = link.neighbourRef;
+            
+            // Skip invalid or parent nodes
+            if (!neighbourNodeRef || neighbourNodeRef === parentNodeRef) {
+                continue;
+            }
+            
+            // Apply filter
+            if (query.filter.passFilter && 
+                !query.filter.passFilter(neighbourNodeRef, navMesh, query.filter)) {
+                continue;
+            }
+            
+            // Handle tile boundary crossing
+            let crossSide = 0;
+            if (link.side !== 0xff) {
+                crossSide = link.side >> 1;
+            }
+            
+            // Get or create neighbor node
+            const neighbourSearchNodeRef: SearchNodeRef = `${neighbourNodeRef}:${crossSide}`;
+            let neighbourNode = query.nodes[neighbourSearchNodeRef];
+            
+            if (!neighbourNode) {
+                neighbourNode = {
+                    cost: 0,
+                    total: 0,
+                    parent: null,
+                    nodeRef: neighbourNodeRef,
+                    state: crossSide,
+                    flags: 0,
+                    position: structuredClone(query.endPos),
+                };
+                query.nodes[neighbourSearchNodeRef] = neighbourNode;
+            }
+            
+            // Set position on first visit
+            if (neighbourNode.flags === 0) {
+                getEdgeMidPoint(navMesh, currentNodeRef, neighbourNodeRef, neighbourNode.position);
+            }
+            
+            // Calculate costs
+            let cost = 0;
+            let heuristic = 0;
+            
+            // Check for raycast shortcut (if enabled)
+            let foundShortcut = false;
+            if (query.raycastLimitSqr && bestNode.parent) {
+                // Get grandparent node for potential raycast shortcut
+                const grandparentSearchNodeRef = bestNode.parent;
+                const grandparentNode = query.nodes[grandparentSearchNodeRef];
+                
+                if (grandparentNode) {
+                    const rayLength = vec3.distance(grandparentNode.position, neighbourNode.position);
+                    
+                    if (rayLength < Math.sqrt(query.raycastLimitSqr)) {
+                        // Attempt raycast from grandparent to current neighbor
+                        const rayResult = raycast(
+                            navMesh,
+                            grandparentNode.nodeRef,
+                            grandparentNode.position,
+                            neighbourNode.position,
+                            query.filter
+                        );
+                        
+                        // If raycast didn't hit anything, we can use shortcut
+                        if (rayResult.t >= 1.0) {
+                            foundShortcut = true;
+                            const shortcutCost = getCost(
+                                grandparentNode.position,
+                                neighbourNode.position,
+                                navMesh,
+                                undefined,
+                                grandparentNode.nodeRef,
+                                neighbourNodeRef,
+                            );
+                            cost = grandparentNode.cost + shortcutCost;
+                            
+                            if (neighbourNodeRef === query.endRef) {
+                                const endCost = getCost(
+                                    neighbourNode.position, 
+                                    query.endPos, 
+                                    navMesh, 
+                                    neighbourNodeRef, 
+                                    grandparentNode.nodeRef, 
+                                    undefined
+                                );
+                                cost += endCost;
+                                heuristic = 0;
+                            } else {
+                                heuristic = vec3.distance(neighbourNode.position, query.endPos) * HEURISTIC_SCALE;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Normal cost calculation (if no shortcut found)
+            if (!foundShortcut) {
+                if (neighbourNodeRef === query.endRef) {
+                    const curCost = getCost(
+                        bestNode.position,
+                        neighbourNode.position,
+                        navMesh,
+                        neighbourNodeRef,
+                        currentNodeRef,
+                        undefined,
+                    );
+                    const endCost = getCost(
+                        neighbourNode.position, 
+                        query.endPos, 
+                        navMesh, 
+                        neighbourNodeRef, 
+                        currentNodeRef, 
+                        undefined
+                    );
+                    cost = bestNode.cost + curCost + endCost;
+                    heuristic = 0;
+                } else {
+                    const curCost = getCost(
+                        bestNode.position,
+                        neighbourNode.position,
+                        navMesh,
+                        parentNodeRef,
+                        currentNodeRef,
+                        neighbourNodeRef,
+                    );
+                    cost = bestNode.cost + curCost;
+                    heuristic = vec3.distance(neighbourNode.position, query.endPos) * HEURISTIC_SCALE;
+                }
+            }
+            
+            const total = cost + heuristic;
+            
+            // Skip if worse than existing
+            if ((neighbourNode.flags & NODE_FLAG_OPEN && total >= neighbourNode.total) ||
+                (neighbourNode.flags & NODE_FLAG_CLOSED && total >= neighbourNode.total)) {
+                continue;
+            }
+            
+            // Update node
+            neighbourNode.parent = foundShortcut ? bestNode.parent : `${bestNode.nodeRef}:${bestNode.state}`;
+            neighbourNode.cost = cost;
+            neighbourNode.total = total;
+            neighbourNode.flags &= ~NODE_FLAG_CLOSED;
+            
+            // Mark as detached parent if raycast shortcut was used
+            if (foundShortcut) {
+                neighbourNode.flags |= NODE_FLAG_PARENT_DETACHED;
+            } else {
+                neighbourNode.flags &= ~NODE_FLAG_PARENT_DETACHED;
+            }
+            
+            if (neighbourNode.flags & NODE_FLAG_OPEN) {
+                reindexNodeInQueue(query.openList, neighbourNode);
+            } else {
+                neighbourNode.flags |= NODE_FLAG_OPEN;
+                pushNodeToQueue(query.openList, neighbourNode);
+            }
+            
+            // Update best node tracking
+            if (heuristic < query.lastBestNodeCost) {
+                query.lastBestNodeCost = heuristic;
+                query.lastBestNode = neighbourNode;
+            }
+        }
+    }
+    
+    // Check if search is exhausted
+    if (query.openList.length === 0) {
+        query.status = SlicedFindNodePathStatusFlags.SUCCESS | SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
+    }
+    
+    return { status: query.status, itersDone };
+};
+
+/**
+ * Finalizes and returns the results of a sliced path query.
+ * 
+ * @param query The sliced path query to finalize
+ * @returns Object containing the status, path, and path count
+ */
+export const finalizeSlicedFindNodePath = (
+    query: SlicedNodePathQuery,
+): { status: SlicedFindNodePathStatusFlags; path: NodeRef[]; pathCount: number } => {
+    const result = {
+        status: SlicedFindNodePathStatusFlags.FAILURE,
+        path: [] as NodeRef[],
+        pathCount: 0
+    };
+    
+    if (!query.lastBestNode) {
+        query.status = SlicedFindNodePathStatusFlags.FAILURE;
+        return { ...result, status: query.status };
+    }
+    
+    // Handle same start/end case
+    if (query.startRef === query.endRef) {
+        result.path.push(query.startRef);
+        result.pathCount = 1;
+        result.status = SlicedFindNodePathStatusFlags.SUCCESS;
+        // Reset query
+        query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
+        return result;
+    }
+    
+    // Check for partial result
+    if (query.lastBestNode.nodeRef !== query.endRef) {
+        query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
+    }
+    
+    // Reconstruct path
+    const tempPath: NodeRef[] = [];
+    let currentNode: SearchNode | null = query.lastBestNode;
+    
+    while (currentNode) {
+        tempPath.push(currentNode.nodeRef);
+        
+        if (currentNode.parent) {
+            currentNode = query.nodes[currentNode.parent];
+        } else {
+            currentNode = null;
+        }
+    }
+    
+    // Reverse to get correct order
+    result.path = tempPath.reverse();
+    result.pathCount = result.path.length;
+    result.status = SlicedFindNodePathStatusFlags.SUCCESS | (query.status & SlicedFindNodePathStatusFlags.PARTIAL_RESULT);
+    
+    // Reset query
+    query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
+    
+    return result;
+};
+
+/**
+ * Finalizes and returns the results of an incomplete sliced path query, 
+ * returning the path to the furthest polygon on the existing path that was visited during the search.
+ * 
+ * @param query The sliced path query to finalize
+ * @param existingPath An array of polygon references for the existing path
+ * @returns Object containing the status, path, and path count
+ */
+export const finalizeSlicedFindNodePathPartial = (
+    query: SlicedNodePathQuery,
+    existingPath: NodeRef[],
+): { status: SlicedFindNodePathStatusFlags; path: NodeRef[]; pathCount: number } => {
+    const result = {
+        status: SlicedFindNodePathStatusFlags.FAILURE,
+        path: [] as NodeRef[],
+        pathCount: 0
+    };
+    
+    // Find furthest visited node from existing path
+    let furthestNode: SearchNode | null = null;
+    
+    for (let i = existingPath.length - 1; i >= 0; i--) {
+        const targetNodeRef = existingPath[i];
+        
+        // Search through all nodes to find one with matching nodeRef (regardless of state)
+        for (const searchNodeRef in query.nodes) {
+            const node = query.nodes[searchNodeRef as SearchNodeRef];
+            if (node.nodeRef === targetNodeRef) {
+                furthestNode = node;
+                break;
+            }
+        }
+        
+        if (furthestNode) {
+            break;
+        }
+    }
+    
+    if (!furthestNode) {
+        furthestNode = query.lastBestNode;
+        query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
+    }
+    
+    if (!furthestNode) {
+        query.status = SlicedFindNodePathStatusFlags.FAILURE;
+        return { ...result, status: query.status };
+    }
+    
+    // Handle same start/end case
+    if (query.startRef === query.endRef) {
+        result.path.push(query.startRef);
+        result.pathCount = 1;
+        result.status = SlicedFindNodePathStatusFlags.SUCCESS;
+        // Reset query
+        query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
+        return result;
+    }
+    
+    // Mark as partial result since we're working with an incomplete search
+    query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
+    
+    // Reconstruct path from furthest node
+    const tempPath: NodeRef[] = [];
+    let currentNode: SearchNode | null = furthestNode;
+    
+    while (currentNode) {
+        tempPath.push(currentNode.nodeRef);
+        
+        if (currentNode.parent) {
+            currentNode = query.nodes[currentNode.parent];
+        } else {
+            currentNode = null;
+        }
+    }
+    
+    // Reverse to get correct order
+    result.path = tempPath.reverse();
+    result.pathCount = result.path.length;
+    result.status = SlicedFindNodePathStatusFlags.SUCCESS | SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
+    
+    // Reset query
+    query.status = SlicedFindNodePathStatusFlags.NOT_INITIALIZED;
+    
+    return result;
+};
+
 const _moveAlongSurfaceVertices: number[] = [];
 const _moveAlongSurfacePolyHeightResult = createGetPolyHeightResult();
 const _moveAlongSurfaceWallEdgeVj = vec3.create();
