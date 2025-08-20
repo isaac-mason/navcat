@@ -240,10 +240,9 @@ export type PolyWallSegmentsResult = {
  * @param navMesh The navigation mesh
  * @param polyRef The reference ID of the polygon
  * @param filter The query filter to apply
- * @param storePortals Whether to store portal segments and their refs
- * @returns The result containing wall segments and optionally portal refs
+ * @param includePortals Whether to include portal segments in the result
  */
-export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: QueryFilter): PolyWallSegmentsResult => {
+export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: QueryFilter, includePortals: boolean): PolyWallSegmentsResult => {
     const result: PolyWallSegmentsResult = {
         success: false,
         segmentVerts: [],
@@ -297,6 +296,11 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
                 }
             }
 
+            // If the edge leads to another polygon and portals are not stored, skip.
+            if (neiRef !== null && !includePortals) {
+                continue;
+            }
+
             // add the full edge as a segment
             const vj = vec3.fromBuffer(vec3.create(), tile.vertices, poly.vertices[j] * 3);
             const vi = vec3.fromBuffer(vec3.create(), tile.vertices, poly.vertices[i] * 3);
@@ -316,7 +320,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
 
         for (let k = 1; k < intervals.length; ++k) {
             // portal segment
-            if (intervals[k].ref) {
+            if (includePortals && intervals[k].ref) {
                 const tmin = intervals[k].tmin / 255.0;
                 const tmax = intervals[k].tmax / 255.0;
 

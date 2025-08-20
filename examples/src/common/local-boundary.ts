@@ -138,7 +138,7 @@ export const updateLocalBoundary = (
     const collisionQueryRangeSqr = collisionQueryRange * collisionQueryRange;
 
     for (const polyRef of boundary.polys) {
-        const wallSegmentsResult = getPolyWallSegments(navMesh, polyRef, filter);
+        const wallSegmentsResult = getPolyWallSegments(navMesh, polyRef, filter, false);
 
         if (!wallSegmentsResult.success) continue;
 

@@ -175,8 +175,16 @@ const updateAgentVisuals = (
         }
         visuals.obstacleSegmentLines = [];
 
+        // Debug: Log what's in the obstacle avoidance query
+        console.log('Obstacle Query Debug:', {
+            circles: agent.obstacleAvoidanceQuery.circles.length,
+            segments: agent.obstacleAvoidanceQuery.segments.length,
+            localBoundarySegments: agent.localBoundary.segments.length
+        });
+
         // Add current obstacle segments from the obstacle avoidance query
         for (const segment of agent.obstacleAvoidanceQuery.segments) {
+            console.log('Visualizing obstacle segment:', segment);
             const points = [
                 new THREE.Vector3(segment.p[0], segment.p[1] + 0.3, segment.p[2]),
                 new THREE.Vector3(segment.q[0], segment.q[1] + 0.3, segment.q[2]),
