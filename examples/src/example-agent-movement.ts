@@ -18,8 +18,7 @@ import {
     AgentTargetState,
     createAgent,
     requestMoveTarget,
-    updateAgentMovement,
-    updateAgentPathfinding,
+    updateAgents,
 } from './common/agent';
 import { createExample } from './common/example-boilerplate';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
@@ -88,7 +87,8 @@ const updateAgentVisualPath = (
     }
 
     // Create new path line
-    const corners = findCorridorCorners(agent.corridor, navMesh, 20);
+    const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+
     if (corners.length > 1) {
         // Validate coordinates before creating THREE.js objects
         const validPoints: THREE.Vector3[] = [];
@@ -413,8 +413,9 @@ function update() {
     updateFollowerBehavior(follower, leader, navMesh, filter);
 
     // update agents
-    updateAgentPathfinding(leader.agent, navMesh);
-    updateAgentMovement(leader.agent, navMesh, filter, deltaTime);
+    updateAgents([leader.agent, follower.agent], navMesh, filter, deltaTime);
+
+    // update leader visuals
     leader.mesh.position.fromArray(leader.agent.position);
     [leader.pathLine, leader.polyHelpers] = updateAgentVisualPath(
         leader.agent,
@@ -425,8 +426,7 @@ function update() {
         0x0000ff,
     );
 
-    updateAgentPathfinding(follower.agent, navMesh);
-    updateAgentMovement(follower.agent, navMesh, filter, deltaTime);
+    // update follower visuals
     follower.mesh.position.fromArray(follower.agent.position);
     [follower.pathLine, follower.polyHelpers] = updateAgentVisualPath(
         follower.agent,
