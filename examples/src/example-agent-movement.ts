@@ -178,7 +178,6 @@ const updateAgentVisuals = (
         // Add current obstacle segments from the obstacle avoidance query
         for (let i = 0; i < agent.obstacleAvoidanceQuery.segmentCount; i++) {
             const segment = agent.obstacleAvoidanceQuery.segments[i];
-            console.log('Visualizing obstacle segment:', segment);
             const points = [
                 new THREE.Vector3(segment.p[0], segment.p[1] + 0.3, segment.p[2]),
                 new THREE.Vector3(segment.q[0], segment.q[1] + 0.3, segment.q[2]),
