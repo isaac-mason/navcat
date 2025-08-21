@@ -645,12 +645,6 @@ export const initSlicedFindNodePath = (
         query.raycastLimitSqr = null;
     }
     
-    // early exit if the start poly is the end poly
-    if (startRef === endRef) {
-        query.status = SlicedFindNodePathStatusFlags.SUCCESS;
-        return query.status;
-    }
-    
     // start node
     const startNode: SearchNode = {
         cost: 0,
@@ -663,11 +657,17 @@ export const initSlicedFindNodePath = (
     };
     
     query.nodes[`${startRef}:0`] = startNode;
-    pushNodeToQueue(query.openList, startNode);
-    
-    query.status = SlicedFindNodePathStatusFlags.IN_PROGRESS;
     query.lastBestNode = startNode;
     query.lastBestNodeCost = startNode.total;
+    
+    // early exit if the start poly is the end poly
+    if (startRef === endRef) {
+        query.status = SlicedFindNodePathStatusFlags.SUCCESS;
+        return query.status;
+    }
+    
+    pushNodeToQueue(query.openList, startNode);
+    query.status = SlicedFindNodePathStatusFlags.IN_PROGRESS;
     
     return query.status;
 };
