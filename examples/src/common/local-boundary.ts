@@ -67,7 +67,7 @@ const distancePtSegSqr2d = (pt: Vec3, segStart: Vec3, segEnd: Vec3): number => {
  * Adds a wall segment to the boundary, sorted by distance.
  */
 const addSegmentToBoundary = (boundary: LocalBoundary, dist: number, s: number[]): void => {
-    // Find insertion point based on distance
+    // find insertion point based on distance
     let insertIdx = 0;
     for (let i = 0; i < boundary.segments.length; i++) {
         if (dist <= boundary.segments[i].d) {
@@ -77,21 +77,21 @@ const addSegmentToBoundary = (boundary: LocalBoundary, dist: number, s: number[]
         insertIdx = i + 1;
     }
 
-    // Don't exceed max segments
+    // don't exceed max segments
     if (boundary.segments.length >= MAX_LOCAL_SEGS) {
-        // If we're trying to insert past the end, skip
+        // if we're trying to insert past the end, skip
         if (insertIdx >= MAX_LOCAL_SEGS) return;
-        // Remove last segment to make room
+        // remove last segment to make room
         boundary.segments.pop();
     }
 
-    // Create new segment
+    // create new segment
     const segment: LocalBoundarySegment = {
         d: dist,
         s: [s[0], s[1], s[2], s[3], s[4], s[5]],
     };
 
-    // Insert at the correct position
+    // insert at the correct position
     boundary.segments.splice(insertIdx, 0, segment);
 };
 
@@ -119,7 +119,7 @@ export const updateLocalBoundary = (
 
     vec3.copy(boundary.center, pos);
 
-    // First query non-overlapping polygons
+    // first query non-overlapping polygons
     const neighbourhoodResult = findLocalNeighbourhood(navMesh, ref, pos, collisionQueryRange, filter);
 
     if (!neighbourhoodResult.success) {
@@ -128,13 +128,13 @@ export const updateLocalBoundary = (
         return;
     }
 
-    // Store found polygons (limit to max)
+    // store found polygons (limit to max)
     boundary.polys = neighbourhoodResult.resultRefs.slice(0, MAX_LOCAL_POLYS);
 
-    // Clear existing segments
+    // clear existing segments
     boundary.segments.length = 0;
 
-    // Store all polygon wall segments
+    // store all polygon wall segments
     const collisionQueryRangeSqr = collisionQueryRange * collisionQueryRange;
 
     for (const polyRef of boundary.polys) {
@@ -147,11 +147,12 @@ export const updateLocalBoundary = (
             const segStart = k * 6;
             const s = wallSegmentsResult.segmentVerts.slice(segStart, segStart + 6);
 
-            // Skip too distant segments
+            // skip distant segments
             const segmentStart: Vec3 = [s[0], s[1], s[2]];
             const segmentEnd: Vec3 = [s[3], s[4], s[5]];
 
             const distSqr = distancePtSegSqr2d(pos, segmentStart, segmentEnd);
+
             if (distSqr > collisionQueryRangeSqr) {
                 continue;
             }
@@ -173,13 +174,13 @@ export const isLocalBoundaryValid = (boundary: LocalBoundary, navMesh: NavMesh, 
         return false;
     }
 
-    // Check that all polygons still pass query filter
+    // check that all polygons still pass query filter
     for (const polyRef of boundary.polys) {
         if (!isValidNodeRef(navMesh, polyRef)) {
             return false;
         }
 
-        // Check filter if available
+        // check filter if available
         if (filter.passFilter && !filter.passFilter(polyRef, navMesh, filter)) {
             return false;
         }

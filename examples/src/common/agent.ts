@@ -79,7 +79,7 @@ export const createAgent = (id: string, position: Vec3, maxSpeed: number, radius
         newVelocity: [0, 0, 0],
         maxSpeed,
         radius,
-        collisionQueryRange: radius * 8, // Default collision query range
+        collisionQueryRange: 5,
 
         state: AgentState.INVALID,
         target: vec3.clone(position),
@@ -191,7 +191,7 @@ const updateAgentBoundary = (agent: Agent, navMesh: NavMesh, filter: QueryFilter
         return;
     }
 
-    // Update boundary if agent has moved significantly or if boundary is invalid
+    // update boundary if agent has moved significantly or if boundary is invalid
     const updateThreshold = agent.collisionQueryRange * 0.25;
     const movedDistance = vec3.distance(agent.position, agent.localBoundary.center);
 
@@ -379,7 +379,7 @@ export const updateAgentMovement = (agent: Agent, navMesh: NavMesh, filter: Quer
     /* check if we reached the target */
     const finalTargetDistance = vec3.distance(agent.position, agent.corridor.target);
 
-    if (finalTargetDistance < 0.5) {
+    if (finalTargetDistance < 0.1) {
         agent.targetState = AgentTargetState.NONE;
         agent.state = AgentState.WAITING;
         vec3.set(agent.velocity, 0, 0, 0);

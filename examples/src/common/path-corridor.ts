@@ -106,7 +106,6 @@ export const findCorridorCorners = (corridor: PathCorridor, navMesh: NavMesh, ma
     // get initial corners from findStraightPath
     let corners = straightPathResult.path.map((p) => p.position);
 
-
     while (corners.length > 0) {
         const firstCorner = corners[0];
         const distance = vec3.distance(corridor.position, firstCorner);

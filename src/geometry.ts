@@ -625,9 +625,42 @@ export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], 
 };
 
 /**
+ * Projects a polygon onto an axis and returns the min/max projection values.
+ * @param axis The axis to project onto [x, z]
+ * @param verts Polygon vertices [x,y,z,x,y,z,...]
+ * @param nverts Number of vertices
+ * @returns Object with min and max projection values
+ */
+const projectPoly = (axis: Vec2, verts: number[], nverts: number): { min: number; max: number } => {
+    let min = axis[0] * verts[0] + axis[1] * verts[2]; // dot product with first vertex (x,z)
+    let max = min;
+    
+    for (let i = 1; i < nverts; i++) {
+        const dot = axis[0] * verts[i * 3] + axis[1] * verts[i * 3 + 2]; // dot product (x,z)
+        min = Math.min(min, dot);
+        max = Math.max(max, dot);
+    }
+    
+    return { min, max };
+};
+
+/**
+ * Checks if two ranges overlap with epsilon tolerance.
+ * @param amin Min value of range A
+ * @param amax Max value of range A
+ * @param bmin Min value of range B
+ * @param bmax Max value of range B
+ * @param eps Epsilon tolerance
+ * @returns True if ranges overlap
+ */
+const overlapRange = (amin: number, amax: number, bmin: number, bmax: number, eps: number): boolean => {
+    return !((amin + eps) > bmax || (amax - eps) < bmin);
+};
+
+/**
  * Tests if two convex polygons overlap in 2D (XZ plane).
- * Uses the separating axis theorem to check if any edge of either polygon
- * can separate the two polygons.
+ * Uses the separating axis theorem - matches the C++ dtOverlapPolyPoly2D implementation.
+ * All vertices are projected onto the xz-plane, so the y-values are ignored.
  *
  * @param vertsA Vertices of the first polygon [x,y,z,x,y,z,...]
  * @param nvertsA Number of vertices in the first polygon
@@ -636,80 +669,46 @@ export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], 
  * @returns True if the polygons overlap
  */
 export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: number[], nvertsB: number): boolean => {
+    const eps = 1e-4;
+    
     // Check separation along each edge normal of polygon A
     for (let i = 0, j = nvertsA - 1; i < nvertsA; j = i++) {
-        const va = [vertsA[j * 3], vertsA[j * 3 + 2]] as Vec2; // use X,Z
-        const vb = [vertsA[i * 3], vertsA[i * 3 + 2]] as Vec2; // use X,Z
-
-        // Calculate edge normal (perpendicular to edge)
-        const nx = vb[1] - va[1]; // Z component
-        const nz = va[0] - vb[0]; // negative X component
-
-        // Skip degenerate edges
-        const nlen = Math.sqrt(nx * nx + nz * nz);
-        if (nlen < EPS) continue;
-
-        // Project polygon A onto the axis
-        let aminA = Number.MAX_VALUE;
-        let amaxA = -Number.MAX_VALUE;
-        for (let k = 0; k < nvertsA; k++) {
-            const dot = vertsA[k * 3] * nx + vertsA[k * 3 + 2] * nz;
-            aminA = Math.min(aminA, dot);
-            amaxA = Math.max(amaxA, dot);
-        }
-
-        // Project polygon B onto the axis
-        let aminB = Number.MAX_VALUE;
-        let amaxB = -Number.MAX_VALUE;
-        for (let k = 0; k < nvertsB; k++) {
-            const dot = vertsB[k * 3] * nx + vertsB[k * 3 + 2] * nz;
-            aminB = Math.min(aminB, dot);
-            amaxB = Math.max(amaxB, dot);
-        }
-
+        const va = [vertsA[j * 3], vertsA[j * 3 + 2]] as Vec2; // [x, z]
+        const vb = [vertsA[i * 3], vertsA[i * 3 + 2]] as Vec2; // [x, z]
+        
+        // Calculate edge normal: n = { vb[z]-va[z], -(vb[x]-va[x]) }
+        const normal: Vec2 = [vb[1] - va[1], -(vb[0] - va[0])];
+        
+        // Project both polygons onto this normal
+        const projA = projectPoly(normal, vertsA, nvertsA);
+        const projB = projectPoly(normal, vertsB, nvertsB);
+        
         // Check if projections are separated
-        if (amaxA < aminB || amaxB < aminA) {
-            return false; // Separating axis found
+        if (!overlapRange(projA.min, projA.max, projB.min, projB.max, eps)) {
+            // Found separating axis
+            return false;
         }
     }
-
+    
     // Check separation along each edge normal of polygon B
     for (let i = 0, j = nvertsB - 1; i < nvertsB; j = i++) {
-        const va = [vertsB[j * 3], vertsB[j * 3 + 2]] as Vec2; // use X,Z
-        const vb = [vertsB[i * 3], vertsB[i * 3 + 2]] as Vec2; // use X,Z
-
-        // Calculate edge normal (perpendicular to edge)
-        const nx = vb[1] - va[1]; // Z component
-        const nz = va[0] - vb[0]; // negative X component
-
-        // Skip degenerate edges
-        const nlen = Math.sqrt(nx * nx + nz * nz);
-        if (nlen < EPS) continue;
-
-        // Project polygon A onto the axis
-        let aminA = Number.MAX_VALUE;
-        let amaxA = -Number.MAX_VALUE;
-        for (let k = 0; k < nvertsA; k++) {
-            const dot = vertsA[k * 3] * nx + vertsA[k * 3 + 2] * nz;
-            aminA = Math.min(aminA, dot);
-            amaxA = Math.max(amaxA, dot);
-        }
-
-        // Project polygon B onto the axis
-        let aminB = Number.MAX_VALUE;
-        let amaxB = -Number.MAX_VALUE;
-        for (let k = 0; k < nvertsB; k++) {
-            const dot = vertsB[k * 3] * nx + vertsB[k * 3 + 2] * nz;
-            aminB = Math.min(aminB, dot);
-            amaxB = Math.max(amaxB, dot);
-        }
-
+        const va = [vertsB[j * 3], vertsB[j * 3 + 2]] as Vec2; // [x, z]
+        const vb = [vertsB[i * 3], vertsB[i * 3 + 2]] as Vec2; // [x, z]
+        
+        // Calculate edge normal: n = { vb[z]-va[z], -(vb[x]-va[x]) }
+        const normal: Vec2 = [vb[1] - va[1], -(vb[0] - va[0])];
+        
+        // Project both polygons onto this normal
+        const projA = projectPoly(normal, vertsA, nvertsA);
+        const projB = projectPoly(normal, vertsB, nvertsB);
+        
         // Check if projections are separated
-        if (amaxA < aminB || amaxB < aminA) {
-            return false; // Separating axis found
+        if (!overlapRange(projA.min, projA.max, projB.min, projB.max, eps)) {
+            // Found separating axis
+            return false;
         }
     }
-
+    
     // No separating axis found, polygons overlap
     return true;
 };

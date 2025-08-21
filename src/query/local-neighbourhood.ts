@@ -41,6 +41,9 @@ export type FindLocalNeighbourhoodResult = {
     searchNodes: SearchNodePool;
 };
 
+const _findLocalNeighbourhoodPolyVerticesA: number[] = [];
+const _findLocalNeighbourhoodPolyVerticesB: number[] = [];
+
 /**
  * Finds all polygons within a radius of a center position, avoiding overlapping polygons.
  *
@@ -101,8 +104,8 @@ export const findLocalNeighbourhood = (
     result.resultRefs.push(startRef);
 
     // temporary arrays for polygon vertices
-    const polyVerticesA: number[] = [];
-    const polyVerticesB: number[] = [];
+    const polyVerticesA = _findLocalNeighbourhoodPolyVerticesA;
+    const polyVerticesB = _findLocalNeighbourhoodPolyVerticesB;
 
     while (stack.length > 0) {
         // pop front (breadth-first search)
@@ -158,15 +161,12 @@ export const findLocalNeighbourhood = (
 
             // check that the polygon does not collide with existing polygons
             // collect vertices of the neighbour poly
-            polyVerticesA.length = 0;
             const npa = neighbourPoly.vertices.length;
             for (let k = 0; k < npa; ++k) {
-                const vertIndex = neighbourPoly.vertices[k];
-                polyVerticesA.push(
-                    neighbourTile.vertices[vertIndex * 3],
-                    neighbourTile.vertices[vertIndex * 3 + 1],
-                    neighbourTile.vertices[vertIndex * 3 + 2],
-                );
+                const start = neighbourPoly.vertices[k] * 3;
+                polyVerticesA[k * 3] = neighbourTile.vertices[start];
+                polyVerticesA[k * 3 + 1] = neighbourTile.vertices[start + 1];
+                polyVerticesA[k * 3 + 2] = neighbourTile.vertices[start + 2];
             }
 
             let overlap = false;
@@ -188,15 +188,12 @@ export const findLocalNeighbourhood = (
                 if (!pastTileAndPoly.success) continue;
                 const { tile: pastTile, poly: pastPoly } = pastTileAndPoly;
 
-                polyVerticesB.length = 0;
                 const npb = pastPoly.vertices.length;
                 for (let k = 0; k < npb; ++k) {
-                    const vertIndex = pastPoly.vertices[k];
-                    polyVerticesB.push(
-                        pastTile.vertices[vertIndex * 3],
-                        pastTile.vertices[vertIndex * 3 + 1],
-                        pastTile.vertices[vertIndex * 3 + 2],
-                    );
+                    const start = pastPoly.vertices[k] * 3;
+                    polyVerticesB[k * 3] = pastTile.vertices[start];
+                    polyVerticesB[k * 3 + 1] = pastTile.vertices[start + 1];
+                    polyVerticesB[k * 3 + 2] = pastTile.vertices[start + 2];
                 }
 
                 if (overlapPolyPoly2D(polyVerticesA, npa, polyVerticesB, npb)) {
