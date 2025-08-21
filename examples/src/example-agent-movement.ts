@@ -175,15 +175,9 @@ const updateAgentVisuals = (
         }
         visuals.obstacleSegmentLines = [];
 
-        // Debug: Log what's in the obstacle avoidance query
-        console.log('Obstacle Query Debug:', {
-            circles: agent.obstacleAvoidanceQuery.circles.length,
-            segments: agent.obstacleAvoidanceQuery.segments.length,
-            localBoundarySegments: agent.localBoundary.segments.length
-        });
-
         // Add current obstacle segments from the obstacle avoidance query
-        for (const segment of agent.obstacleAvoidanceQuery.segments) {
+        for (let i = 0; i < agent.obstacleAvoidanceQuery.segmentCount; i++) {
+            const segment = agent.obstacleAvoidanceQuery.segments[i];
             console.log('Visualizing obstacle segment:', segment);
             const points = [
                 new THREE.Vector3(segment.p[0], segment.p[1] + 0.3, segment.p[2]),
@@ -300,7 +294,7 @@ const createLeaderAgent = (
     maxSpeed: number,
     radius: number,
 ): LeaderAgent => {
-    const agent = createAgent(id, position, maxSpeed, radius);
+    const agent = createAgent(id, position, maxSpeed, radius, 10);
     const visuals = createAgentVisuals(position, scene, color, radius);
 
     return {
@@ -317,7 +311,7 @@ const createFollowerAgent = (
     maxSpeed = 1.5,
     radius = 0.25,
 ): FollowerAgent => {
-    const agent = createAgent(id, position, maxSpeed, radius);
+    const agent = createAgent(id, position, maxSpeed, radius, 10);
     const visuals = createAgentVisuals(position, scene, color, radius);
 
     return {

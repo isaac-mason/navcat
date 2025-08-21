@@ -69,7 +69,7 @@ export type Agent = {
     neighbors: Agent[];
 };
 
-export const createAgent = (id: string, position: Vec3, maxSpeed: number, radius: number): Agent => {
+export const createAgent = (id: string, position: Vec3, maxSpeed: number, radius: number, collisionQueryRange: number): Agent => {
     return {
         id,
 
@@ -79,7 +79,7 @@ export const createAgent = (id: string, position: Vec3, maxSpeed: number, radius
         newVelocity: [0, 0, 0],
         maxSpeed,
         radius,
-        collisionQueryRange: 5,
+        collisionQueryRange,
 
         state: AgentState.INVALID,
         target: vec3.clone(position),
@@ -186,7 +186,7 @@ const findNeighbors = (agent: Agent, allAgents: Agent[]): void => {
 /**
  * Update agent's local boundary.
  */
-const updateAgentBoundary = (agent: Agent, navMesh: NavMesh, filter: QueryFilter): void => {
+const updateAgentLocalBoundary = (agent: Agent, navMesh: NavMesh, filter: QueryFilter): void => {
     if (agent.state !== AgentState.WALKING || agent.corridor.path.length === 0) {
         return;
     }
@@ -207,6 +207,65 @@ const updateAgentBoundary = (agent: Agent, navMesh: NavMesh, filter: QueryFilter
     }
 };
 
+const _direction = vec3.create();
+
+/**
+ * Calculate straight steering direction (no anticipation).
+ * Steers directly toward the first corner.
+ */
+const calcStraightSteerDirection = (agent: Agent, corners: Vec3[]): void => {
+    if (corners.length === 0) {
+        vec3.set(agent.desiredVelocity, 0, 0, 0);
+        return;
+    }
+
+    const direction = vec3.subtract(_direction, corners[0], agent.position);
+    direction[1] = 0; // Keep movement on XZ plane
+    vec3.normalize(direction, direction);
+    
+    const speed = agent.maxSpeed;
+    vec3.scale(agent.desiredVelocity, direction, speed);
+};
+
+/**
+ * Calculate smooth steering direction (with anticipation).
+ * Blends between first and second corner for smoother turns.
+ */
+const calcSmoothSteerDirection = (agent: Agent, corners: Vec3[]): void => {
+    if (corners.length === 0) {
+        vec3.set(agent.desiredVelocity, 0, 0, 0);
+        return;
+    }
+
+    const ip0 = 0;
+    const ip1 = Math.min(1, corners.length - 1);
+    const p0 = corners[ip0];
+    const p1 = corners[ip1];
+
+    const dir0 = vec3.subtract(_direction, p0, agent.position);
+    const dir1 = vec3.create();
+    vec3.subtract(dir1, p1, agent.position);
+    dir0[1] = 0;
+    dir1[1] = 0;
+
+    const len0 = vec3.length(dir0);
+    const len1 = vec3.length(dir1);
+    
+    if (len1 > 0.001) {
+        vec3.scale(dir1, dir1, 1.0 / len1);
+    }
+
+    const direction = vec3.create();
+    direction[0] = dir0[0] - dir1[0] * len0 * 0.5;
+    direction[1] = 0;
+    direction[2] = dir0[2] - dir1[2] * len0 * 0.5;
+    
+    vec3.normalize(direction, direction);
+    
+    const speed = agent.maxSpeed;
+    vec3.scale(agent.desiredVelocity, direction, speed);
+};
+
 /**
  * Calculate desired velocity using DetourCrowd-style steering.
  */
@@ -224,73 +283,27 @@ const calculateDesiredVelocity = (agent: Agent, navMesh: NavMesh): void => {
         return;
     }
 
-    // DetourCrowd-style corner selection with anticipation
-    let targetCorner: Vec3 | null = null;
-
-    const MIN_TARGET_DISTANCE = 0.1;
-    const ANTICIPATION_DISTANCE = agent.radius * 4;
-
-    // Find the best corner to target using DetourCrowd's anticipation logic
-    for (let i = 0; i < corners.length; i++) {
-        const corner = corners[i];
-        const dist = vec3.distance(agent.position, corner);
-
-        if (dist < MIN_TARGET_DISTANCE) {
-            continue;
-        }
-
-        if (!targetCorner) {
-            targetCorner = corner;
-
-            // try to anticipate - if this corner is close, see if we can target a further one
-            if (dist < ANTICIPATION_DISTANCE && i + 1 < corners.length) {
-                const nextCorner = corners[i + 1];
-                const nextDist = vec3.distance(agent.position, nextCorner);
-
-                if (nextDist > MIN_TARGET_DISTANCE) {
-                    targetCorner = nextCorner;
-                }
-            }
-            break;
-        }
-    }
-
-    // if no valid corner found, use the final target
-    if (!targetCorner) {
-        targetCorner = agent.corridor.target;
-    }
-
-    // calculate steering direction
-    const direction = vec3.subtract([0, 0, 0], targetCorner, agent.position);
-    direction[1] = 0; // Keep movement on XZ plane
-
-    const dirLength = vec3.length(direction);
-    if (dirLength > 0.001) {
-        vec3.scale(direction, direction, 1.0 / dirLength);
-
-        // calculate speed scale for slowdown near target
-        const slowDownRadius = agent.radius * 2;
-        const finalTargetDistance = vec3.distance(agent.position, agent.corridor.target);
-        const speedScale = Math.min(1.0, finalTargetDistance / slowDownRadius);
-
-        const speed = agent.maxSpeed * Math.max(0.1, speedScale); // minimum 10% speed
-        vec3.scale(agent.desiredVelocity, direction, speed);
+    // Use DetourCrowd steering logic
+    const anticipateTurns = true; // This could be made configurable like DT_CROWD_ANTICIPATE_TURNS
+    
+    if (anticipateTurns) {
+        calcSmoothSteerDirection(agent, corners);
     } else {
-        vec3.set(agent.desiredVelocity, 0, 0, 0);
+        calcStraightSteerDirection(agent, corners);
     }
 };
 
 const OBSTACLE_AVOIDANCE_QUERY_PARAMS: ObstacleAvoidanceParams = {
-    velBias: 0.4,
+    velBias: 0.5,
     weightDesVel: 2.0,
-    weightCurVel: 0.75,
-    weightSide: 0.75,
-    weightToi: 2.5,
-    horizTime: 2.5,
+    weightCurVel: 0.5, 
+    weightSide: 0.5,
+    weightToi: 2.0,
+    horizTime: 2.0,
     gridSize: 33,
     adaptiveDivs: 7,
     adaptiveRings: 2,
-    adaptiveDepth: 5,
+    adaptiveDepth: 3,
 };
 
 /**
@@ -328,7 +341,7 @@ const performObstacleAvoidance = (agent: Agent): void => {
     }
 
     // sample safe velocity using adaptive sampling
-    const result = sampleVelocityAdaptive(
+    sampleVelocityAdaptive(
         agent.obstacleAvoidanceQuery,
         agent.position,
         agent.radius,
@@ -336,9 +349,8 @@ const performObstacleAvoidance = (agent: Agent): void => {
         agent.velocity,
         agent.desiredVelocity,
         OBSTACLE_AVOIDANCE_QUERY_PARAMS,
+        agent.newVelocity,
     );
-
-    vec3.copy(agent.newVelocity, result.nvel);
 };
 
 export const updateAgentMovement = (agent: Agent, navMesh: NavMesh, filter: QueryFilter, deltaTime: number): void => {
@@ -351,7 +363,7 @@ export const updateAgentMovement = (agent: Agent, navMesh: NavMesh, filter: Quer
     }
 
     /* update local boundary */
-    updateAgentBoundary(agent, navMesh, filter);
+    updateAgentLocalBoundary(agent, navMesh, filter);
 
     /* calculate desired velocity based on path steering */
     calculateDesiredVelocity(agent, navMesh);
@@ -392,9 +404,7 @@ export const updateAgentMovement = (agent: Agent, navMesh: NavMesh, filter: Quer
  * Update multiple agents
  */
 export const updateAgents = (agents: Agent[], navMesh: NavMesh, filter: QueryFilter, deltaTime: number): void => {
-    const walkingAgents = agents.filter((agent) => agent.state === AgentState.WALKING);
-
-    for (const agent of walkingAgents) {
+    for (const agent of agents) {
         findNeighbors(agent, agents);
     }
 

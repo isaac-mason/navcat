@@ -58,38 +58,71 @@ export type ObstacleAvoidanceQuery = {
     segments: ObstacleSegment[];
     maxCircles: number;
     maxSegments: number;
+    circleCount: number;
+    segmentCount: number;
     
     // Internal state for sampling
     params: ObstacleAvoidanceParams;
     invHorizTime: number;
     vmax: number;
     invVmax: number;
+    
+    // Pre-allocated pattern array for adaptive sampling
+    pattern: Float32Array;
 };
 
 /**
  * Creates a new obstacle avoidance query.
  */
-export const createObstacleAvoidanceQuery = (maxCircles: number, maxSegments: number): ObstacleAvoidanceQuery => ({
-    circles: [],
-    segments: [],
-    maxCircles,
-    maxSegments,
-    params: {
-        velBias: 0.4,
-        weightDesVel: 2.0,
-        weightCurVel: 0.75,
-        weightSide: 0.75,
-        weightToi: 2.5,
-        horizTime: 2.5,
-        gridSize: 33,
-        adaptiveDivs: 7,
-        adaptiveRings: 2,
-        adaptiveDepth: 5,
-    },
-    invHorizTime: 0,
-    vmax: 0,
-    invVmax: 0,
-});
+export const createObstacleAvoidanceQuery = (maxCircles: number, maxSegments: number): ObstacleAvoidanceQuery => {
+    // pre-allocate obstacle objects
+    const circles: ObstacleCircle[] = [];
+    const segments: ObstacleSegment[] = [];
+    
+    for (let i = 0; i < maxCircles; i++) {
+        circles.push({
+            p: [0, 0, 0],
+            vel: [0, 0, 0],
+            dvel: [0, 0, 0],
+            rad: 0,
+            dp: [0, 0, 0],
+            np: [0, 0, 0],
+        });
+    }
+    
+    for (let i = 0; i < maxSegments; i++) {
+        segments.push({
+            p: [0, 0, 0],
+            q: [0, 0, 0],
+            touch: false,
+        });
+    }
+    
+    return {
+        circles,
+        segments,
+        maxCircles,
+        maxSegments,
+        circleCount: 0,
+        segmentCount: 0,
+        params: {
+            velBias: 0.4,
+            weightDesVel: 2.0,
+            weightCurVel: 0.75,
+            weightSide: 0.75,
+            weightToi: 2.5,
+            horizTime: 2.5,
+            gridSize: 33,
+            adaptiveDivs: 7,
+            adaptiveRings: 2,
+            adaptiveDepth: 5,
+        },
+        invHorizTime: 0,
+        vmax: 0,
+        invVmax: 0,
+        pattern: new Float32Array((DT_MAX_PATTERN_DIVS * DT_MAX_PATTERN_RINGS + 1) * 2),
+    };
+};
 
 /**
  * Creates debug data for obstacle avoidance.
@@ -102,8 +135,8 @@ export const createObstacleAvoidanceDebugData = (): ObstacleAvoidanceDebugData =
  * Resets the obstacle avoidance query.
  */
 export const resetObstacleAvoidanceQuery = (query: ObstacleAvoidanceQuery): void => {
-    query.circles.length = 0;
-    query.segments.length = 0;
+    query.circleCount = 0;
+    query.segmentCount = 0;
 };
 
 /**
@@ -123,33 +156,37 @@ export const addCircleObstacle = (
     vel: Vec3,
     dvel: Vec3,
 ): void => {
-    if (query.circles.length >= query.maxCircles) return;
+    if (query.circleCount >= query.maxCircles) return;
 
-    const circle: ObstacleCircle = {
-        p: vec3.clone(pos),
-        vel: vec3.clone(vel),
-        dvel: vec3.clone(dvel),
-        rad,
-        dp: [0, 0, 0],
-        np: [0, 0, 0],
-    };
+    const circle = query.circles[query.circleCount];
+    
+    // Copy data to pre-allocated object
+    vec3.copy(circle.p, pos);
+    vec3.copy(circle.vel, vel);
+    vec3.copy(circle.dvel, dvel);
+    circle.rad = rad;
+    
+    // Reset computed values
+    vec3.set(circle.dp, 0, 0, 0);
+    vec3.set(circle.np, 0, 0, 0);
 
-    query.circles.push(circle);
+    query.circleCount++;
 };
 
 /**
  * Adds a segment obstacle to the query.
  */
 export const addSegmentObstacle = (query: ObstacleAvoidanceQuery, p: Vec3, q: Vec3): void => {
-    if (query.segments.length >= query.maxSegments) return;
+    if (query.segmentCount >= query.maxSegments) return;
 
-    const segment: ObstacleSegment = {
-        p: vec3.clone(p),
-        q: vec3.clone(q),
-        touch: false,
-    };
+    const segment = query.segments[query.segmentCount];
+    
+    // Copy data to pre-allocated object
+    vec3.copy(segment.p, p);
+    vec3.copy(segment.q, q);
+    segment.touch = false;
 
-    query.segments.push(segment);
+    query.segmentCount++;
 };
 
 /**
@@ -268,7 +305,8 @@ const intersectRaySegment = (
  */
 const prepareObstacles = (query: ObstacleAvoidanceQuery, pos: Vec3, dvel: Vec3): void => {
     // Prepare circular obstacles
-    for (const cir of query.circles) {
+    for (let i = 0; i < query.circleCount; i++) {
+        const cir = query.circles[i];
         // Side calculation
         const pa = pos;
         const pb = cir.p;
@@ -293,13 +331,35 @@ const prepareObstacles = (query: ObstacleAvoidanceQuery, pos: Vec3, dvel: Vec3):
     }
 
     // Prepare segment obstacles
-    for (const seg of query.segments) {
-        // Check if agent is very close to segment
+    for (let i = 0; i < query.segmentCount; i++) {
+        const seg = query.segments[i];
+        
+        // Precalc if the agent is really close to the segment
         const r = 0.01;
         const { distSqr } = distancePtSegSqr2D(pos, seg.p, seg.q);
         seg.touch = distSqr < r * r;
     }
 };
+
+/**
+ * Copies parameters to avoid object allocation.
+ */
+const copyParams = (dest: ObstacleAvoidanceParams, src: ObstacleAvoidanceParams): void => {
+    dest.velBias = src.velBias;
+    dest.weightDesVel = src.weightDesVel;
+    dest.weightCurVel = src.weightCurVel;
+    dest.weightSide = src.weightSide;
+    dest.weightToi = src.weightToi;
+    dest.horizTime = src.horizTime;
+    dest.gridSize = src.gridSize;
+    dest.adaptiveDivs = src.adaptiveDivs;
+    dest.adaptiveRings = src.adaptiveRings;
+    dest.adaptiveDepth = src.adaptiveDepth;
+};
+
+const _vab = vec3.create();
+const _sdir = vec3.create();
+const _snorm = vec3.create();
 
 /**
  * Process a velocity sample and calculate its penalty.
@@ -334,9 +394,10 @@ const processSample = (
     let nside = 0;
 
     // Check circular obstacles
-    for (const cir of query.circles) {
+    for (let i = 0; i < query.circleCount; i++) {
+        const cir = query.circles[i];
         // RVO (Reciprocal Velocity Obstacles)
-        const vab: Vec3 = [0, 0, 0];
+        const vab = _vab;
         vec3.scale(vab, vcand, 2);
         vec3.sub(vab, vab, vel);
         vec3.sub(vab, vab, cir.vel);
@@ -369,18 +430,19 @@ const processSample = (
     }
 
     // Check segment obstacles
-    for (const seg of query.segments) {
+    for (let i = 0; i < query.segmentCount; i++) {
+        const seg = query.segments[i];
         let htmin = 0;
 
         if (seg.touch) {
             // Special case when agent is very close to segment
-            const sdir: Vec3 = [seg.q[0] - seg.p[0], seg.q[1] - seg.p[1], seg.q[2] - seg.p[2]];
-            const snorm: Vec3 = [-sdir[2], sdir[1], sdir[0]];
-            
-            // If velocity is pointing towards segment, no collision
+            const sdir = vec3.set(_sdir, seg.q[0] - seg.p[0], seg.q[1] - seg.p[1], seg.q[2] - seg.p[2]);
+            const snorm = vec3.set(_snorm, -sdir[2], sdir[1], sdir[0]);
+
+            // If the velocity is pointing towards the segment, no collision.
             if (vdot2D(snorm, vcand) < 0.0) continue;
             
-            // Else immediate collision
+            // Else immediate collision.
             htmin = 0.0;
         } else {
             const intersection = intersectRaySegment(pos, vcand, seg.p, seg.q);
@@ -441,8 +503,8 @@ export const sampleVelocityGrid = (
 ): { nvel: Vec3; samples: number } => {
     prepareObstacles(query, pos, dvel);
 
-    query.params = { ...params };
-    query.invHorizTime = 1.0 / params.horizTime;
+    copyParams(query.params, params);
+    query.invHorizTime = 1.0 / query.params.horizTime;
     query.vmax = vmax;
     query.invVmax = vmax > 0 ? 1.0 / vmax : Number.MAX_VALUE;
 
@@ -518,79 +580,78 @@ export const sampleVelocityAdaptive = (
     vel: Vec3,
     dvel: Vec3,
     params: ObstacleAvoidanceParams,
+    outVelocity: Vec3,
     debug?: ObstacleAvoidanceDebugData,
-): { nvel: Vec3; samples: number } => {
+): number => {
     prepareObstacles(query, pos, dvel);
 
-    query.params = { ...params };
-    query.invHorizTime = 1.0 / params.horizTime;
+    copyParams(query.params, params);
+    query.invHorizTime = 1.0 / query.params.horizTime;
     query.vmax = vmax;
     query.invVmax = vmax > 0 ? 1.0 / vmax : Number.MAX_VALUE;
-
-    const nvel: Vec3 = [0, 0, 0];
 
     if (debug) {
         resetObstacleAvoidanceDebugData(debug);
     }
 
     // Build sampling pattern aligned to desired velocity
-    const pat: number[] = [];
+    const pat = query.pattern;
     let npat = 0;
 
-    const ndivs = Math.max(1, Math.min(params.adaptiveDivs, DT_MAX_PATTERN_DIVS));
-    const nrings = Math.max(1, Math.min(params.adaptiveRings, DT_MAX_PATTERN_RINGS));
-    const depth = params.adaptiveDepth;
+    const ndivs = Math.max(1, Math.min(query.params.adaptiveDivs, DT_MAX_PATTERN_DIVS));
+    const nrings = Math.max(1, Math.min(query.params.adaptiveRings, DT_MAX_PATTERN_RINGS));
+    const depth = query.params.adaptiveDepth;
 
     const da = (1.0 / ndivs) * DT_PI * 2;
     const ca = Math.cos(da);
     const sa = Math.sin(da);
 
-    // Desired direction
-    const ddir: Vec3 = vec3.clone(dvel);
+    // Desired direction - use pre-allocated vectors to avoid cloning
+    const ddir: Vec3 = [dvel[0], dvel[1], dvel[2]];
     normalize2D(ddir);
     const ddir2: Vec3 = [0, 0, 0];
     rotate2D(ddir2, ddir, da * 0.5); // rotated by da/2
 
     // Always add sample at zero
-    pat.push(0, 0);
+    pat[npat * 2] = 0;
+    pat[npat * 2 + 1] = 0;
     npat++;
 
     for (let j = 0; j < nrings; ++j) {
         const r = (nrings - j) / nrings;
+        // Use pattern similar to C++: ddir[(j%2)*3] selects between ddir and ddir2
         const baseDir = j % 2 === 0 ? ddir : ddir2;
         
-        pat.push(baseDir[0] * r, baseDir[2] * r);
-        let last1Idx = (npat - 1) * 2;
-        let last2Idx = last1Idx;
+        pat[npat * 2] = baseDir[0] * r;
+        pat[npat * 2 + 1] = baseDir[2] * r;
+        let last1 = npat * 2;    // Points to current element
+        let last2 = last1;       // Both point to same location initially
         npat++;
 
         for (let i = 1; i < ndivs - 1; i += 2) {
             // Get next point on the "right" (rotate CW)
-            const rightX = pat[last1Idx] * ca + pat[last1Idx + 1] * sa;
-            const rightZ = -pat[last1Idx] * sa + pat[last1Idx + 1] * ca;
-            pat.push(rightX, rightZ);
+            pat[npat * 2] = pat[last1] * ca + pat[last1 + 1] * sa;
+            pat[npat * 2 + 1] = -pat[last1] * sa + pat[last1 + 1] * ca;
+            
+            // Get next point on the "left" (rotate CCW)  
+            pat[npat * 2 + 2] = pat[last2] * ca - pat[last2 + 1] * sa;
+            pat[npat * 2 + 3] = pat[last2] * sa + pat[last2 + 1] * ca;
 
-            // Get next point on the "left" (rotate CCW)
-            const leftX = pat[last2Idx] * ca - pat[last2Idx + 1] * sa;
-            const leftZ = pat[last2Idx] * sa + pat[last2Idx + 1] * ca;
-            pat.push(leftX, leftZ);
-
-            last1Idx = (npat - 1) * 2;
-            last2Idx = npat * 2;
+            last1 = npat * 2;       // Point to current "right" element
+            last2 = last1 + 2;      // Point to current "left" element
             npat += 2;
         }
 
         if ((ndivs & 1) === 0) {
-            const lastX = pat[last2Idx] * ca - pat[last2Idx + 1] * sa;
-            const lastZ = pat[last2Idx] * sa + pat[last2Idx + 1] * ca;
-            pat.push(lastX, lastZ);
+            pat[npat * 2] = pat[last2] * ca - pat[last2 + 1] * sa;
+            pat[npat * 2 + 1] = pat[last2] * sa + pat[last2 + 1] * ca;
             npat++;
         }
     }
 
     // Start sampling
-    let cr = vmax * (1.0 - params.velBias);
-    const res: Vec3 = [dvel[0] * params.velBias, 0, dvel[2] * params.velBias];
+    let cr = vmax * (1.0 - query.params.velBias);
+    const res: Vec3 = [dvel[0] * query.params.velBias, 0, dvel[2] * query.params.velBias];
     let ns = 0;
 
     for (let k = 0; k < depth; ++k) {
@@ -621,6 +682,6 @@ export const sampleVelocityAdaptive = (
         cr *= 0.5;
     }
 
-    vec3.copy(nvel, res);
-    return { nvel, samples: ns };
+    vec3.copy(outVelocity, res);
+    return ns;
 };
