@@ -626,12 +626,12 @@ export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], 
 
 /**
  * Projects a polygon onto an axis and returns the min/max projection values.
+ * @param out Output tuple [min, max]
  * @param axis The axis to project onto [x, z]
  * @param verts Polygon vertices [x,y,z,x,y,z,...]
  * @param nverts Number of vertices
- * @returns Object with min and max projection values
  */
-const projectPoly = (axis: Vec2, verts: number[], nverts: number): { min: number; max: number } => {
+const projectPoly = (out: [number, number], axis: Vec2, verts: number[], nverts: number): void => {
     let min = axis[0] * verts[0] + axis[1] * verts[2]; // dot product with first vertex (x,z)
     let max = min;
     
@@ -641,7 +641,8 @@ const projectPoly = (axis: Vec2, verts: number[], nverts: number): { min: number
         max = Math.max(max, dot);
     }
     
-    return { min, max };
+    out[0] = min;
+    out[1] = max;
 };
 
 /**
@@ -656,6 +657,12 @@ const projectPoly = (axis: Vec2, verts: number[], nverts: number): { min: number
 const overlapRange = (amin: number, amax: number, bmin: number, bmax: number, eps: number): boolean => {
     return !((amin + eps) > bmax || (amax - eps) < bmin);
 };
+
+const _overlapPolyPolyNormal: Vec2 = vec2.create();
+const _overlapPolyPolyVa: Vec2 = vec2.create();
+const _overlapPolyPolyVb: Vec2 = vec2.create();
+const _overlapPolyPolyProjA: [number, number] = [0, 0];
+const _overlapPolyPolyProjB: [number, number] = [0, 0];
 
 /**
  * Tests if two convex polygons overlap in 2D (XZ plane).
@@ -673,18 +680,27 @@ export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: num
     
     // Check separation along each edge normal of polygon A
     for (let i = 0, j = nvertsA - 1; i < nvertsA; j = i++) {
-        const va = [vertsA[j * 3], vertsA[j * 3 + 2]] as Vec2; // [x, z]
-        const vb = [vertsA[i * 3], vertsA[i * 3 + 2]] as Vec2; // [x, z]
+        const va = _overlapPolyPolyVa;
+        const vb = _overlapPolyPolyVb;
+        
+        va[0] = vertsA[j * 3];     // x
+        va[1] = vertsA[j * 3 + 2]; // z
+        vb[0] = vertsA[i * 3];     // x
+        vb[1] = vertsA[i * 3 + 2]; // z
         
         // Calculate edge normal: n = { vb[z]-va[z], -(vb[x]-va[x]) }
-        const normal: Vec2 = [vb[1] - va[1], -(vb[0] - va[0])];
+        const normal = _overlapPolyPolyNormal;
+        normal[0] = vb[1] - va[1];  // z component
+        normal[1] = -(vb[0] - va[0]); // negative x component
         
         // Project both polygons onto this normal
-        const projA = projectPoly(normal, vertsA, nvertsA);
-        const projB = projectPoly(normal, vertsB, nvertsB);
+        const projA = _overlapPolyPolyProjA;
+        const projB = _overlapPolyPolyProjB;
+        projectPoly(projA, normal, vertsA, nvertsA);
+        projectPoly(projB, normal, vertsB, nvertsB);
         
         // Check if projections are separated
-        if (!overlapRange(projA.min, projA.max, projB.min, projB.max, eps)) {
+        if (!overlapRange(projA[0], projA[1], projB[0], projB[1], eps)) {
             // Found separating axis
             return false;
         }
@@ -692,18 +708,27 @@ export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: num
     
     // Check separation along each edge normal of polygon B
     for (let i = 0, j = nvertsB - 1; i < nvertsB; j = i++) {
-        const va = [vertsB[j * 3], vertsB[j * 3 + 2]] as Vec2; // [x, z]
-        const vb = [vertsB[i * 3], vertsB[i * 3 + 2]] as Vec2; // [x, z]
+        const va = _overlapPolyPolyVa;
+        const vb = _overlapPolyPolyVb;
+        
+        va[0] = vertsB[j * 3];     // x
+        va[1] = vertsB[j * 3 + 2]; // z
+        vb[0] = vertsB[i * 3];     // x
+        vb[1] = vertsB[i * 3 + 2]; // z
         
         // Calculate edge normal: n = { vb[z]-va[z], -(vb[x]-va[x]) }
-        const normal: Vec2 = [vb[1] - va[1], -(vb[0] - va[0])];
+        const normal = _overlapPolyPolyNormal;
+        normal[0] = vb[1] - va[1];  // z component
+        normal[1] = -(vb[0] - va[0]); // negative x component
         
         // Project both polygons onto this normal
-        const projA = projectPoly(normal, vertsA, nvertsA);
-        const projB = projectPoly(normal, vertsB, nvertsB);
+        const projA = _overlapPolyPolyProjA;
+        const projB = _overlapPolyPolyProjB;
+        projectPoly(projA, normal, vertsA, nvertsA);
+        projectPoly(projB, normal, vertsB, nvertsB);
         
         // Check if projections are separated
-        if (!overlapRange(projA.min, projA.max, projB.min, projB.max, eps)) {
+        if (!overlapRange(projA[0], projA[1], projB[0], projB[1], eps)) {
             // Found separating axis
             return false;
         }
