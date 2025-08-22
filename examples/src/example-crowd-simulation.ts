@@ -392,7 +392,7 @@ const agentParams: AgentParams = {
 };
 
 // Create agents at different positions
-const agentPositions: Vec3[] = Array.from({length: 50}).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
+const agentPositions: Vec3[] = Array.from({ length: 3 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
 
 const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00]; // Blue, Green, Red, Yellow
 const agentVisuals: Record<string, AgentVisuals> = {};
@@ -456,9 +456,9 @@ function update() {
     prevTime = time;
 
     // update crowd
-    // console.time("update crowd");
+    console.time("update crowd");
     updateCrowd(crowd, navMesh, clampedDeltaTime);
-    // console.timeEnd("update crowd");
+    console.timeEnd("update crowd");
 
     // update agent visuals
     const agents = Object.keys(crowd.agents);
