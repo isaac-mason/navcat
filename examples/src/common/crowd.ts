@@ -71,7 +71,7 @@ export type AgentParams = {
     maxSpeed: number;
 
     collisionQueryRange: number;
-    pathOptimizationRange: number;
+    // pathOptimizationRange: number;
     separationWeight: number;
 
     /** @see CrowdUpdateFlags */
@@ -331,9 +331,21 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
     }
 };
 
-const MAX_ITERATIONS = 50;
+const GLOBAL_MAX_ITERATIONS = 100;
+const AGENT_MAX_ITERATIONS = 50;
 
-const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh): void => {
+const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
+    // First, update pathfinding time for all agents in PATHFINDING state
+    for (const agentId in crowd.agents) {
+        const agent = crowd.agents[agentId];
+        if (agent.targetState === AgentTargetState.PATHFINDING) {
+            agent.targetReplanTime += deltaTime;
+        }
+    }
+
+    // Collect all agents that need pathfinding processing
+    const pathfindingAgents: string[] = [];
+    
     for (const agentId in crowd.agents) {
         const agent = crowd.agents[agentId];
 
@@ -347,7 +359,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh): void => {
         }
 
         if (agent.targetState === AgentTargetState.REQUESTING) {
-            // initialise sliced find node path query
+            // Initialize sliced find node path query
             initSlicedFindNodePath(
                 navMesh,
                 agent.slicedQuery,
@@ -359,24 +371,43 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh): void => {
             );
 
             agent.targetState = AgentTargetState.PATHFINDING;
+            agent.targetReplanTime = 0; // Reset timer when starting pathfinding
         }
 
         if (agent.targetState === AgentTargetState.PATHFINDING) {
-            updateSlicedFindNodePath(navMesh, agent.slicedQuery, MAX_ITERATIONS);
+            pathfindingAgents.push(agentId);
+        }
+    }
 
-            if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.FAILURE) !== 0) {
-                // pathfinding failed
-                agent.targetState = AgentTargetState.FAILED;
-            } else if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0) {
-                // pathfinding succeeded
-                agent.targetState = AgentTargetState.VALID;
-                agent.targetReplanTime = 0;
+    // sort agents by targetReplanTime (longest waiting gets priority)
+    pathfindingAgents.sort((a, b) => crowd.agents[b].targetReplanTime - crowd.agents[a].targetReplanTime);
 
-                const result = finalizeSlicedFindNodePath(agent.slicedQuery);
+    // distribute global iteration budget across prioritized agents
+    let remainingIterations = GLOBAL_MAX_ITERATIONS;
+    
+    for (const agentId of pathfindingAgents) {
+        if (remainingIterations <= 0) break;
 
-                setCorridorPath(agent.corridor, agent.targetPos, result.path);
-                resetLocalBoundary(agent.boundary);
-            }
+        const agent = crowd.agents[agentId];
+
+        // allocate iterations for this agent (minimum 1, maximum remaining)
+        const iterationsForAgent = Math.min(AGENT_MAX_ITERATIONS, remainingIterations); // cap per agent
+        
+        updateSlicedFindNodePath(navMesh, agent.slicedQuery, iterationsForAgent);
+        remainingIterations -= iterationsForAgent;
+
+        if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.FAILURE) !== 0) {
+            // pathfinding failed
+            agent.targetState = AgentTargetState.FAILED;
+            agent.targetReplanTime = 0;
+        } else if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0) {
+            // pathfinding succeeded
+            agent.targetState = AgentTargetState.VALID;
+            agent.targetReplanTime = 0;
+
+            const result = finalizeSlicedFindNodePath(agent.slicedQuery);
+            setCorridorPath(agent.corridor, agent.targetPos, result.path);
+            resetLocalBoundary(agent.boundary);
         }
     }
 };
@@ -882,7 +913,7 @@ export const updateCrowd = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
     checkPathValidity(crowd, navMesh, deltaTime);
 
     // handle move requests since last update
-    updateMoveRequests(crowd, navMesh);
+    updateMoveRequests(crowd, navMesh, deltaTime);
 
     // update neighbour agents for each agent
     updateNeighbours(crowd);
@@ -899,7 +930,7 @@ export const updateCrowd = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
     // calculate steering
     updateSteering(crowd);
 
-    // velocity planning, performs obstacle avoidance with neighbour agents and poly wall line segments in local boundary
+    // obstacle avoidance with other agents and local boundary
     updateVelocityPlanning(crowd);
 
     // integrate

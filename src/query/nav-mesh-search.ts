@@ -348,7 +348,7 @@ export const findNodePath = (
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
-        position: structuredClone(startPos),
+        position: [startPos[0], startPos[1], startPos[2]],
     };
     nodes[`${startRef}:0`] = startNode;
     pushNodeToQueue(openList, startNode);
@@ -411,7 +411,7 @@ export const findNodePath = (
                     nodeRef: neighbourNodeRef,
                     state: crossSide,
                     flags: 0,
-                    position: structuredClone(endPos),
+                    position: [endPos[0], endPos[1], endPos[2]],
                 };
                 nodes[neighbourSearchNodeRef] = neighbourNode;
             }
@@ -653,7 +653,7 @@ export const initSlicedFindNodePath = (
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
-        position: structuredClone(startPos),
+        position: [startPos[0], startPos[1], startPos[2]],
     };
     
     query.nodes[`${startRef}:0`] = startNode;
@@ -760,7 +760,7 @@ export const updateSlicedFindNodePath = (
                     nodeRef: neighbourNodeRef,
                     state: crossSide,
                     flags: 0,
-                    position: structuredClone(query.endPos),
+                    position: [query.endPos[0], query.endPos[1], query.endPos[2]],
                 };
                 query.nodes[neighbourSearchNodeRef] = neighbourNode;
             }
@@ -1114,7 +1114,7 @@ export const moveAlongSurface = (
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_CLOSED,
-        position: structuredClone(startPosition),
+        position: [startPosition[0], startPosition[1], startPosition[2]],
     };
     nodes[`${startRef}:0`] = startNode;
 
@@ -1208,7 +1208,7 @@ export const moveAlongSurface = (
                             nodeRef: neighbourRef,
                             state: 0,
                             flags: 0,
-                            position: structuredClone(endPosition),
+                            position: [endPosition[0], endPosition[1], endPosition[2]],
                         };
                         nodes[neighbourSearchNodeRef] = neighbourNode;
                     }
@@ -1639,7 +1639,7 @@ export const findRandomPointAroundCircle = (
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
-        position: structuredClone(centerPosition),
+        position: [centerPosition[0], centerPosition[1], centerPosition[2]],
     };
     nodes[`${startRef}:0`] = startNode;
     pushNodeToQueue(openList, startNode);

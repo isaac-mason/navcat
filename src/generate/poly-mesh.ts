@@ -1,4 +1,4 @@
-import { type Box3, vec3 } from 'maaths';
+import { box3, type Box3, vec3 } from 'maaths';
 import { BORDER_VERTEX, MESH_NULL_IDX, MULTIPLE_REGS } from './common';
 import type { ContourSet } from './contour-set';
 
@@ -573,7 +573,7 @@ export const buildPolyMesh = (contourSet: ContourSet, maxVerticesPerPoly: number
         nVertices: 0,
         nPolys: 0,
         maxVerticesPerPoly,
-        bounds: structuredClone(contourSet.bounds) as Box3,
+        bounds: box3.clone(contourSet.bounds),
         localWidth: contourSet.width,
         localHeight: contourSet.height,
         cellSize: contourSet.cellSize,

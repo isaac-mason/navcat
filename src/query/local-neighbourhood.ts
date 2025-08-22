@@ -93,7 +93,7 @@ export const findLocalNeighbourhood = (
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_CLOSED,
-        position: structuredClone(centerPos),
+        position: [centerPos[0], centerPos[1], centerPos[2]],
     };
     nodes[startRef] = startNode;
     stack.push(startNode);
@@ -155,7 +155,7 @@ export const findLocalNeighbourhood = (
                 nodeRef: neighbourRef,
                 state: 0,
                 flags: NODE_FLAG_CLOSED,
-                position: structuredClone(centerPos),
+                position: [centerPos[0], centerPos[1], centerPos[2]],
             };
             nodes[neighbourRef] = neighbourNode;
 

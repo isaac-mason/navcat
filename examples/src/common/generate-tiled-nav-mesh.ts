@@ -1,20 +1,20 @@
 import { type Box3, box3, triangle3, vec2, vec3 } from 'maaths';
 import {
     addTile,
-    buildCompactHeightfield,
     BuildContext,
     type BuildContextState,
+    buildCompactHeightfield,
     buildContours,
     buildDistanceField,
     buildNavMeshBvTree,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
-    calculateGridSize,
-    calculateMeshBounds,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
+    calculateGridSize,
+    calculateMeshBounds,
     createHeightfield,
     createNavMesh,
     erodeWalkableArea,
@@ -121,7 +121,7 @@ const buildTile = (
 
     /* 1. expand the tile bounds by the border size */
 
-    const expandedTileBounds = structuredClone(tileBounds);
+    const expandedTileBounds = box3.clone(tileBounds);
 
     expandedTileBounds[0][0] -= borderSize * cellSize;
     expandedTileBounds[0][2] -= borderSize * cellSize;
@@ -153,34 +153,16 @@ const buildTile = (
 
     const triAreaIds = new Uint8Array(trianglesInBox.length / 3).fill(0);
 
-    markWalkableTriangles(
-        positions,
-        trianglesInBox,
-        triAreaIds,
-        walkableSlopeAngleDegrees,
-    );
+    markWalkableTriangles(positions, trianglesInBox, triAreaIds, walkableSlopeAngleDegrees);
 
     /* 4. rasterize the triangles to a voxel heightfield */
 
     const heightfieldWidth = Math.floor(tileSizeVoxels + borderSize * 2);
     const heightfieldHeight = Math.floor(tileSizeVoxels + borderSize * 2);
 
-    const heightfield = createHeightfield(
-        heightfieldWidth,
-        heightfieldHeight,
-        expandedTileBounds,
-        cellSize,
-        cellHeight,
-    );
+    const heightfield = createHeightfield(heightfieldWidth, heightfieldHeight, expandedTileBounds, cellSize, cellHeight);
 
-    rasterizeTriangles(
-        ctx,
-        heightfield,
-        positions,
-        trianglesInBox,
-        triAreaIds,
-        walkableClimbVoxels,
-    );
+    rasterizeTriangles(ctx, heightfield, positions, trianglesInBox, triAreaIds, walkableClimbVoxels);
 
     /* 5. filter walkable surfaces */
 
@@ -190,11 +172,7 @@ const buildTile = (
 
     /* 6. partition walkable surface to simple regions. */
 
-    const compactHeightfield = buildCompactHeightfield(
-        walkableHeightVoxels,
-        walkableClimbVoxels,
-        heightfield,
-    );
+    const compactHeightfield = buildCompactHeightfield(walkableHeightVoxels, walkableClimbVoxels, heightfield);
 
     /* 7. erode the walkable area by the agent radius / walkable radius */
 
@@ -206,13 +184,7 @@ const buildTile = (
 
     /* 9. partition the walkable surface into simple regions without holes */
 
-    buildRegions(
-        ctx,
-        compactHeightfield,
-        borderSize,
-        minRegionArea,
-        mergeRegionArea,
-    );
+    buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
 
     /* 10. trace and simplify region contours */
 
@@ -239,13 +211,7 @@ const buildTile = (
 
     /* 12. create detail mesh which allows to access approximate height on each polygon */
 
-    const polyMeshDetail = buildPolyMeshDetail(
-        ctx,
-        polyMesh,
-        compactHeightfield,
-        detailSampleDistance,
-        detailSampleMaxError,
-    );
+    const polyMeshDetail = buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, detailSampleDistance, detailSampleMaxError);
 
     return {
         triAreaIds,
@@ -258,10 +224,7 @@ const buildTile = (
     };
 };
 
-export function generateTiledNavMesh(
-    input: TiledNavMeshInput,
-    options: TiledNavMeshOptions,
-): TiledNavMeshResult {
+export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNavMeshOptions): TiledNavMeshResult {
     console.time('navmesh generation');
 
     const { positions, indices } = input;
@@ -319,21 +282,13 @@ export function generateTiledNavMesh(
 
     /* 3. generate tiles */
 
-    const nTilesX = Math.floor(
-        (gridSize[0] + tileSizeVoxels - 1) / tileSizeVoxels,
-    );
-    const nTilesY = Math.floor(
-        (gridSize[1] + tileSizeVoxels - 1) / tileSizeVoxels,
-    );
+    const nTilesX = Math.floor((gridSize[0] + tileSizeVoxels - 1) / tileSizeVoxels);
+    const nTilesY = Math.floor((gridSize[1] + tileSizeVoxels - 1) / tileSizeVoxels);
 
     for (let tileX = 0; tileX < nTilesX; tileX++) {
         for (let tileY = 0; tileY < nTilesY; tileY++) {
             const tileBounds: Box3 = [
-                [
-                    meshBounds[0][0] + tileX * tileSizeWorld,
-                    meshBounds[0][1],
-                    meshBounds[0][2] + tileY * tileSizeWorld,
-                ],
+                [meshBounds[0][0] + tileX * tileSizeWorld, meshBounds[0][1], meshBounds[0][2] + tileY * tileSizeWorld],
                 [
                     meshBounds[0][0] + (tileX + 1) * tileSizeWorld,
                     meshBounds[1][1],
@@ -341,14 +296,7 @@ export function generateTiledNavMesh(
                 ],
             ];
 
-            const {
-                triAreaIds,
-                polyMesh,
-                polyMeshDetail,
-                heightfield,
-                compactHeightfield,
-                contourSet,
-            } = buildTile(
+            const { triAreaIds, polyMesh, polyMeshDetail, heightfield, compactHeightfield, contourSet } = buildTile(
                 ctx,
                 positions,
                 indices,
@@ -381,11 +329,7 @@ export function generateTiledNavMesh(
 
             const tilePolys = polyMeshToTilePolys(polyMesh);
 
-            const tileDetailMesh = polyMeshDetailToTileDetailMesh(
-                tilePolys.polys,
-                maxVerticesPerPoly,
-                polyMeshDetail,
-            );
+            const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
 
             const tile: NavMeshTile = {
                 id: -1,

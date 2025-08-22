@@ -18,10 +18,11 @@ import { findCorridorCorners } from './common/path-corridor';
 
 type AgentVisuals = {
     mesh: THREE.Mesh;
+    color: number;
+
     targetMesh: THREE.Mesh;
     pathLine: THREE.Line | null;
     polyHelpers: threeUtils.DebugObject[] | null;
-
     obstacleSegmentLines: THREE.Line[];
     localBoundaryLines: THREE.Line[];
     velocityArrow: THREE.ArrowHelper | null;
@@ -32,6 +33,8 @@ type AgentVisualsOptions = {
     showObstacleSegments?: boolean;
     showLocalBoundary?: boolean;
     showVelocityVectors?: boolean;
+    showPathLine?: boolean;
+    showPolyHelpers?: boolean;
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
@@ -48,6 +51,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 
     return {
         mesh,
+        color,
         targetMesh,
         pathLine: null,
         polyHelpers: null,
@@ -58,13 +62,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     };
 };
 
-const updateAgentVisuals = (
-    agent: Agent,
-    visuals: AgentVisuals,
-    scene: THREE.Scene,
-    agentColor: number,
-    options: AgentVisualsOptions = {},
-): void => {
+const updateAgentVisuals = (agent: Agent, visuals: AgentVisuals, scene: THREE.Scene, options: AgentVisualsOptions = {}): void => {
     // update agent mesh position
     visuals.mesh.position.fromArray(agent.position);
     visuals.mesh.position.y += agent.params.height / 2;
@@ -90,11 +88,11 @@ const updateAgentVisuals = (
     visuals.polyHelpers = [];
 
     // get corridor path and create polygon visualizations
-    if (agent.corridor.path.length > 0) {
+    if (options.showPolyHelpers && agent.corridor.path.length > 0) {
         // convert hex color to RGB array for createNavMeshPolyHelper
-        const r = ((agentColor >> 16) & 255) / 255;
-        const g = ((agentColor >> 8) & 255) / 255;
-        const b = (agentColor & 255) / 255;
+        const r = ((visuals.color >> 16) & 255) / 255;
+        const g = ((visuals.color >> 8) & 255) / 255;
+        const b = (visuals.color & 255) / 255;
         const color: [number, number, number] = [r, g, b];
 
         // create polygon helpers for each polygon in the corridor path
@@ -126,33 +124,35 @@ const updateAgentVisuals = (
     }
 
     // create new path line
-    const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+    if (options.showPathLine) {
+        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
 
-    if (corners && corners.corners.length > 1) {
-        // validate coordinates before creating THREE.js objects
-        const validPoints: THREE.Vector3[] = [];
+        if (corners && corners.corners.length > 1) {
+            // validate coordinates
+            const validPoints: THREE.Vector3[] = [];
 
-        // add agent position
-        if (Number.isFinite(agent.position[0]) && Number.isFinite(agent.position[1]) && Number.isFinite(agent.position[2])) {
-            validPoints.push(new THREE.Vector3(agent.position[0], agent.position[1] + 0.2, agent.position[2]));
-        }
-
-        // add corners
-        for (const corner of corners.corners) {
-            if (
-                Number.isFinite(corner.position[0]) &&
-                Number.isFinite(corner.position[1]) &&
-                Number.isFinite(corner.position[2])
-            ) {
-                validPoints.push(new THREE.Vector3(corner.position[0], corner.position[1] + 0.2, corner.position[2]));
+            // add agent position
+            if (Number.isFinite(agent.position[0]) && Number.isFinite(agent.position[1]) && Number.isFinite(agent.position[2])) {
+                validPoints.push(new THREE.Vector3(agent.position[0], agent.position[1] + 0.2, agent.position[2]));
             }
-        }
 
-        if (validPoints.length > 1) {
-            const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
-            const material = new THREE.LineBasicMaterial({ color: agentColor, linewidth: 2 });
-            visuals.pathLine = new THREE.Line(geometry, material);
-            scene.add(visuals.pathLine);
+            // add corners
+            for (const corner of corners.corners) {
+                if (
+                    Number.isFinite(corner.position[0]) &&
+                    Number.isFinite(corner.position[1]) &&
+                    Number.isFinite(corner.position[2])
+                ) {
+                    validPoints.push(new THREE.Vector3(corner.position[0], corner.position[1] + 0.2, corner.position[2]));
+                }
+            }
+
+            if (validPoints.length > 1) {
+                const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
+                const material = new THREE.LineBasicMaterial({ color: visuals.color, linewidth: 2 });
+                visuals.pathLine = new THREE.Line(geometry, material);
+                scene.add(visuals.pathLine);
+            }
         }
     }
 
@@ -174,7 +174,7 @@ const updateAgentVisuals = (
 
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
             const material = new THREE.LineBasicMaterial({
-                color: segment.touch ? 0xff0000 : 0xff8800, // Red if touching, orange otherwise
+                color: segment.touch ? 0xff0000 : 0xff8800, // red if touching, orange otherwise
                 linewidth: 3,
             });
             const line = new THREE.Line(geometry, material);
@@ -198,7 +198,7 @@ const updateAgentVisuals = (
 
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
             const material = new THREE.LineBasicMaterial({
-                color: 0x00ffff, // Cyan for local boundary
+                color: 0x00ffff, // cyan for local boundary
                 linewidth: 2,
             });
             const line = new THREE.Line(geometry, material);
@@ -209,7 +209,67 @@ const updateAgentVisuals = (
 
     // debug visualization: velocity vectors
     if (options.showVelocityVectors) {
-        // remove old velocity arrows
+        // update actual velocity arrow
+        const velLength = vec3.length(agent.velocity);
+        if (velLength > 0.01) {
+            const velDirection = vec3.normalize([0, 0, 0], agent.velocity);
+            const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.5, agent.position[2]);
+            const direction = new THREE.Vector3(velDirection[0], velDirection[1], velDirection[2]);
+
+            if (!visuals.velocityArrow) {
+                // create new arrow if it doesn't exist
+                visuals.velocityArrow = new THREE.ArrowHelper(
+                    direction,
+                    origin,
+                    velLength * 0.5, // scale down for visibility
+                    0x00ff00, // green for actual velocity
+                    0.2,
+                    0.1,
+                );
+                scene.add(visuals.velocityArrow);
+            } else {
+                // update existing arrow
+                visuals.velocityArrow.position.copy(origin);
+                visuals.velocityArrow.setDirection(direction);
+                visuals.velocityArrow.setLength(velLength * 0.5, 0.2, 0.1);
+            }
+        } else if (visuals.velocityArrow) {
+            // hide arrow if velocity is too small
+            scene.remove(visuals.velocityArrow);
+            visuals.velocityArrow = null;
+        }
+
+        // update desired velocity arrow
+        const desiredVelLength = vec3.length(agent.desiredVelocity);
+        if (desiredVelLength > 0.01) {
+            const desiredVelDirection = vec3.normalize([0, 0, 0], agent.desiredVelocity);
+            const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.6, agent.position[2]);
+            const direction = new THREE.Vector3(desiredVelDirection[0], desiredVelDirection[1], desiredVelDirection[2]);
+
+            if (!visuals.desiredVelocityArrow) {
+                // create new arrow if it doesn't exist
+                visuals.desiredVelocityArrow = new THREE.ArrowHelper(
+                    direction,
+                    origin,
+                    desiredVelLength * 0.5, // scale down for visibility
+                    0xff0000, // red for desired velocity
+                    0.2,
+                    0.1,
+                );
+                scene.add(visuals.desiredVelocityArrow);
+            } else {
+                // update existing arrow
+                visuals.desiredVelocityArrow.position.copy(origin);
+                visuals.desiredVelocityArrow.setDirection(direction);
+                visuals.desiredVelocityArrow.setLength(desiredVelLength * 0.5, 0.2, 0.1);
+            }
+        } else if (visuals.desiredVelocityArrow) {
+            // hide arrow if desired velocity is too small
+            scene.remove(visuals.desiredVelocityArrow);
+            visuals.desiredVelocityArrow = null;
+        }
+    } else {
+        // remove arrows if velocity vectors are disabled
         if (visuals.velocityArrow) {
             scene.remove(visuals.velocityArrow);
             visuals.velocityArrow = null;
@@ -217,42 +277,6 @@ const updateAgentVisuals = (
         if (visuals.desiredVelocityArrow) {
             scene.remove(visuals.desiredVelocityArrow);
             visuals.desiredVelocityArrow = null;
-        }
-
-        // add current velocity (actual velocity)
-        const velLength = vec3.length(agent.velocity);
-        if (velLength > 0.01) {
-            const velDirection = vec3.normalize([0, 0, 0], agent.velocity);
-            const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.5, agent.position[2]);
-            const direction = new THREE.Vector3(velDirection[0], velDirection[1], velDirection[2]);
-
-            visuals.velocityArrow = new THREE.ArrowHelper(
-                direction,
-                origin,
-                velLength * 0.5, // scale down for visibility
-                0x00ff00, // green for actual velocity
-                0.2,
-                0.1,
-            );
-            scene.add(visuals.velocityArrow);
-        }
-
-        // add desired velocity
-        const desiredVelLength = vec3.length(agent.desiredVelocity);
-        if (desiredVelLength > 0.01) {
-            const desiredVelDirection = vec3.normalize([0, 0, 0], agent.desiredVelocity);
-            const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.6, agent.position[2]);
-            const direction = new THREE.Vector3(desiredVelDirection[0], desiredVelDirection[1], desiredVelDirection[2]);
-
-            visuals.desiredVelocityArrow = new THREE.ArrowHelper(
-                direction,
-                origin,
-                desiredVelLength * 0.5, // scale down for visibility
-                0xff0000, // red for desired velocity
-                0.2,
-                0.1,
-            );
-            scene.add(visuals.desiredVelocityArrow);
         }
     }
 };
@@ -341,17 +365,17 @@ scene.add(navMeshHelper.object);
 /* create crowd and agents */
 const crowd = createCrowd(1);
 
-console.log(crowd)
+console.log(crowd);
 
 const agentParams: AgentParams = {
     radius: 0.3,
     height: 0.6,
     maxAcceleration: 8.0,
     maxSpeed: 3.5,
-    collisionQueryRange: 12.0,
-    pathOptimizationRange: 30.0,
+    collisionQueryRange: 2,
+    // pathOptimizationRange: 30.0,
     separationWeight: 0.5,
-    updateFlags: 0, //CrowdUpdateFlags.ANTICIPATE_TURNS & CrowdUpdateFlags.OBSTACLE_AVOIDANCE & CrowdUpdateFlags.SEPARATION,
+    updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS & CrowdUpdateFlags.SEPARATION & CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
     obstacleAvoidance: {
         velBias: 0.5,
@@ -368,18 +392,14 @@ const agentParams: AgentParams = {
 };
 
 // Create agents at different positions
-const agentPositions: Vec3[] = [
-    [-2, 0.5, 3],
-    [-1.5, 0.5, 3.5],
-    [-2.5, 0.5, 3.5],
-];
+const agentPositions: Vec3[] = Array.from({length: 50}).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
 
 const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00]; // Blue, Green, Red, Yellow
 const agentVisuals: Record<string, AgentVisuals> = {};
 
 for (let i = 0; i < agentPositions.length; i++) {
     const position = agentPositions[i];
-    const color = agentColors[i];
+    const color = agentColors[i % agentColors.length];
 
     // add agent to crowd
     const agentId = addAgent(crowd, position, agentParams);
@@ -398,49 +418,61 @@ const onPointerDown = (event: MouseEvent) => {
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
+
     const intersects = raycaster.intersectObject(navMeshHelper.object, true);
 
-    if (intersects.length > 0) {
-        const intersectionPoint = intersects[0].point;
-        const targetPosition: Vec3 = [intersectionPoint.x, intersectionPoint.y, intersectionPoint.z];
+    if (intersects.length === 0) return;
 
-        const halfExtents: Vec3 = [1, 1, 1];
-        const nearestResult = createFindNearestPolyResult();
-        findNearestPoly(nearestResult, navMesh, targetPosition, halfExtents, DEFAULT_QUERY_FILTER);
+    const intersectionPoint = intersects[0].point;
+    const targetPosition: Vec3 = [intersectionPoint.x, intersectionPoint.y, intersectionPoint.z];
 
-        if (nearestResult.success && nearestResult.nearestPolyRef) {
-            for (const agentId in crowd.agents) {
-                requestMoveTarget(crowd, agentId, nearestResult.nearestPolyRef, nearestResult.nearestPoint);
-            }
-        }
+    const halfExtents: Vec3 = [1, 1, 1];
+    const nearestResult = findNearestPoly(
+        createFindNearestPolyResult(),
+        navMesh,
+        targetPosition,
+        halfExtents,
+        DEFAULT_QUERY_FILTER,
+    );
+
+    if (!nearestResult.success) return
+
+    for (const agentId in crowd.agents) {
+        requestMoveTarget(crowd, agentId, nearestResult.nearestPolyRef, nearestResult.nearestPoint);
     }
 };
 
 renderer.domElement.addEventListener('pointerdown', onPointerDown);
 
-let lastTime = performance.now();
+/* loop */
+let prevTime = performance.now();
 
-/* start loop */
 function update() {
     requestAnimationFrame(update);
 
-    const currentTime = performance.now();
-    const deltaTime = (currentTime - lastTime) / 1000;
-    lastTime = currentTime;
+    const time = performance.now();
+    const deltaTime = (time - prevTime) / 1000;
+    const clampedDeltaTime = Math.min(deltaTime, 0.1);
+    prevTime = time;
 
     // update crowd
-    updateCrowd(crowd, navMesh, deltaTime);
+    // console.time("update crowd");
+    updateCrowd(crowd, navMesh, clampedDeltaTime);
+    // console.timeEnd("update crowd");
 
     // update agent visuals
     const agents = Object.keys(crowd.agents);
+
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
         const agent = crowd.agents[agentId];
         if (agentVisuals[agentId]) {
-            updateAgentVisuals(agent, agentVisuals[agentId], scene, agentColors[i % agentColors.length], {
+            updateAgentVisuals(agent, agentVisuals[agentId], scene, {
                 showLocalBoundary: false,
                 showObstacleSegments: false,
                 showVelocityVectors: true,
+                showPathLine: false,
+                showPolyHelpers: false,
             });
         }
     }
