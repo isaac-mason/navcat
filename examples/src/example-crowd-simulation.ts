@@ -375,7 +375,7 @@ const agentParams: AgentParams = {
     collisionQueryRange: 2,
     // pathOptimizationRange: 30.0,
     separationWeight: 0.5,
-    updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS & CrowdUpdateFlags.SEPARATION & CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+    updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS | CrowdUpdateFlags.SEPARATION | CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
     obstacleAvoidance: {
         velBias: 0.5,
@@ -391,8 +391,8 @@ const agentParams: AgentParams = {
     },
 };
 
-// Create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 3 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
+// create agents at different positions
+const agentPositions: Vec3[] = Array.from({ length: 10 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
 
 const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00]; // Blue, Green, Red, Yellow
 const agentVisuals: Record<string, AgentVisuals> = {};
