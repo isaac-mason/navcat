@@ -1,36 +1,27 @@
-import type { Vec3 } from 'maaths';
-import { vec3 } from 'maaths';
-import {
-    createFindNearestPolyResult,
-    DEFAULT_QUERY_FILTER,
-    findNearestPoly,
-    type NavMesh,
-    type QueryFilter,
-    three as threeUtils,
-} from 'nav3d';
+import { type Vec3, vec3 } from 'maaths';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, three as threeUtils } from 'nav3d';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import {
     type Agent,
-    AgentState,
-    AgentTargetState,
-    createAgent,
+    type AgentParams,
+    addAgent,
+    CrowdUpdateFlags,
+    createCrowd,
     requestMoveTarget,
-    updateAgents,
-} from './common/agent';
+    updateCrowd,
+} from './common/crowd';
 import { createExample } from './common/example-boilerplate';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
-import { findCorridorCorners, resetCorridor } from './common/path-corridor';
+import { findCorridorCorners } from './common/path-corridor';
 
-// Agent visual components for debug visualization
 type AgentVisuals = {
     mesh: THREE.Mesh;
     targetMesh: THREE.Mesh;
     pathLine: THREE.Line | null;
     polyHelpers: threeUtils.DebugObject[] | null;
-    
-    // Debug visualization for obstacle avoidance
+
     obstacleSegmentLines: THREE.Line[];
     localBoundaryLines: THREE.Line[];
     velocityArrow: THREE.ArrowHelper | null;
@@ -43,20 +34,13 @@ type AgentVisualsOptions = {
     showVelocityVectors?: boolean;
 };
 
-const createAgentVisuals = (
-    position: Vec3,
-    scene: THREE.Scene,
-    color: number,
-    radius: number,
-): AgentVisuals => {
-    // Create visual representation
-    const geometry = new THREE.CapsuleGeometry(radius, radius * 2, 4, 8);
+const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
+    const geometry = new THREE.CapsuleGeometry(radius, height, 4, 8);
     const material = new THREE.MeshLambertMaterial({ color });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(position[0], position[1] + radius, position[2]);
     scene.add(mesh);
 
-    // Create target indicator
     const targetGeometry = new THREE.SphereGeometry(0.1);
     const targetMaterial = new THREE.MeshBasicMaterial({ color });
     const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
@@ -81,19 +65,20 @@ const updateAgentVisuals = (
     agentColor: number,
     options: AgentVisualsOptions = {},
 ): void => {
-    // Update agent mesh position
+    // update agent mesh position
     visuals.mesh.position.fromArray(agent.position);
-    
-    // Update target mesh position
-    visuals.targetMesh.position.fromArray(agent.target);
+    visuals.mesh.position.y += agent.params.height / 2;
 
-    // Remove old path line
+    // update target mesh position
+    visuals.targetMesh.position.fromArray(agent.targetPos);
+
+    // remove old path line
     if (visuals.pathLine) {
         scene.remove(visuals.pathLine);
         visuals.pathLine = null;
     }
 
-    // Remove old polygon helpers
+    // remove old polygon helpers
     if (visuals.polyHelpers) {
         for (const helper of visuals.polyHelpers) {
             scene.remove(helper.object);
@@ -101,22 +86,22 @@ const updateAgentVisuals = (
         visuals.polyHelpers = null;
     }
 
-    // Create new polygon helpers array
+    // create new polygon helpers array
     visuals.polyHelpers = [];
 
-    // Get corridor path and create polygon visualizations
+    // get corridor path and create polygon visualizations
     if (agent.corridor.path.length > 0) {
-        // Convert hex color to RGB array for createNavMeshPolyHelper
+        // convert hex color to RGB array for createNavMeshPolyHelper
         const r = ((agentColor >> 16) & 255) / 255;
         const g = ((agentColor >> 8) & 255) / 255;
         const b = (agentColor & 255) / 255;
         const color: [number, number, number] = [r, g, b];
 
-        // Create polygon helpers for each polygon in the corridor path
+        // create polygon helpers for each polygon in the corridor path
         for (const polyRef of agent.corridor.path) {
             const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, color);
 
-            // Make the polygons semi-transparent
+            // make the polygons semi-transparent
             polyHelper.object.traverse((child: any) => {
                 if (child instanceof THREE.Mesh && child.material) {
                     if (Array.isArray(child.material)) {
@@ -133,28 +118,32 @@ const updateAgentVisuals = (
                 }
             });
 
-            polyHelper.object.position.y += 0.15; // Adjust height for visibility
+            polyHelper.object.position.y += 0.15; // adjust height for visibility
 
             visuals.polyHelpers.push(polyHelper);
             scene.add(polyHelper.object);
         }
     }
 
-    // Create new path line
+    // create new path line
     const corners = findCorridorCorners(agent.corridor, navMesh, 3);
 
     if (corners && corners.corners.length > 1) {
-        // Validate coordinates before creating THREE.js objects
+        // validate coordinates before creating THREE.js objects
         const validPoints: THREE.Vector3[] = [];
 
-        // Add agent position
+        // add agent position
         if (Number.isFinite(agent.position[0]) && Number.isFinite(agent.position[1]) && Number.isFinite(agent.position[2])) {
             validPoints.push(new THREE.Vector3(agent.position[0], agent.position[1] + 0.2, agent.position[2]));
         }
 
-        // Add corners
+        // add corners
         for (const corner of corners.corners) {
-            if (Number.isFinite(corner.position[0]) && Number.isFinite(corner.position[1]) && Number.isFinite(corner.position[2])) {
+            if (
+                Number.isFinite(corner.position[0]) &&
+                Number.isFinite(corner.position[1]) &&
+                Number.isFinite(corner.position[2])
+            ) {
                 validPoints.push(new THREE.Vector3(corner.position[0], corner.position[1] + 0.2, corner.position[2]));
             }
         }
@@ -167,24 +156,24 @@ const updateAgentVisuals = (
         }
     }
 
-    // Debug visualization: Obstacle segments
+    // debug visualization: obstacle segments
     if (options.showObstacleSegments) {
-        // Remove old obstacle segment lines
+        // remove old obstacle segment lines
         for (const line of visuals.obstacleSegmentLines) {
             scene.remove(line);
         }
         visuals.obstacleSegmentLines = [];
 
-        // Add current obstacle segments from the obstacle avoidance query
+        // add current obstacle segments from the obstacle avoidance query
         for (let i = 0; i < agent.obstacleAvoidanceQuery.segmentCount; i++) {
             const segment = agent.obstacleAvoidanceQuery.segments[i];
             const points = [
                 new THREE.Vector3(segment.p[0], segment.p[1] + 0.3, segment.p[2]),
                 new THREE.Vector3(segment.q[0], segment.q[1] + 0.3, segment.q[2]),
             ];
-            
+
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({ 
+            const material = new THREE.LineBasicMaterial({
                 color: segment.touch ? 0xff0000 : 0xff8800, // Red if touching, orange otherwise
                 linewidth: 3,
             });
@@ -194,24 +183,21 @@ const updateAgentVisuals = (
         }
     }
 
-    // Debug visualization: Local boundary segments
+    // debug visualization: local boundary segments
     if (options.showLocalBoundary) {
-        // Remove old local boundary lines
+        // remove old local boundary lines
         for (const line of visuals.localBoundaryLines) {
             scene.remove(line);
         }
         visuals.localBoundaryLines = [];
 
-        // Add current local boundary segments
-        for (const segment of agent.localBoundary.segments) {
+        // add current local boundary segments
+        for (const segment of agent.boundary.segments) {
             const s = segment.s;
-            const points = [
-                new THREE.Vector3(s[0], s[1] + 0.25, s[2]),
-                new THREE.Vector3(s[3], s[4] + 0.25, s[5]),
-            ];
-            
+            const points = [new THREE.Vector3(s[0], s[1] + 0.25, s[2]), new THREE.Vector3(s[3], s[4] + 0.25, s[5])];
+
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            const material = new THREE.LineBasicMaterial({ 
+            const material = new THREE.LineBasicMaterial({
                 color: 0x00ffff, // Cyan for local boundary
                 linewidth: 2,
             });
@@ -221,9 +207,9 @@ const updateAgentVisuals = (
         }
     }
 
-    // Debug visualization: Velocity vectors
+    // debug visualization: velocity vectors
     if (options.showVelocityVectors) {
-        // Remove old velocity arrows
+        // remove old velocity arrows
         if (visuals.velocityArrow) {
             scene.remove(visuals.velocityArrow);
             visuals.velocityArrow = null;
@@ -233,110 +219,40 @@ const updateAgentVisuals = (
             visuals.desiredVelocityArrow = null;
         }
 
-        // Add current velocity (actual velocity)
+        // add current velocity (actual velocity)
         const velLength = vec3.length(agent.velocity);
         if (velLength > 0.01) {
             const velDirection = vec3.normalize([0, 0, 0], agent.velocity);
             const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.5, agent.position[2]);
             const direction = new THREE.Vector3(velDirection[0], velDirection[1], velDirection[2]);
-            
+
             visuals.velocityArrow = new THREE.ArrowHelper(
                 direction,
                 origin,
-                velLength * 0.5, // Scale down for visibility
-                0x00ff00, // Green for actual velocity
+                velLength * 0.5, // scale down for visibility
+                0x00ff00, // green for actual velocity
                 0.2,
-                0.1
+                0.1,
             );
             scene.add(visuals.velocityArrow);
         }
 
-        // Add desired velocity
+        // add desired velocity
         const desiredVelLength = vec3.length(agent.desiredVelocity);
         if (desiredVelLength > 0.01) {
             const desiredVelDirection = vec3.normalize([0, 0, 0], agent.desiredVelocity);
             const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.6, agent.position[2]);
             const direction = new THREE.Vector3(desiredVelDirection[0], desiredVelDirection[1], desiredVelDirection[2]);
-            
+
             visuals.desiredVelocityArrow = new THREE.ArrowHelper(
                 direction,
                 origin,
-                desiredVelLength * 0.5, // Scale down for visibility
-                0xff0000, // Red for desired velocity
+                desiredVelLength * 0.5, // scale down for visibility
+                0xff0000, // red for desired velocity
                 0.2,
-                0.1
+                0.1,
             );
             scene.add(visuals.desiredVelocityArrow);
-        }
-    }
-};
-
-/* Leader and follower agents */
-
-// Leader agent that contains base agent + visuals
-type LeaderAgent = {
-    agent: Agent;
-    visuals: AgentVisuals;
-};
-
-// Follower agent that contains base agent + visuals
-type FollowerAgent = {
-    agent: Agent;
-    visuals: AgentVisuals;
-};
-
-const createLeaderAgent = (
-    id: string,
-    position: Vec3,
-    scene: THREE.Scene,
-    color: number,
-    maxSpeed: number,
-    radius: number,
-): LeaderAgent => {
-    const agent = createAgent(id, position, maxSpeed, radius, 10);
-    const visuals = createAgentVisuals(position, scene, color, radius);
-
-    return {
-        agent,
-        visuals,
-    };
-};
-
-const createFollowerAgent = (
-    id: string,
-    position: Vec3,
-    scene: THREE.Scene,
-    color: number,
-    maxSpeed = 1.5,
-    radius = 0.25,
-): FollowerAgent => {
-    const agent = createAgent(id, position, maxSpeed, radius, 10);
-    const visuals = createAgentVisuals(position, scene, color, radius);
-
-    return {
-        agent,
-        visuals,
-    };
-};
-
-const updateFollowerBehavior = (
-    followerAgent: FollowerAgent,
-    leaderAgent: LeaderAgent,
-    navMesh: NavMesh,
-    filter: QueryFilter,
-): void => {
-    // follow leader if they're far enough away
-    const distance = vec3.distance(followerAgent.agent.position, leaderAgent.agent.position);
-    const followDistance = 1.0;
-
-    if (distance > followDistance && followerAgent.agent.targetState === AgentTargetState.NONE) {
-        // find nearest poly to leader position
-        const halfExtents: Vec3 = [1, 1, 1];
-        const nearestResult = createFindNearestPolyResult();
-        findNearestPoly(nearestResult, navMesh, leaderAgent.agent.position, halfExtents, filter);
-
-        if (nearestResult.success && nearestResult.nearestPolyRef) {
-            requestMoveTarget(followerAgent.agent, nearestResult.nearestPolyRef, nearestResult.nearestPoint, navMesh, filter);
         }
     }
 };
@@ -422,55 +338,57 @@ const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-/* create agents */
-const startPosition: Vec3 = [-3, 0.5, 4];
-const followerPositions: Vec3[] = [
+/* create crowd and agents */
+const crowd = createCrowd(1);
+
+console.log(crowd)
+
+const agentParams: AgentParams = {
+    radius: 0.3,
+    height: 0.6,
+    maxAcceleration: 8.0,
+    maxSpeed: 3.5,
+    collisionQueryRange: 12.0,
+    pathOptimizationRange: 30.0,
+    separationWeight: 0.5,
+    updateFlags: 0, //CrowdUpdateFlags.ANTICIPATE_TURNS & CrowdUpdateFlags.OBSTACLE_AVOIDANCE & CrowdUpdateFlags.SEPARATION,
+    queryFilter: DEFAULT_QUERY_FILTER,
+    obstacleAvoidance: {
+        velBias: 0.5,
+        weightDesVel: 2.0,
+        weightCurVel: 0.5,
+        weightSide: 0.5,
+        weightToi: 2.0,
+        horizTime: 2.0,
+        gridSize: 33,
+        adaptiveDivs: 7,
+        adaptiveRings: 2,
+        adaptiveDepth: 3,
+    },
+};
+
+// Create agents at different positions
+const agentPositions: Vec3[] = [
     [-2, 0.5, 3],
     [-1.5, 0.5, 3.5],
     [-2.5, 0.5, 3.5],
 ];
 
-// Create leader agent (blue)
-const leader = createLeaderAgent('leader', startPosition, scene, 0x0000ff, 5, 0.3);
+const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00]; // Blue, Green, Red, Yellow
+const agentVisuals: Record<string, AgentVisuals> = {};
 
-// Create three follower agents with different colors
-const followers = [
-    createFollowerAgent('follower1', followerPositions[0], scene, 0x00ff00, 3, 0.25), // Green
-    createFollowerAgent('follower2', followerPositions[1], scene, 0xff0000, 3, 0.25), // Red
-    createFollowerAgent('follower3', followerPositions[2], scene, 0xffff00, 3, 0.25), // Yellow
-];
+for (let i = 0; i < agentPositions.length; i++) {
+    const position = agentPositions[i];
+    const color = agentColors[i];
 
-// initialize agents
-const agents: Agent[] = []
-const filter = DEFAULT_QUERY_FILTER;
-const halfExtents: Vec3 = [1, 1, 1];
+    // add agent to crowd
+    const agentId = addAgent(crowd, position, agentParams);
 
-// initialize leader
-const leaderNearestResult = createFindNearestPolyResult();
-findNearestPoly(leaderNearestResult, navMesh, leader.agent.position, halfExtents, filter);
-if (leaderNearestResult.success && leaderNearestResult.nearestPolyRef) {
-    resetCorridor(leader.agent.corridor, leaderNearestResult.nearestPolyRef, leaderNearestResult.nearestPoint);
-    vec3.copy(leader.agent.position, leader.agent.corridor.position);
-    leader.agent.state = AgentState.WALKING;
+    // create visuals for the agent
+    agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius, agentParams.height);
 }
 
-agents.push(leader.agent);
-
-// initialize followers
-for (let i = 0; i < followers.length; i++) {
-    const follower = followers[i];
-    const followerNearestResult = createFindNearestPolyResult();
-    findNearestPoly(followerNearestResult, navMesh, follower.agent.position, halfExtents, filter);
-
-    if (followerNearestResult.success && followerNearestResult.nearestPolyRef) {
-        resetCorridor(follower.agent.corridor, followerNearestResult.nearestPolyRef, followerNearestResult.nearestPoint);
-        vec3.copy(follower.agent.position, followerNearestResult.nearestPoint);
-        follower.agent.state = AgentState.WALKING;
-    }
-
-    agents.push(follower.agent);
-}
-
+// mouse interaction for setting agent targets
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -481,17 +399,19 @@ const onPointerDown = (event: MouseEvent) => {
 
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(navMeshHelper.object, true);
-    
+
     if (intersects.length > 0) {
         const intersectionPoint = intersects[0].point;
         const targetPosition: Vec3 = [intersectionPoint.x, intersectionPoint.y, intersectionPoint.z];
 
         const halfExtents: Vec3 = [1, 1, 1];
         const nearestResult = createFindNearestPolyResult();
-        findNearestPoly(nearestResult, navMesh, targetPosition, halfExtents, filter);
+        findNearestPoly(nearestResult, navMesh, targetPosition, halfExtents, DEFAULT_QUERY_FILTER);
 
         if (nearestResult.success && nearestResult.nearestPolyRef) {
-            requestMoveTarget(leader.agent, nearestResult.nearestPolyRef, nearestResult.nearestPoint, navMesh, filter);
+            for (const agentId in crowd.agents) {
+                requestMoveTarget(crowd, agentId, nearestResult.nearestPolyRef, nearestResult.nearestPoint);
+            }
         }
     }
 };
@@ -508,37 +428,21 @@ function update() {
     const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
 
-    // update follower behaviors
-    for (const follower of followers) {
-        updateFollowerBehavior(follower, leader, navMesh, filter);
-    }
+    // update crowd
+    updateCrowd(crowd, navMesh, deltaTime);
 
-    // update agents
-    updateAgents(agents, navMesh, filter, deltaTime);
-
-    // update leader visuals with debug visualization
-    updateAgentVisuals(
-        leader.agent,
-        leader.visuals,
-        scene,
-        0x0000ff,
-        {
-            showObstacleSegments: true,
-            showLocalBoundary: false,
-            showVelocityVectors: true,
+    // update agent visuals
+    const agents = Object.keys(crowd.agents);
+    for (let i = 0; i < agents.length; i++) {
+        const agentId = agents[i];
+        const agent = crowd.agents[agentId];
+        if (agentVisuals[agentId]) {
+            updateAgentVisuals(agent, agentVisuals[agentId], scene, agentColors[i % agentColors.length], {
+                showLocalBoundary: false,
+                showObstacleSegments: false,
+                showVelocityVectors: true,
+            });
         }
-    );
-
-    // update follower visuals
-    const followerColors = [0x00ff00, 0xff0000, 0xffff00]; // Green, Red, Yellow
-    for (let i = 0; i < followers.length; i++) {
-        const follower = followers[i];
-        updateAgentVisuals(
-            follower.agent,
-            follower.visuals,
-            scene,
-            followerColors[i]
-        );
     }
 
     orbitControls.update();

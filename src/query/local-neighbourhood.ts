@@ -136,7 +136,7 @@ export const findLocalNeighbourhood = (
             if (getNodeRefType(neighbourRef) === NodeType.OFFMESH_CONNECTION) continue;
 
             // apply filter
-            if (filter.passFilter && !filter.passFilter(neighbourRef, navMesh, filter)) continue;
+            if (!filter.passFilter(neighbourRef, navMesh)) continue;
 
             // find edge and calc distance to the edge
             const va = vec3.create();
@@ -271,7 +271,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
                 if (link.neighbourRef) {
                     const neighbourTileAndPoly = getTileAndPolyByRef(link.neighbourRef, navMesh);
                     if (neighbourTileAndPoly.success) {
-                        if (filter.passFilter?.(link.neighbourRef, navMesh, filter)) {
+                        if (filter.passFilter(link.neighbourRef, navMesh)) {
                             insertInterval(intervals, link.bmin, link.bmax, link.neighbourRef);
                         }
                     }
@@ -287,7 +287,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
                 // check if neighbor passes filter
                 const neighbourTileAndPoly = getTileAndPolyByRef(neiRef, navMesh);
                 if (neighbourTileAndPoly.success) {
-                    if (!filter.passFilter?.(neiRef, navMesh, filter)) {
+                    if (!filter.passFilter(neiRef, navMesh)) {
                         neiRef = null;
                     }
                 }

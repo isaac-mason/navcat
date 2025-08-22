@@ -18,10 +18,9 @@ export type QueryFilter = {
      * Checks if a NavMesh node passes the filter.
      * @param ref The node reference.
      * @param navMesh The navmesh
-     * @param filter The query filter.
      * @returns Whether the node reference passes the filter.
      */
-    passFilter?: (nodeRef: NodeRef, navMesh: NavMesh, filter: QueryFilter) => boolean;
+    passFilter(nodeRef: NodeRef, navMesh: NavMesh): boolean;
 
     /**
      * Calculates the cost of moving from one point to another.
@@ -33,45 +32,49 @@ export type QueryFilter = {
      * @param nextRef The reference id of the next node. [opt]
      * @returns The cost of moving from the start to the end position.
      */
-    getCost?: (
+    getCost(
         pa: Vec3,
         pb: Vec3,
         navMesh: NavMesh,
         prevRef: NodeRef | undefined,
         curRef: NodeRef,
         nextRef: NodeRef | undefined,
-    ) => number;
+    ): number;
 };
 
-export const DEFAULT_QUERY_FILTER = {
-    includeFlags: 0xffffffff,
-    excludeFlags: 0,
-    getCost: (pa, pb, navMesh, _prevRef, _curRef, nextRef) => {
-        if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION) {
-            const [, offMeshConnectionId] = desNodeRef(nextRef);
-            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
-            if (offMeshConnection.cost !== undefined) {
-                return offMeshConnection.cost;
+export const createDefaultQueryFilter = () => {
+    return {
+        includeFlags: 0xffffffff,
+        excludeFlags: 0,
+        getCost: (pa, pb, navMesh, _prevRef, _curRef, nextRef) => {
+            if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION) {
+                const [, offMeshConnectionId] = desNodeRef(nextRef);
+                const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+                if (offMeshConnection.cost !== undefined) {
+                    return offMeshConnection.cost;
+                }
             }
-        }
 
-        return vec3.distance(pa, pb);
-    },
-    passFilter(nodeRef, navMesh, filter) {
-        const nodeType = getNodeRefType(nodeRef);
+            return vec3.distance(pa, pb);
+        },
+        passFilter(nodeRef, navMesh) {
+            const nodeType = getNodeRefType(nodeRef);
 
-        let flags = 0;
+            let flags = 0;
 
-        if (nodeType === NodeType.GROUND_POLY) {
-            const [, tileId, polyIndex] = desNodeRef(nodeRef);
-            const poly = navMesh.tiles[tileId].polys[polyIndex];
-            flags = poly.flags;
-        } else if (nodeType === NodeType.OFFMESH_CONNECTION) {
-            const [, offMeshConnectionId] = desNodeRef(nodeRef);
-            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
-            flags = offMeshConnection.flags;
-        }
+            if (nodeType === NodeType.GROUND_POLY) {
+                const [, tileId, polyIndex] = desNodeRef(nodeRef);
+                const poly = navMesh.tiles[tileId].polys[polyIndex];
+                flags = poly.flags;
+            } else if (nodeType === NodeType.OFFMESH_CONNECTION) {
+                const [, offMeshConnectionId] = desNodeRef(nodeRef);
+                const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+                flags = offMeshConnection.flags;
+            }
 
-        return (flags & filter.includeFlags) !== 0 && (flags & filter.excludeFlags) === 0;
-    },
-} satisfies QueryFilter;
+            return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
+        },
+    } satisfies QueryFilter;
+};
+
+export const DEFAULT_QUERY_FILTER = createDefaultQueryFilter();

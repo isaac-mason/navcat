@@ -181,7 +181,7 @@ export const isLocalBoundaryValid = (boundary: LocalBoundary, navMesh: NavMesh, 
         }
 
         // check filter if available
-        if (filter.passFilter && !filter.passFilter(polyRef, navMesh, filter)) {
+        if (!filter.passFilter(polyRef, navMesh)) {
             return false;
         }
     }

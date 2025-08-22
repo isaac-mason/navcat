@@ -649,7 +649,7 @@ export const queryPolygonsInTile = (
                 const ref: NodeRef = serPolyNodeRef(tile.id, polyId);
 
                 if ((poly.flags & filter.includeFlags) !== 0 && (poly.flags & filter.excludeFlags) === 0) {
-                    if (!filter.passFilter || filter.passFilter(ref, navMesh, filter)) {
+                    if (filter.passFilter(ref, navMesh)) {
                         out.push(ref);
                     }
                 }
@@ -675,7 +675,7 @@ export const queryPolygonsInTile = (
                 continue;
             }
 
-            if (filter.passFilter && !filter.passFilter(polyRef, navMesh, filter)) {
+            if (!filter.passFilter(polyRef, navMesh)) {
                 continue;
             }
 

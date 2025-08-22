@@ -143,9 +143,9 @@ const updateAgentPathfinding = (agent: Agent, navMesh: NavMesh): void => {
     if (agent.targetState !== AgentTargetState.REQUESTING) return;
 
     const maxIterations = 100;
-    const result = updateSlicedFindNodePath(navMesh, agent.slicedQuery, maxIterations);
+    updateSlicedFindNodePath(navMesh, agent.slicedQuery, maxIterations);
 
-    if (result.status & SlicedFindNodePathStatusFlags.SUCCESS) {
+    if (agent.slicedQuery.status & SlicedFindNodePathStatusFlags.SUCCESS) {
         // finalize the path
         const finalResult = finalizeSlicedFindNodePath(agent.slicedQuery);
 
@@ -155,7 +155,7 @@ const updateAgentPathfinding = (agent: Agent, navMesh: NavMesh): void => {
         } else {
             agent.targetState = AgentTargetState.FAILED;
         }
-    } else if (result.status & SlicedFindNodePathStatusFlags.FAILURE) {
+    } else if (agent.slicedQuery.status & SlicedFindNodePathStatusFlags.FAILURE) {
         agent.targetState = AgentTargetState.FAILED;
     }
 };
@@ -276,20 +276,24 @@ const calculateDesiredVelocity = (agent: Agent, navMesh: NavMesh): void => {
     }
 
     // get corridor corners for steering
-    const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+    const cornersResult = findCorridorCorners(agent.corridor, navMesh, 3);
 
-    if (corners.length === 0) {
+    if (!cornersResult) {
         vec3.set(agent.desiredVelocity, 0, 0, 0);
         return;
     }
+
+    const { corners } = cornersResult;
+
+    const positions = corners.map(corner => corner.position);
 
     // Use DetourCrowd steering logic
     const anticipateTurns = true; // This could be made configurable like DT_CROWD_ANTICIPATE_TURNS
     
     if (anticipateTurns) {
-        calcSmoothSteerDirection(agent, corners);
+        calcSmoothSteerDirection(agent, positions);
     } else {
-        calcStraightSteerDirection(agent, corners);
+        calcStraightSteerDirection(agent, positions);
     }
 };
 

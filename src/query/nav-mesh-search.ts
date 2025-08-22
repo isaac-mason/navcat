@@ -390,7 +390,7 @@ export const findNodePath = (
             }
 
             // check whether neighbour passes the filter
-            if (filter.passFilter && filter.passFilter(neighbourNodeRef, navMesh, filter) === false) {
+            if (filter.passFilter(neighbourNodeRef, navMesh) === false) {
                 continue;
             }
 
@@ -678,25 +678,25 @@ export const initSlicedFindNodePath = (
  * @param navMesh The navigation mesh
  * @param query The sliced path query to update
  * @param maxIter The maximum number of iterations to perform
- * @returns Object containing the status and number of iterations performed
+ * @returns iterations performed
  */
 export const updateSlicedFindNodePath = (
     navMesh: NavMesh,
     query: SlicedNodePathQuery,
     maxIter: number
-): { status: SlicedFindNodePathStatusFlags; itersDone: number } => {
+): number => {
     let itersDone = 0;
     
     // check if query is in valid state
     if (!(query.status & SlicedFindNodePathStatusFlags.IN_PROGRESS)) {
-        return { status: query.status, itersDone };
+        return itersDone;
     }
     
     // validate refs are still valid
     if (!isValidNodeRef(navMesh, query.startRef) || 
         !isValidNodeRef(navMesh, query.endRef)) {
         query.status = SlicedFindNodePathStatusFlags.FAILURE;
-        return { status: query.status, itersDone };
+        return itersDone;
     }
     
     const getCost = query.filter.getCost ?? DEFAULT_QUERY_FILTER.getCost;
@@ -713,7 +713,7 @@ export const updateSlicedFindNodePath = (
         if (bestNode.nodeRef === query.endRef) {
             query.lastBestNode = bestNode;
             query.status = SlicedFindNodePathStatusFlags.SUCCESS;
-            return { status: query.status, itersDone };
+            return itersDone;
         }
         
         // get current node info
@@ -738,8 +738,7 @@ export const updateSlicedFindNodePath = (
             }
             
             // apply filter
-            if (query.filter.passFilter && 
-                !query.filter.passFilter(neighbourNodeRef, navMesh, query.filter)) {
+            if (!query.filter.passFilter(neighbourNodeRef, navMesh)) {
                 continue;
             }
             
@@ -903,7 +902,7 @@ export const updateSlicedFindNodePath = (
         query.status = SlicedFindNodePathStatusFlags.SUCCESS | SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
     }
     
-    return { status: query.status, itersDone };
+    return itersDone;
 };
 
 /**
@@ -1175,7 +1174,7 @@ export const moveAlongSurface = (
                 // check if this link corresponds to edge j
                 if (link.edge === j) {
                     // check filter
-                    if (filter.passFilter && !filter.passFilter(neighbourRef, navMesh, filter)) {
+                    if (!filter.passFilter(neighbourRef, navMesh)) {
                         continue;
                     }
 
@@ -1380,7 +1379,7 @@ export const raycast = (
             if (!nextTileAndPolyResult.success) continue;
 
             // skip links based on filter
-            if (filter.passFilter && !filter.passFilter(link.neighbourRef, navMesh, filter)) continue;
+            if (!filter.passFilter(link.neighbourRef, navMesh)) continue;
 
             // if the link is internal, just return the ref
             if (link.side === 0xff) {
@@ -1514,7 +1513,7 @@ export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () 
         const polyRef = serPolyNodeRef(selectedTile.id, i);
 
         // must pass filter
-        if (filter.passFilter && !filter.passFilter(polyRef, navMesh, filter)) {
+        if (!filter.passFilter(polyRef, navMesh)) {
             continue;
         }
 
@@ -1625,7 +1624,7 @@ export const findRandomPointAroundCircle = (
     }
 
     // check if start polygon passes filter
-    if (filter.passFilter && !filter.passFilter(startRef, navMesh, filter)) {
+    if (!filter.passFilter(startRef, navMesh)) {
         return result;
     }
 
@@ -1716,7 +1715,7 @@ export const findRandomPointAroundCircle = (
             if (!neighbourTileAndPoly.success) continue;
 
             // do not advance if the polygon is excluded by the filter
-            if (filter.passFilter && !filter.passFilter(neighbourRef, navMesh, filter)) {
+            if (!filter.passFilter(neighbourRef, navMesh)) {
                 continue;
             }
 
