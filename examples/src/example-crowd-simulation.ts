@@ -2,6 +2,7 @@ import { type Vec3, vec3 } from 'maaths';
 import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, three as threeUtils, type NodeRef, type NavMesh, serPolyNodeRef } from 'nav3d';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { GUI } from 'lil-gui';
 import {
     type Agent,
     type AgentParams,
@@ -16,6 +17,104 @@ import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions 
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
 
+/* controls */
+const guiSettings = {
+    showVelocityVectors: true,
+    showPolyHelpers: true,
+    showLocalBoundary: false,
+    showObstacleSegments: false,
+    showPathLine: false,
+};
+
+const gui = new GUI();
+gui.add(guiSettings, 'showVelocityVectors').name('Show Velocity Vectors');
+gui.add(guiSettings, 'showPolyHelpers').name('Show Poly Helpers');
+gui.add(guiSettings, 'showLocalBoundary').name('Show Local Boundary');
+gui.add(guiSettings, 'showObstacleSegments').name('Show Obstacle Segments');
+gui.add(guiSettings, 'showPathLine').name('Show Path Line');
+
+/* setup example scene */
+const container = document.getElementById('root')!;
+const { scene, camera, renderer } = await createExample(container);
+
+camera.position.set(-2, 10, 10);
+
+const orbitControls = new OrbitControls(camera, renderer.domElement);
+orbitControls.enableDamping = true;
+
+const navTestModel = await loadGLTF('/models/nav-test.glb');
+scene.add(navTestModel.scene);
+
+/* generate navmesh */
+const walkableMeshes: THREE.Mesh[] = [];
+scene.traverse((object) => {
+    if (object instanceof THREE.Mesh) {
+        walkableMeshes.push(object);
+    }
+});
+
+const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+
+const navMeshInput: TiledNavMeshInput = {
+    positions,
+    indices,
+};
+
+const cellSize = 0.15;
+const cellHeight = 0.15;
+
+const tileSizeVoxels = 64;
+const tileSizeWorld = tileSizeVoxels * cellSize;
+
+const walkableRadiusWorld = 0.15;
+const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+const walkableClimbWorld = 0.5;
+const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
+const walkableHeightWorld = 1;
+const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
+const walkableSlopeAngleDegrees = 45;
+
+const borderSize = 4;
+const minRegionArea = 8;
+const mergeRegionArea = 20;
+
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+
+const maxVerticesPerPoly = 5;
+const detailSampleDistance = 6;
+const detailSampleMaxError = 1;
+
+const navMeshConfig: TiledNavMeshOptions = {
+    cellSize,
+    cellHeight,
+    tileSizeVoxels,
+    tileSizeWorld,
+    walkableRadiusWorld,
+    walkableRadiusVoxels,
+    walkableClimbWorld,
+    walkableClimbVoxels,
+    walkableHeightWorld,
+    walkableHeightVoxels,
+    walkableSlopeAngleDegrees,
+    borderSize,
+    minRegionArea,
+    mergeRegionArea,
+    maxSimplificationError,
+    maxEdgeLength,
+    maxVerticesPerPoly,
+    detailSampleDistance,
+    detailSampleMaxError,
+};
+
+const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
+const navMesh = navMeshResult.navMesh;
+
+const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+navMeshHelper.object.position.y += 0.1;
+scene.add(navMeshHelper.object);
+
+/* Visuals */
 type AgentVisuals = {
     mesh: THREE.Mesh;
     color: number;
@@ -24,8 +123,8 @@ type AgentVisuals = {
     pathLine: THREE.Line | null;
     obstacleSegmentLines: THREE.Line[];
     localBoundaryLines: THREE.Line[];
-    velocityArrow: THREE.ArrowHelper | null;
-    desiredVelocityArrow: THREE.ArrowHelper | null;
+    velocityArrow: THREE.ArrowHelper;
+    desiredVelocityArrow: THREE.ArrowHelper;
 };
 
 type AgentVisualsOptions = {
@@ -164,6 +263,29 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
     scene.add(targetMesh);
 
+    // create velocity arrows (initially hidden)
+    const velocityArrow = new THREE.ArrowHelper(
+        new THREE.Vector3(0, 0, 1), // default direction
+        new THREE.Vector3(position[0], position[1] + 0.5, position[2]), // origin
+        0.5, // length
+        0x00ff00, // green for actual velocity
+        0.2, // head length
+        0.1, // head width
+    );
+    velocityArrow.visible = false;
+    scene.add(velocityArrow);
+
+    const desiredVelocityArrow = new THREE.ArrowHelper(
+        new THREE.Vector3(0, 0, 1), // default direction
+        new THREE.Vector3(position[0], position[1] + 0.6, position[2]), // origin
+        0.5, // length
+        0xff0000, // red for desired velocity
+        0.2, // head length
+        0.1, // head width
+    );
+    desiredVelocityArrow.visible = false;
+    scene.add(desiredVelocityArrow);
+
     return {
         mesh,
         color,
@@ -171,8 +293,8 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
         pathLine: null,
         obstacleSegmentLines: [],
         localBoundaryLines: [],
-        velocityArrow: null,
-        desiredVelocityArrow: null,
+        velocityArrow,
+        desiredVelocityArrow,
     };
 };
 
@@ -184,27 +306,7 @@ const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPos);
 
-    // remove old path line
-    if (visuals.pathLine) {
-        scene.remove(visuals.pathLine);
-        visuals.pathLine = null;
-    }
-
-    // show polygon helpers for this agent's corridor path
-    if (options.showPolyHelpers && agent.corridor.path.length > 0) {
-        // convert hex color to RGB array for the poly helpers
-        const r = ((visuals.color >> 16) & 255) / 255;
-        const g = ((visuals.color >> 8) & 255) / 255;
-        const b = (visuals.color & 255) / 255;
-        const color: [number, number, number] = [r, g, b];
-
-        // add this agent's color to each polygon in the corridor path
-        for (const polyRef of agent.corridor.path) {
-            addAgentColorToPoly(polyRef, agentId, color);
-        }
-    }
-
-    // create new path line
+    // handle path line visualization
     if (options.showPathLine) {
         const corners = findCorridorCorners(agent.corridor, navMesh, 3);
 
@@ -229,22 +331,55 @@ const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals
             }
 
             if (validPoints.length > 1) {
-                const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
-                const material = new THREE.LineBasicMaterial({ color: visuals.color, linewidth: 2 });
-                visuals.pathLine = new THREE.Line(geometry, material);
-                scene.add(visuals.pathLine);
+                if (!visuals.pathLine) {
+                    // create new path line
+                    const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
+                    const material = new THREE.LineBasicMaterial({ color: visuals.color, linewidth: 2 });
+                    visuals.pathLine = new THREE.Line(geometry, material);
+                    scene.add(visuals.pathLine);
+                } else {
+                    // update existing path line
+                    const geometry = visuals.pathLine.geometry as THREE.BufferGeometry;
+                    geometry.setFromPoints(validPoints);
+                    visuals.pathLine.visible = true;
+                }
+            } else if (visuals.pathLine) {
+                visuals.pathLine.visible = false;
             }
+        } else if (visuals.pathLine) {
+            visuals.pathLine.visible = false;
+        }
+    } else {
+        // hide path line when disabled
+        if (visuals.pathLine) {
+            visuals.pathLine.visible = false;
         }
     }
 
-    // debug visualization: obstacle segments
-    if (options.showObstacleSegments) {
-        // remove old obstacle segment lines
+    // show polygon helpers for this agent's corridor path
+    if (options.showPolyHelpers && agent.corridor.path.length > 0) {
+        // convert hex color to RGB array for the poly helpers
+        const r = ((visuals.color >> 16) & 255) / 255;
+        const g = ((visuals.color >> 8) & 255) / 255;
+        const b = (visuals.color & 255) / 255;
+        const color: [number, number, number] = [r, g, b];
+
+        // add this agent's color to each polygon in the corridor path
+        for (const polyRef of agent.corridor.path) {
+            addAgentColorToPoly(polyRef, agentId, color);
+        }
+    }
+    // Note: poly helpers are handled globally in clearPolyHelperColors(), no need to hide individually
+
+    // obstacle segments visualization
+    if (visuals.obstacleSegmentLines.length > 0) {
         for (const line of visuals.obstacleSegmentLines) {
             scene.remove(line);
         }
         visuals.obstacleSegmentLines = [];
+    }
 
+    if (options.showObstacleSegments) {
         // add current obstacle segments from the obstacle avoidance query
         for (let i = 0; i < agent.obstacleAvoidanceQuery.segmentCount; i++) {
             const segment = agent.obstacleAvoidanceQuery.segments[i];
@@ -264,14 +399,15 @@ const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals
         }
     }
 
-    // debug visualization: local boundary segments
-    if (options.showLocalBoundary) {
-        // remove old local boundary lines
+    // handle local boundary segments visualization
+    if (visuals.localBoundaryLines.length > 0) {
         for (const line of visuals.localBoundaryLines) {
             scene.remove(line);
         }
         visuals.localBoundaryLines = [];
+    }
 
+    if (options.showLocalBoundary) {
         // add current local boundary segments
         for (const segment of agent.boundary.segments) {
             const s = segment.s;
@@ -288,7 +424,7 @@ const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals
         }
     }
 
-    // debug visualization: velocity vectors
+    // handle velocity vectors visualization
     if (options.showVelocityVectors) {
         // update actual velocity arrow
         const velLength = vec3.length(agent.velocity);
@@ -297,27 +433,13 @@ const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals
             const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.5, agent.position[2]);
             const direction = new THREE.Vector3(velDirection[0], velDirection[1], velDirection[2]);
 
-            if (!visuals.velocityArrow) {
-                // create new arrow if it doesn't exist
-                visuals.velocityArrow = new THREE.ArrowHelper(
-                    direction,
-                    origin,
-                    velLength * 0.5, // scale down for visibility
-                    0x00ff00, // green for actual velocity
-                    0.2,
-                    0.1,
-                );
-                scene.add(visuals.velocityArrow);
-            } else {
-                // update existing arrow
-                visuals.velocityArrow.position.copy(origin);
-                visuals.velocityArrow.setDirection(direction);
-                visuals.velocityArrow.setLength(velLength * 0.5, 0.2, 0.1);
-            }
-        } else if (visuals.velocityArrow) {
+            visuals.velocityArrow.position.copy(origin);
+            visuals.velocityArrow.setDirection(direction);
+            visuals.velocityArrow.setLength(velLength * 0.5, 0.2, 0.1);
+            visuals.velocityArrow.visible = true;
+        } else {
             // hide arrow if velocity is too small
-            scene.remove(visuals.velocityArrow);
-            visuals.velocityArrow = null;
+            visuals.velocityArrow.visible = false;
         }
 
         // update desired velocity arrow
@@ -327,121 +449,20 @@ const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals
             const origin = new THREE.Vector3(agent.position[0], agent.position[1] + 0.6, agent.position[2]);
             const direction = new THREE.Vector3(desiredVelDirection[0], desiredVelDirection[1], desiredVelDirection[2]);
 
-            if (!visuals.desiredVelocityArrow) {
-                // create new arrow if it doesn't exist
-                visuals.desiredVelocityArrow = new THREE.ArrowHelper(
-                    direction,
-                    origin,
-                    desiredVelLength * 0.5, // scale down for visibility
-                    0xff0000, // red for desired velocity
-                    0.2,
-                    0.1,
-                );
-                scene.add(visuals.desiredVelocityArrow);
-            } else {
-                // update existing arrow
-                visuals.desiredVelocityArrow.position.copy(origin);
-                visuals.desiredVelocityArrow.setDirection(direction);
-                visuals.desiredVelocityArrow.setLength(desiredVelLength * 0.5, 0.2, 0.1);
-            }
-        } else if (visuals.desiredVelocityArrow) {
+            visuals.desiredVelocityArrow.position.copy(origin);
+            visuals.desiredVelocityArrow.setDirection(direction);
+            visuals.desiredVelocityArrow.setLength(desiredVelLength * 0.5, 0.2, 0.1);
+            visuals.desiredVelocityArrow.visible = true;
+        } else {
             // hide arrow if desired velocity is too small
-            scene.remove(visuals.desiredVelocityArrow);
-            visuals.desiredVelocityArrow = null;
+            visuals.desiredVelocityArrow.visible = false;
         }
     } else {
-        // remove arrows if velocity vectors are disabled
-        if (visuals.velocityArrow) {
-            scene.remove(visuals.velocityArrow);
-            visuals.velocityArrow = null;
-        }
-        if (visuals.desiredVelocityArrow) {
-            scene.remove(visuals.desiredVelocityArrow);
-            visuals.desiredVelocityArrow = null;
-        }
+        // hide arrows when velocity vectors are disabled
+        visuals.velocityArrow.visible = false;
+        visuals.desiredVelocityArrow.visible = false;
     }
 };
-
-/* setup example scene */
-const container = document.getElementById('root')!;
-const { scene, camera, renderer } = await createExample(container);
-
-camera.position.set(-2, 10, 10);
-
-const orbitControls = new OrbitControls(camera, renderer.domElement);
-orbitControls.enableDamping = true;
-
-const navTestModel = await loadGLTF('/models/nav-test.glb');
-scene.add(navTestModel.scene);
-
-/* generate navmesh */
-const walkableMeshes: THREE.Mesh[] = [];
-scene.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
-        walkableMeshes.push(object);
-    }
-});
-
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
-
-const navMeshInput: TiledNavMeshInput = {
-    positions,
-    indices,
-};
-
-const cellSize = 0.15;
-const cellHeight = 0.15;
-
-const tileSizeVoxels = 64;
-const tileSizeWorld = tileSizeVoxels * cellSize;
-
-const walkableRadiusWorld = 0.15;
-const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-const walkableClimbWorld = 0.5;
-const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-const walkableHeightWorld = 1;
-const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
-const walkableSlopeAngleDegrees = 45;
-
-const borderSize = 4;
-const minRegionArea = 8;
-const mergeRegionArea = 20;
-
-const maxSimplificationError = 1.3;
-const maxEdgeLength = 12;
-
-const maxVerticesPerPoly = 5;
-const detailSampleDistance = 6;
-const detailSampleMaxError = 1;
-
-const navMeshConfig: TiledNavMeshOptions = {
-    cellSize,
-    cellHeight,
-    tileSizeVoxels,
-    tileSizeWorld,
-    walkableRadiusWorld,
-    walkableRadiusVoxels,
-    walkableClimbWorld,
-    walkableClimbVoxels,
-    walkableHeightWorld,
-    walkableHeightVoxels,
-    walkableSlopeAngleDegrees,
-    borderSize,
-    minRegionArea,
-    mergeRegionArea,
-    maxSimplificationError,
-    maxEdgeLength,
-    maxVerticesPerPoly,
-    detailSampleDistance,
-    detailSampleMaxError,
-};
-
-const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
-const navMesh = navMeshResult.navMesh;
-
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
-navMeshHelper.object.position.y += 0.1;
-scene.add(navMeshHelper.object);
 
 /* create all polygon helpers for the navmesh */
 createPolyHelpers(navMesh, scene);
@@ -544,11 +565,10 @@ function update() {
     console.time("update crowd");
     updateCrowd(crowd, navMesh, clampedDeltaTime);
     console.timeEnd("update crowd");
-
-    // clear all agent colors from polygons before updating agent visuals
+    
+    // update visuals
     clearPolyHelperColors();
 
-    // update agent visuals
     const agents = Object.keys(crowd.agents);
 
     for (let i = 0; i < agents.length; i++) {
@@ -556,11 +576,11 @@ function update() {
         const agent = crowd.agents[agentId];
         if (agentVisuals[agentId]) {
             updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, {
-                showLocalBoundary: false,
-                showObstacleSegments: false,
-                showVelocityVectors: true,
-                showPathLine: false,
-                showPolyHelpers: true,
+                showVelocityVectors: guiSettings.showVelocityVectors,
+                showPolyHelpers: guiSettings.showPolyHelpers,
+                showLocalBoundary: guiSettings.showLocalBoundary,
+                showObstacleSegments: guiSettings.showObstacleSegments,
+                showPathLine: guiSettings.showPathLine,
             });
         }
     }
