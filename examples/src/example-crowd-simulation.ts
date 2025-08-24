@@ -1,5 +1,5 @@
 import { type Vec3, vec3 } from 'maaths';
-import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, three as threeUtils } from 'nav3d';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, three as threeUtils, type NodeRef, type NavMesh, serPolyNodeRef } from 'nav3d';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import {
@@ -22,7 +22,6 @@ type AgentVisuals = {
 
     targetMesh: THREE.Mesh;
     pathLine: THREE.Line | null;
-    polyHelpers: threeUtils.DebugObject[] | null;
     obstacleSegmentLines: THREE.Line[];
     localBoundaryLines: THREE.Line[];
     velocityArrow: THREE.ArrowHelper | null;
@@ -35,6 +34,122 @@ type AgentVisualsOptions = {
     showVelocityVectors?: boolean;
     showPathLine?: boolean;
     showPolyHelpers?: boolean;
+};
+
+// poly visuals
+type PolyHelper = {
+    helper: threeUtils.DebugObject;
+    polyRef: NodeRef;
+    isVisible: boolean;
+    currentColor: [number, number, number] | null;
+    agentColors: Map<string, [number, number, number]>; // track colors from each agent
+};
+
+const polyHelpers = new Map<NodeRef, PolyHelper>();
+
+// utility function to blend colors
+const blendColors = (colors: [number, number, number][]): [number, number, number] => {
+    if (colors.length === 0) return [0.5, 0.5, 0.5];
+    if (colors.length === 1) return colors[0];
+    
+    let r = 0, g = 0, b = 0;
+    for (const [cr, cg, cb] of colors) {
+        r += cr;
+        g += cg;
+        b += cb;
+    }
+    
+    const count = colors.length;
+    return [r / count, g / count, b / count];
+};
+
+const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
+    // create helpers for all polygons in the navmesh
+    for (const tileId in navMesh.tiles) {
+        const tile = navMesh.tiles[tileId];
+        for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
+            const polyRef = serPolyNodeRef(tile.id, polyIndex);
+            
+            const helper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [0.5, 0.5, 0.5]);
+            
+            // initially hidden and semi-transparent
+            helper.object.visible = false;
+            helper.object.traverse((child: any) => {
+                if (child instanceof THREE.Mesh && child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => {
+                            if (mat instanceof THREE.Material) {
+                                mat.transparent = true;
+                                mat.opacity = 0.3;
+                            }
+                        });
+                    } else if (child.material instanceof THREE.Material) {
+                        child.material.transparent = true;
+                        child.material.opacity = 0.3;
+                    }
+                }
+            });
+
+            helper.object.position.y += 0.15; // adjust height for visibility
+            scene.add(helper.object);
+
+            polyHelpers.set(polyRef, {
+                helper,
+                polyRef,
+                isVisible: false,
+                currentColor: null,
+                agentColors: new Map(),
+            });
+        }
+    }
+};
+
+const addAgentColorToPoly = (polyRef: NodeRef, agentId: string, color: [number, number, number]): void => {
+    const helperInfo = polyHelpers.get(polyRef);
+    if (!helperInfo) return;
+
+    helperInfo.agentColors.set(agentId, color);
+    
+    // blend all agent colors for this polygon
+    const allColors = Array.from(helperInfo.agentColors.values());
+    const blendedColor = blendColors(allColors);
+    
+    helperInfo.helper.object.visible = true;
+    helperInfo.isVisible = true;
+
+    // only update color if it's different
+    if (!helperInfo.currentColor || 
+        helperInfo.currentColor[0] !== blendedColor[0] || 
+        helperInfo.currentColor[1] !== blendedColor[1] || 
+        helperInfo.currentColor[2] !== blendedColor[2]) {
+        
+        helperInfo.currentColor = [...blendedColor];
+        
+        // update material color
+        helperInfo.helper.object.traverse((child: any) => {
+            if (child instanceof THREE.Mesh && child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach((mat) => {
+                        if (mat instanceof THREE.MeshBasicMaterial) {
+                            mat.color.setRGB(blendedColor[0], blendedColor[1], blendedColor[2]);
+                        }
+                    });
+                } else if (child.material instanceof THREE.MeshBasicMaterial) {
+                    child.material.color.setRGB(blendedColor[0], blendedColor[1], blendedColor[2]);
+                }
+            }
+        });
+    }
+};
+
+const clearPolyHelperColors = (): void => {
+    for (const helperInfo of polyHelpers.values()) {
+        helperInfo.agentColors.clear();
+        if (helperInfo.isVisible) {
+            helperInfo.helper.object.visible = false;
+            helperInfo.isVisible = false;
+        }
+    }
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
@@ -54,7 +169,6 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
         color,
         targetMesh,
         pathLine: null,
-        polyHelpers: null,
         obstacleSegmentLines: [],
         localBoundaryLines: [],
         velocityArrow: null,
@@ -62,7 +176,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     };
 };
 
-const updateAgentVisuals = (agent: Agent, visuals: AgentVisuals, scene: THREE.Scene, options: AgentVisualsOptions = {}): void => {
+const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals, scene: THREE.Scene, options: AgentVisualsOptions = {}): void => {
     // update agent mesh position
     visuals.mesh.position.fromArray(agent.position);
     visuals.mesh.position.y += agent.params.height / 2;
@@ -76,50 +190,17 @@ const updateAgentVisuals = (agent: Agent, visuals: AgentVisuals, scene: THREE.Sc
         visuals.pathLine = null;
     }
 
-    // remove old polygon helpers
-    if (visuals.polyHelpers) {
-        for (const helper of visuals.polyHelpers) {
-            scene.remove(helper.object);
-        }
-        visuals.polyHelpers = null;
-    }
-
-    // create new polygon helpers array
-    visuals.polyHelpers = [];
-
-    // get corridor path and create polygon visualizations
+    // show polygon helpers for this agent's corridor path
     if (options.showPolyHelpers && agent.corridor.path.length > 0) {
-        // convert hex color to RGB array for createNavMeshPolyHelper
+        // convert hex color to RGB array for the poly helpers
         const r = ((visuals.color >> 16) & 255) / 255;
         const g = ((visuals.color >> 8) & 255) / 255;
         const b = (visuals.color & 255) / 255;
         const color: [number, number, number] = [r, g, b];
 
-        // create polygon helpers for each polygon in the corridor path
+        // add this agent's color to each polygon in the corridor path
         for (const polyRef of agent.corridor.path) {
-            const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, color);
-
-            // make the polygons semi-transparent
-            polyHelper.object.traverse((child: any) => {
-                if (child instanceof THREE.Mesh && child.material) {
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            if (mat instanceof THREE.Material) {
-                                mat.transparent = true;
-                                mat.opacity = 0.3;
-                            }
-                        });
-                    } else if (child.material instanceof THREE.Material) {
-                        child.material.transparent = true;
-                        child.material.opacity = 0.3;
-                    }
-                }
-            });
-
-            polyHelper.object.position.y += 0.15; // adjust height for visibility
-
-            visuals.polyHelpers.push(polyHelper);
-            scene.add(polyHelper.object);
+            addAgentColorToPoly(polyRef, agentId, color);
         }
     }
 
@@ -362,6 +443,9 @@ const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
+/* create all polygon helpers for the navmesh */
+createPolyHelpers(navMesh, scene);
+
 /* create crowd and agents */
 const crowd = createCrowd(1);
 
@@ -394,7 +478,8 @@ const agentParams: AgentParams = {
 // create agents at different positions
 const agentPositions: Vec3[] = Array.from({ length: 10 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
 
-const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00]; // Blue, Green, Red, Yellow
+const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00];
+
 const agentVisuals: Record<string, AgentVisuals> = {};
 
 for (let i = 0; i < agentPositions.length; i++) {
@@ -460,6 +545,9 @@ function update() {
     updateCrowd(crowd, navMesh, clampedDeltaTime);
     console.timeEnd("update crowd");
 
+    // clear all agent colors from polygons before updating agent visuals
+    clearPolyHelperColors();
+
     // update agent visuals
     const agents = Object.keys(crowd.agents);
 
@@ -467,12 +555,12 @@ function update() {
         const agentId = agents[i];
         const agent = crowd.agents[agentId];
         if (agentVisuals[agentId]) {
-            updateAgentVisuals(agent, agentVisuals[agentId], scene, {
+            updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, {
                 showLocalBoundary: false,
                 showObstacleSegments: false,
                 showVelocityVectors: true,
                 showPathLine: false,
-                showPolyHelpers: false,
+                showPolyHelpers: true,
             });
         }
     }
