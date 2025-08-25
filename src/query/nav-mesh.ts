@@ -37,10 +37,10 @@ export type NavMesh = {
     offMeshConnectionIdCounter: number;
 
     /** Off mesh connection definitions */
-    offMeshConnections: Record<string, NavMeshOffMeshConnection>;
+    offMeshConnections: Record<string, OffMeshConnection>;
 
-    /** Off mesh connection states */
-    offMeshConnectionStates: Record<string, NavMeshOffMeshConnectionState>;
+    /** Off mesh connection attachments */
+    offMeshConnectionAttachments: Record<string, OffMeshConnectionAttachment>;
 };
 
 export type NavMeshPoly = {
@@ -112,7 +112,7 @@ export enum OffMeshConnectionSide {
     END = 1,
 }
 
-export type NavMeshOffMeshConnection = {
+export type OffMeshConnection = {
     /** the start position of the off mesh connection */
     start: Vec3;
     /** the end position of the off mesh connection */
@@ -132,11 +132,11 @@ export type NavMeshOffMeshConnection = {
     cost?: number;
 };
 
-export type NavMeshOffMeshConnectionState = {
+export type OffMeshConnectionAttachment = {
     /** the start polygon that the off mesh connection has linked to */
-    startPolyRef: NodeRef;
+    start: NodeRef;
     /** the end polygon that the off mesh connection has linked to */
-    endPolyRef: NodeRef;
+    end: NodeRef;
 };
 
 export type NavMeshBvNode = {

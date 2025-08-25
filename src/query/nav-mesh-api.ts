@@ -5,8 +5,8 @@ import { closestHeightPointTriangle, distancePtSegSqr2d, pointInPoly } from '../
 import {
     type NavMesh,
     type NavMeshLink,
-    type NavMeshOffMeshConnection,
-    type NavMeshOffMeshConnectionState,
+    type OffMeshConnection,
+    type OffMeshConnectionAttachment,
     type NavMeshPoly,
     type NavMeshTile,
     OffMeshConnectionDirection,
@@ -29,7 +29,7 @@ export const createNavMesh = (): NavMesh => {
         tilePositionHashToTileId: {},
         offMeshConnectionIdCounter: -1,
         offMeshConnections: {},
-        offMeshConnectionStates: {},
+        offMeshConnectionAttachments: {},
     };
 };
 
@@ -1044,12 +1044,12 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: stri
     const offMeshConnectionStartNodeRef = serOffMeshNodeRef(offMeshConnectionId, OffMeshConnectionSide.START);
     const offMeshConnectionEndNodeRef = serOffMeshNodeRef(offMeshConnectionId, OffMeshConnectionSide.END);
 
-    const offMeshConnectionState = navMesh.offMeshConnectionStates[offMeshConnectionId];
+    const offMeshConnectionState = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
     // the off mesh connection is not connected, return false
     if (!offMeshConnectionState) return false;
 
-    const { startPolyRef, endPolyRef } = offMeshConnectionState;
+    const { start: startPolyRef, end: endPolyRef } = offMeshConnectionState;
 
     // release any links in the start and end polys that reference off mesh connection nodes
     const startPolyLinks = navMesh.nodes[startPolyRef];
@@ -1102,7 +1102,7 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: stri
     delete navMesh.nodes[offMeshConnectionEndNodeRef];
 
     // remove the off mesh connection state
-    delete navMesh.offMeshConnectionStates[offMeshConnectionId];
+    delete navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
     // the off mesh connection was disconnected, return true
     return true;
@@ -1114,7 +1114,7 @@ const _connectOffMeshConnectionNearestPolyEnd = createFindNearestPolyResult();
 const connectOffMeshConnection = (
     navMesh: NavMesh,
     offMeshConnectionId: string,
-    offMeshConnection: NavMeshOffMeshConnection,
+    offMeshConnection: OffMeshConnection,
 ): boolean => {
     // find polys for the start and end positions
     const startTilePolyResult = findNearestPoly(
@@ -1202,11 +1202,11 @@ const connectOffMeshConnection = (
     }
 
     // create off mesh connection state, for quick revalidation of connections when adding and removing tiles
-    const offMeshConnectionState: NavMeshOffMeshConnectionState = {
-        startPolyRef,
-        endPolyRef,
+    const offMeshConnectionState: OffMeshConnectionAttachment = {
+        start: startPolyRef,
+        end: endPolyRef,
     };
-    navMesh.offMeshConnectionStates[offMeshConnectionId] = offMeshConnectionState;
+    navMesh.offMeshConnectionAttachments[offMeshConnectionId] = offMeshConnectionState;
 
     // connected the off mesh connection, return true
     return true;
@@ -1337,7 +1337,7 @@ export const removeTile = (navMesh: NavMesh, x: number, y: number, layer: number
  * @param offMeshConnection the off mesh connection to add
  * @returns the ID of the added off mesh connection
  */
-export const addOffMeshConnection = (navMesh: NavMesh, offMeshConnection: NavMeshOffMeshConnection): string => {
+export const addOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshConnection): string => {
     const offMeshConnectionId = String(++navMesh.offMeshConnectionIdCounter);
 
     navMesh.offMeshConnections[offMeshConnectionId] = offMeshConnection;
@@ -1361,12 +1361,12 @@ export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: s
 };
 
 export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnectionId: string): boolean => {
-    const offMeshConnectionState = navMesh.offMeshConnectionStates[offMeshConnectionId];
+    const offMeshConnectionState = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
     // no off mesh connection state, not connected
     if (!offMeshConnectionState) return false;
 
-    const { startPolyRef, endPolyRef } = offMeshConnectionState;
+    const { start: startPolyRef, end: endPolyRef } = offMeshConnectionState;
 
     const [, startTileId] = desNodeRef(startPolyRef);
     const [, endTileId] = desNodeRef(endPolyRef);

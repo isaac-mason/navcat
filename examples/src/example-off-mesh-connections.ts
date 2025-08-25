@@ -4,7 +4,7 @@ import {
     DEFAULT_QUERY_FILTER,
     findPath,
     getNodeRefType,
-    type NavMeshOffMeshConnection,
+    type OffMeshConnection,
     NodeType,
     OffMeshConnectionDirection,
     three as threeUtils,
@@ -99,7 +99,7 @@ const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
 /* add off mesh connections */
-const offMeshConnections: NavMeshOffMeshConnection[] = [
+const offMeshConnections: OffMeshConnection[] = [
     {
         start: [-2.4799404316645157, 0.26716880587122915, 4.039628947351325],
         end: [-2.735661224133032, 2.3264200687408447, 0.9084349415865054],

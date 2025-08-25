@@ -4,7 +4,6 @@ import {
     desNodeRef,
     FindStraightPathStatus,
     findStraightPath,
-    getNodeRefType,
     isValidNodeRef,
     moveAlongSurface,
     type NavMesh,
@@ -182,70 +181,54 @@ export const fixPathStart = (corridor: PathCorridor, safeRef: NodeRef, safePos: 
     return true;
 };
 
-// bool dtPathCorridor::moveOverOffmeshConnection(dtPolyRef offMeshConRef, dtPolyRef* refs,
-// 											   float* startPos, float* endPos,
-// 											   dtNavMeshQuery* navquery)
-// {
-// 	dtAssert(navquery);
-// 	dtAssert(m_path);
-// 	dtAssert(m_npath);
-
-// 	// Advance the path up to and over the off-mesh connection.
-// 	dtPolyRef prevRef = 0, polyRef = m_path[0];
-// 	int npos = 0;
-// 	while (npos < m_npath && polyRef != offMeshConRef)
-// 	{
-// 		prevRef = polyRef;
-// 		polyRef = m_path[npos];
-// 		npos++;
-// 	}
-// 	if (npos == m_npath)
-// 	{
-// 		// Could not find offMeshConRef
-// 		return false;
-// 	}
-
-// 	// Prune path
-// 	for (int i = npos; i < m_npath; ++i)
-// 		m_path[i-npos] = m_path[i];
-// 	m_npath -= npos;
-
-// 	refs[0] = prevRef;
-// 	refs[1] = polyRef;
-
-// 	const dtNavMesh* nav = navquery->getAttachedNavMesh();
-// 	dtAssert(nav);
-
-// 	dtStatus status = nav->getOffMeshConnectionPolyEndPoints(refs[0], refs[1], startPos, endPos);
-// 	if (dtStatusSucceed(status))
-// 	{
-// 		dtVcopy(m_pos, endPos);
-// 		return true;
-// 	}
-
-// 	return false;
-// }
-
-export const moveOverOffMeshConnection = (corridor: PathCorridor, navMesh: NavMesh) => {
+export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef: NodeRef, navMesh: NavMesh) => {
     if (corridor.path.length === 0) return false;
 
-    // check the current node in the corridor is an off mesh link
-    if (getNodeRefType(corridor.path[0]) !== NodeType.OFFMESH_CONNECTION) return false;
+    // advance the path up to and over the off-mesh connection.
+    let prevNodeRef: NodeRef | null = null;
+    let nodeRef = corridor.path[0];
+    let i = 0;
+    
+    while (i < corridor.path.length && nodeRef !== offMeshConRef) {
+        prevNodeRef = nodeRef;
+        i++;
+        if (i < corridor.path.length) {
+            nodeRef = corridor.path[i];
+        }
+    }
+    
+    if (i === corridor.path.length) {
+        // could not find the off mesh connection node
+        return false;
+    }
 
-    const [, offMeshConnectionId] = desNodeRef(corridor.path[0]);
+    // prune path - remove the elements from 0 to i-1
+    corridor.path = corridor.path.slice(i);
 
-    // get the off mesh connection
+    if (!prevNodeRef) {
+        return false;
+    }
+
+    // get the off-mesh connection
+    const [, offMeshConnectionId] = desNodeRef(offMeshConRef);
     const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
-    const offMeshConnectionState = navMesh.offMeshConnectionStates[offMeshConnectionId];
+    const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
-    if (!offMeshConnection || !offMeshConnectionState) return false;
+    if (!offMeshConnection || !offMeshConnectionAttachment) return false;
 
-    const onStart = offMeshConnectionState.startPolyRef === corridor.path[0];
-
-    const endNodeRef = onStart ? offMeshConnectionState.endPolyRef : offMeshConnectionState.startPolyRef;
+    // determine which end we're moving to
+    const onStart = offMeshConnectionAttachment.start === prevNodeRef;
     const endPosition = onStart ? offMeshConnection.end : offMeshConnection.start;
+    const endNodeRef = onStart ? offMeshConnectionAttachment.end : offMeshConnectionAttachment.start;
 
+    // update corridor position to the end position
     vec3.copy(corridor.position, endPosition);
 
-    return { endPosition, endNodeRef };
+    return { 
+        startPosition: onStart ? offMeshConnection.start : offMeshConnection.end,
+        endPosition, 
+        endNodeRef, 
+        prevNodeRef, 
+        offMeshConRef, 
+    };
 };

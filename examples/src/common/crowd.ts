@@ -492,7 +492,7 @@ const updateCorners = (crowd: Crowd, navMesh: NavMesh): void => {
         agent.corners = corners;
         agent.cornersReachTarget = cornersReachTarget;
 
-        // could raycast to check for shortcuts
+        // todo: raycast to check for shortcuts
     }
 };
 
@@ -500,10 +500,6 @@ const dist2dSqr = (a: Vec3, b: Vec3): number => {
     const dx = b[0] - a[0];
     const dz = b[2] - a[2];
     return dx * dx + dz * dz;
-};
-
-const tween = (t: number, t0: number, t1: number): number => {
-    return Math.max(0, Math.min(1, (t - t0) / (t1 - t0)));
 };
 
 const agentIsOverOffMeshConnection = (agent: Agent, radius: number): boolean => {
@@ -536,17 +532,19 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
         if (agentIsOverOffMeshConnection(agent, triggerRadius)) {
             agent.state = AgentState.OFFMESH;
 
-            const result = moveOverOffMeshConnection(agent.corridor, navMesh);
+            const offMeshConnectionNode = agent.corners[agent.corners.length - 1].nodeRef;
+
+            if (!offMeshConnectionNode) continue;
+
+            const result = moveOverOffMeshConnection(agent.corridor, offMeshConnectionNode, navMesh);
 
             if (result === false) continue;
 
-            const { endPosition } = result;
-
             agent.offMeshAnimation = {
                 t: 0,
-                duration: 1,
-                startPos: agent.position,
-                endPos: endPosition,
+                duration: 0.5,
+                startPos: vec3.clone(agent.position),
+                endPos: vec3.clone(result.endPosition),
             };
         }
     }
@@ -878,6 +876,7 @@ const updateCorridors = (crowd: Crowd, navMesh: NavMesh): void => {
     }
 };
 
+// note: this would typically be replaced with specific animation and off mesh finalisation logic
 const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
     for (const agentId in crowd.agents) {
         const agent = crowd.agents[agentId];
@@ -891,16 +890,22 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
         // progress animation time
         anim.t += deltaTime;
 
-        if (anim.t > anim.duration) {
-            // finish animation and prepare agent for walking
+        if (anim.t >= anim.duration) {
+            // remove off-mesh connection from corridor
+            agent.corridor.path.shift();
+
+            // finish animation
             agent.offMeshAnimation = null;
+            
+            // prepare agent for walking
             agent.state = AgentState.WALKING;
+
             continue;
         }
 
-        // update position with simple linear interpolation
-        const u = tween(anim.t, 0, anim.duration);
-        vec3.lerp(agent.position, anim.startPos, anim.endPos, u);
+        // update position
+        const progress = anim.t / anim.duration;
+        vec3.lerp(agent.position, anim.startPos, anim.endPos, progress);
 
         // update velocity - set to zero during off-mesh connection
         vec3.set(agent.velocity, 0, 0, 0);

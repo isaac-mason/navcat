@@ -1,14 +1,25 @@
+import { GUI } from 'lil-gui';
 import { type Vec3, vec3 } from 'maaths';
-import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, three as threeUtils, type NodeRef, type NavMesh, serPolyNodeRef } from 'nav3d';
+import {
+    addOffMeshConnection,
+    createFindNearestPolyResult,
+    DEFAULT_QUERY_FILTER,
+    findNearestPoly,
+    type NavMesh,
+    type NodeRef,
+    type OffMeshConnection,
+    OffMeshConnectionDirection,
+    serPolyNodeRef,
+    three as threeUtils,
+} from 'nav3d';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { GUI } from 'lil-gui';
 import {
+    addAgent,
     type Agent,
     type AgentParams,
-    addAgent,
-    CrowdUpdateFlags,
     createCrowd,
+    CrowdUpdateFlags,
     requestMoveTarget,
     updateCrowd,
 } from './common/crowd';
@@ -110,9 +121,67 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
+const offMeshConnections: OffMeshConnection[] = [
+    {
+        start: [0.5207269291483024, 0.466454005241394, 5.182659418677135],
+        end: [1.278203310413239, 3.289000726117816, 5.106871063177174],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        flags: 0xffffff,
+        area: 0x000000,
+    },
+    {
+        start: [0.39257542778564014, 3.9164539337158204, 2.7241512942770267],
+        end: [1.2915380743929097, 2.8616158587143867, 3.398593875470379],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        flags: 0xffffff,
+        area: 0x000000,
+    },
+    {
+        start: [3.491345350637368, 3.169861227710937, 2.8419154179454473],
+        end: [4.0038066734125435, 0.466454005241394, 1.686211347289651],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        flags: 0xffffff,
+        area: 0x000000,
+    },
+    {
+        start: [4.612475330561077, 0.466454005241394, 2.7619018768157435],
+        end: [6.696740007427642, 0.5132029874438654, 2.5838885990777243],
+        direction: OffMeshConnectionDirection.BIDIRECTIONAL,
+        radius: 0.5,
+        flags: 0xffffff,
+        area: 0x000000,
+    },
+    {
+        start: [3.8221359252929688, 0.47645399570465086, -4.391971844600165],
+        end: [5.91173484469572, 0.6573111525835266, -4.671632275169128],
+        direction: OffMeshConnectionDirection.BIDIRECTIONAL,
+        radius: 0.5,
+        flags: 0xffffff,
+        area: 0x000000,
+    },
+    {
+        start: [8.354324172733968, 0.5340897451517822, -3.2333049546492223],
+        end: [8.461111697936666, 0.8365034207348984, -1.0863215738579806],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        flags: 0xffffff,
+        area: 0x000000,
+    },
+];
+
+for (const offMeshConnection of offMeshConnections) {
+    addOffMeshConnection(navMesh, offMeshConnection);
+}
+
 const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
+
+const offMeshConnectionsHelper = threeUtils.createNavMeshOffMeshConnectionsHelper(navMesh);
+scene.add(offMeshConnectionsHelper.object);
 
 /* Visuals */
 type AgentVisuals = {
@@ -150,14 +219,16 @@ const polyHelpers = new Map<NodeRef, PolyHelper>();
 const blendColors = (colors: [number, number, number][]): [number, number, number] => {
     if (colors.length === 0) return [0.5, 0.5, 0.5];
     if (colors.length === 1) return colors[0];
-    
-    let r = 0, g = 0, b = 0;
+
+    let r = 0,
+        g = 0,
+        b = 0;
     for (const [cr, cg, cb] of colors) {
         r += cr;
         g += cg;
         b += cb;
     }
-    
+
     const count = colors.length;
     return [r / count, g / count, b / count];
 };
@@ -168,9 +239,9 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
         const tile = navMesh.tiles[tileId];
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
             const polyRef = serPolyNodeRef(tile.id, polyIndex);
-            
+
             const helper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [0.5, 0.5, 0.5]);
-            
+
             // initially hidden and semi-transparent
             helper.object.visible = false;
             helper.object.traverse((child: any) => {
@@ -208,22 +279,23 @@ const addAgentColorToPoly = (polyRef: NodeRef, agentId: string, color: [number, 
     if (!helperInfo) return;
 
     helperInfo.agentColors.set(agentId, color);
-    
+
     // blend all agent colors for this polygon
     const allColors = Array.from(helperInfo.agentColors.values());
     const blendedColor = blendColors(allColors);
-    
+
     helperInfo.helper.object.visible = true;
     helperInfo.isVisible = true;
 
     // only update color if it's different
-    if (!helperInfo.currentColor || 
-        helperInfo.currentColor[0] !== blendedColor[0] || 
-        helperInfo.currentColor[1] !== blendedColor[1] || 
-        helperInfo.currentColor[2] !== blendedColor[2]) {
-        
+    if (
+        !helperInfo.currentColor ||
+        helperInfo.currentColor[0] !== blendedColor[0] ||
+        helperInfo.currentColor[1] !== blendedColor[1] ||
+        helperInfo.currentColor[2] !== blendedColor[2]
+    ) {
         helperInfo.currentColor = [...blendedColor];
-        
+
         // update material color
         helperInfo.helper.object.traverse((child: any) => {
             if (child instanceof THREE.Mesh && child.material) {
@@ -298,7 +370,13 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     };
 };
 
-const updateAgentVisuals = (agentId: string, agent: Agent, visuals: AgentVisuals, scene: THREE.Scene, options: AgentVisualsOptions = {}): void => {
+const updateAgentVisuals = (
+    agentId: string,
+    agent: Agent,
+    visuals: AgentVisuals,
+    scene: THREE.Scene,
+    options: AgentVisualsOptions = {},
+): void => {
     // update agent mesh position
     visuals.mesh.position.fromArray(agent.position);
     visuals.mesh.position.y += agent.params.height / 2;
@@ -475,7 +553,7 @@ console.log(crowd);
 const agentParams: AgentParams = {
     radius: 0.3,
     height: 0.6,
-    maxAcceleration: 8.0,
+    maxAcceleration: 15.0,
     maxSpeed: 3.5,
     collisionQueryRange: 2,
     // pathOptimizationRange: 30.0,
@@ -497,7 +575,7 @@ const agentParams: AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 10 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
+const agentPositions: Vec3[] = Array.from({ length: 5 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
 
 const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00];
 
@@ -541,11 +619,13 @@ const onPointerDown = (event: MouseEvent) => {
         DEFAULT_QUERY_FILTER,
     );
 
-    if (!nearestResult.success) return
+    if (!nearestResult.success) return;
 
     for (const agentId in crowd.agents) {
         requestMoveTarget(crowd, agentId, nearestResult.nearestPolyRef, nearestResult.nearestPoint);
     }
+
+    console.log('target position:', targetPosition);
 };
 
 renderer.domElement.addEventListener('pointerdown', onPointerDown);
@@ -562,10 +642,10 @@ function update() {
     prevTime = time;
 
     // update crowd
-    console.time("update crowd");
+    // console.time("update crowd");
     updateCrowd(crowd, navMesh, clampedDeltaTime);
-    console.timeEnd("update crowd");
-    
+    // console.timeEnd("update crowd");
+
     // update visuals
     clearPolyHelperColors();
 
