@@ -331,7 +331,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
     }
 };
 
-const GLOBAL_MAX_ITERATIONS = 100;
+const GLOBAL_MAX_ITERATIONS = 200;
 const AGENT_MAX_ITERATIONS = 50;
 
 const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
@@ -345,7 +345,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
 
     // Collect all agents that need pathfinding processing
     const pathfindingAgents: string[] = [];
-    
+
     for (const agentId in crowd.agents) {
         const agent = crowd.agents[agentId];
 
@@ -384,7 +384,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
 
     // distribute global iteration budget across prioritized agents
     let remainingIterations = GLOBAL_MAX_ITERATIONS;
-    
+
     for (const agentId of pathfindingAgents) {
         if (remainingIterations <= 0) break;
 
@@ -392,9 +392,9 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
 
         // allocate iterations for this agent (minimum 1, maximum remaining)
         const iterationsForAgent = Math.min(AGENT_MAX_ITERATIONS, remainingIterations); // cap per agent
-        
-        updateSlicedFindNodePath(navMesh, agent.slicedQuery, iterationsForAgent);
-        remainingIterations -= iterationsForAgent;
+
+        const iterationsPerformed = updateSlicedFindNodePath(navMesh, agent.slicedQuery, iterationsForAgent);
+        remainingIterations -= iterationsPerformed;
 
         if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.FAILURE) !== 0) {
             // pathfinding failed
@@ -530,8 +530,6 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
         const triggerRadius = agent.params.radius * 2.25;
 
         if (agentIsOverOffMeshConnection(agent, triggerRadius)) {
-            agent.state = AgentState.OFFMESH;
-
             const offMeshConnectionNode = agent.corners[agent.corners.length - 1].nodeRef;
 
             if (!offMeshConnectionNode) continue;
@@ -540,6 +538,7 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
 
             if (result === false) continue;
 
+            agent.state = AgentState.OFFMESH;
             agent.offMeshAnimation = {
                 t: 0,
                 duration: 0.5,
@@ -702,7 +701,7 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
 
         if (agent.state !== AgentState.WALKING) continue;
 
-        if ((agent.params.updateFlags & CrowdUpdateFlags.OBSTACLE_AVOIDANCE)) {
+        if (agent.params.updateFlags & CrowdUpdateFlags.OBSTACLE_AVOIDANCE) {
             // reset obstacle query
             resetObstacleAvoidanceQuery(agent.obstacleAvoidanceQuery);
 
@@ -750,7 +749,7 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
             vec3.copy(agent.newVelocity, agent.desiredVelocity);
         }
     }
-}
+};
 
 const _integrateDv = vec3.create();
 
@@ -896,7 +895,7 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
 
             // finish animation
             agent.offMeshAnimation = null;
-            
+
             // prepare agent for walking
             agent.state = AgentState.WALKING;
 

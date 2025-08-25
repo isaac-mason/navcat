@@ -200,30 +200,9 @@ type AgentVisualsOptions = {
 type PolyHelper = {
     helper: threeUtils.DebugObject;
     polyRef: NodeRef;
-    isVisible: boolean;
-    currentColor: [number, number, number] | null;
-    agentColors: Map<string, [number, number, number]>; // track colors from each agent
 };
 
 const polyHelpers = new Map<NodeRef, PolyHelper>();
-
-// utility function to blend colors
-const blendColors = (colors: [number, number, number][]): [number, number, number] => {
-    if (colors.length === 0) return [0.5, 0.5, 0.5];
-    if (colors.length === 1) return colors[0];
-
-    let r = 0,
-        g = 0,
-        b = 0;
-    for (const [cr, cg, cb] of colors) {
-        r += cr;
-        g += cg;
-        b += cb;
-    }
-
-    const count = colors.length;
-    return [r / count, g / count, b / count];
-};
 
 const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
     // create helpers for all polygons in the navmesh
@@ -232,7 +211,7 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
             const polyRef = serPolyNodeRef(tile.id, polyIndex);
 
-            const helper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [0.5, 0.5, 0.5]);
+            const helper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.3, 1]);
 
             // initially hidden and semi-transparent
             helper.object.visible = false;
@@ -242,12 +221,12 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
                         child.material.forEach((mat) => {
                             if (mat instanceof THREE.Material) {
                                 mat.transparent = true;
-                                mat.opacity = 0.3;
+                                mat.opacity = 0.5;
                             }
                         });
                     } else if (child.material instanceof THREE.Material) {
                         child.material.transparent = true;
-                        child.material.opacity = 0.3;
+                        child.material.opacity = 0.5;
                     }
                 }
             });
@@ -258,60 +237,21 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
             polyHelpers.set(polyRef, {
                 helper,
                 polyRef,
-                isVisible: false,
-                currentColor: null,
-                agentColors: new Map(),
             });
         }
     }
 };
 
-const addAgentColorToPoly = (polyRef: NodeRef, agentId: string, color: [number, number, number]): void => {
+const showPoly = (polyRef: NodeRef): void => {
     const helperInfo = polyHelpers.get(polyRef);
     if (!helperInfo) return;
 
-    helperInfo.agentColors.set(agentId, color);
-
-    // blend all agent colors for this polygon
-    const allColors = Array.from(helperInfo.agentColors.values());
-    const blendedColor = blendColors(allColors);
-
     helperInfo.helper.object.visible = true;
-    helperInfo.isVisible = true;
-
-    // only update color if it's different
-    if (
-        !helperInfo.currentColor ||
-        helperInfo.currentColor[0] !== blendedColor[0] ||
-        helperInfo.currentColor[1] !== blendedColor[1] ||
-        helperInfo.currentColor[2] !== blendedColor[2]
-    ) {
-        helperInfo.currentColor = [...blendedColor];
-
-        // update material color
-        helperInfo.helper.object.traverse((child: any) => {
-            if (child instanceof THREE.Mesh && child.material) {
-                if (Array.isArray(child.material)) {
-                    child.material.forEach((mat) => {
-                        if (mat instanceof THREE.MeshBasicMaterial) {
-                            mat.color.setRGB(blendedColor[0], blendedColor[1], blendedColor[2]);
-                        }
-                    });
-                } else if (child.material instanceof THREE.MeshBasicMaterial) {
-                    child.material.color.setRGB(blendedColor[0], blendedColor[1], blendedColor[2]);
-                }
-            }
-        });
-    }
 };
 
-const clearPolyHelperColors = (): void => {
+const clearPolyHelpers = (): void => {
     for (const helperInfo of polyHelpers.values()) {
-        helperInfo.agentColors.clear();
-        if (helperInfo.isVisible) {
-            helperInfo.helper.object.visible = false;
-            helperInfo.isVisible = false;
-        }
+        helperInfo.helper.object.visible = false;
     }
 };
 
@@ -363,7 +303,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 };
 
 const updateAgentVisuals = (
-    agentId: string,
+    _agentId: string,
     agent: Agent,
     visuals: AgentVisuals,
     scene: THREE.Scene,
@@ -428,15 +368,9 @@ const updateAgentVisuals = (
 
     // show polygon helpers for this agent's corridor path
     if (options.showPolyHelpers && agent.corridor.path.length > 0) {
-        // convert hex color to RGB array for the poly helpers
-        const r = ((visuals.color >> 16) & 255) / 255;
-        const g = ((visuals.color >> 8) & 255) / 255;
-        const b = (visuals.color & 255) / 255;
-        const color: [number, number, number] = [r, g, b];
-
-        // add this agent's color to each polygon in the corridor path
+        // highlight this polygon
         for (const polyRef of agent.corridor.path) {
-            addAgentColorToPoly(polyRef, agentId, color);
+            showPoly(polyRef);
         }
     }
     // Note: poly helpers are handled globally in clearPolyHelperColors(), no need to hide individually
@@ -567,7 +501,7 @@ const agentParams: AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 5 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
+const agentPositions: Vec3[] = Array.from({ length: 10 }).map((_, i) => [-2 + i * 0.01, 0.5, 3]) as Vec3[];
 
 const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00];
 
@@ -589,6 +523,8 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 const onPointerDown = (event: MouseEvent) => {
+    if (event.button !== 0) return;
+
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -639,7 +575,7 @@ function update() {
     // console.timeEnd("update crowd");
 
     // update visuals
-    clearPolyHelperColors();
+    clearPolyHelpers();
 
     const agents = Object.keys(crowd.agents);
 
