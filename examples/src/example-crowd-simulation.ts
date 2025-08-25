@@ -123,14 +123,6 @@ const navMesh = navMeshResult.navMesh;
 
 const offMeshConnections: OffMeshConnection[] = [
     {
-        start: [0.5207269291483024, 0.466454005241394, 5.182659418677135],
-        end: [1.278203310413239, 3.289000726117816, 5.106871063177174],
-        direction: OffMeshConnectionDirection.START_TO_END,
-        radius: 0.5,
-        flags: 0xffffff,
-        area: 0x000000,
-    },
-    {
         start: [0.39257542778564014, 3.9164539337158204, 2.7241512942770267],
         end: [1.2915380743929097, 2.8616158587143867, 3.398593875470379],
         direction: OffMeshConnectionDirection.START_TO_END,
