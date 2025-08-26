@@ -109,7 +109,7 @@ export type Agent = {
     targetRef: NodeRef | null;
     targetPos: Vec3;
     targetReplan: boolean;
-    targetReplanTime: number;
+    targetPathfindingTime: number;
 
     offMeshAnimation: {
         t: number;
@@ -165,7 +165,7 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
         targetRef: null,
         targetPos: [0, 0, 0],
         targetReplan: false,
-        targetReplanTime: 0,
+        targetPathfindingTime: 0,
 
         offMeshAnimation: null,
     };
@@ -243,7 +243,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
 
         if (agent.state !== AgentState.WALKING) continue;
 
-        agent.targetReplanTime += deltaTime;
+        agent.targetPathfindingTime += deltaTime;
 
         let replan = false;
 
@@ -316,7 +316,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
         // if the end of the apth is near and it is not the requested location, replan
         if (agent.targetState === AgentTargetState.VALID) {
             if (
-                agent.targetReplanTime > TARGET_REPLAN_DELAY_SECONDS &&
+                agent.targetPathfindingTime > TARGET_REPLAN_DELAY_SECONDS &&
                 agent.corridor.path.length < CHECK_LOOKAHEAD &&
                 agent.corridor.path[agent.corridor.path.length - 1] !== agent.targetRef
             ) {
@@ -335,15 +335,15 @@ const GLOBAL_MAX_ITERATIONS = 200;
 const AGENT_MAX_ITERATIONS = 50;
 
 const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
-    // First, update pathfinding time for all agents in PATHFINDING state
+    // first, update pathfinding time for all agents in PATHFINDING state
     for (const agentId in crowd.agents) {
         const agent = crowd.agents[agentId];
         if (agent.targetState === AgentTargetState.PATHFINDING) {
-            agent.targetReplanTime += deltaTime;
+            agent.targetPathfindingTime += deltaTime;
         }
     }
 
-    // Collect all agents that need pathfinding processing
+    // collect all agents that need pathfinding processing
     const pathfindingAgents: string[] = [];
 
     for (const agentId in crowd.agents) {
@@ -359,7 +359,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
         }
 
         if (agent.targetState === AgentTargetState.REQUESTING) {
-            // Initialize sliced find node path query
+            // init the pathfinding query and state
             initSlicedFindNodePath(
                 navMesh,
                 agent.slicedQuery,
@@ -369,9 +369,8 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
                 agent.targetPos,
                 agent.params.queryFilter,
             );
-
             agent.targetState = AgentTargetState.PATHFINDING;
-            agent.targetReplanTime = 0; // Reset timer when starting pathfinding
+            agent.targetPathfindingTime = 0;
         }
 
         if (agent.targetState === AgentTargetState.PATHFINDING) {
@@ -380,7 +379,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
     }
 
     // sort agents by targetReplanTime (longest waiting gets priority)
-    pathfindingAgents.sort((a, b) => crowd.agents[b].targetReplanTime - crowd.agents[a].targetReplanTime);
+    pathfindingAgents.sort((a, b) => crowd.agents[b].targetPathfindingTime - crowd.agents[a].targetPathfindingTime);
 
     // distribute global iteration budget across prioritized agents
     let remainingIterations = GLOBAL_MAX_ITERATIONS;
@@ -399,11 +398,11 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
         if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.FAILURE) !== 0) {
             // pathfinding failed
             agent.targetState = AgentTargetState.FAILED;
-            agent.targetReplanTime = 0;
+            agent.targetPathfindingTime = 0;
         } else if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0) {
             // pathfinding succeeded
             agent.targetState = AgentTargetState.VALID;
-            agent.targetReplanTime = 0;
+            agent.targetPathfindingTime = 0;
 
             const result = finalizeSlicedFindNodePath(agent.slicedQuery);
             setCorridorPath(agent.corridor, agent.targetPos, result.path);
