@@ -1,5 +1,5 @@
 import GUI from 'lil-gui';
-import { three as threeUtils } from 'nav3d';
+import { three as threeUtils } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { createExample } from './common/example-boilerplate';

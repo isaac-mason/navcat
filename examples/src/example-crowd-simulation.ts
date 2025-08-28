@@ -11,7 +11,7 @@ import {
     OffMeshConnectionDirection,
     serPolyNodeRef,
     three as threeUtils,
-} from 'nav3d';
+} from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import {
@@ -53,8 +53,11 @@ camera.position.set(-2, 10, 10);
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true;
 
-const navTestModel = await loadGLTF('/models/nav-test.glb');
-scene.add(navTestModel.scene);
+const levelModel = await loadGLTF('/models/nav-test.glb');
+// const levelModel = await loadGLTF('/models/dungeon.gltf');
+// const levelModel = await loadGLTF('/models/proto-level.glb');
+scene.add(levelModel.scene);
+console.log('levelModel', levelModel.scene);
 
 /* generate navmesh */
 const walkableMeshes: THREE.Mesh[] = [];
@@ -72,7 +75,7 @@ const navMeshInput: TiledNavMeshInput = {
 };
 
 const cellSize = 0.15;
-const cellHeight = 0.15;
+const cellHeight = 0.15
 
 const tileSizeVoxels = 64;
 const tileSizeWorld = tileSizeVoxels * cellSize;

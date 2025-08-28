@@ -11,7 +11,7 @@ import {
     NodeType,
     type QueryFilter,
     type StraightPathPoint,
-} from 'nav3d';
+} from 'navcat';
 
 export type PathCorridor = {
     position: Vec3;

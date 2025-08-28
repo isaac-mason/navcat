@@ -5,7 +5,7 @@ import {
     findNearestPoly,
     raycast,
     three as threeUtils,
-} from 'nav3d';
+} from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';

@@ -30,7 +30,7 @@ import {
     polyMeshToTilePolys,
     rasterizeTriangles,
     WALKABLE_AREA,
-} from 'nav3d';
+} from 'navcat';
 
 export type SoloNavMeshInput = {
     positions: Float32Array;

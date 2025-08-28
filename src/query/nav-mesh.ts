@@ -49,7 +49,7 @@ export type NavMeshPoly = {
 
     /**
      * Packed data representing neighbor polygons references and flags for each edge.
-     * This is usually computed by the nav3d's `buildPolyNeighbours` function .
+     * This is usually computed by the navcat's `buildPolyNeighbours` function .
      */
     neis: number[];
 

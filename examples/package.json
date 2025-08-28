@@ -1,5 +1,5 @@
 {
-    "name": "nav3d-examples",
+    "name": "navcat-examples",
     "private": true,
     "version": "0.0.0",
     "type": "module",
@@ -10,7 +10,7 @@
     },
     "dependencies": {
         "lil-gui": "^0.20.0",
-        "nav3d": "workspace:*",
+        "navcat": "workspace:*",
         "three": "^0.179.1"
     },
     "devDependencies": {

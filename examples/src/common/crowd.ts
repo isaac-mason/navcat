@@ -14,7 +14,7 @@ import {
     type SlicedNodePathQuery,
     type StraightPathPoint,
     updateSlicedFindNodePath,
-} from 'nav3d';
+} from 'navcat';
 import {
     createLocalBoundary,
     isLocalBoundaryValid,
@@ -331,8 +331,9 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
     }
 };
 
-const GLOBAL_MAX_ITERATIONS = 200;
-const AGENT_MAX_ITERATIONS = 50;
+const GLOBAL_MAX_ITERATIONS = 500;
+const AGENT_MAX_ITERATIONS = 100;
+const QUICK_SEARCH_ITERATIONS = 20;
 
 const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     // first, update pathfinding time for all agents in PATHFINDING state
@@ -369,6 +370,10 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
                 agent.targetPos,
                 agent.params.queryFilter,
             );
+
+            // quick search
+            updateSlicedFindNodePath(navMesh, agent.slicedQuery, QUICK_SEARCH_ITERATIONS);
+
             agent.targetState = AgentTargetState.PATHFINDING;
             agent.targetPathfindingTime = 0;
         }
@@ -385,15 +390,15 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
     let remainingIterations = GLOBAL_MAX_ITERATIONS;
 
     for (const agentId of pathfindingAgents) {
-        if (remainingIterations <= 0) break;
-
         const agent = crowd.agents[agentId];
 
-        // allocate iterations for this agent (minimum 1, maximum remaining)
-        const iterationsForAgent = Math.min(AGENT_MAX_ITERATIONS, remainingIterations); // cap per agent
-
-        const iterationsPerformed = updateSlicedFindNodePath(navMesh, agent.slicedQuery, iterationsForAgent);
-        remainingIterations -= iterationsPerformed;
+        if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.IN_PROGRESS) !== 0 && remainingIterations > 0) {
+            // allocate iterations for this agent (minimum 1, maximum remaining)
+            const iterationsForAgent = Math.min(AGENT_MAX_ITERATIONS, remainingIterations);
+    
+            const iterationsPerformed = updateSlicedFindNodePath(navMesh, agent.slicedQuery, iterationsForAgent);
+            remainingIterations -= iterationsPerformed;
+        }
 
         if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.FAILURE) !== 0) {
             // pathfinding failed

@@ -1,6 +1,6 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
-import { findLocalNeighbourhood, getPolyWallSegments, isValidNodeRef, type NavMesh, type NodeRef, type QueryFilter } from 'nav3d';
+import { findLocalNeighbourhood, getPolyWallSegments, isValidNodeRef, type NavMesh, type NodeRef, type QueryFilter } from 'navcat';
 
 const MAX_LOCAL_SEGS = 8;
 const MAX_LOCAL_POLYS = 16;

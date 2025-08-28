@@ -5,7 +5,7 @@ import {
     findNearestPoly,
     findRandomPointAroundCircle,
     three as threeUtils,
-} from 'nav3d';
+} from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { createExample } from './common/example-boilerplate';
