@@ -324,17 +324,56 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
     }
 };
 
-const showPoly = (polyRef: NodeRef): void => {
+const showPoly = (polyRef: NodeRef, color?: number): void => {
     const helperInfo = polyHelpers.get(polyRef);
     if (!helperInfo) return;
 
     helperInfo.helper.object.visible = true;
+
+    // Update color if provided
+    if (color !== undefined) {
+        helperInfo.helper.object.traverse((child: any) => {
+            if (child instanceof THREE.Mesh && child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach((mat) => {
+                        if ('color' in mat) {
+                            mat.color.setHex(color);
+                        }
+                    });
+                } else {
+                    if ('color' in child.material) {
+                        child.material.color.setHex(color);
+                    }
+                }
+            }
+        });
+    }
 };
 
 const clearPolyHelpers = (): void => {
     for (const helperInfo of polyHelpers.values()) {
         helperInfo.helper.object.visible = false;
     }
+};
+
+const mixColors = (colors: number[]): number => {
+    if (colors.length === 0) return 0x0000ff;
+    if (colors.length === 1) return colors[0];
+
+    let r = 0,
+        g = 0,
+        b = 0;
+    for (const color of colors) {
+        r += (color >> 16) & 0xff;
+        g += (color >> 8) & 0xff;
+        b += color & 0xff;
+    }
+
+    r = Math.floor(r / colors.length);
+    g = Math.floor(g / colors.length);
+    b = Math.floor(b / colors.length);
+
+    return (r << 16) | (g << 8) | b;
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
@@ -361,7 +400,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     const idleClip = catAnimations.find((clip) => clip.name === 'Idle');
     const walkClip = catAnimations.find((clip) => clip.name === 'Walk');
     const runClip = catAnimations.find((clip) => clip.name === 'Run');
- 
+
     if (!idleClip || !walkClip || !runClip) {
         throw new Error('Missing required animations in cat model');
     }
@@ -461,8 +500,8 @@ const updateAgentVisuals = (
             visuals.currentAnimation === 'idle'
                 ? visuals.idleAction
                 : visuals.currentAnimation === 'walk'
-                    ? visuals.walkAction
-                    : visuals.runAction;
+                  ? visuals.walkAction
+                  : visuals.runAction;
 
         const targetAction =
             targetAnimation === 'idle' ? visuals.idleAction : targetAnimation === 'walk' ? visuals.walkAction : visuals.runAction;
@@ -567,12 +606,6 @@ const updateAgentVisuals = (
     }
 
     // show polygon helpers for this agent's corridor path
-    if (options.showPolyHelpers && agent.corridor.path.length > 0) {
-        // highlight this polygon
-        for (const polyRef of agent.corridor.path) {
-            showPoly(polyRef);
-        }
-    }
 
     // obstacle segments visualization
     if (visuals.obstacleSegmentLines.length > 0) {
@@ -725,9 +758,8 @@ const scatterCats = () => {
         if (!randomPointResult.success) continue;
 
         requestMoveTarget(crowd, agentId, randomPointResult.ref, randomPointResult.position);
-
     }
-}
+};
 
 scatterCats();
 
@@ -804,12 +836,26 @@ function update() {
     // update visuals
     clearPolyHelpers();
 
+    // collect corridor information for poly helper coloring
+    const polyAgentColors = new Map<NodeRef, number[]>();
+
     const agents = Object.keys(crowd.agents);
 
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
         const agent = crowd.agents[agentId];
         if (agentVisuals[agentId]) {
+            // collect corridor data for this agent
+            if (guiSettings.showPolyHelpers && agent.corridor.path.length > 0) {
+                const agentColor = agentVisuals[agentId].color;
+                for (const polyRef of agent.corridor.path) {
+                    if (!polyAgentColors.has(polyRef)) {
+                        polyAgentColors.set(polyRef, []);
+                    }
+                    polyAgentColors.get(polyRef)!.push(agentColor);
+                }
+            }
+
             updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, clampedDeltaTime, {
                 showVelocityVectors: guiSettings.showVelocityVectors,
                 showPolyHelpers: guiSettings.showPolyHelpers,
@@ -818,6 +864,14 @@ function update() {
                 showPathLine: guiSettings.showPathLine,
                 showCapsuleDebug: guiSettings.showCapsuleDebug,
             });
+        }
+    }
+
+    // update poly helper colors based on collected corridor data
+    if (guiSettings.showPolyHelpers) {
+        for (const [polyRef, colors] of polyAgentColors.entries()) {
+            const mixedColor = mixColors(colors);
+            showPoly(polyRef, mixedColor);
         }
     }
 
