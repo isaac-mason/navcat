@@ -3,8 +3,10 @@ import type { NavMesh, NodeRef } from 'navcat';
 import {
     createFindNearestPolyResult,
     DEFAULT_QUERY_FILTER,
+    desNodeRef,
     findNearestPoly,
     findStraightPath,
+    NodeType,
     three as threeUtils,
 } from 'navcat';
 import * as THREE from 'three';
@@ -99,17 +101,16 @@ const maxIterations = 10000;
 const arrowHelpers: THREE.Object3D[] = [];
 const pathHelpers: THREE.Object3D[] = [];
 
-// Utility: get the center of a polygon (average of its vertices)
-function getPolyCenter(navMesh: NavMesh, polyRef: NodeRef): [number, number, number] | null {
-    // polyRef format: '0,tileId,polyIndex'
-    const parts = polyRef.split(',');
-    if (parts.length !== 3) return null;
-    const tileId = parts[1];
-    const polyIndex = parseInt(parts[2], 10);
+function getPolyCenter(navMesh: NavMesh, nodeRef: NodeRef): [number, number, number] | null {
+    const [type, tileId, polyIndex] = desNodeRef(nodeRef);
+    if (type !== NodeType.GROUND_POLY) return null;
+
     const tile = navMesh.tiles[tileId];
     if (!tile) return null;
+
     const poly = tile.polys[polyIndex];
     if (!poly) return null;
+
     const sum = [0, 0, 0];
     for (let i = 0; i < poly.vertices.length; i++) {
         const vi = poly.vertices[i] * 3;
@@ -117,7 +118,9 @@ function getPolyCenter(navMesh: NavMesh, polyRef: NodeRef): [number, number, num
         sum[1] += tile.vertices[vi + 1];
         sum[2] += tile.vertices[vi + 2];
     }
+
     const n = poly.vertices.length;
+
     return [sum[0] / n, sum[1] / n, sum[2] / n];
 }
 
@@ -125,6 +128,7 @@ function clearArrowHelpers() {
     for (const obj of arrowHelpers) scene.remove(obj);
     arrowHelpers.length = 0;
 }
+
 function clearPathHelpers() {
     for (const obj of pathHelpers) scene.remove(obj);
     pathHelpers.length = 0;
@@ -189,6 +193,7 @@ function getPolyRefAtMouse(event: MouseEvent): NodeRef | null {
 
     const intersects = raycaster.intersectObject(navTestModel.scene, true);
     if (intersects.length === 0) return null;
+
     const point = intersects[0].point;
     const targetPosition: Vec3 = [point.x, point.y, point.z];
     const halfExtents: Vec3 = [1, 1, 1];
@@ -199,7 +204,9 @@ function getPolyRefAtMouse(event: MouseEvent): NodeRef | null {
         halfExtents,
         DEFAULT_QUERY_FILTER,
     );
+
     if (!nearestResult.success) return null;
+
     return nearestResult.nearestPolyRef;
 }
 
@@ -223,24 +230,24 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
 
         const polyRef = getPolyRefAtMouse(event);
 
-        if (polyRef) {
-            const polyPath = getNodePathFromFlowField(flowField, polyRef);
+        if (!polyRef) return;
 
-            if (polyPath) {
-                // Find straight path for the corridor
-                const startCenter = getPolyCenter(navMesh, polyRef);
-                const endCenter = getPolyCenter(navMesh, flowFieldTarget);
-                let straightPath: [number, number, number][] = [];
-                if (startCenter && endCenter) {
-                    const straight = findStraightPath(navMesh, startCenter, endCenter, polyPath);
-                    if (straight?.path) {
-                        straightPath = straight.path.map((p: { position: [number, number, number] }) => p.position);
-                    }
+        const polyPath = getNodePathFromFlowField(flowField, polyRef);
+
+        if (polyPath) {
+            // Find straight path for the corridor
+            const startCenter = getPolyCenter(navMesh, polyRef);
+            const endCenter = getPolyCenter(navMesh, flowFieldTarget);
+            let straightPath: [number, number, number][] = [];
+            if (startCenter && endCenter) {
+                const straight = findStraightPath(navMesh, startCenter, endCenter, polyPath);
+                if (straight?.path) {
+                    straightPath = straight.path.map((p: { position: [number, number, number] }) => p.position);
                 }
-                showPath(polyPath, straightPath.length > 0 ? straightPath : [startCenter!, endCenter!]);
-            } else {
-                clearPathHelpers();
             }
+            showPath(polyPath, straightPath.length > 0 ? straightPath : [startCenter!, endCenter!]);
+        } else {
+            clearPathHelpers();
         }
     }
 });

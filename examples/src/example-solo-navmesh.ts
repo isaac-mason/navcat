@@ -1,13 +1,9 @@
-import GUI from 'lil-gui'; 
+import GUI from 'lil-gui';
 import { three as threeUtils } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { createExample } from './common/example-boilerplate';
-import {
-    generateSoloNavMesh,
-    type SoloNavMeshInput,
-    type SoloNavMeshOptions,
-} from './common/generate-solo-nav-mesh';
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from './common/generate-solo-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -88,13 +84,19 @@ detailFolder.add(config, 'detailSampleDistance', 0, 16, 1);
 detailFolder.add(config, 'detailSampleMaxError', 0, 16, 1);
 
 const debugFolder = gui.addFolder('Debug Helpers');
-debugFolder.add(debugConfig, 'showMesh').name('Show Mesh').onChange(() => {
-    navTestModel.scene.visible = debugConfig.showMesh;
-});
+debugFolder
+    .add(debugConfig, 'showMesh')
+    .name('Show Mesh')
+    .onChange(() => {
+        navTestModel.scene.visible = debugConfig.showMesh;
+    });
 debugFolder.add(debugConfig, 'showTriangleAreaIds').name('Triangle Area IDs').onChange(updateDebugHelpers);
 debugFolder.add(debugConfig, 'showHeightfield').name('Heightfield').onChange(updateDebugHelpers);
 debugFolder.add(debugConfig, 'showCompactHeightfieldSolid').name('Compact Heightfield Solid').onChange(updateDebugHelpers);
-debugFolder.add(debugConfig, 'showCompactHeightfieldDistances').name('Compact Heightfield Distances').onChange(updateDebugHelpers);
+debugFolder
+    .add(debugConfig, 'showCompactHeightfieldDistances')
+    .name('Compact Heightfield Distances')
+    .onChange(updateDebugHelpers);
 debugFolder.add(debugConfig, 'showCompactHeightfieldRegions').name('Compact Heightfield Regions').onChange(updateDebugHelpers);
 debugFolder.add(debugConfig, 'showRawContours').name('Raw Contours').onChange(updateDebugHelpers);
 debugFolder.add(debugConfig, 'showSimplifiedContours').name('Simplified Contours').onChange(updateDebugHelpers);
@@ -135,13 +137,13 @@ const debugHelpers: {
 };
 
 function clearDebugHelpers() {
-    Object.values(debugHelpers).forEach(helper => {
+    Object.values(debugHelpers).forEach((helper) => {
         if (helper) {
             scene.remove(helper.object);
             helper.dispose();
         }
     });
-    
+
     // Reset all references
     debugHelpers.triangleAreaIds = null;
     debugHelpers.heightfield = null;
@@ -182,12 +184,16 @@ function updateDebugHelpers() {
     }
 
     if (debugConfig.showCompactHeightfieldDistances) {
-        debugHelpers.compactHeightfieldDistances = threeUtils.createCompactHeightfieldDistancesHelper(intermediates.compactHeightfield);
+        debugHelpers.compactHeightfieldDistances = threeUtils.createCompactHeightfieldDistancesHelper(
+            intermediates.compactHeightfield,
+        );
         scene.add(debugHelpers.compactHeightfieldDistances.object);
     }
 
     if (debugConfig.showCompactHeightfieldRegions) {
-        debugHelpers.compactHeightfieldRegions = threeUtils.createCompactHeightfieldRegionsHelper(intermediates.compactHeightfield);
+        debugHelpers.compactHeightfieldRegions = threeUtils.createCompactHeightfieldRegionsHelper(
+            intermediates.compactHeightfield,
+        );
         scene.add(debugHelpers.compactHeightfieldRegions.object);
     }
 
