@@ -1,4 +1,5 @@
 import type { Box3 } from 'maaths';
+import { BuildContext, type BuildContextState } from './build-context';
 import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common';
 import type { Heightfield } from './heightfield';
 
@@ -91,6 +92,7 @@ const getHeightFieldSpanCount = (heightfield: Heightfield): number => {
 };
 
 export const buildCompactHeightfield = (
+    ctx: BuildContextState,
     walkableHeightVoxels: number,
     walkableClimbVoxels: number,
     heightfield: Heightfield,
@@ -222,7 +224,7 @@ export const buildCompactHeightfield = (
     }
 
     if (maxLayerIndex > MAX_LAYERS) {
-        console.warn(`buildCompactHeightfield: Heightfield has too many layers ${maxLayerIndex} (max: ${MAX_LAYERS})`);
+        BuildContext.warn(ctx, `buildCompactHeightfield: Heightfield has too many layers ${maxLayerIndex} (max: ${MAX_LAYERS})`);
     }
 
     return compactHeightfield;

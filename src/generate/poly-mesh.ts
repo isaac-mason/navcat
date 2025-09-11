@@ -1,4 +1,5 @@
 import { box3, type Box3, vec3 } from 'maaths';
+import { BuildContext, type BuildContextState } from './build-context';
 import { BORDER_VERTEX, MESH_NULL_IDX, MULTIPLE_REGS } from './common';
 import type { ContourSet } from './contour-set';
 
@@ -545,7 +546,9 @@ const mergePolyVerts = (
     }
 };
 
-export const buildPolyMesh = (contourSet: ContourSet, maxVerticesPerPoly: number): PolyMesh => {
+// TODO: return errors instead of throwing errors in buildPolyMesh
+
+export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, maxVerticesPerPoly: number): PolyMesh => {
     // calculate sizes
     let maxVertices = 0;
     let maxTris = 0;
@@ -606,7 +609,7 @@ export const buildPolyMesh = (contourSet: ContourSet, maxVerticesPerPoly: number
         // triangulate contour
         let ntris = triangulate(cont.nVertices, cont.vertices, indices, tris);
         if (ntris <= 0) {
-            console.warn(`Bad triangulation for contour ${i}`);
+            BuildContext.warn(ctx, `Bad triangulation for contour ${i}`);
             ntris = Math.abs(ntris);
         }
 
@@ -700,8 +703,8 @@ export const buildPolyMesh = (contourSet: ContourSet, maxVerticesPerPoly: number
             if (!canRemoveVertex(mesh, i)) {
                 continue;
             }
-            if (!removeVertex(mesh, i, maxTris)) {
-                console.error(`Failed to remove edge vertex ${i}`);
+            if (!removeVertex(ctx, mesh, i, maxTris)) {
+                BuildContext.error(ctx, `Failed to remove edge vertex ${i}`);
                 throw new Error(`Failed to remove edge vertex ${i}`);
             }
             // remove vertex - note: mesh.nVertices is already decremented inside removeVertex()!
@@ -823,7 +826,7 @@ const pushBack = (v: number, arr: number[], an: { value: number }) => {
     an.value++;
 };
 
-const removeVertex = (mesh: PolyMesh, remVertexIdx: number, maxTris: number): boolean => {
+const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: number, maxTris: number): boolean => {
     const nvp = mesh.maxVerticesPerPoly;
 
     // Count number of polygons to remove
@@ -996,7 +999,7 @@ const removeVertex = (mesh: PolyMesh, remVertexIdx: number, maxTris: number): bo
     let ntris = triangulate(nhole, tverts, thole, tris);
     if (ntris < 0) {
         ntris = -ntris;
-        console.warn('removeVertex: triangulate() returned bad results');
+        BuildContext.warn(ctx, 'removeVertex: triangulate() returned bad results');
     }
 
     // Merge the hole triangles back to polygons
@@ -1103,7 +1106,7 @@ const removeVertex = (mesh: PolyMesh, remVertexIdx: number, maxTris: number): bo
         mesh.nPolys++;
 
         if (mesh.nPolys > maxTris) {
-            console.error(`removeVertex: Too many polygons ${mesh.nPolys} (max:${maxTris})`);
+            BuildContext.error(ctx, `removeVertex: Too many polygons ${mesh.nPolys} (max:${maxTris})`);
             return false;
         }
     }

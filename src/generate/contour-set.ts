@@ -1,4 +1,5 @@
 import type { Box3 } from 'maaths';
+import { BuildContext, type BuildContextState } from './build-context';
 import { AREA_BORDER, BORDER_REG, BORDER_VERTEX, CONTOUR_REG_MASK, getDirOffsetX, getDirOffsetY, NOT_CONNECTED } from './common';
 import type { CompactHeightfield } from './compact-heightfield';
 import { getCon } from './compact-heightfield';
@@ -797,7 +798,7 @@ const compareHoles = (a: ContourHole, b: ContourHole): number => {
 
 const _diagonalVerts = new Array(8);
 
-const mergeRegionHoles = (region: ContourRegion): void => {
+const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void => {
     // Sort holes from left to right.
     for (let i = 0; i < region.nholes; i++) {
         const result = findLeftMostVertex(region.holes[i].contour);
@@ -908,16 +909,17 @@ const mergeRegionHoles = (region: ContourRegion): void => {
         }
 
         if (index === -1) {
-            console.warn('mergeHoles: Failed to find merge points for outline and hole.');
+            BuildContext.warn(ctx, 'mergeHoles: Failed to find merge points for outline and hole.');
             continue;
         }
         if (!mergeContours(region.outline!, hole, index, bestVertex)) {
-            console.warn('mergeHoles: Failed to merge contours.');
+            BuildContext.warn(ctx, 'mergeHoles: Failed to merge contours.');
         }
     }
 };
 
 export const buildContours = (
+    ctx: BuildContextState,
     compactHeightfield: CompactHeightfield,
     maxSimplificationError: number,
     maxEdgeLength: number,
@@ -1074,7 +1076,7 @@ export const buildContours = (
                 // Positively wound contours are outlines, negative holes.
                 if (winding[i] > 0) {
                     if (regions[contour.reg].outline) {
-                        console.error(`buildContours: Multiple outlines for region ${contour.reg}.`);
+                        BuildContext.error(ctx, `buildContours: Multiple outlines for region ${contour.reg}.`);
                     }
                     regions[contour.reg].outline = contour;
                 } else {
@@ -1106,12 +1108,12 @@ export const buildContours = (
                 if (!region.nholes) continue;
 
                 if (region.outline) {
-                    mergeRegionHoles(region);
+                    mergeRegionHoles(ctx, region);
                 } else {
                     // The region does not have an outline.
                     // This can happen if the contour becaomes selfoverlapping because of
                     // too aggressive simplification settings.
-                    console.error(`buildContours: Bad outline for region ${i}, contour simplification is likely too aggressive.`);
+                    BuildContext.error(ctx, `buildContours: Bad outline for region ${i}, contour simplification is likely too aggressive.`);
                 }
             }
         }

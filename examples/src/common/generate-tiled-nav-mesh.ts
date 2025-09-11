@@ -172,7 +172,7 @@ const buildTile = (
 
     /* 6. partition walkable surface to simple regions. */
 
-    const compactHeightfield = buildCompactHeightfield(walkableHeightVoxels, walkableClimbVoxels, heightfield);
+    const compactHeightfield = buildCompactHeightfield(ctx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
 
     /* 7. erode the walkable area by the agent radius / walkable radius */
 
@@ -189,6 +189,7 @@ const buildTile = (
     /* 10. trace and simplify region contours */
 
     const contourSet = buildContours(
+        ctx,
         compactHeightfield,
         maxSimplificationError,
         maxEdgeLength,
@@ -197,7 +198,7 @@ const buildTile = (
 
     /* 11. build polygons mesh from contours */
 
-    const polyMesh = buildPolyMesh(contourSet, maxVerticesPerPoly);
+    const polyMesh = buildPolyMesh(ctx, contourSet, maxVerticesPerPoly);
 
     for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
         if (polyMesh.areas[polyIndex] === WALKABLE_AREA) {

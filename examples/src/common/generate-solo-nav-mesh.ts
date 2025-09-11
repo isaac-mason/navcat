@@ -76,7 +76,9 @@ export function generateSoloNavMesh(
     input: SoloNavMeshInput,
     options: SoloNavMeshOptions,
 ): SoloNavMeshResult {
-    console.time('navmesh generation');
+    const ctx = BuildContext.create();
+
+    BuildContext.start(ctx, 'navmesh generation');
 
     const { positions, indices } = input;
 
@@ -101,11 +103,10 @@ export function generateSoloNavMesh(
         detailSampleMaxError,
     } = options;
 
-    const ctx = BuildContext.create();
 
     /* 1. input positions and indices are already provided */
 
-    console.time('mark walkable triangles');
+    BuildContext.start(ctx, 'mark walkable triangles');
 
     /* 2. mark walkable triangles */
     const triAreaIds = new Uint8Array(indices.length / 3).fill(0);
@@ -116,11 +117,11 @@ export function generateSoloNavMesh(
         walkableSlopeAngleDegrees,
     );
 
-    console.timeEnd('mark walkable triangles');
+    BuildContext.end(ctx, 'mark walkable triangles');
 
     /* 3. rasterize the triangles to a voxel heightfield */
 
-    console.time('rasterize triangles');
+    BuildContext.start(ctx, 'rasterize triangles');
 
     const bounds = calculateMeshBounds(box3.create(), positions, indices);
     const [heightfieldWidth, heightfieldHeight] = calculateGridSize(
@@ -146,7 +147,7 @@ export function generateSoloNavMesh(
         walkableClimbVoxels,
     );
 
-    console.timeEnd('rasterize triangles');
+    BuildContext.end(ctx, 'rasterize triangles');
 
     /* 4. filter walkable surfaces */
 
@@ -154,13 +155,13 @@ export function generateSoloNavMesh(
     // remove unwanted overhangs caused by the conservative rasterization
     // as well as filter spans where the character cannot possibly stand.
 
-    console.time('filter walkable surfaces');
+    BuildContext.start(ctx, 'filter walkable surfaces');
 
     filterLowHangingWalkableObstacles(heightfield, walkableClimbVoxels);
     filterLedgeSpans(heightfield, walkableHeightVoxels, walkableClimbVoxels);
     filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
 
-    console.timeEnd('filter walkable surfaces');
+    BuildContext.end(ctx, 'filter walkable surfaces');
 
     /* 5. partition walkable surface to simple regions. */
 
@@ -168,35 +169,36 @@ export function generateSoloNavMesh(
     // This will result more cache coherent data as well as the neighbours
     // between walkable cells will be calculated.
 
-    console.time('build compact heightfield');
+    BuildContext.start(ctx, 'build compact heightfield');
 
     const compactHeightfield = buildCompactHeightfield(
+        ctx,
         walkableHeightVoxels,
         walkableClimbVoxels,
         heightfield,
     );
 
-    console.timeEnd('build compact heightfield');
+    BuildContext.end(ctx, 'build compact heightfield');
 
     /* 6. erode the walkable area by the agent radius / walkable radius */
 
-    console.time('erode walkable area');
+    BuildContext.start(ctx, 'erode walkable area');
 
     erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
 
-    console.timeEnd('erode walkable area');
+    BuildContext.end(ctx, 'erode walkable area');
 
     /* 7. prepare for region partitioning by calculating a distance field along the walkable surface */
 
-    console.time('build compact heightfield distance field');
+    BuildContext.start(ctx, 'build compact heightfield distance field');
 
     buildDistanceField(compactHeightfield);
 
-    console.timeEnd('build compact heightfield distance field');
+    BuildContext.end(ctx, 'build compact heightfield distance field');
 
     /* 8. partition the walkable surface into simple regions without holes */
 
-    console.time('build compact heightfield regions');
+    BuildContext.start(ctx, 'build compact heightfield regions');
 
     // Partition the heightfield so that we can use simple algorithm later to triangulate the walkable areas.
     // There are 3 partitioning methods, each with some pros and cons:
@@ -234,26 +236,27 @@ export function generateSoloNavMesh(
     // buildRegionsMonotone(compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
     // buildLayerRegions(compactHeightfield, borderSize, minRegionArea);
 
-    console.timeEnd('build compact heightfield regions');
+    BuildContext.end(ctx, 'build compact heightfield regions');
 
     /* 9. trace and simplify region contours */
 
-    console.time('trace and simplify region contours');
+    BuildContext.start(ctx, 'trace and simplify region contours');
 
     const contourSet = buildContours(
+        ctx,
         compactHeightfield,
         maxSimplificationError,
         maxEdgeLength,
         ContourBuildFlags.CONTOUR_TESS_WALL_EDGES,
     );
 
-    console.timeEnd('trace and simplify region contours');
+    BuildContext.end(ctx, 'trace and simplify region contours');
 
     /* 10. build polygons mesh from contours */
 
-    console.time('build polygons mesh from contours');
+    BuildContext.start(ctx, 'build polygons mesh from contours');
 
-    const polyMesh = buildPolyMesh(contourSet, maxVerticesPerPoly);
+    const polyMesh = buildPolyMesh(ctx, contourSet, maxVerticesPerPoly);
 
     for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
         if (polyMesh.areas[polyIndex] === WALKABLE_AREA) {
@@ -265,11 +268,11 @@ export function generateSoloNavMesh(
         }
     }
 
-    console.timeEnd('build polygons mesh from contours');
+    BuildContext.end(ctx, 'build polygons mesh from contours');
 
     /* 11. create detail mesh which allows to access approximate height on each polygon */
 
-    console.time('build detail mesh from contours');
+    BuildContext.start(ctx, 'build detail mesh from contours');
 
     const polyMeshDetail = buildPolyMeshDetail(
         ctx,
@@ -279,9 +282,9 @@ export function generateSoloNavMesh(
         detailSampleMaxError,
     );
 
-    console.timeEnd('build detail mesh from contours');
+    BuildContext.end(ctx, 'build detail mesh from contours');
 
-    console.timeEnd('navmesh generation');
+    BuildContext.end(ctx, 'navmesh generation');
 
     /* store intermediates for debugging */
 
