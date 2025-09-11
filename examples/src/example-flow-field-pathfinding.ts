@@ -95,9 +95,56 @@ scene.add(navMeshHelper.object);
 /* flow field structures */
 let flowField: FlowField | null = null;
 let flowFieldTarget: NodeRef | null = null;
-const maxIterations = 10000;
+const maxIterations = 1000;
 
-/* visuals helpers */
+/* interaction */
+renderer.domElement.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+
+    if (!navMesh) return;
+
+    if (event.button === 0) {
+        // left click
+        const polyRef = getPolyRefAtMouse(event);
+        if (polyRef) {
+            flowFieldTarget = polyRef;
+            
+            console.time('computeFlowField');
+            flowField = computeFlowField(navMesh, polyRef, maxIterations);
+            console.timeEnd('computeFlowField');
+
+            showFlowFieldArrows(navMesh, flowField);
+            clearPathHelpers();
+        }
+    } else if (event.button === 2) {
+        if (!flowField || !flowFieldTarget) return;
+
+        const polyRef = getPolyRefAtMouse(event);
+
+        if (!polyRef) return;
+
+        console.time('getNodePathFromFlowField');
+        const polyPath = getNodePathFromFlowField(flowField, polyRef);
+        console.timeEnd('getNodePathFromFlowField');
+
+        if (polyPath) {
+            // Find straight path for the corridor
+            const startCenter = getPolyCenter(navMesh, polyRef);
+            const endCenter = getPolyCenter(navMesh, flowFieldTarget);
+            let straightPath: [number, number, number][] = [];
+            if (startCenter && endCenter) {
+                const straight = findStraightPath(navMesh, startCenter, endCenter, polyPath);
+                if (straight?.path) {
+                    straightPath = straight.path.map((p: { position: [number, number, number] }) => p.position);
+                }
+            }
+            showPath(polyPath, straightPath.length > 0 ? straightPath : [startCenter!, endCenter!]);
+        } else {
+            clearPathHelpers();
+        }
+    }
+});
+
 const arrowHelpers: THREE.Object3D[] = [];
 const pathHelpers: THREE.Object3D[] = [];
 
@@ -136,15 +183,18 @@ function clearPathHelpers() {
 
 function showFlowFieldArrows(navMesh: NavMesh, flowField: FlowField) {
     clearArrowHelpers();
+
     for (const [polyRef, nextRef] of flowField.next.entries()) {
-        if (!nextRef) continue; // skip target
-        // Get center of current and next poly
+        if (!nextRef) continue;
+
         const centerA = getPolyCenter(navMesh, polyRef);
         const centerB = getPolyCenter(navMesh, nextRef);
         if (!centerA || !centerB) continue;
+
         const dir = new THREE.Vector3(centerB[0] - centerA[0], centerB[1] - centerA[1], centerB[2] - centerA[2]);
         const length = dir.length();
         if (length < 0.01) continue;
+
         dir.normalize();
         const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(...centerA), Math.max(length * 0.7, 0.3), 0x00bfff, 0.2, 0.1);
         arrowHelpers.push(arrow);
@@ -209,48 +259,6 @@ function getPolyRefAtMouse(event: MouseEvent): NodeRef | null {
 
     return nearestResult.nearestPolyRef;
 }
-
-// mouse interaction
-renderer.domElement.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-
-    if (!navMesh) return;
-
-    if (event.button === 0) {
-        // left click
-        const polyRef = getPolyRefAtMouse(event);
-        if (polyRef) {
-            flowFieldTarget = polyRef;
-            flowField = computeFlowField(navMesh, polyRef, maxIterations);
-            showFlowFieldArrows(navMesh, flowField);
-            clearPathHelpers();
-        }
-    } else if (event.button === 2) {
-        if (!flowField || !flowFieldTarget) return;
-
-        const polyRef = getPolyRefAtMouse(event);
-
-        if (!polyRef) return;
-
-        const polyPath = getNodePathFromFlowField(flowField, polyRef);
-
-        if (polyPath) {
-            // Find straight path for the corridor
-            const startCenter = getPolyCenter(navMesh, polyRef);
-            const endCenter = getPolyCenter(navMesh, flowFieldTarget);
-            let straightPath: [number, number, number][] = [];
-            if (startCenter && endCenter) {
-                const straight = findStraightPath(navMesh, startCenter, endCenter, polyPath);
-                if (straight?.path) {
-                    straightPath = straight.path.map((p: { position: [number, number, number] }) => p.position);
-                }
-            }
-            showPath(polyPath, straightPath.length > 0 ? straightPath : [startCenter!, endCenter!]);
-        } else {
-            clearPathHelpers();
-        }
-    }
-});
 
 /* start loop */
 function update() {
