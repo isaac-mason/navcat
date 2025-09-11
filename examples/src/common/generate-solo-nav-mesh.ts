@@ -1,19 +1,20 @@
 import { box3, vec2, vec3 } from 'maaths';
 import {
     addTile,
-    buildCompactHeightfield,
     BuildContext,
+    type BuildContextState,
+    buildCompactHeightfield,
     buildContours,
     buildDistanceField,
     buildNavMeshBvTree,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
-    calculateGridSize,
-    calculateMeshBounds,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
+    calculateGridSize,
+    calculateMeshBounds,
     createHeightfield,
     createNavMesh,
     erodeWalkableArea,
@@ -58,6 +59,7 @@ export type SoloNavMeshOptions = {
 };
 
 export type SoloNavMeshIntermediates = {
+    buildContext: BuildContextState;
     input: SoloNavMeshInput;
     triAreaIds: Uint8Array;
     heightfield: Heightfield;
@@ -72,10 +74,7 @@ export type SoloNavMeshResult = {
     intermediates: SoloNavMeshIntermediates;
 };
 
-export function generateSoloNavMesh(
-    input: SoloNavMeshInput,
-    options: SoloNavMeshOptions,
-): SoloNavMeshResult {
+export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMeshOptions): SoloNavMeshResult {
     const ctx = BuildContext.create();
 
     BuildContext.start(ctx, 'navmesh generation');
@@ -103,19 +102,13 @@ export function generateSoloNavMesh(
         detailSampleMaxError,
     } = options;
 
-
     /* 1. input positions and indices are already provided */
 
     BuildContext.start(ctx, 'mark walkable triangles');
 
     /* 2. mark walkable triangles */
     const triAreaIds = new Uint8Array(indices.length / 3).fill(0);
-    markWalkableTriangles(
-        positions,
-        indices,
-        triAreaIds,
-        walkableSlopeAngleDegrees,
-    );
+    markWalkableTriangles(positions, indices, triAreaIds, walkableSlopeAngleDegrees);
 
     BuildContext.end(ctx, 'mark walkable triangles');
 
@@ -124,28 +117,11 @@ export function generateSoloNavMesh(
     BuildContext.start(ctx, 'rasterize triangles');
 
     const bounds = calculateMeshBounds(box3.create(), positions, indices);
-    const [heightfieldWidth, heightfieldHeight] = calculateGridSize(
-        vec2.create(),
-        bounds,
-        cellSize,
-    );
+    const [heightfieldWidth, heightfieldHeight] = calculateGridSize(vec2.create(), bounds, cellSize);
 
-    const heightfield = createHeightfield(
-        heightfieldWidth,
-        heightfieldHeight,
-        bounds,
-        cellSize,
-        cellHeight,
-    );
+    const heightfield = createHeightfield(heightfieldWidth, heightfieldHeight, bounds, cellSize, cellHeight);
 
-    rasterizeTriangles(
-        ctx,
-        heightfield,
-        positions,
-        indices,
-        triAreaIds,
-        walkableClimbVoxels,
-    );
+    rasterizeTriangles(ctx, heightfield, positions, indices, triAreaIds, walkableClimbVoxels);
 
     BuildContext.end(ctx, 'rasterize triangles');
 
@@ -171,12 +147,7 @@ export function generateSoloNavMesh(
 
     BuildContext.start(ctx, 'build compact heightfield');
 
-    const compactHeightfield = buildCompactHeightfield(
-        ctx,
-        walkableHeightVoxels,
-        walkableClimbVoxels,
-        heightfield,
-    );
+    const compactHeightfield = buildCompactHeightfield(ctx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
 
     BuildContext.end(ctx, 'build compact heightfield');
 
@@ -226,13 +197,7 @@ export function generateSoloNavMesh(
     //     if you have large open areas with small obstacles (not a problem if you use tiles)
     //   * good choice to use for tiled navmesh with medium and small sized tiles
 
-    buildRegions(
-        ctx,
-        compactHeightfield,
-        borderSize,
-        minRegionArea,
-        mergeRegionArea,
-    );
+    buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
     // buildRegionsMonotone(compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
     // buildLayerRegions(compactHeightfield, borderSize, minRegionArea);
 
@@ -274,13 +239,7 @@ export function generateSoloNavMesh(
 
     BuildContext.start(ctx, 'build detail mesh from contours');
 
-    const polyMeshDetail = buildPolyMeshDetail(
-        ctx,
-        polyMesh,
-        compactHeightfield,
-        detailSampleDistance,
-        detailSampleMaxError,
-    );
+    const polyMeshDetail = buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, detailSampleDistance, detailSampleMaxError);
 
     BuildContext.end(ctx, 'build detail mesh from contours');
 
@@ -289,6 +248,7 @@ export function generateSoloNavMesh(
     /* store intermediates for debugging */
 
     const intermediates: SoloNavMeshIntermediates = {
+        buildContext: ctx,
         input: {
             positions,
             indices,
@@ -310,11 +270,7 @@ export function generateSoloNavMesh(
 
     const tilePolys = polyMeshToTilePolys(polyMesh);
 
-    const tileDetailMesh = polyMeshDetailToTileDetailMesh(
-        tilePolys.polys,
-        maxVerticesPerPoly,
-        polyMeshDetail,
-    );
+    const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
 
     const tile: NavMeshTile = {
         id: -1,
