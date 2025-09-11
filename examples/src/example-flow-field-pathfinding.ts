@@ -10,7 +10,9 @@ import {
     three as threeUtils,
 } from 'navcat';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
+import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
+import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-boilerplate';
 import { computeFlowField, type FlowField, getNodePathFromFlowField } from './common/flow-field';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
@@ -108,7 +110,9 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
         const polyRef = getPolyRefAtMouse(event);
         if (polyRef) {
             flowFieldTarget = polyRef;
-            
+            const center = getPolyCenter(navMesh, polyRef);
+            showFlagAt(center);
+
             console.time('computeFlowField');
             flowField = computeFlowField(navMesh, polyRef, maxIterations);
             console.timeEnd('computeFlowField');
@@ -144,6 +148,39 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
         }
     }
 });
+
+const flagGroup = (() => {
+    // pole
+    const poleGeom = new THREE.BoxGeometry(0.12, 1.2, 0.12);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+    const pole = new THREE.Mesh(poleGeom, poleMat);
+    pole.position.set(0, 0.6, 0);
+
+    // Bigger flag
+    const flagGeom = new THREE.BoxGeometry(0.32, 0.22, 0.04);
+    const flagMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const flag = new THREE.Mesh(flagGeom, flagMat);
+    flag.position.set(0.23, 1.0, 0);
+
+    // group
+    const group = new THREE.Group();
+    group.add(pole);
+    group.add(flag);
+    group.visible = false;
+
+    return group;
+})();
+
+scene.add(flagGroup);
+
+function showFlagAt(position: [number, number, number] | null) {
+    if (position) {
+        flagGroup.position.set(position[0], position[1], position[2]);
+        flagGroup.visible = true;
+    } else {
+        flagGroup.visible = false;
+    }
+}
 
 const arrowHelpers: THREE.Object3D[] = [];
 const pathHelpers: THREE.Object3D[] = [];
@@ -196,7 +233,8 @@ function showFlowFieldArrows(navMesh: NavMesh, flowField: FlowField) {
         if (length < 0.01) continue;
 
         dir.normalize();
-        const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(...centerA), Math.max(length * 0.7, 0.3), 0x00bfff, 0.2, 0.1);
+        const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(...centerA), Math.max(length * 0.7, 0.3), 0x008000, 0.2, 0.1);
+        arrow.position.y += 0.3;
         arrowHelpers.push(arrow);
         scene.add(arrow);
     }
@@ -217,14 +255,26 @@ function showPath(pathPolys: NodeRef[], pathPoints: number[][]) {
     for (let i = 0; i < pathPoints.length; i++) {
         const pt = pathPoints[i];
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-        mesh.position.set(pt[0], pt[1], pt[2]);
+        mesh.position.set(pt[0], pt[1] + 0.3, pt[2]);
         pathHelpers.push(mesh);
         scene.add(mesh);
         if (i > 0) {
             const prev = pathPoints[i - 1];
-            const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...prev), new THREE.Vector3(...pt)]);
-            const material = new THREE.LineBasicMaterial({ color: 0xffff00 });
-            const line = new THREE.Line(geometry, material);
+            
+            const start = new THREE.Vector3(prev[0], prev[1] + 0.3, prev[2]);
+            const end = new THREE.Vector3(pt[0], pt[1] + 0.3, pt[2]);
+
+            const geometry = new LineGeometry();
+            geometry.setFromPoints([start, end]);
+
+            const material = new Line2NodeMaterial({
+                color: 'yellow',
+                linewidth: 0.1,
+                worldUnits: true,
+            });
+
+            const line = new Line2(geometry, material);
+
             pathHelpers.push(line);
             scene.add(line);
         }
