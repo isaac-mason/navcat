@@ -28,6 +28,13 @@ export const NODE_FLAG_PARENT_DETACHED = 0x04;
 /** `${poly ref}:{search node state}` */
 export type SearchNodeRef = `${NodeRef}:${number}`;
 
+export const serSearchNodeRef = (nodeRef: NodeRef, state: number): SearchNodeRef => `${nodeRef}:${state}`;
+
+export const desSearchNodeRef = (searchNodeRef: SearchNodeRef): [NodeRef, number] => {
+    const [nodeRef, state] = searchNodeRef.split(':') as [NodeRef, number];
+    return [nodeRef, state];
+};
+
 export type SearchNode = {
     /** the position of the node */
     position: Vec3;
@@ -62,7 +69,7 @@ export const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNod
     queue[i] = node;
 };
 
-const trickleDownQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
+export const trickleDownQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
     const count = queue.length;
     let child = 2 * i + 1;
 
@@ -216,7 +223,7 @@ export const getPortalPoints = (
 const _edgeMidPointPortalLeft = vec3.create();
 const _edgeMidPointPortalRight = vec3.create();
 
-const getEdgeMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: NodeRef, outMidPoint: Vec3): boolean => {
+export const getEdgeMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: NodeRef, outMidPoint: Vec3): boolean => {
     if (!getPortalPoints(navMesh, fromNodeRef, toNodeRef, _edgeMidPointPortalLeft, _edgeMidPointPortalRight)) {
         return false;
     }
@@ -336,7 +343,7 @@ export const findNodePath = (
     }
 
     // prepare search
-    const getCost = filter.getCost ?? DEFAULT_QUERY_FILTER.getCost;
+    const getCost = filter.getCost;
 
     const nodes: SearchNodePool = {};
     const openList: SearchNodeQueue = [];
@@ -699,7 +706,7 @@ export const updateSlicedFindNodePath = (
         return itersDone;
     }
     
-    const getCost = query.filter.getCost ?? DEFAULT_QUERY_FILTER.getCost;
+    const getCost = query.filter.getCost;
     
     while (itersDone < maxIter && query.openList.length > 0) {
         itersDone++;
