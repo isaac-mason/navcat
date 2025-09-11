@@ -1,4 +1,4 @@
-import type { NavMesh, NodeRef } from 'navcat';
+import type { NavMesh, NodeRef, QueryFilter } from 'navcat';
 
 export type FlowField = {
     cost: Map<NodeRef, number>;
@@ -7,13 +7,17 @@ export type FlowField = {
 };
 
 /**
- * Computes a flow field for pathfinding from all reachable nodes to a target node.
- * @param navMesh - The navigation mesh.
- * @param targetRef - The target polygon/node reference.
- * @param maxIterations - Maximum number of BFS iterations to perform.
- * @returns FlowField object with cost, next, and visited maps.
+ * Computes a uniform cost flow field.
+ * The "uniform cost" approach trades off accuracy for speed. We are assuming the cost of traversing each polygon is uniform,
+ * meaning we aren't taking into account polygon sizes or other custom cost calculations from QueryFilter.getCost.
+ * We do however still check QueryFilter.passFilter.
  */
-export function computeFlowField(navMesh: NavMesh, targetRef: NodeRef, maxIterations: number): FlowField {
+export function computeUniformCostFlowField(
+    navMesh: NavMesh,
+    targetRef: NodeRef,
+    queryFilter: QueryFilter,
+    maxIterations: number,
+): FlowField {
     const cost = new Map<NodeRef, number>();
     const next = new Map<NodeRef, NodeRef | null>();
     const visited = new Set<NodeRef>();
@@ -35,9 +39,12 @@ export function computeFlowField(navMesh: NavMesh, targetRef: NodeRef, maxIterat
         for (const linkIndex of polyLinks) {
             const link = navMesh.links[linkIndex];
             if (!link || !link.allocated) continue;
+
             const neighborRef = link.neighbourRef;
-            if (!neighborRef) continue;
+
             if (visited.has(neighborRef)) continue;
+
+            if (!queryFilter.passFilter(neighborRef, navMesh)) continue;
 
             cost.set(neighborRef, currentCost + 1);
             next.set(neighborRef, currentRef);

@@ -14,7 +14,7 @@ import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-boilerplate';
-import { computeFlowField, type FlowField, getNodePathFromFlowField } from './common/flow-field';
+import { computeUniformCostFlowField, type FlowField, getNodePathFromFlowField } from './common/flow-field';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 
@@ -111,10 +111,13 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
         if (polyRef) {
             flowFieldTarget = polyRef;
             const center = getPolyCenter(navMesh, polyRef);
+            
+            if (!center) return;
+
             showFlagAt(center);
 
             console.time('computeFlowField');
-            flowField = computeFlowField(navMesh, polyRef, maxIterations);
+            flowField = computeUniformCostFlowField(navMesh, polyRef, DEFAULT_QUERY_FILTER, maxIterations);
             console.timeEnd('computeFlowField');
 
             showFlowFieldArrows(navMesh, flowField);
