@@ -100,19 +100,40 @@ const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-/* raycast */
-const raycastStart: Vec3 = [-0.63, 0.27, 4.9];
-const raycastEnd: Vec3 = [0.53, 0.26, 3.59];
 
-const raycastStartNearestPoly = findNearestPoly(
-    createFindNearestPolyResult(),
-    navMesh,
-    raycastStart,
-    [1, 1, 1],
-    DEFAULT_QUERY_FILTER,
-);
 
-if (raycastStartNearestPoly.success) {
+// state for raycast start/end (with defaults)
+let raycastStart: Vec3 | null = [-0.8, 0.27, 5.1];
+let raycastEnd: Vec3 | null = [0.53, 0.26, 3.59];
+let visuals: THREE.Object3D[] = [];
+
+// initial raycast with defaults
+performRaycast();
+
+function clearVisuals() {
+    for (const obj of visuals) scene.remove(obj);
+    visuals = [];
+}
+
+function addVisual(obj: THREE.Object3D) {
+    visuals.push(obj);
+    scene.add(obj);
+}
+
+function performRaycast() {
+    clearVisuals();
+    if (!raycastStart || !raycastEnd) return;
+
+    const raycastStartNearestPoly = findNearestPoly(
+        createFindNearestPolyResult(),
+        navMesh,
+        raycastStart,
+        [1, 1, 1],
+        DEFAULT_QUERY_FILTER,
+    );
+
+    if (!raycastStartNearestPoly.success) return;
+
     const raycastResult = raycast(
         navMesh,
         raycastStartNearestPoly.nearestPolyRef,
@@ -121,23 +142,25 @@ if (raycastStartNearestPoly.success) {
         DEFAULT_QUERY_FILTER,
     );
 
-    // visualize the raycast start position
+    const reachedEnd = raycastResult.t > 0.99;
+
+    // visualize the raycast start position (green, larger)
     const rayStartMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 16, 16),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color('orange') }),
+        new THREE.SphereGeometry(0.12, 20, 20),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color('green') }),
     );
     rayStartMesh.position.fromArray(raycastStart);
     rayStartMesh.position.y += 0.5;
-    scene.add(rayStartMesh);
+    addVisual(rayStartMesh);
 
-    // visualize the raycast target end position
-    const rayTargetMesh = new THREE.Mesh(
+    // visualize the raycast end position (blue, smaller)
+    const rayEndMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.08, 16, 16),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color('purple') }),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color('blue') })
     );
-    rayTargetMesh.position.fromArray(raycastEnd);
-    rayTargetMesh.position.y += 0.5;
-    scene.add(rayTargetMesh);
+    rayEndMesh.position.fromArray(raycastEnd);
+    rayEndMesh.position.y += 0.5;
+    addVisual(rayEndMesh);
 
     // calculate hit position
     let hitPos: Vec3;
@@ -153,48 +176,44 @@ if (raycastStartNearestPoly.success) {
     // visualize the hit position
     const hitMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 16, 16),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color('blue') }),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(reachedEnd ? 'green' : 'red') }),
     );
     hitMesh.position.fromArray(hitPos);
     hitMesh.position.y += 0.5;
-    scene.add(hitMesh);
+    addVisual(hitMesh);
 
-    // visualize the raycast path
-    const rayLineGeometry = new LineGeometry();
-    rayLineGeometry.setFromPoints([
-        new THREE.Vector3(...raycastStart),
-        new THREE.Vector3(...hitPos),
-    ]);
-    const rayLineMaterial = new Line2NodeMaterial({
-        color: 'magenta',
-        linewidth: 0.12,
-        worldUnits: true,
-    });
-    const rayLine = new Line2(rayLineGeometry, rayLineMaterial);
-    rayLine.position.y += 0.5;
-    scene.add(rayLine);
 
-    // visualize the intended ray direction (dashed line if hit a wall)
-    if (raycastResult.t < Number.MAX_VALUE) {
-        const intendedRayLineGeometry = new LineGeometry();
-        intendedRayLineGeometry.setFromPoints([
-            new THREE.Vector3(...raycastStart),
-            new THREE.Vector3(...raycastEnd),
-        ]);
-        const intendedRayLineMaterial = new Line2NodeMaterial({
-            color: 'purple',
-            linewidth: 0.08,
-            worldUnits: true,
-            dashed: true,
-            dashSize: 0.1,
-            gapSize: 0.05,
-        });
-        const intendedRayLine = new Line2(
-            intendedRayLineGeometry,
-            intendedRayLineMaterial,
+    // visualize the raycast as two arrows: green (start to hit), red (hit to end if hit occurs before end)
+    const startVec = new THREE.Vector3(...raycastStart);
+    const hitVec = new THREE.Vector3(...hitPos);
+    const endVec = new THREE.Vector3(...raycastEnd);
+    const toHit = new THREE.Vector3().subVectors(hitVec, startVec);
+    const toEnd = new THREE.Vector3().subVectors(endVec, hitVec);
+    const toHitLen = toHit.length();
+    const toEndLen = toEnd.length();
+    if (toHitLen > 0.01) {
+        const arrowGreen = new THREE.ArrowHelper(
+            toHit.clone().normalize(),
+            startVec.clone().setY(startVec.y + 0.5),
+            toHitLen,
+            0x00ff00,
+            0.18,
+            0.09
         );
-        intendedRayLine.position.y += 0.5;
-        scene.add(intendedRayLine);
+        addVisual(arrowGreen);
+    }
+
+    // only draw the red arrow if the hit is before the end
+    if (!reachedEnd && toEndLen > 0.01) {
+        const arrowRed = new THREE.ArrowHelper(
+            toEnd.clone().normalize(),
+            hitVec.clone().setY(hitVec.y + 0.5),
+            toEndLen,
+            0xff0000,
+            0.18,
+            0.09
+        );
+        addVisual(arrowRed);
     }
 
     // visualize hit normal if we hit a wall
@@ -217,7 +236,7 @@ if (raycastStartNearestPoly.success) {
         });
         const normalLine = new Line2(normalLineGeometry, normalLineMaterial);
         normalLine.position.y += 0.5;
-        scene.add(normalLine);
+        addVisual(normalLine);
     }
 
     // visualize the visited polygons from raycast
@@ -234,9 +253,40 @@ if (raycastStartNearestPoly.success) {
             hslColor.toArray() as [number, number, number],
         );
         polyHelper.object.position.y += 0.35;
-        scene.add(polyHelper.object);
+        addVisual(polyHelper.object);
     }
 }
+
+/* interaction */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+function getPointOnNavMesh(event: PointerEvent): Vec3 | null {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(walkableMeshes, true);
+    if (intersects.length > 0) {
+        const p = intersects[0].point;
+        return [p.x, p.y, p.z];
+    }
+    return null;
+}
+
+renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
+    event.preventDefault();
+    const point = getPointOnNavMesh(event);
+    if (!point) return;
+    if (event.button === 0) {
+        // left click: set start
+        raycastStart = point;
+    } else if (event.button === 2) {
+        // right click: set end
+        raycastEnd = point;
+    }
+    performRaycast();
+});
 
 /* start loop */
 function update() {
