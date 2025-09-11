@@ -8,7 +8,7 @@ import {
     three as threeUtils,
 } from 'navcat';
 import * as THREE from 'three';
-import { createExample } from './common/example-boilerplate';
+import { createExample } from './common/example-base';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from './common/generate-solo-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 

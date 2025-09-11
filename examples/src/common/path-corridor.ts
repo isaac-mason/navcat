@@ -2,7 +2,7 @@ import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
     desNodeRef,
-    FindStraightPathStatus,
+    FindStraightPathFlags,
     findStraightPath,
     isValidNodeRef,
     moveAlongSurface,
@@ -117,7 +117,7 @@ export const findCorridorCorners = (
     }
 
     let corners = straightPathResult.path;
-    let cornersReachTarget = straightPathResult.status === FindStraightPathStatus.COMPLETE_PATH;
+    let cornersReachTarget = (straightPathResult.flags & FindStraightPathFlags.COMPLETE_PATH) !== 0;
 
     // prune points in the beginning of the path which are too close
     while (corners.length > 0) {

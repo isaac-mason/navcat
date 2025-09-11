@@ -270,18 +270,22 @@ export const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
     return false;
 };
 
-export enum FindNodePathStatus {
-    INVALID_INPUT = 0,
-    PARTIAL_PATH = 1,
-    COMPLETE_PATH = 2,
+
+// Bitmask flags for node pathfinding result status
+export enum FindNodePathFlags {
+    NONE = 0,
+    SUCCESS = 1 << 0,
+    COMPLETE_PATH = 1 << 1,
+    PARTIAL_PATH = 1 << 2,
+    INVALID_INPUT = 1 << 3,
 }
 
 export type FindNodePathResult = {
     /** whether the search completed successfully, with either a partial or complete path */
     success: boolean;
 
-    /** the result status for the operation */
-    status: FindNodePathStatus;
+    /** the result status flags for the operation */
+    flags: FindNodePathFlags;
 
     /** the path, consisting of polygon node and offmesh link node references */
     path: NodeRef[];
@@ -327,7 +331,7 @@ export const findNodePath = (
         !vec3.finite(endPos)
     ) {
         return {
-            status: FindNodePathStatus.INVALID_INPUT,
+            flags: FindNodePathFlags.NONE | FindNodePathFlags.INVALID_INPUT,
             success: false,
             path: [],
         };
@@ -336,7 +340,7 @@ export const findNodePath = (
     // early exit if start and end are the same
     if (startRef === endRef) {
         return {
-            status: FindNodePathStatus.COMPLETE_PATH,
+            flags: FindNodePathFlags.SUCCESS | FindNodePathFlags.COMPLETE_PATH,
             success: true,
             path: [startRef],
         };
@@ -515,7 +519,7 @@ export const findNodePath = (
     // if the end node was not reached, return with the partial result status
     if (lastBestNode.nodeRef !== endRef) {
         return {
-            status: FindNodePathStatus.PARTIAL_PATH,
+            flags: FindNodePathFlags.PARTIAL_PATH,
             success: false,
             path,
             intermediates: {
@@ -527,7 +531,7 @@ export const findNodePath = (
 
     // the path is complete, return with the complete path status
     return {
-        status: FindNodePathStatus.COMPLETE_PATH,
+        flags: FindNodePathFlags.SUCCESS | FindNodePathFlags.COMPLETE_PATH,
         success: true,
         path,
         intermediates: {

@@ -24,7 +24,7 @@ import {
     requestMoveTarget,
     updateCrowd,
 } from './common/crowd';
-import { createExample } from './common/example-boilerplate';
+import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';

@@ -1,29 +1,35 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
-import { FindStraightPathStatus, findStraightPath, type StraightPathPoint } from './find-straight-path';
+import { FindStraightPathFlags, findStraightPath, type StraightPathPoint } from './find-straight-path';
 import type { NavMesh } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import { type FindNodePathResult, FindNodePathStatus, findNodePath } from './nav-mesh-search';
+import { FindNodePathFlags, type FindNodePathResult, findNodePath } from './nav-mesh-search';
 import type { NodeRef } from './node';
 import type { QueryFilter } from './query-filter';
 
-export enum FindPathStatus {
-    INVALID_INPUT = 0,
-    FIND_NODE_PATH_FAILED = 1,
-    FIND_STRAIGHT_PATH_FAILED = 2,
-    PARTIAL_PATH = 3,
-    COMPLETE_PATH = 4,
+export enum FindPathFlags {
+    NONE = 0,
+    SUCCESS = 1 << 0,
+    COMPLETE_PATH = 1 << 1,
+    PARTIAL_PATH = 1 << 2,
+    MAX_POINTS_REACHED = 1 << 3,
+    INVALID_INPUT = 1 << 4,
+    FIND_NODE_PATH_FAILED = 1 << 5,
+    FIND_STRAIGHT_PATH_FAILED = 1 << 6,
 }
 
 export type FindPathResult = {
     /** whether the search completed successfully, with either a partial or complete path */
     success: boolean;
 
-    /** the status of the pathfinding operation */
-    status: FindPathStatus;
+    /** the status flags of the pathfinding operation */
+    flags: FindPathFlags;
 
     /** the path, consisting of polygon node and offmesh link node references */
     path: StraightPathPoint[];
+
+    /** the status flags of the straight pathfinding operation */
+    straightPathFlags: FindStraightPathFlags;
 
     /** the start poly node ref */
     startNodeRef: NodeRef | null;
@@ -39,6 +45,9 @@ export type FindPathResult = {
 
     /** the node path result */
     nodePath: FindNodePathResult | null;
+
+    /** the status flags of the node pathfinding operation */
+    nodePathFlags: FindNodePathFlags;
 };
 
 const _findPathStartNearestPolyResult = createFindNearestPolyResult();
@@ -64,6 +73,7 @@ const _findPathEndNearestPolyResult = createFindNearestPolyResult();
  * @param queryFilter The query filter.
  * @returns The result of the pathfinding operation.
  */
+
 export const findPath = (
     navMesh: NavMesh,
     start: Vec3,
@@ -73,7 +83,9 @@ export const findPath = (
 ): FindPathResult => {
     const result: FindPathResult = {
         success: false,
-        status: FindPathStatus.INVALID_INPUT,
+        flags: FindPathFlags.NONE | FindPathFlags.INVALID_INPUT,
+        nodePathFlags: FindNodePathFlags.NONE,
+        straightPathFlags: FindStraightPathFlags.NONE,
         path: [],
         startNodeRef: null,
         startPoint: [0, 0, 0],
@@ -107,9 +119,10 @@ export const findPath = (
     );
 
     result.nodePath = nodePath;
+    result.nodePathFlags = nodePath.flags;
 
     if (!nodePath.success) {
-        result.status = FindPathStatus.FIND_NODE_PATH_FAILED;
+        result.flags = FindPathFlags.FIND_NODE_PATH_FAILED;
         return result;
     }
 
@@ -117,17 +130,25 @@ export const findPath = (
     const straightPath = findStraightPath(navMesh, result.startPoint, result.endPoint, nodePath.path);
 
     if (!straightPath.success) {
-        result.status = FindPathStatus.FIND_STRAIGHT_PATH_FAILED;
+        result.flags = FindPathFlags.FIND_STRAIGHT_PATH_FAILED;
         return result;
     }
 
-    /* success */
     result.success = true;
     result.path = straightPath.path;
-    result.status =
-        nodePath.status === FindNodePathStatus.COMPLETE_PATH && straightPath.status === FindStraightPathStatus.COMPLETE_PATH
-            ? FindPathStatus.COMPLETE_PATH
-            : FindPathStatus.PARTIAL_PATH;
+    result.straightPathFlags = straightPath.flags;
+
+    let flags = FindPathFlags.SUCCESS;
+    if ((nodePath.flags & FindNodePathFlags.COMPLETE_PATH) && (straightPath.flags & FindStraightPathFlags.COMPLETE_PATH)) {
+        flags |= FindPathFlags.COMPLETE_PATH;
+    } else {
+        flags |= FindPathFlags.PARTIAL_PATH;
+    }
+    if (straightPath.flags & FindStraightPathFlags.MAX_POINTS_REACHED) {
+        flags |= FindPathFlags.MAX_POINTS_REACHED;
+    }
+
+    result.flags = flags;
 
     return result;
 };

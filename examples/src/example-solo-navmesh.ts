@@ -2,7 +2,7 @@ import GUI from 'lil-gui';
 import { three as threeUtils } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { createExample } from './common/example-boilerplate';
+import { createExample } from './common/example-base';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from './common/generate-solo-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 

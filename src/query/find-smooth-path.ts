@@ -1,9 +1,9 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
-import { FindStraightPathStatus, findStraightPath, type StraightPathPoint } from './find-straight-path';
+import { FindStraightPathFlags, findStraightPath, type StraightPathPoint } from './find-straight-path';
 import { type NavMesh, OffMeshConnectionSide } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import { type FindNodePathResult, FindNodePathStatus, findNodePath, moveAlongSurface } from './nav-mesh-search';
+import { FindNodePathFlags, type FindNodePathResult, findNodePath, moveAlongSurface } from './nav-mesh-search';
 import { desNodeRef, type NodeRef, NodeType } from './node';
 import type { QueryFilter } from './query-filter';
 
@@ -12,20 +12,23 @@ const _findSmoothPathMoveTarget = vec3.create();
 const _findSmoothPathStartNearestPolyResult = createFindNearestPolyResult();
 const _findSmoothPathEndNearestPolyResult = createFindNearestPolyResult();
 
-export enum FindSmoothPathStatus {
-    INVALID_INPUT = 0,
-    FIND_NODE_PATH_FAILED = 1,
-    FIND_STRAIGHT_PATH_FAILED = 2,
-    PARTIAL_PATH = 3,
-    COMPLETE_PATH = 4,
+
+export enum FindSmoothPathFlags {
+    NONE = 0,
+    SUCCESS = 1 << 0,
+    COMPLETE_PATH = 1 << 1,
+    PARTIAL_PATH = 1 << 2,
+    INVALID_INPUT = 1 << 3,
+    FIND_NODE_PATH_FAILED = 1 << 4,
+    FIND_STRAIGHT_PATH_FAILED = 1 << 5,
 }
 
 export type FindSmoothPathResult = {
     /** whether the search completed successfully */
     success: boolean;
 
-    /** the status of the smooth pathfinding operation */
-    status: FindSmoothPathStatus;
+    /** the status flags of the smooth pathfinding operation */
+    flags: FindSmoothPathFlags;
 
     /** the smooth path points */
     path: StraightPathPoint[];
@@ -70,6 +73,7 @@ export type FindSmoothPathResult = {
  * @param slop The distance tolerance for reaching waypoints (default: 0.01).
  * @returns The result of the smooth pathfinding operation, with path points containing position, type, and nodeRef information.
  */
+
 export const findSmoothPath = (
     navMesh: NavMesh,
     start: Vec3,
@@ -82,7 +86,7 @@ export const findSmoothPath = (
 ): FindSmoothPathResult => {
     const result: FindSmoothPathResult = {
         success: false,
-        status: FindSmoothPathStatus.INVALID_INPUT,
+        flags: FindSmoothPathFlags.NONE | FindSmoothPathFlags.INVALID_INPUT,
         path: [],
         startNodeRef: null,
         startPoint: [0, 0, 0],
@@ -124,7 +128,7 @@ export const findSmoothPath = (
     result.nodePath = nodePath;
 
     if (!nodePath.success || nodePath.path.length === 0) {
-        result.status = FindSmoothPathStatus.FIND_NODE_PATH_FAILED;
+        result.flags = FindSmoothPathFlags.FIND_NODE_PATH_FAILED;
         return result;
     }
 
@@ -242,12 +246,17 @@ export const findSmoothPath = (
         }
     }
 
+    // compose flags
+    let flags = FindSmoothPathFlags.SUCCESS
+    if (nodePath.flags & FindNodePathFlags.COMPLETE_PATH) {
+        flags |= FindSmoothPathFlags.COMPLETE_PATH;
+    } else if (nodePath.flags & FindNodePathFlags.PARTIAL_PATH) {
+        flags |= FindSmoothPathFlags.PARTIAL_PATH;
+    }
+
     result.success = true;
     result.path = smoothPath;
-    result.status =
-        nodePath.status === FindNodePathStatus.COMPLETE_PATH
-            ? FindSmoothPathStatus.COMPLETE_PATH
-            : FindSmoothPathStatus.PARTIAL_PATH;
+    result.flags = flags;
 
     return result;
 };
@@ -294,14 +303,21 @@ const getSteerTarget = (
         }
 
         // if the point is the end, we should steer to it regardless of minTargetDist
-        if (straightPath.status === FindStraightPathStatus.COMPLETE_PATH && ns === straightPath.path.length - 1) {
+        // console.log("is complete path?", straightPath.flags & FindStraightPathFlags.COMPLETE_PATH);
+        // console.log("partial path?", straightPath.flags & FindStraightPathFlags.PARTIAL_PATH);
+
+        if ((straightPath.flags & FindStraightPathFlags.COMPLETE_PATH) !== 0 && ns === straightPath.path.length - 1) {
             result.end = true;
+            // console.debug('[getSteerTarget] END at', ns, point);
             break;
         }
 
         // if this point is far enough from start, we can steer to it
         if (!inRange(point.position, start, minTargetDist, 1000.0)) {
+            // console.debug('[getSteerTarget] Far enough at', ns, point, 'start:', start, 'minTargetDist:', minTargetDist);
             break;
+        } else {
+            // console.debug('[getSteerTarget] In range at', ns, point, 'start:', start, 'minTargetDist:', minTargetDist);
         }
 
         ns++;
@@ -309,10 +325,12 @@ const getSteerTarget = (
 
     // failed to find good point to steer to
     if (ns >= straightPath.path.length) {
+        // console.debug('[getSteerTarget] Failed to find steer target');
         return result;
     }
 
     const steerPoint = straightPath.path[ns];
+    // console.debug('[getSteerTarget] Selected steer point', ns, steerPoint);
 
     vec3.copy(result.steerPos, steerPoint.position);
     result.steerPosRef = steerPoint.nodeRef || ('' as NodeRef);
@@ -333,7 +351,7 @@ const fixupCorridor = (pathPolys: NodeRef[], visitedPolyRefs: NodeRef[]): void =
     let furthestPath = -1;
     let furthestVisited = -1;
 
-    // Find furthest common polygon.
+    // find furthest common polygon.
     for (let i = pathPolys.length - 1; i >= 0; i--) {
         let found = false;
         for (let j = visitedPolyRefs.length - 1; j >= 0; j--) {
@@ -348,13 +366,13 @@ const fixupCorridor = (pathPolys: NodeRef[], visitedPolyRefs: NodeRef[]): void =
         }
     }
 
-    // If no intersection found just return current path.
+    // if no intersection found just return current path.
     if (furthestPath === -1 || furthestVisited === -1) {
         return;
     }
 
-    // Concatenate paths.
-    // Adjust beginning of the buffer to include the visited.
+    // concatenate paths.
+    // adjust beginning of the buffer to include the visited.
     const req = visitedPolyRefs.length - furthestVisited;
     const orig = Math.min(furthestPath + 1, pathPolys.length);
 
@@ -367,7 +385,7 @@ const fixupCorridor = (pathPolys: NodeRef[], visitedPolyRefs: NodeRef[]): void =
         pathPolys.splice(req, size, ...pathPolys.slice(orig, orig + size));
     }
 
-    // Store visited
+    // store visited
     for (let i = 0; i < req; i++) {
         pathPolys[i] = visitedPolyRefs[visitedPolyRefs.length - (1 + i)];
     }

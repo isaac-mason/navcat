@@ -3,7 +3,7 @@ import type { NavMesh, NodeRef } from 'navcat';
 import { desNodeRef, NodeType, serPolyNodeRef } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { createExample } from './common/example-boilerplate';
+import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 

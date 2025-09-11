@@ -1,12 +1,12 @@
 import * as THREE from 'three/webgpu';
 
-export type ExampleBoilerplate = {
+export type ExampleBase = {
     scene: THREE.Scene,
     camera: THREE.PerspectiveCamera,
     renderer: THREE.WebGPURenderer
 }
 
-export const createExample = async (container: HTMLElement): Promise<ExampleBoilerplate> => {
+export const createExample = async (container: HTMLElement): Promise<ExampleBase> => {
     // scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x202020);
