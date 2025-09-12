@@ -1,21 +1,11 @@
 import type { Vec3 } from 'maaths';
-import {
-    DEFAULT_QUERY_FILTER,
-    findSmoothPath,
-    getNodeRefType,
-    NodeType,
-    three as threeUtils,
-} from 'navcat';
+import { DEFAULT_QUERY_FILTER, findSmoothPath, getNodeRefType, NodeType, three as threeUtils } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
-import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -106,17 +96,20 @@ const halfExtents: Vec3 = [1, 1, 1];
 const stepSize = 1;
 const slop = 0.01;
 
-let visuals: THREE.Object3D[] = [];
+type Visual = { object: THREE.Object3D; dispose: () => void };
+let visuals: Visual[] = [];
 
 function clearVisuals() {
-    for (const obj of visuals) scene.remove(obj);
-    // obj.
+    for (const visual of visuals) {
+        scene.remove(visual.object);
+        visual.dispose();
+    }
     visuals = [];
 }
 
-function addVisual(obj: THREE.Object3D) {
-    visuals.push(obj);
-    scene.add(obj);
+function addVisual(visual: Visual) {
+    visuals.push(visual);
+    scene.add(visual.object);
 }
 
 function createFlag(color: number): THREE.Group {
@@ -139,23 +132,46 @@ function updatePath() {
 
     const startFlag = createFlag(0x2196f3);
     startFlag.position.set(...start);
-    addVisual(startFlag);
+    addVisual({
+        object: startFlag,
+        dispose: () => {
+            startFlag.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry?.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => {
+                            if (mat.dispose) mat.dispose();
+                        });
+                    } else {
+                        child.material?.dispose?.();
+                    }
+                }
+            });
+        },
+    });
 
     const endFlag = createFlag(0x00ff00);
     endFlag.position.set(...end);
-    addVisual(endFlag);
+    addVisual({
+        object: endFlag,
+        dispose: () => {
+            endFlag.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry?.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => {
+                            if (mat.dispose) mat.dispose();
+                        });
+                    } else {
+                        child.material?.dispose?.();
+                    }
+                }
+            });
+        },
+    });
 
     console.time('findSmoothPath');
-    const pathResult = findSmoothPath(
-        navMesh,
-        start,
-        end,
-        halfExtents,
-        DEFAULT_QUERY_FILTER,
-        stepSize,
-        slop,
-        1024,
-    );
+    const pathResult = findSmoothPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, stepSize, slop, 1024);
     console.timeEnd('findSmoothPath');
 
     console.log('pathResult', pathResult);
@@ -163,123 +179,73 @@ function updatePath() {
     if (pathResult.success) {
         const { path, nodePath } = pathResult;
         if (nodePath) {
-            if (nodePath.intermediates?.nodes) {
-                const searchNodesHelper = threeUtils.createSearchNodesHelper(
-                    nodePath.intermediates.nodes,
-                );
-                addVisual(searchNodesHelper.object);
-            }
+            const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
+            addVisual({
+                object: searchNodesHelper.object,
+                dispose: () => {
+                    // Assume helper handles its own disposal if needed
+                },
+            });
+
             for (let i = 0; i < nodePath.path.length; i++) {
                 const node = nodePath.path[i];
                 if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                    const polyHelper = threeUtils.createNavMeshPolyHelper(
-                        navMesh,
-                        node,
-                    );
+                    const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
                     polyHelper.object.position.y += 0.15;
-                    addVisual(polyHelper.object);
+
+                    addVisual(polyHelper);
                 }
             }
         }
         if (path) {
             for (let i = 0; i < path.length; i++) {
                 const point = path[i];
-                // Assign a unique HSL color for this point
+
                 const hue = (i / path.length) * 360;
                 const colorHSL = `hsl(${hue}, 90%, 50%)`;
                 const colorThree = new THREE.Color(colorHSL);
 
-                // Draw green dot and line for END type
-                if (point.pointType === 3 /* SmoothPathPointType.END */) {
-                    // Green dot
-                    const mesh = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.22),
-                        new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
-                    );
-                    mesh.position.set(...point.position);
-                    addVisual(mesh);
-                    // Green line from previous point (always draw if there is a previous point)
-                    if (i > 0) {
-                        const prevPoint = path[i - 1];
-                        const geometry = new LineGeometry();
-                        const start = new THREE.Vector3(...prevPoint.position);
-                        start.y += 0.2;
-                        const end = new THREE.Vector3(...point.position);
-                        end.y += 0.2;
-                        geometry.setFromPoints([start, end]);
-                        const material = new Line2NodeMaterial({
-                            color: 'green',
-                            linewidth: 0.13,
-                            worldUnits: true,
-                        });
-                        const line = new Line2(geometry, material);
-                        addVisual(line);
-                    }
-                } else {
-                    // HSL colored dot
-                    const mesh = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.2),
-                        new THREE.MeshBasicMaterial({ color: colorThree }),
-                    );
-                    mesh.position.set(...point.position);
-                    addVisual(mesh);
-                }
+                const sphereGeom = new THREE.SphereGeometry(0.1, 12, 12);
+                const sphereMat = new THREE.MeshBasicMaterial({ color: colorThree });
+                const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+                sphere.position.set(...point.position);
+                sphere.position.y += 0.2;
 
-                // Visualize moveAlongSurfaceTarget if present
-                if (point.moveAlongSurfaceTarget) {
-                    // Draw a line from position to moveAlongSurfaceTarget in this point's color
-                    const moveTargetGeometry = new LineGeometry();
-                    const start = new THREE.Vector3(...point.position);
-                    start.y += 0.2;
-                    const end = new THREE.Vector3(...point.moveAlongSurfaceTarget);
-                    end.y += 0.2;
-                    moveTargetGeometry.setFromPoints([start, end]);
-                    const moveTargetMaterial = new Line2NodeMaterial({
-                        color: colorThree,
-                        linewidth: 0.08,
-                        worldUnits: true,
-                    });
-                    const moveTargetLine = new Line2(moveTargetGeometry, moveTargetMaterial);
-                    addVisual(moveTargetLine);
+                addVisual({
+                    object: sphere,
+                    dispose: () => {
+                        sphere.geometry?.dispose();
+                        sphere.material?.dispose?.();
+                    },
+                });
 
-                    // Draw a small sphere at the moveAlongSurfaceTarget in this point's color
-                    const targetMesh = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.12),
-                        new THREE.MeshBasicMaterial({ color: colorThree }),
-                    );
-                    targetMesh.position.set(...point.moveAlongSurfaceTarget);
-                    targetMesh.position.y += 0.2;
-                    addVisual(targetMesh);
-                }
-
-                // Visualize steerTarget as an ArrowHelper with y += 2 offset
-                if (point.steerTarget) {
-                    const from = new THREE.Vector3(...point.position);
-                    from.y += 0.5;
-                    const to = new THREE.Vector3(...point.steerTarget);
-                    to.y += 0.5;
-                    const dir = new THREE.Vector3().subVectors(to, from).normalize();
-                    const length = from.distanceTo(to);
-                    const arrowColor = colorThree;
-                    const arrowHelper = new THREE.ArrowHelper(dir, from, length, arrowColor.getHex(), 0.35, 0.18);
-                    addVisual(arrowHelper);
-                }
-
-                // line between path points (except for END type, which already draws green)
-                if (i > 0 && point.pointType !== 3 /* SmoothPathPointType.END */) {
+                if (i > 0) {
                     const prevPoint = path[i - 1];
+
                     const geometry = new LineGeometry();
-                    geometry.setFromPoints([
-                        new THREE.Vector3(...prevPoint.position),
-                        new THREE.Vector3(...point.position),
-                    ]);
+                    const start = new THREE.Vector3(...prevPoint.position);
+                    const end = new THREE.Vector3(...point.position);
+
+                    start.y += 0.2;
+                    end.y += 0.2;
+
+                    geometry.setFromPoints([start, end]);
+
                     const material = new Line2NodeMaterial({
                         color: colorThree,
                         linewidth: 0.1,
                         worldUnits: true,
                     });
+
                     const line = new Line2(geometry, material);
-                    addVisual(line);
+
+                    addVisual({
+                        object: line,
+                        dispose: () => {
+                            line.geometry?.dispose();
+                            line.material?.dispose?.();
+                        },
+                    });
                 }
             }
         }

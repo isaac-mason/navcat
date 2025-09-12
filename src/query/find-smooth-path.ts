@@ -3,8 +3,8 @@ import { vec3 } from 'maaths';
 import { StraightPathPointFlags, findStraightPath } from './find-straight-path';
 import { type NavMesh, OffMeshConnectionSide } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import { FindNodePathResultFlags, type FindNodePathResult, findNodePath, moveAlongSurface } from './nav-mesh-search';
-import { desNodeRef, type NodeRef, NodeType } from './node';
+import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
+import { type NodeRef, NodeType, desNodeRef } from './node';
 import type { QueryFilter } from './query-filter';
 
 const _findSmoothPathDelta = vec3.create();
@@ -12,7 +12,7 @@ const _findSmoothPathMoveTarget = vec3.create();
 const _findSmoothPathStartNearestPolyResult = createFindNearestPolyResult();
 const _findSmoothPathEndNearestPolyResult = createFindNearestPolyResult();
 
-export enum FindSmoothPathFlags {
+export enum FindSmoothPathResultFlags {
     NONE = 0,
     SUCCESS = 1 << 0,
     COMPLETE_PATH = 1 << 1,
@@ -22,20 +22,18 @@ export enum FindSmoothPathFlags {
     FIND_STRAIGHT_PATH_FAILED = 1 << 5,
 }
 
-export enum SmoothPathPointType {
+export enum SmoothPathPointFlags {
     START = 0,
-    MOVE_ALONG_SURFACE = 1,
+    END = 1,
     OFFMESH_CONNECTION = 2,
-    END = 3,
 }
 
 export type SmoothPathPoint = {
     position: Vec3;
     type: NodeType;
-    nodeRef: NodeRef;
-    pointType: SmoothPathPointType;
-    steerTarget: Vec3 | null;
-    moveAlongSurfaceTarget: Vec3 | null;
+    nodeRef: NodeRef | null;
+    /** @see SmoothPathPointFlags */
+    flags: number;
 };
 
 export type FindSmoothPathResult = {
@@ -43,9 +41,9 @@ export type FindSmoothPathResult = {
     success: boolean;
 
     /** the status flags of the smooth pathfinding operation */
-    flags: FindSmoothPathFlags;
+    flags: FindSmoothPathResultFlags;
 
-    /** the smooth path points */
+    /** the path points */
     path: SmoothPathPoint[];
 
     /** the start poly node ref */
@@ -101,7 +99,7 @@ export const findSmoothPath = (
 ): FindSmoothPathResult => {
     const result: FindSmoothPathResult = {
         success: false,
-        flags: FindSmoothPathFlags.NONE | FindSmoothPathFlags.INVALID_INPUT,
+        flags: FindSmoothPathResultFlags.NONE | FindSmoothPathResultFlags.INVALID_INPUT,
         path: [],
         startNodeRef: null,
         startPoint: [0, 0, 0],
@@ -143,7 +141,7 @@ export const findSmoothPath = (
     result.nodePath = nodePath;
 
     if (!nodePath.success || nodePath.path.length === 0) {
-        result.flags = FindSmoothPathFlags.FIND_NODE_PATH_FAILED;
+        result.flags = FindSmoothPathResultFlags.FIND_NODE_PATH_FAILED;
         return result;
     }
 
@@ -153,18 +151,16 @@ export const findSmoothPath = (
 
     let polys = [...nodePath.path];
 
-    const smoothPath: SmoothPathPoint[] = [];
+    // const path: StraightPathPoint[] = [];
 
-    smoothPath.push({
+    result.path.push({
         position: vec3.clone(iterPos),
         type: NodeType.GROUND_POLY,
         nodeRef: result.startNodeRef,
-        pointType: SmoothPathPointType.START,
-        steerTarget: null,
-        moveAlongSurfaceTarget: null,
+        flags: SmoothPathPointFlags.START,
     });
 
-    while (polys.length > 0 && smoothPath.length < maxPoints) {
+    while (polys.length > 0 && result.path.length < maxPoints) {
         // find location to steer towards
         const steerTarget = getSteerTarget(navMesh, iterPos, targetPos, slop, polys);
 
@@ -174,8 +170,6 @@ export const findSmoothPath = (
 
         const isEndOfPath = steerTarget.steerPosFlags & StraightPathPointFlags.END;
         const isOffMeshConnection = steerTarget.steerPosFlags & StraightPathPointFlags.OFFMESH_CONNECTION;
-
-        smoothPath[smoothPath.length - 1].steerTarget = vec3.clone(steerTarget.steerPos);
 
         // find movement delta
         const steerPos = steerTarget.steerPos;
@@ -212,16 +206,12 @@ export const findSmoothPath = (
             // reached end of path
             vec3.copy(iterPos, targetPos);
 
-            smoothPath[smoothPath.length - 1].moveAlongSurfaceTarget = vec3.clone(moveTarget);
-
-            if (smoothPath.length < maxPoints) {
-                smoothPath.push({
+            if (result.path.length < maxPoints) {
+                result.path.push({
                     position: vec3.clone(iterPos),
                     type: NodeType.GROUND_POLY,
                     nodeRef: result.endNodeRef,
-                    pointType: SmoothPathPointType.END,
-                    steerTarget: null,
-                    moveAlongSurfaceTarget: null,
+                    flags: SmoothPathPointFlags.END,
                 });
             }
 
@@ -247,14 +237,12 @@ export const findSmoothPath = (
             const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
 
             if (offMeshConnection) {
-                if (smoothPath.length < maxPoints) {
-                    smoothPath.push({
+                if (result.path.length < maxPoints) {
+                    result.path.push({
                         position: vec3.clone(iterPos),
                         type: NodeType.OFFMESH_CONNECTION,
                         nodeRef: offMeshConRef,
-                        pointType: SmoothPathPointType.OFFMESH_CONNECTION,
-                        steerTarget: null,
-                        moveAlongSurfaceTarget: null,
+                        flags: SmoothPathPointFlags.OFFMESH_CONNECTION,
                     });
 
                     const endPosition =
@@ -266,33 +254,28 @@ export const findSmoothPath = (
         }
 
         // store results - add a point for each iteration to create smooth path
-        if (smoothPath.length < maxPoints) {
+        if (result.path.length < maxPoints) {
             // determine the current ref from the current position
             const currentNodeRef = polys.length > 0 ? polys[0] : result.endNodeRef;
 
-            smoothPath[smoothPath.length - 1].moveAlongSurfaceTarget = vec3.clone(moveTarget);
-
-            smoothPath.push({
+            result.path.push({
                 position: vec3.clone(iterPos),
                 type: NodeType.GROUND_POLY,
                 nodeRef: currentNodeRef,
-                pointType: SmoothPathPointType.MOVE_ALONG_SURFACE,
-                steerTarget: null,
-                moveAlongSurfaceTarget: null,
+                flags: 0,
             });
         }
     }
 
     // compose flags
-    let flags = FindSmoothPathFlags.SUCCESS;
+    let flags = FindSmoothPathResultFlags.SUCCESS;
     if (nodePath.flags & FindNodePathResultFlags.COMPLETE_PATH) {
-        flags |= FindSmoothPathFlags.COMPLETE_PATH;
+        flags |= FindSmoothPathResultFlags.COMPLETE_PATH;
     } else if (nodePath.flags & FindNodePathResultFlags.PARTIAL_PATH) {
-        flags |= FindSmoothPathFlags.PARTIAL_PATH;
+        flags |= FindSmoothPathResultFlags.PARTIAL_PATH;
     }
 
     result.success = true;
-    result.path = smoothPath;
     result.flags = flags;
 
     return result;
@@ -302,7 +285,7 @@ type GetSteerTargetResult = {
     success: boolean;
     steerPos: Vec3;
     steerPosRef: NodeRef;
-    steerPosFlags: FindSmoothPathFlags;
+    steerPosFlags: FindSmoothPathResultFlags;
 };
 
 const getSteerTarget = (

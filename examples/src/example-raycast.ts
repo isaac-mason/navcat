@@ -111,7 +111,9 @@ let visuals: THREE.Object3D[] = [];
 performRaycast();
 
 function clearVisuals() {
-    for (const obj of visuals) scene.remove(obj);
+    for (const obj of visuals) {
+        scene.remove(obj);
+    }
     visuals = [];
 }
 
