@@ -144,41 +144,41 @@ function updatePath() {
     console.log('pathResult', pathResult);
     console.log('partial?', (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0);
 
-    if (pathResult.success) {
-        const { path, nodePath } = pathResult;
-        if (nodePath) {
-            const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
-            addVisual(searchNodesHelper.object);
+    const { path, nodePath } = pathResult;
 
-            for (let i = 0; i < nodePath.path.length; i++) {
-                const node = nodePath.path[i];
-                if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                    const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
-                    polyHelper.object.position.y += 0.15;
-                    addVisual(polyHelper.object);
-                }
+    if (nodePath) {
+        const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
+        addVisual(searchNodesHelper.object);
+
+        for (let i = 0; i < nodePath.path.length; i++) {
+            const node = nodePath.path[i];
+            if (getNodeRefType(node) === NodeType.GROUND_POLY) {
+                const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
+                polyHelper.object.position.y += 0.15;
+                addVisual(polyHelper.object);
             }
         }
-        if (path) {
-            for (let i = 0; i < path.length; i++) {
-                const point = path[i];
-                // point
-                const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-                mesh.position.set(...point.position);
-                addVisual(mesh);
-                // line
-                if (i > 0) {
-                    const prevPoint = path[i - 1];
-                    const geometry = new LineGeometry();
-                    geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
-                    const material = new Line2NodeMaterial({
-                        color: 'yellow',
-                        linewidth: 0.1,
-                        worldUnits: true,
-                    });
-                    const line = new Line2(geometry, material);
-                    addVisual(line);
-                }
+    }
+
+    if (path) {
+        for (let i = 0; i < path.length; i++) {
+            const point = path[i];
+            // point
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            mesh.position.set(...point.position);
+            addVisual(mesh);
+            // line
+            if (i > 0) {
+                const prevPoint = path[i - 1];
+                const geometry = new LineGeometry();
+                geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
+                const material = new Line2NodeMaterial({
+                    color: 'yellow',
+                    linewidth: 0.1,
+                    worldUnits: true,
+                });
+                const line = new Line2(geometry, material);
+                addVisual(line);
             }
         }
     }

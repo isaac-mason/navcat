@@ -524,7 +524,7 @@ export const findNodePath = (
     if (lastBestNode.nodeRef !== endRef) {
         return {
             flags: FindNodePathResultFlags.PARTIAL_PATH,
-            success: false,
+            success: true,
             path,
             nodes,
             openList,
