@@ -1,21 +1,11 @@
 import { type Vec3, vec3 } from 'maaths';
-import {
-    createFindNearestPolyResult,
-    DEFAULT_QUERY_FILTER,
-    findNearestPoly,
-    raycast,
-    three as threeUtils,
-} from 'navcat';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, raycast, three as threeUtils } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
-import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -100,26 +90,26 @@ const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-
-
 // state for raycast start/end (with defaults)
 let raycastStart: Vec3 | null = [-0.8, 0.27, 5.1];
 let raycastEnd: Vec3 | null = [0.53, 0.26, 3.59];
-let visuals: THREE.Object3D[] = [];
+type Visual = { object: THREE.Object3D; dispose: () => void };
+let visuals: Visual[] = [];
 
 // initial raycast with defaults
 performRaycast();
 
 function clearVisuals() {
-    for (const obj of visuals) {
-        scene.remove(obj);
+    for (const visual of visuals) {
+        scene.remove(visual.object);
+        visual.dispose();
     }
     visuals = [];
 }
 
-function addVisual(obj: THREE.Object3D) {
-    visuals.push(obj);
-    scene.add(obj);
+function addVisual(visual: Visual) {
+    visuals.push(visual);
+    scene.add(visual.object);
 }
 
 function performRaycast() {
@@ -153,16 +143,28 @@ function performRaycast() {
     );
     rayStartMesh.position.fromArray(raycastStart);
     rayStartMesh.position.y += 0.5;
-    addVisual(rayStartMesh);
+    addVisual({
+        object: rayStartMesh,
+        dispose: () => {
+            rayStartMesh.geometry?.dispose();
+            rayStartMesh.material?.dispose?.();
+        },
+    });
 
     // visualize the raycast end position (blue, smaller)
     const rayEndMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.08, 16, 16),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color('blue') })
+        new THREE.MeshBasicMaterial({ color: new THREE.Color('blue') }),
     );
     rayEndMesh.position.fromArray(raycastEnd);
     rayEndMesh.position.y += 0.5;
-    addVisual(rayEndMesh);
+    addVisual({
+        object: rayEndMesh,
+        dispose: () => {
+            rayEndMesh.geometry?.dispose();
+            rayEndMesh.material?.dispose?.();
+        },
+    });
 
     // calculate hit position
     let hitPos: Vec3;
@@ -182,8 +184,13 @@ function performRaycast() {
     );
     hitMesh.position.fromArray(hitPos);
     hitMesh.position.y += 0.5;
-    addVisual(hitMesh);
-
+    addVisual({
+        object: hitMesh,
+        dispose: () => {
+            hitMesh.geometry?.dispose();
+            hitMesh.material?.dispose?.();
+        },
+    });
 
     // visualize the raycast as two arrows: green (start to hit), red (hit to end if hit occurs before end)
     const startVec = new THREE.Vector3(...raycastStart);
@@ -200,9 +207,14 @@ function performRaycast() {
             toHitLen,
             0x00ff00,
             0.18,
-            0.09
+            0.09,
         );
-        addVisual(arrowGreen);
+        addVisual({
+            object: arrowGreen,
+            dispose: () => {
+                arrowGreen.dispose();
+            },
+        });
     }
 
     // only draw the red arrow if the hit is before the end
@@ -213,24 +225,23 @@ function performRaycast() {
             toEndLen,
             0xff0000,
             0.18,
-            0.09
+            0.09,
         );
-        addVisual(arrowRed);
+        addVisual({
+            object: arrowRed,
+            dispose: () => {
+                arrowRed.dispose();
+            },
+        });
     }
 
     // visualize hit normal if we hit a wall
-    if (
-        raycastResult.t < Number.MAX_VALUE &&
-        vec3.length(raycastResult.hitNormal) > 0
-    ) {
+    if (raycastResult.t < Number.MAX_VALUE && vec3.length(raycastResult.hitNormal) > 0) {
         const normalEnd = vec3.create();
         vec3.scaleAndAdd(normalEnd, hitPos, raycastResult.hitNormal, 0.5);
 
         const normalLineGeometry = new LineGeometry();
-        normalLineGeometry.setFromPoints([
-            new THREE.Vector3(...hitPos),
-            new THREE.Vector3(...normalEnd),
-        ]);
+        normalLineGeometry.setFromPoints([new THREE.Vector3(...hitPos), new THREE.Vector3(...normalEnd)]);
         const normalLineMaterial = new Line2NodeMaterial({
             color: 'yellow',
             linewidth: 0.08,
@@ -238,24 +249,22 @@ function performRaycast() {
         });
         const normalLine = new Line2(normalLineGeometry, normalLineMaterial);
         normalLine.position.y += 0.5;
-        addVisual(normalLine);
+        addVisual({
+            object: normalLine,
+            dispose: () => {
+                normalLine.geometry?.dispose();
+                normalLine.material?.dispose?.();
+            },
+        });
     }
 
     // visualize the visited polygons from raycast
     for (let i = 0; i < raycastResult.path.length; i++) {
         const poly = raycastResult.path[i];
-        const hslColor = new THREE.Color().setHSL(
-            0.8,
-            0.9,
-            0.4 + (i / raycastResult.path.length) * 0.3,
-        );
-        const polyHelper = threeUtils.createNavMeshPolyHelper(
-            navMesh,
-            poly,
-            hslColor.toArray() as [number, number, number],
-        );
+        const hslColor = new THREE.Color().setHSL(0.8, 0.9, 0.4 + (i / raycastResult.path.length) * 0.3);
+        const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, poly, hslColor.toArray() as [number, number, number]);
         polyHelper.object.position.y += 0.35;
-        addVisual(polyHelper.object);
+        addVisual(polyHelper);
     }
 }
 

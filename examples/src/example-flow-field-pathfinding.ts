@@ -110,7 +110,6 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
         // left click
         const polyRef = getPolyRefAtMouse(event);
         if (polyRef) {
-            
             const hitPos = pointerRaycast(event);
             const startResult = findNearestPoly(createFindNearestPolyResult(), navMesh, hitPos, [1, 1, 1], DEFAULT_QUERY_FILTER);
             const closest = startResult?.success ? startResult.nearestPoint : null;
@@ -152,7 +151,10 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
         if (polyPath && startPt && endPt) {
             const straightPathResult = findStraightPath(navMesh, startPt, endPt, polyPath);
 
-            showPath(polyPath, straightPathResult.path.map((p) => p.position));
+            showPath(
+                polyPath,
+                straightPathResult.path.map((p) => p.position),
+            );
         } else {
             clearPathHelpers();
         }
@@ -205,8 +207,9 @@ function showFlagAt(position: [number, number, number] | null) {
     }
 }
 
-const arrowHelpers: THREE.Object3D[] = [];
-const pathHelpers: THREE.Object3D[] = [];
+const polyHelpers: threeUtils.DebugObject[] = [];
+const arrowHelpers: THREE.ArrowHelper[] = [];
+const pathHelpers: THREE.Mesh[] = [];
 
 function getPolyCenter(navMesh: NavMesh, nodeRef: NodeRef): [number, number, number] | null {
     const [type, tileId, polyIndex] = desNodeRef(nodeRef);
@@ -231,33 +234,44 @@ function getPolyCenter(navMesh: NavMesh, nodeRef: NodeRef): [number, number, num
     return [sum[0] / n, sum[1] / n, sum[2] / n];
 }
 
+function clearPolyHelpers() {
+    for (const helper of polyHelpers) {
+        scene.remove(helper.object);
+        helper.dispose();
+    }
+    polyHelpers.length = 0;
+}
+
 function clearArrowHelpers() {
-    for (const obj of arrowHelpers) scene.remove(obj);
+    for (const obj of arrowHelpers) {
+        scene.remove(obj);
+        obj.dispose();
+    }
     arrowHelpers.length = 0;
 }
 
 function clearPathHelpers() {
-    for (const obj of pathHelpers) scene.remove(obj);
+    for (const mesh of pathHelpers) {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+    }
     pathHelpers.length = 0;
 }
 
 function showFlowFieldArrows(navMesh: NavMesh, flowField: FlowField) {
     clearArrowHelpers();
+    clearPolyHelpers();
 
     // Compute min/max cost for color mapping
-    let minCost = Infinity, maxCost = -Infinity;
+    let minCost = Infinity,
+        maxCost = -Infinity;
     for (const cost of flowField.cost.values()) {
         if (cost < minCost) minCost = cost;
         if (cost > maxCost) maxCost = cost;
     }
     // Avoid division by zero
     if (minCost === maxCost) maxCost = minCost + 1;
-
-    // Remove old poly helpers
-    if (arrowHelpers.length > 0) {
-        for (const obj of arrowHelpers) scene.remove(obj);
-        arrowHelpers.length = 0;
-    }
 
     // Add colored poly helpers
     for (const [polyRef, cost] of flowField.cost.entries()) {
@@ -269,7 +283,7 @@ function showFlowFieldArrows(navMesh: NavMesh, flowField: FlowField) {
         const color = new THREE.Color(r, g, b);
         const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [color.r, color.g, color.b]);
         polyHelper.object.position.y += 0.15;
-        arrowHelpers.push(polyHelper.object);
+        polyHelpers.push(polyHelper);
         scene.add(polyHelper.object);
     }
 
@@ -297,7 +311,7 @@ function showPath(pathPolys: NodeRef[], pathPoints: number[][]) {
     for (const polyRef of pathPolys) {
         const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh!, polyRef, [1, 0.7, 0.2]);
         polyHelper.object.position.y += 0.15;
-        pathHelpers.push(polyHelper.object);
+        polyHelpers.push(polyHelper);
         scene.add(polyHelper.object);
     }
 

@@ -101,16 +101,20 @@ let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [2.52, 2.39, -2.2];
 const halfExtents: Vec3 = [1, 1, 1];
 
-let visuals: THREE.Object3D[] = [];
+type Visual = { object: THREE.Object3D, dispose: () => void };
+let visuals: Visual[] = [];
 
 function clearVisuals() {
-    for (const obj of visuals) scene.remove(obj);
+    for (const visual of visuals) {
+        scene.remove(visual.object);
+        visual.dispose();
+    }
     visuals = [];
 }
 
-function addVisual(obj: THREE.Object3D) {
-    visuals.push(obj);
-    scene.add(obj);
+function addVisual(visual: Visual) {
+    visuals.push(visual);
+    scene.add(visual.object);
 }
 
 function createFlag(color: number): THREE.Group {
@@ -133,11 +137,39 @@ function updatePath() {
 
     const startFlag = createFlag(0x2196f3);
     startFlag.position.set(...start);
-    addVisual(startFlag);
+    addVisual({
+        object: startFlag,
+        dispose: () => {
+            startFlag.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry?.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => { if (mat.dispose) mat.dispose(); });
+                    } else {
+                        child.material?.dispose?.();
+                    }
+                }
+            });
+        },
+    });
 
     const endFlag = createFlag(0x00ff00);
     endFlag.position.set(...end);
-    addVisual(endFlag);
+    addVisual({
+        object: endFlag,
+        dispose: () => {
+            endFlag.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry?.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => { if (mat.dispose) mat.dispose(); });
+                    } else {
+                        child.material?.dispose?.();
+                    }
+                }
+            });
+        },
+    });
 
     const pathResult = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
 
@@ -148,14 +180,14 @@ function updatePath() {
 
     if (nodePath) {
         const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
-        addVisual(searchNodesHelper.object);
+        addVisual(searchNodesHelper);
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
             if (getNodeRefType(node) === NodeType.GROUND_POLY) {
                 const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
                 polyHelper.object.position.y += 0.15;
-                addVisual(polyHelper.object);
+                addVisual(polyHelper);
             }
         }
     }
@@ -166,7 +198,13 @@ function updatePath() {
             // point
             const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
             mesh.position.set(...point.position);
-            addVisual(mesh);
+            addVisual({
+                object: mesh,
+                dispose: () => {
+                    mesh.geometry?.dispose();
+                    mesh.material?.dispose?.();
+                },
+            });
             // line
             if (i > 0) {
                 const prevPoint = path[i - 1];
@@ -178,7 +216,13 @@ function updatePath() {
                     worldUnits: true,
                 });
                 const line = new Line2(geometry, material);
-                addVisual(line);
+                addVisual({
+                    object: line,
+                    dispose: () => {
+                        line.geometry?.dispose();
+                        line.material?.dispose?.();
+                    },
+                });
             }
         }
     }

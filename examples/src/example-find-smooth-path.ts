@@ -138,13 +138,7 @@ function updatePath() {
             startFlag.traverse((child) => {
                 if (child instanceof THREE.Mesh) {
                     child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            if (mat.dispose) mat.dispose();
-                        });
-                    } else {
-                        child.material?.dispose?.();
-                    }
+                    child.material?.dispose?.();
                 }
             });
         },
@@ -158,13 +152,7 @@ function updatePath() {
             endFlag.traverse((child) => {
                 if (child instanceof THREE.Mesh) {
                     child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            if (mat.dispose) mat.dispose();
-                        });
-                    } else {
-                        child.material?.dispose?.();
-                    }
+                    child.material?.dispose?.();
                 }
             });
         },
@@ -180,19 +168,13 @@ function updatePath() {
         const { path, nodePath } = pathResult;
         if (nodePath) {
             const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
-            addVisual({
-                object: searchNodesHelper.object,
-                dispose: () => {
-                    // Assume helper handles its own disposal if needed
-                },
-            });
+            addVisual(searchNodesHelper);
 
             for (let i = 0; i < nodePath.path.length; i++) {
                 const node = nodePath.path[i];
                 if (getNodeRefType(node) === NodeType.GROUND_POLY) {
                     const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
                     polyHelper.object.position.y += 0.15;
-
                     addVisual(polyHelper);
                 }
             }
