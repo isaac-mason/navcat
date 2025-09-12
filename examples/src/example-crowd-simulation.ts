@@ -559,7 +559,7 @@ const updateAgentVisuals = (
     if (options.showPathLine) {
         const corners = findCorridorCorners(agent.corridor, navMesh, 3);
 
-        if (corners && corners.corners.length > 1) {
+        if (corners && corners.length > 1) {
             // validate coordinates
             const validPoints: THREE.Vector3[] = [];
 
@@ -569,7 +569,7 @@ const updateAgentVisuals = (
             }
 
             // add corners
-            for (const corner of corners.corners) {
+            for (const corner of corners) {
                 if (
                     Number.isFinite(corner.position[0]) &&
                     Number.isFinite(corner.position[1]) &&
