@@ -2,7 +2,6 @@ import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
     desNodeRef,
-    FindStraightPathFlags,
     findStraightPath,
     isValidNodeRef,
     moveAlongSurface,
@@ -107,7 +106,7 @@ export const findCorridorCorners = (
     corridor: PathCorridor,
     navMesh: NavMesh,
     maxCorners: number,
-): false | { corners: StraightPathPoint[]; cornersReachTarget: boolean } => {
+): false | StraightPathPoint[] => {
     if (corridor.path.length === 0) return false;
 
     const straightPathResult = findStraightPath(navMesh, corridor.position, corridor.target, corridor.path, maxCorners);
@@ -117,7 +116,6 @@ export const findCorridorCorners = (
     }
 
     let corners = straightPathResult.path;
-    let cornersReachTarget = (straightPathResult.flags & FindStraightPathFlags.COMPLETE_PATH) !== 0;
 
     // prune points in the beginning of the path which are too close
     while (corners.length > 0) {
@@ -145,10 +143,9 @@ export const findCorridorCorners = (
 
     if (firstOffMeshConnectionIndex !== -1) {
         corners = corners.slice(0, firstOffMeshConnectionIndex + 1);
-        cornersReachTarget = false;
     }
 
-    return { corners, cornersReachTarget };
+    return corners;
 };
 
 export const corridorIsValid = (corridor: PathCorridor, maxLookAhead: number, navMesh: NavMesh, filter: QueryFilter) => {

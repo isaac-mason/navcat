@@ -2,7 +2,7 @@ import type { Vec3 } from 'maaths';
 import {
     DEFAULT_QUERY_FILTER,
     findPath,
-    FindStraightPathFlags,
+    FindStraightPathResultFlags,
     getNodeRefType,
     NodeType,
     three as threeUtils,
@@ -153,8 +153,7 @@ function updatePath() {
     );
 
     console.log('pathResult', pathResult);
-    console.log('complete?', (pathResult.straightPathFlags & FindStraightPathFlags.COMPLETE_PATH) !== 0);
-    console.log('partial?', (pathResult.straightPathFlags & FindStraightPathFlags.PARTIAL_PATH) !== 0);
+    console.log('partial?', (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0);
 
     if (pathResult.success) {
         const { path, nodePath } = pathResult;

@@ -271,8 +271,7 @@ export const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
 };
 
 
-// Bitmask flags for node pathfinding result status
-export enum FindNodePathFlags {
+export enum FindNodePathResultFlags {
     NONE = 0,
     SUCCESS = 1 << 0,
     COMPLETE_PATH = 1 << 1,
@@ -285,7 +284,7 @@ export type FindNodePathResult = {
     success: boolean;
 
     /** the result status flags for the operation */
-    flags: FindNodePathFlags;
+    flags: FindNodePathResultFlags;
 
     /** the path, consisting of polygon node and offmesh link node references */
     path: NodeRef[];
@@ -331,7 +330,7 @@ export const findNodePath = (
         !vec3.finite(endPos)
     ) {
         return {
-            flags: FindNodePathFlags.NONE | FindNodePathFlags.INVALID_INPUT,
+            flags: FindNodePathResultFlags.NONE | FindNodePathResultFlags.INVALID_INPUT,
             success: false,
             path: [],
         };
@@ -340,7 +339,7 @@ export const findNodePath = (
     // early exit if start and end are the same
     if (startRef === endRef) {
         return {
-            flags: FindNodePathFlags.SUCCESS | FindNodePathFlags.COMPLETE_PATH,
+            flags: FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
             success: true,
             path: [startRef],
         };
@@ -519,7 +518,7 @@ export const findNodePath = (
     // if the end node was not reached, return with the partial result status
     if (lastBestNode.nodeRef !== endRef) {
         return {
-            flags: FindNodePathFlags.PARTIAL_PATH,
+            flags: FindNodePathResultFlags.PARTIAL_PATH,
             success: false,
             path,
             intermediates: {
@@ -531,7 +530,7 @@ export const findNodePath = (
 
     // the path is complete, return with the complete path status
     return {
-        flags: FindNodePathFlags.SUCCESS | FindNodePathFlags.COMPLETE_PATH,
+        flags: FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
         success: true,
         path,
         intermediates: {

@@ -1,9 +1,9 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
-import { FindStraightPathFlags, findStraightPath, type StraightPathPoint } from './find-straight-path';
+import { StraightPathPointFlags, findStraightPath } from './find-straight-path';
 import { type NavMesh, OffMeshConnectionSide } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import { FindNodePathFlags, type FindNodePathResult, findNodePath, moveAlongSurface } from './nav-mesh-search';
+import { FindNodePathResultFlags, type FindNodePathResult, findNodePath, moveAlongSurface } from './nav-mesh-search';
 import { desNodeRef, type NodeRef, NodeType } from './node';
 import type { QueryFilter } from './query-filter';
 
@@ -23,6 +23,22 @@ export enum FindSmoothPathFlags {
     FIND_STRAIGHT_PATH_FAILED = 1 << 5,
 }
 
+export enum SmoothPathPointType {
+    START = 0,
+    MOVE_ALONG_SURFACE = 1,
+    OFFMESH_CONNECTION = 2,
+    END = 3,
+}
+
+export type SmoothPathPoint = {
+    position: Vec3;
+    type: NodeType;
+    nodeRef: NodeRef;
+    pointType: SmoothPathPointType;
+    steerTarget: Vec3 | null;
+    moveAlongSurfaceTarget: Vec3 | null;
+}
+
 export type FindSmoothPathResult = {
     /** whether the search completed successfully */
     success: boolean;
@@ -31,7 +47,7 @@ export type FindSmoothPathResult = {
     flags: FindSmoothPathFlags;
 
     /** the smooth path points */
-    path: StraightPathPoint[];
+    path: SmoothPathPoint[];
 
     /** the start poly node ref */
     startNodeRef: NodeRef | null;
@@ -136,12 +152,15 @@ export const findSmoothPath = (
     const iterPos = vec3.clone(result.startPoint);
     const targetPos = vec3.clone(result.endPoint);
     const polys = [...nodePath.path];
-    const smoothPath: StraightPathPoint[] = [];
+    const smoothPath: SmoothPathPoint[] = [];
 
     smoothPath.push({
         position: vec3.clone(iterPos),
         type: NodeType.GROUND_POLY,
         nodeRef: result.startNodeRef,
+        pointType: SmoothPathPointType.START,
+        steerTarget: null,
+        moveAlongSurfaceTarget: null,
     });
 
     while (polys.length > 0 && smoothPath.length < maxPoints) {
@@ -152,14 +171,18 @@ export const findSmoothPath = (
             break;
         }
 
-        const isEndOfPath = steerTarget.end;
-        const isOffMeshConnection = steerTarget.offMeshStart;
+        const isEndOfPath = steerTarget.steerPosFlags & StraightPathPointFlags.END;
+        const isOffMeshConnection = steerTarget.steerPosFlags & StraightPathPointFlags.OFFMESH_CONNECTION;
+
+        smoothPath[smoothPath.length - 1].steerTarget = vec3.clone(steerTarget.steerPos);
 
         // find movement delta
         const steerPos = steerTarget.steerPos;
         const delta = vec3.subtract(_findSmoothPathDelta, steerPos, iterPos);
 
         let len = vec3.length(delta);
+        // len = sqrtf(dtVdot(delta,delta));
+        // let len = Math.sqrt(vec3.dot(delta, delta));
 
         // if the steer target is the end of the path or an off-mesh connection, do not move past the location
         if ((isEndOfPath || isOffMeshConnection) && len < stepSize) {
@@ -168,6 +191,10 @@ export const findSmoothPath = (
             len = stepSize / len;
         }
 
+        // const moveTarget = _findSmoothPathMoveTarget;
+        // vec3.copy(moveTarget, delta);
+        // vec3.normalize(moveTarget, moveTarget);
+        // vec3.scale
         const moveTarget = vec3.scaleAndAdd(_findSmoothPathMoveTarget, iterPos, delta, len);
 
         // move along surface
@@ -189,11 +216,16 @@ export const findSmoothPath = (
             // reached end of path
             vec3.copy(iterPos, targetPos);
 
+            smoothPath[smoothPath.length - 1].moveAlongSurfaceTarget = vec3.clone(moveTarget);
+
             if (smoothPath.length < maxPoints) {
                 smoothPath.push({
                     position: vec3.clone(iterPos),
                     type: NodeType.GROUND_POLY,
                     nodeRef: result.endNodeRef,
+                    pointType: SmoothPathPointType.END,
+                    steerTarget: null,
+                    moveAlongSurfaceTarget: null,
                 });
             }
 
@@ -224,6 +256,9 @@ export const findSmoothPath = (
                         position: vec3.clone(iterPos),
                         type: NodeType.OFFMESH_CONNECTION,
                         nodeRef: offMeshConRef,
+                        pointType: SmoothPathPointType.OFFMESH_CONNECTION,
+                        steerTarget: null,
+                        moveAlongSurfaceTarget: null,
                     });
 
                     const endPosition =
@@ -238,19 +273,25 @@ export const findSmoothPath = (
         if (smoothPath.length < maxPoints) {
             // determine the current ref from the current position
             const currentNodeRef = polys.length > 0 ? polys[0] : result.endNodeRef;
+
+            smoothPath[smoothPath.length - 1].moveAlongSurfaceTarget = vec3.clone(moveTarget);
+
             smoothPath.push({
                 position: vec3.clone(iterPos),
                 type: NodeType.GROUND_POLY,
                 nodeRef: currentNodeRef,
+                pointType: SmoothPathPointType.MOVE_ALONG_SURFACE,
+                steerTarget: null,
+                moveAlongSurfaceTarget: null,
             });
         }
     }
 
     // compose flags
     let flags = FindSmoothPathFlags.SUCCESS
-    if (nodePath.flags & FindNodePathFlags.COMPLETE_PATH) {
+    if (nodePath.flags & FindNodePathResultFlags.COMPLETE_PATH) {
         flags |= FindSmoothPathFlags.COMPLETE_PATH;
-    } else if (nodePath.flags & FindNodePathFlags.PARTIAL_PATH) {
+    } else if (nodePath.flags & FindNodePathResultFlags.PARTIAL_PATH) {
         flags |= FindSmoothPathFlags.PARTIAL_PATH;
     }
 
@@ -264,9 +305,8 @@ export const findSmoothPath = (
 type GetSteerTargetResult = {
     success: boolean;
     steerPos: Vec3;
-    offMeshStart: boolean;
-    end: boolean;
     steerPosRef: NodeRef;
+    steerPosFlags: FindSmoothPathFlags;
 };
 
 const getSteerTarget = (
@@ -279,9 +319,8 @@ const getSteerTarget = (
     const result: GetSteerTargetResult = {
         success: false,
         steerPos: [0, 0, 0],
-        offMeshStart: false,
-        end: false,
         steerPosRef: '' as NodeRef,
+        steerPosFlags: 0,
     };
 
     const maxStraightPathPoints = 3;
@@ -298,26 +337,13 @@ const getSteerTarget = (
 
         // stop at off-mesh link
         if (point.type === NodeType.OFFMESH_CONNECTION) {
-            result.offMeshStart = true;
-            break;
-        }
-
-        // if the point is the end, we should steer to it regardless of minTargetDist
-        // console.log("is complete path?", straightPath.flags & FindStraightPathFlags.COMPLETE_PATH);
-        // console.log("partial path?", straightPath.flags & FindStraightPathFlags.PARTIAL_PATH);
-
-        if ((straightPath.flags & FindStraightPathFlags.COMPLETE_PATH) !== 0 && ns === straightPath.path.length - 1) {
-            result.end = true;
-            // console.debug('[getSteerTarget] END at', ns, point);
             break;
         }
 
         // if this point is far enough from start, we can steer to it
         if (!inRange(point.position, start, minTargetDist, 1000.0)) {
-            // console.debug('[getSteerTarget] Far enough at', ns, point, 'start:', start, 'minTargetDist:', minTargetDist);
+            console.debug('[getSteerTarget] Far enough at', ns, point, 'start:', start, 'minTargetDist:', minTargetDist);
             break;
-        } else {
-            // console.debug('[getSteerTarget] In range at', ns, point, 'start:', start, 'minTargetDist:', minTargetDist);
         }
 
         ns++;
@@ -325,15 +351,16 @@ const getSteerTarget = (
 
     // failed to find good point to steer to
     if (ns >= straightPath.path.length) {
-        // console.debug('[getSteerTarget] Failed to find steer target');
+        console.debug('[getSteerTarget] Failed to find steer target');
         return result;
     }
 
     const steerPoint = straightPath.path[ns];
-    // console.debug('[getSteerTarget] Selected steer point', ns, steerPoint);
+    console.debug('[getSteerTarget] Selected steer point', ns, steerPoint);
 
     vec3.copy(result.steerPos, steerPoint.position);
     result.steerPosRef = steerPoint.nodeRef || ('' as NodeRef);
+    result.steerPosFlags = steerPoint.flags;
     result.success = true;
 
     return result;

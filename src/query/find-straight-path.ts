@@ -17,23 +17,30 @@ export enum FindStraightPathOptions {
     AREA_CROSSINGS = 2,
 }
 
+export enum StraightPathPointFlags {
+    START = 0,
+    END = 1,
+    OFFMESH_CONNECTION = 2,
+}
+
 export type StraightPathPoint = {
     position: Vec3;
     type: NodeType;
     nodeRef: NodeRef | null;
+    /** @see StraightPathPointFlags */
+    flags: number;
 };
 
-export enum FindStraightPathFlags {
+export enum FindStraightPathResultFlags {
     NONE = 0,
     SUCCESS = 1 << 0,
-    COMPLETE_PATH = 1 << 1,
     PARTIAL_PATH = 1 << 2,
     MAX_POINTS_REACHED = 1 << 3,
     INVALID_INPUT = 1 << 4,
 }
 
 export type FindStraightPathResult = {
-    flags: FindStraightPathFlags;
+    flags: FindStraightPathResultFlags;
     success: boolean;
     path: StraightPathPoint[];
 };
@@ -47,9 +54,9 @@ enum AppendVertexStatus {
 const appendVertex = (
     point: Vec3,
     ref: NodeRef | null,
+    flags: number,
     outPoints: StraightPathPoint[],
     nodeType: NodeType,
-    isEnd: boolean,
     maxPoints: number | null = null,
 ): AppendVertexStatus => {
     if (outPoints.length > 0 && vec3.equals(outPoints[outPoints.length - 1].position, point)) {
@@ -65,6 +72,7 @@ const appendVertex = (
         position: [point[0], point[1], point[2]],
         type: nodeType,
         nodeRef: ref,
+        flags,
     });
 
     // if there is no space to append more vertices, return
@@ -73,7 +81,7 @@ const appendVertex = (
     }
 
     // if reached end of path, return
-    if (isEnd) {
+    if (flags & StraightPathPointFlags.END) {
         return AppendVertexStatus.SUCCESS;
     }
 
@@ -129,7 +137,7 @@ const appendPortals = (
 
         const toType = getNodeRefType(to);
 
-        const stat = appendVertex(point, to, outPoints, toType, false, maxPoints);
+        const stat = appendVertex(point, to, 0, outPoints, toType, maxPoints);
 
         if (stat !== AppendVertexStatus.IN_PROGRESS) {
             return stat;
@@ -142,9 +150,9 @@ const appendPortals = (
 const _findStraightPathLeftPortalPoint = vec3.create();
 const _findStraightPathRightPortalPoint = vec3.create();
 
-const makeFindStraightPathResult = (flags: FindStraightPathFlags, path: StraightPathPoint[]): FindStraightPathResult => ({
+const makeFindStraightPathResult = (flags: FindStraightPathResultFlags, path: StraightPathPoint[]): FindStraightPathResult => ({
     flags,
-    success: (flags & FindStraightPathFlags.SUCCESS) !== 0,
+    success: (flags & FindStraightPathResultFlags.SUCCESS) !== 0,
     path,
 });
 
@@ -174,26 +182,26 @@ export const findStraightPath = (
     const path: StraightPathPoint[] = [];
 
     if (!vec3.finite(start) || !vec3.finite(end) || pathNodeRefs.length === 0) {
-        return makeFindStraightPathResult(FindStraightPathFlags.NONE | FindStraightPathFlags.INVALID_INPUT, path);
+        return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
     }
 
     // clamp start & end to poly boundaries
     const closestStartPos = vec3.create();
     if (!getClosestPointOnPolyBoundary(navMesh, pathNodeRefs[0], start, closestStartPos))
-        return makeFindStraightPathResult(FindStraightPathFlags.NONE | FindStraightPathFlags.INVALID_INPUT, path);
+        return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
     const closestEndPos = vec3.create();
     if (!getClosestPointOnPolyBoundary(navMesh, pathNodeRefs[pathNodeRefs.length - 1], end, closestEndPos))
-        return makeFindStraightPathResult(FindStraightPathFlags.NONE | FindStraightPathFlags.INVALID_INPUT, path);
+        return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
     // add start point
-    const startAppendStatus = appendVertex(closestStartPos, pathNodeRefs[0], path, getNodeRefType(pathNodeRefs[0]), false, maxPoints);
+    const startAppendStatus = appendVertex(closestStartPos, pathNodeRefs[0], StraightPathPointFlags.START, path, getNodeRefType(pathNodeRefs[0]), maxPoints);
 
     if (startAppendStatus !== AppendVertexStatus.IN_PROGRESS) {
         // if we hit max points on the first vertex, it's a degenerate case
         const maxPointsReached = (startAppendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
-        let flags = FindStraightPathFlags.SUCCESS | FindStraightPathFlags.PARTIAL_PATH;
-        if (maxPointsReached) flags |= FindStraightPathFlags.MAX_POINTS_REACHED;
+        let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
+        if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
         return makeFindStraightPathResult(flags, path);
     }
 
@@ -234,7 +242,7 @@ export const findStraightPath = (
 
                     // this should only happen when the first polygon is invalid.
                     if (!getClosestPointOnPolyBoundary(navMesh, pathNodeRefs[i], end, endClamp))
-                        return makeFindStraightPathResult(FindStraightPathFlags.NONE | FindStraightPathFlags.INVALID_INPUT, path);
+                        return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
                     // append portals along the current straight path segment.
                     if (straightPathOptions & (FindStraightPathOptions.AREA_CROSSINGS | FindStraightPathOptions.ALL_CROSSINGS)) {
@@ -243,12 +251,11 @@ export const findStraightPath = (
                     }
 
                     const nodeType = getNodeRefType(pathNodeRefs[i]);
-                    const isEnd = !leftNodeRef;
 
                     // ignore status return value as we're just about to return
-                    appendVertex(endClamp, pathNodeRefs[i], path, nodeType, isEnd, maxPoints);
+                    appendVertex(endClamp, pathNodeRefs[i], 0, path, nodeType, maxPoints);
 
-                    return makeFindStraightPathResult(FindStraightPathFlags.SUCCESS | FindStraightPathFlags.PARTIAL_PATH, path);
+                    return makeFindStraightPathResult(FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH, path);
                 }
 
                 if (i === 0) {
@@ -285,35 +292,40 @@ export const findStraightPath = (
                         );
                         if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                             const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
-                            let flags = FindStraightPathFlags.SUCCESS | FindStraightPathFlags.PARTIAL_PATH;
-                            if (maxPointsReached) flags |= FindStraightPathFlags.MAX_POINTS_REACHED;
+                            let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
+                            if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
                             return makeFindStraightPathResult(flags, path);
                         }
                     }
 
                     vec3.copy(portalApex, portalLeft);
                     apexIndex = leftIndex;
-                    const isEnd = !leftNodeRef;
+
+                    let pointFlags = 0;
+					if (!leftNodeRef) {
+						pointFlags = StraightPathPointFlags.END;
+                    } else if (leftNodeType === NodeType.OFFMESH_CONNECTION) {
+						pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
+                    }
 
                     // append or update vertex
                     const appendStatus = appendVertex(
                         portalApex,
                         leftNodeRef,
+                        pointFlags,
                         path,
                         leftNodeRef ? leftNodeType : NodeType.GROUND_POLY,
-                        isEnd,
                         maxPoints,
                     );
 
                     if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                         const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
 
-                        let flags = 0;
-                        flags |= FindStraightPathFlags.SUCCESS;
-                        flags |= (isEnd ? FindStraightPathFlags.COMPLETE_PATH : FindStraightPathFlags.PARTIAL_PATH);
-                        flags |= (maxPointsReached ? FindStraightPathFlags.MAX_POINTS_REACHED : 0);
+                        let resultFlags = 0;
+                        resultFlags |= FindStraightPathResultFlags.SUCCESS;
+                        if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
 
-                        return makeFindStraightPathResult(flags, path);
+                        return makeFindStraightPathResult(resultFlags, path);
                     }
 
                     vec3.copy(portalLeft, portalApex);
@@ -351,37 +363,45 @@ export const findStraightPath = (
                             straightPathOptions,
                             maxPoints,
                         );
+
                         if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                             const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
-                            let flags = FindStraightPathFlags.SUCCESS | FindStraightPathFlags.PARTIAL_PATH;
-                            if (maxPointsReached) flags |= FindStraightPathFlags.MAX_POINTS_REACHED;
+                            
+                            let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
+                            if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
+
                             return makeFindStraightPathResult(flags, path);
                         }
                     }
 
                     vec3.copy(portalApex, portalRight);
                     apexIndex = rightIndex;
-                    const isEnd = !rightNodeRef;
+
+                    let pointFlags = 0;
+					if (!rightNodeRef) {
+						pointFlags = StraightPathPointFlags.END;
+                    } else if (rightNodeType === NodeType.OFFMESH_CONNECTION) {
+						pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
+                    }
 
                     // add/update vertex
                     const appendStatus = appendVertex(
                         portalApex,
                         rightNodeRef,
+                        pointFlags,
                         path,
                         rightNodeRef ? rightNodeType : NodeType.GROUND_POLY,
-                        isEnd,
                         maxPoints,
                     );
 
                     if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                         const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
 
-                        let flags = 0;
-                        flags |= FindStraightPathFlags.SUCCESS;
-                        flags |= (isEnd ? FindStraightPathFlags.COMPLETE_PATH : FindStraightPathFlags.PARTIAL_PATH);
-                        flags |= (maxPointsReached ? FindStraightPathFlags.MAX_POINTS_REACHED : 0);
+                        let resultFlags = 0;
+                        resultFlags |= FindStraightPathResultFlags.SUCCESS;
+                        if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
 
-                        return makeFindStraightPathResult(flags, path);
+                        return makeFindStraightPathResult(resultFlags, path);
                     }
 
                     vec3.copy(portalLeft, portalApex);
@@ -411,8 +431,8 @@ export const findStraightPath = (
             );
             if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                 const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
-                let flags = FindStraightPathFlags.SUCCESS | FindStraightPathFlags.PARTIAL_PATH;
-                if (maxPointsReached) flags |= FindStraightPathFlags.MAX_POINTS_REACHED;
+                let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
+                if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
                 return makeFindStraightPathResult(flags, path);
             }
         }
@@ -421,12 +441,11 @@ export const findStraightPath = (
     // append end point
     // attach the last poly ref if available for the end point for easier identification
     const endRef = pathNodeRefs.length > 0 ? pathNodeRefs[pathNodeRefs.length - 1] : null;
-    const isEnd = true;
-    const endAppendStatus = appendVertex(closestEndPos, endRef, path, NodeType.GROUND_POLY, isEnd, maxPoints);
+    const endAppendStatus = appendVertex(closestEndPos, endRef, StraightPathPointFlags.END, path, NodeType.GROUND_POLY, maxPoints);
     const maxPointsReached = (endAppendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
 
-    let flags = FindStraightPathFlags.SUCCESS | FindStraightPathFlags.COMPLETE_PATH;
-    if (maxPointsReached) flags |= FindStraightPathFlags.MAX_POINTS_REACHED;
+    let resultFlags = FindStraightPathResultFlags.SUCCESS;
+    if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
 
-    return makeFindStraightPathResult(flags, path);
+    return makeFindStraightPathResult(resultFlags, path);
 };

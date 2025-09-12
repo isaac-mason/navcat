@@ -13,6 +13,7 @@ import {
     SlicedFindNodePathStatusFlags,
     type SlicedNodePathQuery,
     type StraightPathPoint,
+    StraightPathPointFlags,
     updateSlicedFindNodePath,
 } from 'navcat';
 import {
@@ -95,7 +96,6 @@ export type Agent = {
     neis: Array<{ agentId: string; dist: number }>;
 
     corners: StraightPathPoint[];
-    cornersReachTarget: boolean;
 
     position: Vec3;
     desiredSpeed: number;
@@ -152,7 +152,6 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
         neis: [],
 
         corners: [],
-        cornersReachTarget: false,
 
         position,
         desiredSpeed: 0,
@@ -484,17 +483,14 @@ const updateCorners = (crowd: Crowd, navMesh: NavMesh): void => {
         }
 
         // get corridor corners for steering
-        const cornersResult = findCorridorCorners(agent.corridor, navMesh, 3);
+        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
 
-        if (!cornersResult) {
+        if (!corners) {
             vec3.set(agent.desiredVelocity, 0, 0, 0);
             return;
         }
 
-        const { corners, cornersReachTarget } = cornersResult;
-
         agent.corners = corners;
-        agent.cornersReachTarget = cornersReachTarget;
 
         // todo: raycast to check for shortcuts
     }
@@ -618,17 +614,18 @@ const _getDistanceToGoalEnd = vec2.create();
 const getDistanceToGoal = (agent: Agent, range: number) => {
     if (agent.corners.length === 0) return range;
 
-    if (!agent.cornersReachTarget) return range;
+    const endPoint = agent.corners[agent.corners.length - 1];
+    const isEndOfPath = (endPoint.flags & StraightPathPointFlags.END) !== 0;
 
-    const endOfPath = agent.corners[agent.corners.length - 1].position;
+    if (!isEndOfPath) return range;
 
-    vec2.set(_getDistanceToGoalStart, endOfPath[0], endOfPath[2]);
+    vec2.set(_getDistanceToGoalStart, endPoint.position[0], endPoint.position[2]);
     vec2.set(_getDistanceToGoalEnd, agent.position[0], agent.position[2]);
 
     const dist = vec2.distance(_getDistanceToGoalStart, _getDistanceToGoalEnd);
 
     return Math.min(range, dist);
-};
+}
 
 const updateSteering = (crowd: Crowd): void => {
     for (const agentId in crowd.agents) {
