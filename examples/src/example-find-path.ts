@@ -1,8 +1,8 @@
 import type { Vec3 } from 'maaths';
 import {
     DEFAULT_QUERY_FILTER,
-    findPath,
     FindStraightPathResultFlags,
+    findPath,
     getNodeRefType,
     NodeType,
     three as threeUtils,
@@ -12,11 +12,7 @@ import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
-import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -100,7 +96,6 @@ const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-
 /* find path */
 let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [2.52, 2.39, -2.2];
@@ -144,13 +139,7 @@ function updatePath() {
     endFlag.position.set(...end);
     addVisual(endFlag);
 
-    const pathResult = findPath(
-        navMesh,
-        start,
-        end,
-        halfExtents,
-        DEFAULT_QUERY_FILTER,
-    );
+    const pathResult = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
 
     console.log('pathResult', pathResult);
     console.log('partial?', (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0);
@@ -158,19 +147,13 @@ function updatePath() {
     if (pathResult.success) {
         const { path, nodePath } = pathResult;
         if (nodePath) {
-            if (nodePath.intermediates?.nodes) {
-                const searchNodesHelper = threeUtils.createSearchNodesHelper(
-                    nodePath.intermediates.nodes,
-                );
-                addVisual(searchNodesHelper.object);
-            }
+            const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
+            addVisual(searchNodesHelper.object);
+
             for (let i = 0; i < nodePath.path.length; i++) {
                 const node = nodePath.path[i];
                 if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                    const polyHelper = threeUtils.createNavMeshPolyHelper(
-                        navMesh,
-                        node,
-                    );
+                    const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
                     polyHelper.object.position.y += 0.15;
                     addVisual(polyHelper.object);
                 }
@@ -180,20 +163,14 @@ function updatePath() {
             for (let i = 0; i < path.length; i++) {
                 const point = path[i];
                 // point
-                const mesh = new THREE.Mesh(
-                    new THREE.SphereGeometry(0.2),
-                    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-                );
+                const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
                 mesh.position.set(...point.position);
                 addVisual(mesh);
                 // line
                 if (i > 0) {
                     const prevPoint = path[i - 1];
                     const geometry = new LineGeometry();
-                    geometry.setFromPoints([
-                        new THREE.Vector3(...prevPoint.position),
-                        new THREE.Vector3(...point.position),
-                    ]);
+                    geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
                     const material = new Line2NodeMaterial({
                         color: 'yellow',
                         linewidth: 0.1,

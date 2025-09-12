@@ -289,11 +289,11 @@ export type FindNodePathResult = {
     /** the path, consisting of polygon node and offmesh link node references */
     path: NodeRef[];
 
-    /** intermediate data used for the search, typically only needed for debugging */
-    intermediates?: {
-        nodes: SearchNodePool;
-        openList: SearchNodeQueue;
-    };
+    /** intermediate search node pool used for the search */
+    nodes: SearchNodePool;
+
+    /** intermediate open list used for the search */
+    openList: SearchNodeQueue;
 };
 
 const HEURISTIC_SCALE = 0.999; // Search heuristic scale
@@ -322,6 +322,9 @@ export const findNodePath = (
     endPos: Vec3,
     filter: QueryFilter,
 ): FindNodePathResult => {
+    const nodes: SearchNodePool = {};
+    const openList: SearchNodeQueue = [];
+
     // validate input
     if (
         !isValidNodeRef(navMesh, startRef) ||
@@ -333,6 +336,8 @@ export const findNodePath = (
             flags: FindNodePathResultFlags.NONE | FindNodePathResultFlags.INVALID_INPUT,
             success: false,
             path: [],
+            nodes,
+            openList,
         };
     }
 
@@ -342,14 +347,14 @@ export const findNodePath = (
             flags: FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
             success: true,
             path: [startRef],
+            nodes,
+            openList,
         };
     }
 
     // prepare search
     const getCost = filter.getCost;
 
-    const nodes: SearchNodePool = {};
-    const openList: SearchNodeQueue = [];
 
     const startNode: SearchNode = {
         cost: 0,
@@ -521,10 +526,8 @@ export const findNodePath = (
             flags: FindNodePathResultFlags.PARTIAL_PATH,
             success: false,
             path,
-            intermediates: {
-                nodes,
-                openList,
-            },
+            nodes,
+            openList,
         };
     }
 
@@ -533,10 +536,8 @@ export const findNodePath = (
         flags: FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
         success: true,
         path,
-        intermediates: {
-            nodes,
-            openList,
-        },
+        nodes,
+        openList,
     };
 };
 
