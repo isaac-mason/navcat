@@ -12,7 +12,6 @@ const _findSmoothPathMoveTarget = vec3.create();
 const _findSmoothPathStartNearestPolyResult = createFindNearestPolyResult();
 const _findSmoothPathEndNearestPolyResult = createFindNearestPolyResult();
 
-
 export enum FindSmoothPathFlags {
     NONE = 0,
     SUCCESS = 1 << 0,
@@ -37,7 +36,7 @@ export type SmoothPathPoint = {
     pointType: SmoothPathPointType;
     steerTarget: Vec3 | null;
     moveAlongSurfaceTarget: Vec3 | null;
-}
+};
 
 export type FindSmoothPathResult = {
     /** whether the search completed successfully */
@@ -151,7 +150,9 @@ export const findSmoothPath = (
     // iterate over the path to find a smooth path
     const iterPos = vec3.clone(result.startPoint);
     const targetPos = vec3.clone(result.endPoint);
-    const polys = [...nodePath.path];
+
+    let polys = [...nodePath.path];
+
     const smoothPath: SmoothPathPoint[] = [];
 
     smoothPath.push({
@@ -181,8 +182,6 @@ export const findSmoothPath = (
         const delta = vec3.subtract(_findSmoothPathDelta, steerPos, iterPos);
 
         let len = vec3.length(delta);
-        // len = sqrtf(dtVdot(delta,delta));
-        // let len = Math.sqrt(vec3.dot(delta, delta));
 
         // if the steer target is the end of the path or an off-mesh connection, do not move past the location
         if ((isEndOfPath || isOffMeshConnection) && len < stepSize) {
@@ -191,10 +190,6 @@ export const findSmoothPath = (
             len = stepSize / len;
         }
 
-        // const moveTarget = _findSmoothPathMoveTarget;
-        // vec3.copy(moveTarget, delta);
-        // vec3.normalize(moveTarget, moveTarget);
-        // vec3.scale
         const moveTarget = vec3.scaleAndAdd(_findSmoothPathMoveTarget, iterPos, delta, len);
 
         // move along surface
@@ -206,7 +201,8 @@ export const findSmoothPath = (
 
         const resultPosition = moveAlongSurfaceResult.resultPosition;
 
-        fixupCorridor(polys, moveAlongSurfaceResult.visited);
+        polys = mergeCorridorStartMoved(polys, moveAlongSurfaceResult.visited, 256);
+        // fixupCorridor(polys, moveAlongSurfaceResult.visited);
         fixupShortcuts(polys, navMesh);
 
         vec3.copy(iterPos, resultPosition);
@@ -288,7 +284,7 @@ export const findSmoothPath = (
     }
 
     // compose flags
-    let flags = FindSmoothPathFlags.SUCCESS
+    let flags = FindSmoothPathFlags.SUCCESS;
     if (nodePath.flags & FindNodePathResultFlags.COMPLETE_PATH) {
         flags |= FindSmoothPathFlags.COMPLETE_PATH;
     } else if (nodePath.flags & FindNodePathResultFlags.PARTIAL_PATH) {
@@ -342,7 +338,6 @@ const getSteerTarget = (
 
         // if this point is far enough from start, we can steer to it
         if (!inRange(point.position, start, minTargetDist, 1000.0)) {
-            console.debug('[getSteerTarget] Far enough at', ns, point, 'start:', start, 'minTargetDist:', minTargetDist);
             break;
         }
 
@@ -351,12 +346,10 @@ const getSteerTarget = (
 
     // failed to find good point to steer to
     if (ns >= straightPath.path.length) {
-        console.debug('[getSteerTarget] Failed to find steer target');
         return result;
     }
 
     const steerPoint = straightPath.path[ns];
-    console.debug('[getSteerTarget] Selected steer point', ns, steerPoint);
 
     vec3.copy(result.steerPos, steerPoint.position);
     result.steerPosRef = steerPoint.nodeRef || ('' as NodeRef);
@@ -373,49 +366,53 @@ const inRange = (a: Vec3, b: Vec3, r: number, h: number): boolean => {
     return dx * dx + dz * dz < r * r && Math.abs(dy) < h;
 };
 
-const fixupCorridor = (pathPolys: NodeRef[], visitedPolyRefs: NodeRef[]): void => {
-    const maxPath = 256; // reasonable limit
+const mergeCorridorStartMoved = (currentPath: NodeRef[], visited: NodeRef[], maxPath: number): NodeRef[] => {
+    if (visited.length === 0) return currentPath;
+
     let furthestPath = -1;
     let furthestVisited = -1;
 
-    // find furthest common polygon.
-    for (let i = pathPolys.length - 1; i >= 0; i--) {
-        let found = false;
-        for (let j = visitedPolyRefs.length - 1; j >= 0; j--) {
-            if (pathPolys[i] === visitedPolyRefs[j]) {
+    // find furthest common polygon
+    for (let i = currentPath.length - 1; i >= 0; i--) {
+        for (let j = visited.length - 1; j >= 0; j--) {
+            if (currentPath[i] === visited[j]) {
                 furthestPath = i;
                 furthestVisited = j;
-                found = true;
+                break;
             }
         }
-        if (found) {
-            break;
-        }
+        if (furthestPath !== -1) break;
     }
 
-    // if no intersection found just return current path.
+    // if no intersection found, just return current path
     if (furthestPath === -1 || furthestVisited === -1) {
-        return;
+        return currentPath;
     }
 
-    // concatenate paths.
-    // adjust beginning of the buffer to include the visited.
-    const req = visitedPolyRefs.length - furthestVisited;
-    const orig = Math.min(furthestPath + 1, pathPolys.length);
-
-    let size = Math.max(0, pathPolys.length - orig);
+    // concatenate paths
+    const req = visited.length - furthestVisited;
+    const orig = Math.min(furthestPath + 1, currentPath.length);
+    let size = Math.max(0, currentPath.length - orig);
 
     if (req + size > maxPath) {
         size = maxPath - req;
     }
-    if (size) {
-        pathPolys.splice(req, size, ...pathPolys.slice(orig, orig + size));
+
+    const newPath: NodeRef[] = [];
+
+    // store visited polygons (in reverse order)
+    for (let i = 0; i < Math.min(req, maxPath); i++) {
+        newPath[i] = visited[visited.length - 1 - i];
     }
 
-    // store visited
-    for (let i = 0; i < req; i++) {
-        pathPolys[i] = visitedPolyRefs[visitedPolyRefs.length - (1 + i)];
+    // add remaining current path
+    if (size > 0) {
+        for (let i = 0; i < size; i++) {
+            newPath[req + i] = currentPath[orig + i];
+        }
     }
+
+    return newPath.slice(0, req + size);
 };
 
 /**
