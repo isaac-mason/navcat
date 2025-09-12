@@ -8,12 +8,16 @@
 
 navcat is a javascript navigation mesh construction and querying library for 3D floor-based navigation.
 
-## What can navcat do?
+**Features**
 
-- Generate a navigation mesh from a 3D environment
-- Find paths between points on the navigation mesh
-- Help you simulate agents navigating the environment
-- ...
+- Navigation mesh generation from 3D geometry
+- Navigation mesh querying
+- Single and multi-tile navigation mesh support
+- Pure javascript - no wasm
+- Fully JSON serializable data structures
+- Tiny - 40.32 kB minified + gzipped
+
+**Showcase Examples**
 
 <table>
   <tr>
@@ -66,12 +70,18 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 
 The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach to navigation mesh generation.
 
-Below is an overview of the steps involved in generating a "solo" / single-tile navigation mesh from a set of input triangles.
+At a high-level:
+- Input triangles are rasterized into voxels / into a heightfield
+- Voxels in areas where agents (defined by your parameters) would not be able to move are filtered and removed
+- Walkable areas described by the voxel grid are divided into sets of polygonal regions
+- Navigation mesh polygons are created by triangulating the generated polygonal regions
 
-If you want a copy-and-pasteable starter, see the examples:
+Like recast, navcat supports both single and tiled navigation meshes. Single-tile meshes are suitable for many simple, static cases and are easy to work with. Tiled navmeshes are more complex to work with but better support larger, more dynamic environments, and enable advanced use cases like re-baking, navmesh data-streaming.
+
+Below is an overview of the steps involved in generating a "solo" / single-tile navigation mesh from a set of input triangles. If you want a copy-and-pasteable starter, see the examples:
 - https://navcat.dev/examples#example-generate-navmesh
-- [examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
-- [examples/src/common/generate-solo-nav-mesh.ts](./examples/src/common/generate-solo-nav-mesh.ts)
+- [./examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
+- [./examples/src/common/generate-solo-nav-mesh.ts](./examples/src/common/generate-solo-nav-mesh.ts)
 
 ### 0. Input and setup
 
@@ -79,16 +89,22 @@ The input to the navigation mesh generation process is a set of 3D triangles tha
 
 The input positions should adhere to the OpenGL conventions (right-handed coordinate system, counter-clockwise winding order).
 
-The navigation mesh generation process emits diagnostic messages, warnings, and errors. These are captured with a "build context".
+The navigation mesh generation process emits diagnostic messages, warnings, and errors. These are captured with a build context object.
 
+<!--example-start-->
 ```ts
 import * as Nav from 'navcat';
 
-const positions: number[] = []; // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
-const indices: number[] = []; // flat array of triangle vertex indices
+// flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
+const positions: number[] = [];
 
+// flat array of triangle vertex indices
+const indices: number[] = [];
+
+// build context to capture diagnostic messages, warnings, and errors
 const ctx = Nav.BuildContext.create();
 ```
+<!--example-end-->
 
 ![2-1-navmesh-gen-input](./docs/2-1-navmesh-gen-input.png)
 
@@ -96,6 +112,7 @@ const ctx = Nav.BuildContext.create();
 
 The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are too steep are discarded.
 
+<!--example-start-->
 ```ts
 // CONFIG: agent walkable slope angle
 const walkableSlopeAngleDegrees = 45;
@@ -105,8 +122,8 @@ const triAreaIds = new Uint8Array(indices.length / 3).fill(0);
 
 // mark triangles as walkable or not depending on their slope angle
 Nav.markWalkableTriangles(positions, indices, triAreaIds, walkableSlopeAngleDegrees);
-
 ```
+<!--example-end-->
 
 ![2-2-walkable-triangles](./docs/2-2-navmesh-gen-walkable-triangles.png)
 
@@ -118,6 +135,7 @@ Some filtering is done to the heightfield to remove spans where a character cann
 
 The heightfield resolution is configurable, and greatly affects the fidelity of the resulting navigation mesh, and the performance of the navigation mesh generation process.
 
+<!--example-start-->
 ```ts
 // CONFIG: heightfield cell size and height, in world units
 const cellSize = 0.2;
@@ -148,6 +166,7 @@ Nav.filterLowHangingWalkableObstacles(heightfield, walkableClimbVoxels);
 Nav.filterLedgeSpans(heightfield, walkableHeightVoxels, walkableClimbVoxels);
 Nav.filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
 ```
+<!--example-end-->
 
 ![2-3-heightfield](./docs/2-3-navmesh-gen-heightfield.png)
 
@@ -157,6 +176,7 @@ The heightfield is then compacted to only represent the top walkable surfaces.
 
 The compact heightfield is generally eroded by the agent radius to ensure that the resulting navigation mesh is navigable by agents of the specified radius.
 
+<!--example-start-->
 ```ts
 // build the compact heightfield
 const compactHeightfield = Nav.buildCompactHeightfield(ctx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
@@ -168,6 +188,7 @@ const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 // erode the walkable area by the agent radius / walkable radius
 Nav.erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
 ```
+<!--example-end-->
 
 ![2-4-compact-heightfield](./docs/2-4-navmesh-gen-compact-heightfield.png)
 
@@ -177,6 +198,7 @@ The compact heightfield is then analyzed to identify distinct walkable regions. 
 
 Some of the region generation algorithms compute a distance field to identify regions.
 
+<!--example-start-->
 ```ts
 // prepare for region partitioning by calculating a distance field along the walkable surface
 Nav.buildDistanceField(compactHeightfield);
@@ -193,6 +215,7 @@ const mergeRegionArea = 20; // world units
 // partition the walkable surface into simple regions without holes
 Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
 ```
+<!--example-end-->
 
 ![2-5-distance-field](./docs/2-5-navmesh-gen-compact-heightfield-distances.png)
 
@@ -202,6 +225,7 @@ Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegion
 
 Contours are generated around the edges of the regions. These contours are simplified to reduce the number of vertices while maintaining the overall shape.
 
+<!--example-start-->
 ```ts
 // CONFIG: maxSimplificationError
 const maxSimplificationError = 1.3; // world units
@@ -218,6 +242,7 @@ const contourSet = Nav.buildContours(
     ContourBuildFlags.CONTOUR_TESS_WALL_EDGES,
 );
 ```
+<!--example-end-->
 
 ![2-7-raw-contours](./docs/2-7-navmesh-gen-raw-contours.png)
 
@@ -229,6 +254,7 @@ From the simplified contours, a polygon mesh is created. This mesh consists of c
 
 A "detail triangle mesh" is also generated to capture more accurate height information for each polygon.
 
+<!--example-start-->
 ```ts
 // CONFIG: max vertices per polygon
 const maxVerticesPerPoly = 5; // 3-6, higher = less polys, but more complex polys
@@ -247,6 +273,7 @@ for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
     }
 }
 ```
+<!--example-end-->
 
 ![2-9-poly-mesh](./docs/2-9-navmesh-gen-poly-mesh.png)
 
@@ -256,6 +283,7 @@ for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
 
 Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
 
+<!--example-start-->
 ```ts
 // create the navigation mesh
 const navMesh = Nav.createNavMesh();
@@ -299,6 +327,39 @@ Nav.buildNavMeshBvTree(tile);
 // add the tile to the navmesh
 Nav.addTile(nav, tile);
 ```
+<!--example-end-->
 
-## NavMesh Querying
+## Navigation Mesh Debugging
+
+...
+
+## Navigation Mesh Structure
+
+...
+
+### Navigation Mesh Serialization & Deserialization
+
+All navigation mesh data structures in navcat are fully JSON serializable. This means you can easily save and load navigation meshes to/from disk, or send them over a network.
+
+It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
+
+## Navigation Mesh Querying
+
+...
+
+## Off-mesh Connections
+
+...
+
+## Tiled Navigation Meshes
+
+...
+
+## BYO Navigation Meshes
+
+...
+
+## Acknowledgements
+
+...
 
