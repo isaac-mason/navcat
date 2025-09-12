@@ -35,13 +35,11 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 
 ![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
 
-## How are navigation meshes generated in navcat?
+## How are navigation meshes generated with navcat?
 
-navcat uses a voxelization-based approach to generate navigation meshes.
+The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach to navigation mesh generation.
 
-The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation).
-
-### 0. Input & Setup
+### 0. Input and setup
 
 The input to the navigation mesh generation process is a set of 3D triangles that define the environment. These triangles should represent the collision surfaces in the environment, and shouldn't include any non-collidable decorative geometry that shouldn't affect navigation.
 
@@ -52,7 +50,7 @@ The navigation mesh generation process emits diagnostic messages, warnings, and 
 ```ts
 import * as Nav from 'navcat';
 
-const positions: number[] = []; // flat array of vertex positions (x, y, z)
+const positions: number[] = []; // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const indices: number[] = []; // flat array of triangle vertex indices
 
 const ctx = Nav.BuildContext.create();
@@ -242,7 +240,7 @@ const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
 const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
 
 // create the navmesh tile
-const tile: NavMeshTile = {
+const tile: Nav.NavMeshTile = {
     id: -1,
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
@@ -262,10 +260,10 @@ const tile: NavMeshTile = {
 };
 
 // OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-buildNavMeshBvTree(tile);
+Nav.buildNavMeshBvTree(tile);
 
 // add the tile to the navmesh
-addTile(nav, tile);
+Nav.addTile(nav, tile);
 ```
 
 ## NavMesh Querying
