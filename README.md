@@ -8,8 +8,6 @@
 
 navcat is a javascript navigation mesh construction and querying library for 3D floor-based navigation.
 
-**[Examples](https://navcat.dev/examples) / [API Docs](https://navcat.dev/docs) / [Changelog](./CHANGELOG.md)**
-
 ## What can navcat do?
 
 - Generate a navigation mesh from a 3D environment
@@ -17,17 +15,46 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Help you simulate agents navigating the environment
 - ...
 
-## What does navcat support?
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-find-path">
+        <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        A* Pathfinding
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-navmesh-constrained-controller">
+        <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Character Controllers
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-crowd-simulation">
+        <img src="./examples/public/screenshots/example-crowd-simulation.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Crowd Simulation
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-flow-field">
+        <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Flow Field Pathfinding
+      </a>
+    </td>
+  </tr>
+</table>
+
+## Can navcat be used with XYZ?
 
 navcat is agnostic of other javascript libraries, but should work well with any of them.
 
-There are some built-in utilities for creating debug visualisations with threejs. But navcat will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, your own custom engine, whatever.
+There are some built-in utilities for creating debug visualisations with threejs. But navcat will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
 
 navcat works with vector3's that adhere to the OpenGL conventions:
 - Uses the right-handed coordinate system
 - Indices should be in counter-clockwise winding order
 
-If your environment uses a different coordinate system, you may need to transform coordinates going into and out of navcat.
+If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
 
 ## What's a navigation mesh?
 
@@ -38,6 +65,13 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 ## How are navigation meshes generated with navcat?
 
 The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach to navigation mesh generation.
+
+Below is an overview of the steps involved in generating a "solo" / single-tile navigation mesh from a set of input triangles.
+
+If you want a copy-and-pasteable starter, see the examples:
+- https://navcat.dev/examples#example-generate-navmesh
+- [examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
+- [examples/src/common/generate-solo-nav-mesh.ts](./examples/src/common/generate-solo-nav-mesh.ts)
 
 ### 0. Input and setup
 
@@ -268,4 +302,3 @@ Nav.addTile(nav, tile);
 
 ## NavMesh Querying
 
-TODO
