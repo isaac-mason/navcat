@@ -68,49 +68,7 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 
 In navcat, a navigation mesh is a fully JSON-serializable object that contains navigation mesh tile data, off-mesh connections, and `nodes` and `links` for the stitched together navigation mesh tiles and off-mesh connections.
 
-```ts
-/** A navigation mesh based on tiles of convex polygons */
-export type NavMesh = {
-    /** The world space origin of the navigation mesh's tiles */
-    origin: Vec3;
-
-    /** The width of each tile along the x axis */
-    tileWidth: number;
-
-    /** The height of each tile along the z axis */
-    tileHeight: number;
-
-    /** Global node ref to link indices map */
-    nodes: Record<NodeRef, number[]>;
-
-    /**
-     * The global navmesh tile links pool.
-     * When iterating, you can filter on @see NavMeshLink.allocated to only consider in-use links.
-     */
-    links: NavMeshLink[];
-
-    /** Free link indices */
-    freeLinkIndices: number[];
-
-    /** Tile id counter, used to ensure modified tiles in the same position have new node references */
-    tileIdCounter: number;
-
-    /** Map of tile ids to tiles */
-    tiles: Record<string, NavMeshTile>;
-
-    /** Map of tile position hashes to tile ids */
-    tilePositionHashToTileId: Record<string, number>;
-
-    /** Off mesh connection id counter */
-    offMeshConnectionIdCounter: number;
-
-    /** Off mesh connection definitions */
-    offMeshConnections: Record<string, OffMeshConnection>;
-
-    /** Off mesh connection attachments */
-    offMeshConnectionAttachments: Record<string, OffMeshConnectionAttachment>;
-};
-```
+<RenderType="import('navcat').NavMesh" />
 
 ## How are navigation meshes generated with navcat?
 
@@ -137,18 +95,7 @@ The input positions should adhere to the OpenGL conventions (right-handed coordi
 
 The navigation mesh generation process emits diagnostic messages, warnings, and errors. These are captured with a build context object.
 
-```ts
-import * as Nav from 'navcat';
-
-// flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
-const positions: number[] = [];
-
-// flat array of triangle vertex indices
-const indices: number[] = [];
-
-// build context to capture diagnostic messages, warnings, and errors
-const ctx = Nav.BuildContext.create();
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="input" />
 
 ![2-1-navmesh-gen-input](./docs/2-1-navmesh-gen-input.png)
 
@@ -156,16 +103,7 @@ const ctx = Nav.BuildContext.create();
 
 The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are too steep are discarded.
 
-```ts
-// CONFIG: agent walkable slope angle
-const walkableSlopeAngleDegrees = 45;
-
-// allocate an array to hold the area ids for each triangle
-const triAreaIds = new Uint8Array(indices.length / 3).fill(0);
-
-// mark triangles as walkable or not depending on their slope angle
-Nav.markWalkableTriangles(positions, indices, triAreaIds, walkableSlopeAngleDegrees);
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="walkableTriangles" />
 
 ![2-2-walkable-triangles](./docs/2-2-navmesh-gen-walkable-triangles.png)
 
@@ -177,37 +115,7 @@ Some filtering is done to the heightfield to remove spans where a character cann
 
 The heightfield resolution is configurable, and greatly affects the fidelity of the resulting navigation mesh, and the performance of the navigation mesh generation process.
 
-```ts
-// CONFIG: heightfield cell size and height, in world units
-const cellSize = 0.2;
-const cellHeight = 0.2;
-
-// CONFIG: agent walkable climb
-const walkableClimbWorld = 0.5; // in world units
-const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-
-// CONFIG: agent walkable height
-const walkableHeightWorld = 1.0; // in world units
-const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
-
-// calculate the bounds of the input geometry
-const bounds: [[number, number, number], [number, number, number]] = [[0, 0, 0], [0, 0, 0]];
-Nav.calculateMeshBounds(bounds, positions, indices);
-
-// calculate the grid size of the heightfield
-const [heightfieldWidth, heightfieldHeight] = Nav.calculateGridSize([0, 0], bounds, cellSize);
-
-// create the heightfield
-const heightfield = Nav.createHeightfield(heightfieldWidth, heightfieldHeight, bounds, cellSize, cellHeight);
-
-// rasterize the walkable triangles into the heightfield
-Nav.rasterizeTriangles(ctx, heightfield, positions, indices, triAreaIds, walkableClimbVoxels);
-
-// filter walkable surfaces
-Nav.filterLowHangingWalkableObstacles(heightfield, walkableClimbVoxels);
-Nav.filterLedgeSpans(heightfield, walkableHeightVoxels, walkableClimbVoxels);
-Nav.filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="rasterize" />
 
 ![2-3-heightfield](./docs/2-3-navmesh-gen-heightfield.png)
 
@@ -217,17 +125,7 @@ The heightfield is then compacted to only represent the top walkable surfaces.
 
 The compact heightfield is generally eroded by the agent radius to ensure that the resulting navigation mesh is navigable by agents of the specified radius.
 
-```ts
-// build the compact heightfield
-const compactHeightfield = Nav.buildCompactHeightfield(ctx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
-
-// CONFIG: agent radius
-const walkableRadiusWorld = 0.6; // in world units
-const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-
-// erode the walkable area by the agent radius / walkable radius
-Nav.erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="compactHeightfield" />
 
 ![2-4-compact-heightfield](./docs/2-4-navmesh-gen-compact-heightfield.png)
 
@@ -237,22 +135,7 @@ The compact heightfield is then analyzed to identify distinct walkable regions. 
 
 Some of the region generation algorithms compute a distance field to identify regions.
 
-```ts
-// prepare for region partitioning by calculating a distance field along the walkable surface
-Nav.buildDistanceField(compactHeightfield);
-
-// CONFIG: borderSize, relevant if you are building a tiled navmesh
-const borderSize = 0;
-
-// CONFIG: minRegionArea
-const minRegionArea = 8; // world units
-
-// CONFIG: mergeRegionArea
-const mergeRegionArea = 20; // world units
-
-// partition the walkable surface into simple regions without holes
-Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="compactHeightfieldRegions" />
 
 ![2-5-distance-field](./docs/2-5-navmesh-gen-compact-heightfield-distances.png)
 
@@ -262,22 +145,7 @@ Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegion
 
 Contours are generated around the edges of the regions. These contours are simplified to reduce the number of vertices while maintaining the overall shape.
 
-```ts
-// CONFIG: maxSimplificationError
-const maxSimplificationError = 1.3; // world units
-
-// CONFIG: maxEdgeLength
-const maxEdgeLength = 6.0; // world units
-
-// trace and simplify region contours
-const contourSet = Nav.buildContours(
-    ctx,
-    compactHeightfield,
-    maxSimplificationError,
-    maxEdgeLength,
-    Nav.ContourBuildFlags.CONTOUR_TESS_WALL_EDGES,
-);
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="contours" />
 
 ![2-7-raw-contours](./docs/2-7-navmesh-gen-raw-contours.png)
 
@@ -289,26 +157,7 @@ From the simplified contours, a polygon mesh is created. This mesh consists of c
 
 A "detail triangle mesh" is also generated to capture more accurate height information for each polygon.
 
-```ts
-// CONFIG: max vertices per polygon
-const maxVerticesPerPoly = 5; // 3-6, higher = less polys, but more complex polys
-
-const polyMesh = Nav.buildPolyMesh(ctx, contourSet, maxVerticesPerPoly);
-
-for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
-    // make all "areas" use a base area id of 0
-    if (polyMesh.areas[polyIndex] === Nav.WALKABLE_AREA) {
-        polyMesh.areas[polyIndex] = 0;
-    }
-
-    // give all base "walkable" polys all flags 
-    if (polyMesh.areas[polyIndex] === 0) {
-        polyMesh.flags[polyIndex] = 1;
-    }
-}
-
-const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, 1.0, 1.0);
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="polyMesh" />
 
 ![2-9-poly-mesh](./docs/2-9-navmesh-gen-poly-mesh.png)
 
@@ -318,49 +167,7 @@ const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield
 
 Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
 
-```ts
-// create the navigation mesh
-const navMesh = Nav.createNavMesh();
-
-// set the navmesh parameters using the poly mesh bounds
-navMesh.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
-navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
-navMesh.origin[0] = polyMesh.bounds[0][0];
-navMesh.origin[1] = polyMesh.bounds[0][1];
-navMesh.origin[2] = polyMesh.bounds[0][2];
-
-// convert the poly mesh to a navmesh tile polys
-const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
-
-// convert the poly mesh detail to a navmesh tile detail mesh
-const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
-
-// create the navmesh tile
-const tile: Nav.NavMeshTile = {
-    id: -1,
-    bounds: polyMesh.bounds,
-    vertices: tilePolys.vertices,
-    polys: tilePolys.polys,
-    detailMeshes: tileDetailMesh.detailMeshes,
-    detailVertices: tileDetailMesh.detailVertices,
-    detailTriangles: tileDetailMesh.detailTriangles,
-    tileX: 0,
-    tileY: 0,
-    tileLayer: 0,
-    bvTree: null,
-    cellSize,
-    cellHeight,
-    walkableHeight: walkableHeightWorld,
-    walkableRadius: walkableRadiusWorld,
-    walkableClimb: walkableClimbWorld,
-};
-
-// OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tile);
-
-// add the tile to the navmesh
-Nav.addTile(navMesh, tile);
-```
+<Snippet source="./snippets/solo-navmesh.ts" select="navMesh" />
 
 ## Navigation Mesh Debugging
 

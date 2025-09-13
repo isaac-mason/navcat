@@ -1,0 +1,7 @@
+{
+    "name": "snippets",
+    "private": true,
+    "dependencies": {
+        "navcat": "workspace:*"
+    }
+}

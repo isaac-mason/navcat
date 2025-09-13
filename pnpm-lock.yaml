@@ -46,6 +46,12 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4
 
+  docs/snippets:
+    dependencies:
+      navcat:
+        specifier: workspace:*
+        version: link:../..
+
   examples:
     dependencies:
       lil-gui:
