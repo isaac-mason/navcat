@@ -45,7 +45,7 @@ Because the navigation mesh is a fully JSON-serializable data structure, you can
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
-## Can navcat be integrated with XYZ?
+### Can navcat be integrated with XYZ?
 
 navcat is agnostic of other javascript libraries, but should work well with any of them.
 

@@ -141,7 +141,7 @@ Because the navigation mesh is a fully JSON-serializable data structure, you can
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
-## Can navcat be integrated with XYZ?
+### Can navcat be integrated with XYZ?
 
 navcat is agnostic of other javascript libraries, but should work well with any of them.
 
@@ -780,6 +780,8 @@ export function removeTile(navMesh: NavMesh, x: number, y: number, layer: number
 ## Navigation Mesh Querying
 
 ### findPath
+
+The `findPath` function is a convenience wrapper around `findNearestPoly`, `findNodePath`, and `findStraightPath` to get a path between two points on the navigation mesh.
 
 ```ts
 const start: Vec3 = [1, 0, 1];
@@ -1467,10 +1469,6 @@ The structure of a navigation mesh node in navcat is `0,tileId,polyIndex`, where
 
 When you add a tile to a navigation mesh, a new unique `tileId` is assigned to the tile to force any existing node references to become invalid, so you don't accidentally start referencing polygons incorrectly.
 
-## BYO Navigation Meshes
-
-...
-
 ## Navigation Mesh Debugging
 
 navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
@@ -1621,6 +1619,11 @@ const searchNodesHelper = Nav.three.createSearchNodesHelper(findNodePathResult.n
 const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnectionsHelper(navMesh);
 ```
 
+## BYO Navigation Meshes
+
+...
+
 ## Acknowledgements
 
 ...
+
