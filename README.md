@@ -139,7 +139,7 @@ The "navigation mesh" object itself can contain many tiles in a grid, where navc
 
 Because the navigation mesh is a fully JSON-serializable data structure, you can easily save and load navigation meshes to/from disk, or send them over a network. It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
 
-The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to.
+The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
 ## Can navcat be integrated with XYZ?
 
@@ -152,6 +152,8 @@ navcat works with vector3's that adhere to the OpenGL conventions:
 - Indices should be in counter-clockwise winding order
 
 If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
+
+The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
 
 ## How are navigation meshes generated with navcat?
 
@@ -194,6 +196,14 @@ const ctx = Nav.BuildContext.create();
 
 ![2-1-navmesh-gen-input](./docs/2-1-navmesh-gen-input.png)
 
+```ts
+export type BuildContextState = {
+    logs: BuildContextLog[];
+    times: BuildContextTime[];
+    _startTimes: Record<string, number>;
+};
+```
+
 ### 1. Mark walkable triangles
 
 The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are too steep are discarded.
@@ -210,6 +220,17 @@ Nav.markWalkableTriangles(positions, indices, triAreaIds, walkableSlopeAngleDegr
 ```
 
 ![2-2-walkable-triangles](./docs/2-2-navmesh-gen-walkable-triangles.png)
+
+```ts
+/**
+ * Marks triangles as walkable based on their slope angle
+ * @param inVertices Array of vertex coordinates [x0, y0, z0, x1, y1, z1, ...]
+ * @param inIndices Array of triangle indices [i0, i1, i2, i3, i4, i5, ...]
+ * @param outTriAreaIds Output array of triangle area IDs, with a length equal to inIndices.length / 3
+ * @param walkableSlopeAngle Maximum walkable slope angle in degrees (default: 45)
+ */
+export function markWalkableTriangles(inVertices: ArrayLike<number>, inIndices: ArrayLike<number>, outTriAreaIds: ArrayLike<number>, walkableSlopeAngle = 45.0);
+```
 
 ### 2. Rasterize triangles into a heightfield, do filtering with the heightfield
 
@@ -256,6 +277,67 @@ Nav.filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
 
 ![2-3-heightfield](./docs/2-3-navmesh-gen-heightfield.png)
 
+```ts
+export type Heightfield = {
+    /** the width of the heightfield (along x axis in cell units) */
+    width: number;
+    /** the height of the heightfield (along z axis in cell units) */
+    height: number;
+    /** the bounds in world space */
+    bounds: Box3;
+    /** the vertical size of each cell (minimum increment along y) */
+    cellHeight: number;
+    /** the vertical size of each cell (minimum increment along x and z) */
+    cellSize: number;
+    /** the heightfield of spans, (width*height) */
+    spans: (HeightfieldSpan | null)[];
+};
+```
+
+```ts
+export type HeightfieldSpan = {
+    /** the lower limit of the span */
+    min: number;
+    /** the upper limit of the span */
+    max: number;
+    /** the area id assigned to the span */
+    area: number;
+    /** the next heightfield span */
+    next: HeightfieldSpan | null;
+};
+```
+
+```ts
+export function calculateMeshBounds(outBounds: Box3, inVertices: ArrayLike<number>, inIndices: ArrayLike<number>): Box3;
+```
+
+```ts
+export function calculateGridSize(outGridSize: Vec2, bounds: Box3, cellSize: number): [
+    width: number,
+    height: number
+];
+```
+
+```ts
+export function createHeightfield(width: number, height: number, bounds: Box3, cellSize: number, cellHeight: number): Heightfield;
+```
+
+```ts
+export function rasterizeTriangles(ctx: BuildContextState, heightfield: Heightfield, vertices: ArrayLike<number>, indices: ArrayLike<number>, triAreaIds: ArrayLike<number>, flagMergeThreshold = 1);
+```
+
+```ts
+export function filterLowHangingWalkableObstacles(heightfield: Heightfield, walkableClimb: number);
+```
+
+```ts
+export function filterLedgeSpans(heightfield: Heightfield, walkableHeight: number, walkableClimb: number);
+```
+
+```ts
+export function filterWalkableLowHeightSpans(heightfield: Heightfield, walkableHeight: number);
+```
+
 ### 3. Build compact heightfield, erode walkable area
 
 The heightfield is then compacted to only represent the top walkable surfaces.
@@ -275,6 +357,71 @@ Nav.erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
 ```
 
 ![2-4-compact-heightfield](./docs/2-4-navmesh-gen-compact-heightfield.png)
+
+```ts
+export type CompactHeightfield = {
+    /** the width of the heightfield (along x axis in cell units) */
+    width: number;
+    /** the height of the heightfield (along z axis in cell units) */
+    height: number;
+    /** the number of spans in the heightfield */
+    spanCount: number;
+    /** the walkable height used during the build of the heightfield */
+    walkableHeightVoxels: number;
+    /** the walkable climb used during the build of the heightfield */
+    walkableClimbVoxels: number;
+    /** the AABB border size used during the build of the heightfield */
+    borderSize: number;
+    /** the maxiumum distance value of any span within the heightfield */
+    maxDistance: number;
+    /** the maximum region id of any span within the heightfield */
+    maxRegions: number;
+    /** the heightfield bounds in world space */
+    bounds: Box3;
+    /** the size of each cell */
+    cellSize: number;
+    /** the height of each cell */
+    cellHeight: number;
+    /** array of cells, size = width*height */
+    cells: CompactHeightfieldCell[];
+    /** array of spans, size = spanCount */
+    spans: CompactHeightfieldSpan[];
+    /** array containing area id data, size = spanCount */
+    areas: number[];
+    /** array containing distance field data, size = spanCount */
+    distances: number[];
+};
+```
+
+```ts
+export type CompactHeightfieldCell = {
+    /** index to the first span in the column */
+    index: number;
+    /** number of spans in the column */
+    count: number;
+};
+```
+
+```ts
+export type CompactHeightfieldSpan = {
+    /** the lower extent of the span. measured from the heightfields base. */
+    y: number;
+    /** the id of the region the span belongs to, or zero if not in a region */
+    region: number;
+    /** packed neighbour connection data */
+    con: number;
+    /** the height of the span, measured from y */
+    h: number;
+};
+```
+
+```ts
+export function buildCompactHeightfield(ctx: BuildContextState, walkableHeightVoxels: number, walkableClimbVoxels: number, heightfield: Heightfield): CompactHeightfield;
+```
+
+```ts
+export function erodeWalkableArea(walkableRadiusVoxels: number, compactHeightfield: CompactHeightfield);
+```
 
 ### 4. Build compact heightfield regions
 
@@ -303,6 +450,33 @@ Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegion
 
 ![2-6-regions](./docs/2-6-navmesh-gen-compact-heightfield-regions.png)
 
+```ts
+export function buildDistanceField(compactHeightfield: CompactHeightfield): void;
+```
+
+```ts
+export function buildRegions(ctx: BuildContextState, compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number, mergeRegionArea: number): boolean;
+```
+
+```ts
+/**
+ * Build regions using monotone partitioning algorithm.
+ * This is an alternative to the watershed-based buildRegions function.
+ * Monotone partitioning creates regions by sweeping the heightfield and
+ * does not generate overlapping regions.
+ */
+export function buildRegionsMonotone(compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number, mergeRegionArea: number): boolean;
+```
+
+```ts
+/**
+ * Build layer regions using sweep-line algorithm.
+ * This creates regions that can be used for building navigation mesh layers.
+ * Layer regions handle overlapping walkable areas by creating separate layers.
+ */
+export function buildLayerRegions(compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number): boolean;
+```
+
 ### 5. Build contours from compact heightfield regions
 
 Contours are generated around the edges of the regions. These contours are simplified to reduce the number of vertices while maintaining the overall shape.
@@ -327,6 +501,48 @@ const contourSet = Nav.buildContours(
 ![2-7-raw-contours](./docs/2-7-navmesh-gen-raw-contours.png)
 
 ![2-8-simplified-contours](./docs/2-8-navmesh-gen-simplified-contours.png)
+
+```ts
+export type ContourSet = {
+    /** an array of the contours in the set */
+    contours: Contour[];
+    /** the bounds in world space */
+    bounds: Box3;
+    /** the size of each cell */
+    cellSize: number;
+    /** the height of each cell */
+    cellHeight: number;
+    /** the width of the set */
+    width: number;
+    /** the height of the set */
+    height: number;
+    /**the aabb border size used to generate the source data that the contour set was derived from */
+    borderSize: number;
+    /** the max edge error that this contour set was simplified with */
+    maxError: number;
+};
+```
+
+```ts
+export type Contour = {
+    /** simplified contour vertex and connection data. size: 4 * nVerts */
+    vertices: number[];
+    /** the number of vertices in the simplified contour */
+    nVertices: number;
+    /** raw contour vertex and connection data */
+    rawVertices: number[];
+    /** the number of vertices in the raw contour */
+    nRawVertices: number;
+    /** the region id of the contour */
+    reg: number;
+    /** the area id of the contour */
+    area: number;
+};
+```
+
+```ts
+export function buildContours(ctx: BuildContextState, compactHeightfield: CompactHeightfield, maxSimplificationError: number, maxEdgeLength: number, buildFlags: ContourBuildFlags): ContourSet;
+```
 
 ### 6. Build polygon mesh from contours, build detail mesh
 
@@ -359,6 +575,73 @@ const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield
 
 ![2-10-detail-mesh](./docs/2-10-navmesh-gen-detail-mesh.png)
 
+```ts
+/**
+ * Represents a polygon mesh suitable for use in building a navigation mesh.
+ */
+export type PolyMesh = {
+    /** The mesh vertices. Form: (x, y, z) * nverts */
+    vertices: number[];
+    /** Polygon vertex indices. Length: npolys * nvp */
+    polys: number[];
+    /** The region id assigned to each polygon. Length: npolys */
+    regions: number[];
+    /** The user defined flags for each polygon. Length: npolys */
+    flags: number[];
+    /** The area id assigned to each polygon. Length: npolys */
+    areas: number[];
+    /** The number of vertices */
+    nVertices: number;
+    /** The number of polygons */
+    nPolys: number;
+    /** The maximum number of vertices per polygon */
+    maxVerticesPerPoly: number;
+    /** the bounds in world space */
+    bounds: Box3;
+    /** the width in local space */
+    localWidth: number;
+    /** the height in local space */
+    localHeight: number;
+    /** The size of each cell. (On the xz-plane.) */
+    cellSize: number;
+    /** The height of each cell. (The minimum increment along the y-axis.) */
+    cellHeight: number;
+    /** The AABB border size used to generate the source data from which the mesh was derived */
+    borderSize: number;
+    /** The max error of the polygon edges in the mesh */
+    maxEdgeError: number;
+};
+```
+
+```ts
+/**
+ * Contains triangle meshes that represent detailed height data associated
+ * with the polygons in its associated polygon mesh object.
+ */
+export type PolyMeshDetail = {
+    /** The sub-mesh data. Size: 4*nMeshes. Layout: [verticesBase1, trianglesBase1, verticesCount1, trianglesCount1, ...] */
+    meshes: number[];
+    /** The mesh vertices. Size: 3*nVertices */
+    vertices: number[];
+    /** The mesh triangles. Size: 4*nTriangles */
+    triangles: number[];
+    /** The number of sub-meshes defined by meshes */
+    nMeshes: number;
+    /** The number of vertices in verts */
+    nVertices: number;
+    /** The number of triangles in tris */
+    nTriangles: number;
+};
+```
+
+```ts
+export function buildPolyMesh(ctx: BuildContextState, contourSet: ContourSet, maxVerticesPerPoly: number): PolyMesh;
+```
+
+```ts
+export function buildPolyMeshDetail(ctx: BuildContextState, polyMesh: PolyMesh, compactHeightfield: CompactHeightfield, sampleDist: number, sampleMaxError: number): PolyMeshDetail;
+```
+
 ### 7. Assemble the navigation mesh
 
 Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
@@ -368,6 +651,7 @@ Finally, the polygon mesh and detail mesh are combined to create a navigation me
 const navMesh = Nav.createNavMesh();
 
 // set the navmesh parameters using the poly mesh bounds
+// this example is for a single tile navmesh, so the tile width/height is the same as the poly mesh bounds size
 navMesh.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
 navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
 navMesh.origin[0] = polyMesh.bounds[0][0];
@@ -405,6 +689,92 @@ Nav.buildNavMeshBvTree(tile);
 
 // add the tile to the navmesh
 Nav.addTile(navMesh, tile);
+```
+
+![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
+
+```ts
+export function createNavMesh(): NavMesh;
+```
+
+```ts
+export function polyMeshToTilePolys(polyMesh: PolyMesh): NavMeshTilePolys;
+```
+
+```ts
+export type NavMeshPoly = {
+    /** The indices of the polygon's vertices. vertices are stored in NavMeshTile.vertices */
+    vertices: number[];
+
+    /**
+     * Packed data representing neighbor polygons references and flags for each edge.
+     * This is usually computed by the navcat's `buildPolyNeighbours` function .
+     */
+    neis: number[];
+
+    /** The user defined flags for this polygon */
+    flags: number;
+
+    /** The user defined area id for this polygon */
+    area: number;
+};
+```
+
+```ts
+/**
+ * Converts a given PolyMeshDetail to the tile detail mesh format.
+ * @param polys
+ * @param maxVerticesPerPoly
+ * @param polyMeshDetail
+ * @returns
+ */
+export function polyMeshDetailToTileDetailMesh(polys: NavMeshPoly[], maxVerticesPerPoly: number, polyMeshDetail: PolyMeshDetail);
+```
+
+```ts
+export type NavMeshPolyDetail = {
+    /**
+     * The offset of the vertices in the NavMeshTile detailVertices array.
+     * If the base index is between 0 and `NavMeshTile.vertices.length`, this is used to index into the NavMeshTile vertices array.
+     * If the base index is greater than `NavMeshTile.vertices.length`, it is used to index into the NavMeshTile detailVertices array.
+     * This allows for detail meshes to either re-use the polygon vertices or to define their own vertices without duplicating data.
+     */
+    verticesBase: number;
+
+    /** The offset of the triangles in the NavMeshTile detailTriangles array */
+    trianglesBase: number;
+
+    /** The number of vertices in thde sub-mesh */
+    verticesCount: number;
+
+    /** The number of triangles in the sub-mesh */
+    trianglesCount: number;
+};
+```
+
+```ts
+/**
+ * Builds a bounding volume tree for the given nav mesh tile.
+ * @param navMeshTile the nav mesh tile to build the BV tree for
+ * @returns
+ */
+export function buildNavMeshBvTree(navMeshTile: NavMeshTile): boolean;
+```
+
+```ts
+export function addTile(navMesh: NavMesh, tile: NavMeshTile);
+```
+
+```ts
+/**
+ * Removes the tile at the given location
+ * @param navMesh the navmesh to remove the tile from
+ * @param x the x coordinate of the tile
+ * @param y the y coordinate of the tile
+ * @param layer the layer of the tile
+ * @returns true if the tile was removed, otherwise false
+ */
+export function removeTile(navMesh: NavMesh, x: number, y: number, layer: number): boolean;
 ```
 
 ## Navigation Mesh Querying
@@ -449,6 +819,16 @@ if (findPathResult.success) {
 export function findPath(navMesh: NavMesh, start: Vec3, end: Vec3, halfExtents: Vec3, queryFilter: QueryFilter): FindPathResult;
 ```
 
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-find-path">
+    <img src="./examples/public/screenshots/example-find-path.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Find Path</strong>
+  </a>
+  <p>Example of finding a path on the navmesh</p>
+</div>
+
+
 ### findNearestPoly
 
 ```ts
@@ -457,13 +837,7 @@ const halfExtents: Vec3 = [0.5, 0.5, 0.5];
 
 // find the nearest nav mesh poly node to the position
 const findNearestPolyResult = Nav.createFindNearestPolyResult();
-Nav.findNearestPoly(
-    findNearestPolyResult,
-    navMesh,
-    position,
-    halfExtents,
-    Nav.DEFAULT_QUERY_FILTER,
-);
+Nav.findNearestPoly(findNearestPolyResult, navMesh, position, halfExtents, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(findNearestPolyResult.success); // true if a nearest poly was found
 console.log(findNearestPolyResult.nearestPolyRef); // the nearest poly's node ref, or 0 if none found
@@ -474,27 +848,15 @@ console.log(findNearestPolyResult.nearestPoint); // the nearest point on the pol
 export function findNearestPoly(result: FindNearestPolyResult, navMesh: NavMesh, center: Vec3, halfExtents: Vec3, queryFilter: QueryFilter): FindNearestPolyResult;
 ```
 
-### getClosestPointOnPoly
 
-```ts
-const polyRef = findNearestPolyResult.nearestPolyRef;
-const getClosestPointOnPolyResult = Nav.createGetClosestPointOnPolyResult();
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-find-nearest-poly">
+    <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Find Nearest Poly</strong>
+  </a>
+  <p>Example of finding the nearest polygon on the navmesh</p>
+</div>
 
-Nav.getClosestPointOnPoly(
-    getClosestPointOnPolyResult,
-    navMesh,
-    polyRef,
-    position,
-);
-
-console.log(getClosestPointOnPolyResult.success); // true if a closest point was found
-console.log(getClosestPointOnPolyResult.isOverPoly); // true if the position was inside the poly
-console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on the poly in world space [x, y, z]
-```
-
-```ts
-export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, ref: NodeRef, point: Vec3): GetClosestPointOnPolyResult;
-```
 
 ### findNodePath
 
@@ -526,8 +888,8 @@ if (startNode.success && endNode.success) {
         Nav.DEFAULT_QUERY_FILTER,
     );
 
-    console.log('node path success:', nodePath.success); // true if a partial or full path was found
-    console.log('node path:', nodePath.path); // ['0.0.1', '0.0.5', '0.0.8', ... ]
+    console.log(nodePath.success); // true if a partial or full path was found
+    console.log(nodePath.path); // ['0,0,1', '0,0,5', '0,0,8', ... ]
 }
 ```
 
@@ -565,8 +927,8 @@ const findStraightPathNodes: Nav.NodeRef[] = [
 // find the nearest nav mesh poly node to the start position
 const straightPathResult = Nav.findStraightPath(navMesh, start, end, findStraightPathNodes);
 
-console.log('straight path success:', straightPathResult.success); // true if a partial or full path was found
-console.log('straight path:', straightPathResult.path); // [ { position: [x, y, z], nodeType: NodeType, nodeRef: NodeRef }, ... ]
+console.log(straightPathResult.success); // true if a partial or full path was found
+console.log(straightPathResult.path); // [ { position: [x, y, z], nodeType: NodeType, nodeRef: NodeRef }, ... ]
 ```
 
 ```ts
@@ -635,6 +997,26 @@ console.log(moveAlongSurfaceResult.visited); // array of node refs that were vis
 export function moveAlongSurface(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): MoveAlongSurfaceResult;
 ```
 
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-move-along-surface">
+    <img src="./examples/public/screenshots/example-move-along-surface.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Move Along Surface</strong>
+  </a>
+  <p>Example of using moveAlongSurface for navmesh constrained movement</p>
+</div>
+
+
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-navmesh-constrained-character-controller">
+    <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Navmesh Constrained Character Controller</strong>
+  </a>
+  <p>Example of a simple character controller constrained to a navmesh</p>
+</div>
+
+
 ### raycast
 
 ```ts
@@ -674,6 +1056,16 @@ console.log(raycastResult.path); // array of node refs that were visited during 
  */
 export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): RaycastResult;
 ```
+
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-raycast">
+    <img src="./examples/public/screenshots/example-raycast.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Raycast</strong>
+  </a>
+  <p>Example of a walkability raycast on a navmesh</p>
+</div>
+
 
 ### getPolyHeight
 
@@ -735,6 +1127,16 @@ console.log(randomPoint.ref); // the poly node ref that the random point is on
 export function findRandomPoint(navMesh: NavMesh, filter: QueryFilter, rand: () => number): FindRandomPointResult;
 ```
 
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-find-random-point">
+    <img src="./examples/public/screenshots/example-find-random-point.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Find Random Point</strong>
+  </a>
+  <p>Example of finding a random point on the navmesh</p>
+</div>
+
+
 ### findRandomPointAroundCircle
 
 ```ts
@@ -787,23 +1189,438 @@ if (centerNode.success) {
 export function findRandomPointAroundCircle(navMesh: NavMesh, startRef: NodeRef, centerPosition: Vec3, maxRadius: number, filter: QueryFilter, rand: () => number): FindRandomPointAroundCircleResult;
 ```
 
-## Navigation Mesh Debugging
 
-...
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-find-random-point-around-circle">
+    <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Find Random Point Around Circle</strong>
+  </a>
+  <p>Example of finding a random point around a circle on the navmesh</p>
+</div>
 
-## Off-mesh Connections
 
-...
+### getClosestPointOnPoly
+
+```ts
+const polyRef = findNearestPolyResult.nearestPolyRef;
+const getClosestPointOnPolyResult = Nav.createGetClosestPointOnPolyResult();
+
+Nav.getClosestPointOnPoly(getClosestPointOnPolyResult, navMesh, polyRef, position);
+
+console.log(getClosestPointOnPolyResult.success); // true if a closest point was found
+console.log(getClosestPointOnPolyResult.isOverPoly); // true if the position was inside the poly
+console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on the poly in world space [x, y, z]
+```
+
+```ts
+export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, ref: NodeRef, point: Vec3): GetClosestPointOnPolyResult;
+```
+
+### closestPointOnDetailEdges
+
+```ts
+const position: Vec3 = [1, 0, 1];
+const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+// find the nearest nav mesh poly node to the position
+const nearestPoly = Nav.findNearestPoly(
+    Nav.createFindNearestPolyResult(),
+    navMesh,
+    position,
+    halfExtents,
+    Nav.DEFAULT_QUERY_FILTER,
+);
+
+const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nearestPolyRef, navMesh);
+
+const closestPoint: Vec3 = [0, 0, 0];
+const onlyBoundaryEdges = false;
+
+const squaredDistance = Nav.closestPointOnDetailEdges(
+    tileAndPoly.tile!,
+    tileAndPoly.poly!,
+    tileAndPoly.polyIndex,
+    position,
+    closestPoint,
+    onlyBoundaryEdges,
+);
+
+console.log(squaredDistance); // squared distance from position to closest point
+console.log(closestPoint); // the closest point on the detail edges in world space [x, y, z]
+```
+
+```ts
+/**
+ * Finds the closest point on detail mesh edges to a given point
+ * @param tile The tile containing the detail mesh
+ * @param poly The polygon
+ * @param detailMesh The detail mesh
+ * @param pos The position to find closest point for
+ * @param outClosest Output parameter for the closest point
+ * @param onlyBoundary If true, only consider boundary edges
+ * @returns The squared distance to the closest point
+ *  closest point
+ */
+export function closestPointOnDetailEdges(tile: NavMeshTile, poly: NavMeshPoly, polyIndex: number, pos: Vec3, outClosest: Vec3, onlyBoundary = false): number;
+```
+
+### getPortalPoints
+
+```ts
+const startNodeRef: Nav.NodeRef = '0,0,1'; // example poly node ref, usually retrieved from a pathfinding call
+const endNodeRef: Nav.NodeRef = '0,0,8'; // example poly node ref, usually retrieved from a pathfinding call
+
+const left: Vec3 = [0, 0, 0];
+const right: Vec3 = [0, 0, 0];
+
+const getPortalPointsSuccess = Nav.getPortalPoints(navMesh, startNodeRef, endNodeRef, left, right);
+
+console.log(getPortalPointsSuccess); // true if the portal points were found
+console.log('left:', left);
+console.log('right:', right);
+```
+
+```ts
+/**
+ * Retrieves the left and right points of the portal edge between two adjacent polygons.
+ * Or if one of the polygons is an off-mesh connection, returns the connection endpoint for both left and right.
+ */
+export function getPortalPoints(navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: NodeRef, outLeft: Vec3, outRight: Vec3): boolean;
+```
+
+### isValidNodeRef
+
+```ts
+const nodeRef: Nav.NodeRef = '0,0,1';
+
+// true if the node ref is valid, useful to call after updating tiles to validate the reference is still valid
+const isValid = Nav.isValidNodeRef(navMesh, nodeRef);
+console.log(isValid);
+```
+
+```ts
+export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
+```
+
+### getNodeAreaAndFlags
+
+```ts
+const nodeRef: Nav.NodeRef = '0,0,1';
+
+const areaAndFlags = Nav.getNodeAreaAndFlags(nodeRef, navMesh);
+console.log(areaAndFlags.success);
+console.log(areaAndFlags.area);
+console.log(areaAndFlags.flags);
+```
+
+```ts
+export function getNodeAreaAndFlags(nodeRef: NodeRef, navMesh: NavMesh): GetNodeAreaAndFlagsResult;
+```
+
+### queryPolygons
+
+```ts
+const center: Vec3 = [5, 0, 5];
+const halfExtents: Vec3 = [2, 2, 2];
+
+// find all polys within a box area
+const queryPolygonsResult = Nav.queryPolygons(navMesh, center, halfExtents, Nav.DEFAULT_QUERY_FILTER);
+
+console.log(queryPolygonsResult); // array of node refs that overlap the box area
+```
+
+```ts
+export function queryPolygons(navMesh: NavMesh, center: Vec3, halfExtents: Vec3, filter: QueryFilter): NodeRef[];
+```
+
+### queryPolygonsInTile
+
+```ts
+const tile = Object.values(navMesh.tiles)[0]; // example tile
+const bounds: Box3 = tile.bounds;
+
+const outNodeRefs: Nav.NodeRef[] = [];
+
+Nav.queryPolygonsInTile(outNodeRefs, navMesh, tile, bounds, Nav.DEFAULT_QUERY_FILTER);
+```
+
+```ts
+export function queryPolygonsInTile(out: NodeRef[], navMesh: NavMesh, tile: NavMeshTile, bounds: Box3, filter: QueryFilter): void;
+```
+
+## Off-Mesh Connections
+
+Off-mesh connections are used for navigation that isn't just traversal between adjacent polygons. They can represent actions like jumping, climbing, or using a door, the details of how they are created and represented in animation are up to you.
+
+```ts
+// define a bidirectional off-mesh connection between two points
+const bidirectionalOffMeshConnection: Nav.OffMeshConnection = {
+    // start position in world space
+    start: [0, 0, 0],
+    // end position in world space
+    end: [1, 0, 1],
+    // radius of the connection endpoints, if it's too small a poly may not be found to link the connection to
+    radius: 0.5,
+    // the direction of the off-mesh connection (START_TO_END or BIDIRECTIONAL)
+    direction: Nav.OffMeshConnectionDirection.BIDIRECTIONAL,
+    // flags for the off-mesh connection, you can use this for custom behaviour with query filters
+    flags: 1,
+    // area id for the off-mesh connection, you can use this for custom behaviour with query filters
+    area: 0,
+};
+
+// add the off-mesh connection to the nav mesh, returns the off-mesh connection id
+const bidirectionalOffMeshConnectionId = Nav.addOffMeshConnection(navMesh, bidirectionalOffMeshConnection);
+
+// true if the off-mesh connection is linked to polys, false if a suitable poly couldn't be found
+Nav.isOffMeshConnectionConnected(navMesh, bidirectionalOffMeshConnectionId);
+
+// retrieve the off-mesh connection attachment info, which contains the start and end poly node refs that the connection is linked to
+const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[bidirectionalOffMeshConnectionId];
+
+if (offMeshConnectionAttachment) {
+    console.log(offMeshConnectionAttachment.start); // the start poly node ref that the off-mesh connection is linked to
+    console.log(offMeshConnectionAttachment.end); // the end poly node ref that the off-mesh connection is linked to
+}
+
+// remove the off-mesh connection from the nav mesh
+Nav.removeOffMeshConnection(navMesh, bidirectionalOffMeshConnectionId);
+
+// define a one-way off-mesh connection (e.g. a teleporter that only goes one way)
+const oneWayTeleporterOffMeshConnection: Nav.OffMeshConnection = {
+    start: [2, 0, 2],
+    end: [3, 1, 3],
+    radius: 0.5,
+    direction: Nav.OffMeshConnectionDirection.START_TO_END,
+    flags: 1,
+    area: 0,
+    // optional cost override, if not provided the cost will be the distance from start to end
+    // making the cost 0 means the teleporter will be more preferred over normal walkable paths
+    cost: 0,
+};
+
+// add the off-mesh connection to the nav mesh, returns the off-mesh connection id
+const oneWayTeleporterOffMeshConnectionId = Nav.addOffMeshConnection(navMesh, oneWayTeleporterOffMeshConnection);
+
+// remove the off-mesh connection from the nav mesh
+Nav.removeOffMeshConnection(navMesh, oneWayTeleporterOffMeshConnectionId);
+```
+
+To see a live example, see the "Off-Mesh Connections Example":
+
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-off-mesh-connections">
+    <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Off-Mesh Connections</strong>
+  </a>
+  <p>Example of using off-mesh connections in a navmesh</p>
+</div>
+
+
+```ts
+/**
+ * Adds a new off mesh connection to the NavMesh, and returns it's ID
+ * @param navMesh the navmesh to add the off mesh connection to
+ * @param offMeshConnection the off mesh connection to add
+ * @returns the ID of the added off mesh connection
+ */
+export function addOffMeshConnection(navMesh: NavMesh, offMeshConnection: OffMeshConnection): string;
+```
+
+```ts
+/**
+ * Removes an off mesh connection from the NavMesh
+ * @param navMesh the navmesh to remove the off mesh connection from
+ * @param offMeshConnectionId the ID of the off mesh connection to remove
+ */
+export function removeOffMeshConnection(navMesh: NavMesh, offMeshConnectionId: string): void;
+```
+
+```ts
+export function isOffMeshConnectionConnected(navMesh: NavMesh, offMeshConnectionId: string): boolean;
+```
 
 ## Tiled Navigation Meshes
 
-...
+navcat's navigation mesh structure is tile-based, so it is possible to either create a navigation mesh with one tile that covers the entire area, or to create a tiled navigation mesh with multiple tiles that each cover a portion of the area.
+
+Tiled navigation meshes are more complex to work with, but they support larger environments, and enable advanced use cases like re-baking, navmesh data-streaming.
+
+To see an example of creating a tiled navigation mesh, see the "Tiled NavMesh Example":
+
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-tiled-navmesh">
+    <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Tiled NavMesh</strong>
+  </a>
+  <p>Example of generating a tiled navmesh</p>
+</div>
+
+
+How you want to manage tiles is up to you. You can create all the tiles at once, or create and add/remove tiles dynamically at runtime.
+
+If you remove and re-add tiles at given coordinates, note that the node references for polygons will become invalidated.
+
+The structure of a navigation mesh node in navcat is `0,tileId,polyIndex`, where `0` is the node type, `tileId` is the incrementing index id of the tile, and `polyIndex` is the index of the polygon within that tile.
+
+When you add a tile to a navigation mesh, a new unique `tileId` is assigned to the tile to force any existing node references to become invalid, so you don't accidentally start referencing polygons incorrectly.
 
 ## BYO Navigation Meshes
 
 ...
 
+## Navigation Mesh Debugging
+
+navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
+
+```ts
+const triangleAreaIdsHelper = Nav.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
+
+const heightfieldHelper = Nav.createHeightfieldHelper(heightfield);
+
+const compactHeightfieldSolidHelper = Nav.createCompactHeightfieldSolidHelper(compactHeightfield);
+
+const compactHeightfieldDistancesHelper = Nav.createCompactHeightfieldDistancesHelper(compactHeightfield);
+
+const compactHeightfieldRegionsHelper = Nav.createCompactHeightfieldRegionsHelper(compactHeightfield);
+
+const rawContoursHelper = Nav.createRawContoursHelper(contourSet);
+
+const simplifiedContoursHelper = Nav.createSimplifiedContoursHelper(contourSet);
+
+const polyMeshHelper = Nav.createPolyMeshHelper(polyMesh);
+
+const polyMeshDetailHelper = Nav.createPolyMeshDetailHelper(polyMeshDetail);
+
+const navMeshHelper = Nav.createNavMeshHelper(navMesh);
+
+const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, '0,0,1');
+
+const navMeshTileBvTreeHelper = Nav.createNavMeshTileBvTreeHelper(tile);
+
+const navMeshBvTreeHelper = Nav.createNavMeshBvTreeHelper(navMesh);
+
+const navMeshLinksHelper = Nav.createNavMeshLinksHelper(navMesh);
+
+const navMeshTilePortalsHelper = Nav.createNavMeshTilePortalsHelper(tile);
+
+const navMeshPortalsHelper = Nav.createNavMeshPortalsHelper(navMesh);
+
+const findNodePathResult = Nav.findNodePath(
+    navMesh,
+    '0,0,1',
+    '0,0,8',
+    [1, 0, 1],
+    [8, 0, 8],
+    Nav.DEFAULT_QUERY_FILTER,
+);
+const searchNodesHelper = Nav.createSearchNodesHelper(findNodePathResult.nodes);
+
+const navMeshOffMeshConnectionsHelper = Nav.createNavMeshOffMeshConnectionsHelper(navMesh);
+```
+
+```ts
+export type DebugPrimitive = DebugTriangles | DebugLines | DebugPoints | DebugBoxes;
+```
+
+```ts
+export type DebugTriangles = {
+    type: DebugPrimitiveType.Triangles;
+    positions: number[]; // x,y,z for each vertex
+    colors: number[]; // r,g,b for each vertex
+    indices: number[]; // triangle indices
+    transparent?: boolean;
+    opacity?: number;
+    doubleSided?: boolean;
+};
+```
+
+```ts
+export type DebugLines = {
+    type: DebugPrimitiveType.Lines;
+    positions: number[]; // x,y,z for each line endpoint
+    colors: number[]; // r,g,b for each line endpoint
+    lineWidth?: number;
+    transparent?: boolean;
+    opacity?: number;
+};
+```
+
+```ts
+export type DebugPoints = {
+    type: DebugPrimitiveType.Points;
+    positions: number[]; // x,y,z for each point
+    colors: number[]; // r,g,b for each point
+    size: number;
+    transparent?: boolean;
+    opacity?: number;
+};
+```
+
+```ts
+export type DebugBoxes = {
+    type: DebugPrimitiveType.Boxes;
+    positions: number[]; // x,y,z center for each box
+    colors: number[]; // r,g,b for each box
+    scales: number[]; // sx,sy,sz for each box
+    rotations?: number[]; // qx,qy,qz,qw for each box (optional)
+    transparent?: boolean;
+    opacity?: number;
+};
+```
+
+If you are using threejs, navcat provides utilities to convert the debug primitives into threejs objects, and convenience wrappers for the helper functions.
+
+```ts
+const triangleAreaIdsHelper = Nav.three.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
+console.log(triangleAreaIdsHelper.object) // THREE.Object3D
+triangleAreaIdsHelper.dispose() // disposes geometry and materials
+
+const heightfieldHelper = Nav.three.createHeightfieldHelper(heightfield);
+
+const compactHeightfieldSolidHelper = Nav.three.createCompactHeightfieldSolidHelper(compactHeightfield);
+
+const compactHeightfieldDistancesHelper = Nav.three.createCompactHeightfieldDistancesHelper(compactHeightfield);
+
+const compactHeightfieldRegionsHelper = Nav.three.createCompactHeightfieldRegionsHelper(compactHeightfield);
+
+const rawContoursHelper = Nav.three.createRawContoursHelper(contourSet);
+
+const simplifiedContoursHelper = Nav.three.createSimplifiedContoursHelper(contourSet);
+
+const polyMeshHelper = Nav.three.createPolyMeshHelper(polyMesh);
+
+const polyMeshDetailHelper = Nav.three.createPolyMeshDetailHelper(polyMeshDetail);
+
+const navMeshHelper = Nav.three.createNavMeshHelper(navMesh);
+
+const navMeshPolyHelper = Nav.three.createNavMeshPolyHelper(navMesh, '0,0,1');
+
+const navMeshTileBvTreeHelper = Nav.three.createNavMeshTileBvTreeHelper(tile);
+
+const navMeshBvTreeHelper = Nav.three.createNavMeshBvTreeHelper(navMesh);
+
+const navMeshLinksHelper = Nav.three.createNavMeshLinksHelper(navMesh);
+
+const navMeshTilePortalsHelper = Nav.three.createNavMeshTilePortalsHelper(tile);
+
+const navMeshPortalsHelper = Nav.three.createNavMeshPortalsHelper(navMesh);
+
+const findNodePathResult = Nav.findNodePath(
+    navMesh,
+    '0,0,1',
+    '0,0,8',
+    [1, 0, 1],
+    [8, 0, 8],
+    Nav.DEFAULT_QUERY_FILTER,
+);
+const searchNodesHelper = Nav.three.createSearchNodesHelper(findNodePathResult.nodes);
+
+const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnectionsHelper(navMesh);
+```
+
 ## Acknowledgements
 
 ...
-

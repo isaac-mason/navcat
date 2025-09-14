@@ -86,7 +86,7 @@ function areaToColor(area: number, alpha = 1.0): [number, number, number] {
 }
 
 export function createTriangleAreaIdsHelper(
-    input: { positions: Float32Array; indices: Uint32Array },
+    input: { positions: ArrayLike<number>; indices: ArrayLike<number> },
     triAreaIds: ArrayLike<number>,
 ): DebugPrimitive[] {
     const areaToColorMap: Record<number, [number, number, number]> = {};

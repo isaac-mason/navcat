@@ -127,6 +127,10 @@ export const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): vo
 const _getPortalPointsStart = vec3.create();
 const _getPortalPointsEnd = vec3.create();
 
+/**
+ * Retrieves the left and right points of the portal edge between two adjacent polygons.
+ * Or if one of the polygons is an off-mesh connection, returns the connection endpoint for both left and right.
+ */
 export const getPortalPoints = (
     navMesh: NavMesh,
     fromNodeRef: NodeRef,

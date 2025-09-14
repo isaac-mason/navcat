@@ -38,6 +38,36 @@ for (let i = 0; i < exampleKeys.length; i += examplesCols) {
 examplesHtml += '</table>\n';
 readmeText = readmeText.replace(examplesRegex, examplesHtml);
 
+/* <Example id="exampleid" /> */
+
+const exampleRegex = /<Example\s+id=["'](.+?)["']\s*\/>/g;
+readmeText = readmeText.replace(exampleRegex, (fullMatch, exampleId) => {
+    const examplesJsonPath = path.join(path.dirname(new URL(import.meta.url).pathname), '../examples/src/examples.json');
+    if (!fs.existsSync(examplesJsonPath)) {
+        console.warn(`Examples JSON file not found: ${examplesJsonPath}`);
+        return fullMatch;
+    }
+    const examplesData = JSON.parse(fs.readFileSync(examplesJsonPath, 'utf-8'));
+    const example = examplesData[exampleId];
+    if (!example) {
+        console.warn(`Example with id '${exampleId}' not found in examples.json`);
+        return fullMatch;
+    }
+    const title = example.title || exampleId;
+    const description = example.description || '';
+    const imgSrc = `./examples/public/screenshots/${exampleId}.png`;
+    const exampleHtml = `
+<div align="center">
+  <a href="https://navcat.dev/examples#example-${exampleId}">
+    <img src="${imgSrc}" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>${title}</strong>
+  </a>
+  <p>${description}</p>
+</div>
+`;
+    return exampleHtml;
+});
+
 /* <RenderType type="import('navcat').TypeName" /> */
 const renderTypeRegex = /<RenderType\s+type=["']import\(['"]navcat['"]\)\.(\w+)["']\s*\/>/g;
 readmeText = readmeText.replace(renderTypeRegex, (fullMatch, typeName) => {

@@ -245,7 +245,7 @@ function primitivesToThreeJS(primitives: DebugPrimitive[]): DebugObject {
 // Debug helper functions - these wrap the agnostic helpers and convert to Three.js
 
 export function createTriangleAreaIdsHelper(
-    input: { positions: Float32Array; indices: Uint32Array },
+    input: { positions: ArrayLike<number>; indices: ArrayLike<number> },
     triAreaIds: ArrayLike<number>,
 ): DebugObject {
     const primitives = Debug.createTriangleAreaIdsHelper(input, triAreaIds);

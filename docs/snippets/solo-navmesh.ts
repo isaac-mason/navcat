@@ -130,6 +130,7 @@ const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield
 const navMesh = Nav.createNavMesh();
 
 // set the navmesh parameters using the poly mesh bounds
+// this example is for a single tile navmesh, so the tile width/height is the same as the poly mesh bounds size
 navMesh.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
 navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
 navMesh.origin[0] = polyMesh.bounds[0][0];
@@ -192,13 +193,7 @@ Nav.addTile(navMesh, tile);
 
     // find the nearest nav mesh poly node to the position
     const findNearestPolyResult = Nav.createFindNearestPolyResult();
-    Nav.findNearestPoly(
-        findNearestPolyResult,
-        navMesh,
-        position,
-        halfExtents,
-        Nav.DEFAULT_QUERY_FILTER,
-    );
+    Nav.findNearestPoly(findNearestPolyResult, navMesh, position, halfExtents, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(findNearestPolyResult.success); // true if a nearest poly was found
     console.log(findNearestPolyResult.nearestPolyRef); // the nearest poly's node ref, or 0 if none found
@@ -208,18 +203,46 @@ Nav.addTile(navMesh, tile);
     /* SNIPPET_START: getClosestPointOnPoly */
     const polyRef = findNearestPolyResult.nearestPolyRef;
     const getClosestPointOnPolyResult = Nav.createGetClosestPointOnPolyResult();
-    
-    Nav.getClosestPointOnPoly(
-        getClosestPointOnPolyResult,
-        navMesh,
-        polyRef,
-        position,
-    );
+
+    Nav.getClosestPointOnPoly(getClosestPointOnPolyResult, navMesh, polyRef, position);
 
     console.log(getClosestPointOnPolyResult.success); // true if a closest point was found
     console.log(getClosestPointOnPolyResult.isOverPoly); // true if the position was inside the poly
     console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on the poly in world space [x, y, z]
     /* SNIPPET_END: getClosestPointOnPoly */
+}
+
+{
+    /* SNIPPET_START: closestPointOnDetailEdges */
+    const position: Vec3 = [1, 0, 1];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    // find the nearest nav mesh poly node to the position
+    const nearestPoly = Nav.findNearestPoly(
+        Nav.createFindNearestPolyResult(),
+        navMesh,
+        position,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+
+    const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nearestPolyRef, navMesh);
+
+    const closestPoint: Vec3 = [0, 0, 0];
+    const onlyBoundaryEdges = false;
+
+    const squaredDistance = Nav.closestPointOnDetailEdges(
+        tileAndPoly.tile!,
+        tileAndPoly.poly!,
+        tileAndPoly.polyIndex,
+        position,
+        closestPoint,
+        onlyBoundaryEdges,
+    );
+
+    console.log(squaredDistance); // squared distance from position to closest point
+    console.log(closestPoint); // the closest point on the detail edges in world space [x, y, z]
+    /* SNIPPET_END: closestPointOnDetailEdges */
 }
 
 {
@@ -251,8 +274,8 @@ Nav.addTile(navMesh, tile);
             Nav.DEFAULT_QUERY_FILTER,
         );
 
-        console.log('node path success:', nodePath.success); // true if a partial or full path was found
-        console.log('node path:', nodePath.path); // ['0.0.1', '0.0.5', '0.0.8', ... ]
+        console.log(nodePath.success); // true if a partial or full path was found
+        console.log(nodePath.path); // ['0,0,1', '0,0,5', '0,0,8', ... ]
     }
     /* SNIPPET_END: findNodePath */
 }
@@ -270,8 +293,8 @@ Nav.addTile(navMesh, tile);
     // find the nearest nav mesh poly node to the start position
     const straightPathResult = Nav.findStraightPath(navMesh, start, end, findStraightPathNodes);
 
-    console.log('straight path success:', straightPathResult.success); // true if a partial or full path was found
-    console.log('straight path:', straightPathResult.path); // [ { position: [x, y, z], nodeType: NodeType, nodeRef: NodeRef }, ... ]
+    console.log(straightPathResult.success); // true if a partial or full path was found
+    console.log(straightPathResult.path); // [ { position: [x, y, z], nodeType: NodeType, nodeRef: NodeRef }, ... ]
     /* SNIPPET_END: findStraightPath */
 }
 
@@ -288,7 +311,7 @@ Nav.addTile(navMesh, tile);
         halfExtents,
         Nav.DEFAULT_QUERY_FILTER,
     );
-    
+
     const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.nearestPolyRef, start, end, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(moveAlongSurfaceResult.success); // true if the move was successful
@@ -303,7 +326,7 @@ Nav.addTile(navMesh, tile);
     const start: Vec3 = [1, 0, 1];
     const end: Vec3 = [8, 0, 8];
     const halfExtents: Vec3 = [0.5, 0.5, 0.5];
-    
+
     const startNode = Nav.findNearestPoly(
         Nav.createFindNearestPolyResult(),
         navMesh,
@@ -353,7 +376,7 @@ Nav.addTile(navMesh, tile);
     console.log(randomPoint.success); // true if a random point was found
     console.log(randomPoint.position); // [x, y, z]
     console.log(randomPoint.ref); // the poly node ref that the random point is on
-    
+
     /* SNIPPET_END: findRandomPoint */
 }
 
@@ -361,7 +384,7 @@ Nav.addTile(navMesh, tile);
     /* SNIPPET_START: findRandomPointAroundCircle */
     const center: Vec3 = [5, 0, 5];
     const radius = 3.0; // world units
-    
+
     const halfExtents: Vec3 = [0.5, 0.5, 0.5];
 
     const centerNode = Nav.findNearestPoly(
@@ -387,4 +410,218 @@ Nav.addTile(navMesh, tile);
         console.log(randomPointAroundCircle.randomRef); // the poly node ref that the random point is on
     }
     /* SNIPPET_END: findRandomPointAroundCircle */
+}
+
+{
+    /* SNIPPET_START: getPortalPoints */
+    const startNodeRef: Nav.NodeRef = '0,0,1'; // example poly node ref, usually retrieved from a pathfinding call
+    const endNodeRef: Nav.NodeRef = '0,0,8'; // example poly node ref, usually retrieved from a pathfinding call
+
+    const left: Vec3 = [0, 0, 0];
+    const right: Vec3 = [0, 0, 0];
+
+    const getPortalPointsSuccess = Nav.getPortalPoints(navMesh, startNodeRef, endNodeRef, left, right);
+
+    console.log(getPortalPointsSuccess); // true if the portal points were found
+    console.log('left:', left);
+    console.log('right:', right);
+    /* SNIPPET_END: getPortalPoints */
+}
+
+{
+    /* SNIPPET_START: isValidNodeRef */
+    const nodeRef: Nav.NodeRef = '0,0,1';
+
+    // true if the node ref is valid, useful to call after updating tiles to validate the reference is still valid
+    const isValid = Nav.isValidNodeRef(navMesh, nodeRef);
+    console.log(isValid);
+    /* SNIPPET_END: isValidNodeRef */
+}
+
+{
+    /* SNIPPET_START: getNodeAreaAndFlags */
+    const nodeRef: Nav.NodeRef = '0,0,1';
+
+    const areaAndFlags = Nav.getNodeAreaAndFlags(nodeRef, navMesh);
+    console.log(areaAndFlags.success);
+    console.log(areaAndFlags.area);
+    console.log(areaAndFlags.flags);
+    /* SNIPPET_END: getNodeAreaAndFlags */
+}
+
+{
+    /* SNIPPET_START: queryPolygons */
+    const center: Vec3 = [5, 0, 5];
+    const halfExtents: Vec3 = [2, 2, 2];
+
+    // find all polys within a box area
+    const queryPolygonsResult = Nav.queryPolygons(navMesh, center, halfExtents, Nav.DEFAULT_QUERY_FILTER);
+
+    console.log(queryPolygonsResult); // array of node refs that overlap the box area
+    /* SNIPPET_END: queryPolygons */
+}
+
+{
+    /* SNIPPET_START: queryPolygonsInTile */
+    const tile = Object.values(navMesh.tiles)[0]; // example tile
+    const bounds: Box3 = tile.bounds;
+
+    const outNodeRefs: Nav.NodeRef[] = [];
+
+    Nav.queryPolygonsInTile(outNodeRefs, navMesh, tile, bounds, Nav.DEFAULT_QUERY_FILTER);
+    /* SNIPPET_END: queryPolygonsInTile */
+}
+
+{
+    /* SNIPPET_START: offMeshConnections */
+    // define a bidirectional off-mesh connection between two points
+    const bidirectionalOffMeshConnection: Nav.OffMeshConnection = {
+        // start position in world space
+        start: [0, 0, 0],
+        // end position in world space
+        end: [1, 0, 1],
+        // radius of the connection endpoints, if it's too small a poly may not be found to link the connection to
+        radius: 0.5,
+        // the direction of the off-mesh connection (START_TO_END or BIDIRECTIONAL)
+        direction: Nav.OffMeshConnectionDirection.BIDIRECTIONAL,
+        // flags for the off-mesh connection, you can use this for custom behaviour with query filters
+        flags: 1,
+        // area id for the off-mesh connection, you can use this for custom behaviour with query filters
+        area: 0,
+    };
+
+    // add the off-mesh connection to the nav mesh, returns the off-mesh connection id
+    const bidirectionalOffMeshConnectionId = Nav.addOffMeshConnection(navMesh, bidirectionalOffMeshConnection);
+
+    // true if the off-mesh connection is linked to polys, false if a suitable poly couldn't be found
+    Nav.isOffMeshConnectionConnected(navMesh, bidirectionalOffMeshConnectionId);
+
+    // retrieve the off-mesh connection attachment info, which contains the start and end poly node refs that the connection is linked to
+    const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[bidirectionalOffMeshConnectionId];
+
+    if (offMeshConnectionAttachment) {
+        console.log(offMeshConnectionAttachment.start); // the start poly node ref that the off-mesh connection is linked to
+        console.log(offMeshConnectionAttachment.end); // the end poly node ref that the off-mesh connection is linked to
+    }
+
+    // remove the off-mesh connection from the nav mesh
+    Nav.removeOffMeshConnection(navMesh, bidirectionalOffMeshConnectionId);
+
+    // define a one-way off-mesh connection (e.g. a teleporter that only goes one way)
+    const oneWayTeleporterOffMeshConnection: Nav.OffMeshConnection = {
+        start: [2, 0, 2],
+        end: [3, 1, 3],
+        radius: 0.5,
+        direction: Nav.OffMeshConnectionDirection.START_TO_END,
+        flags: 1,
+        area: 0,
+        // optional cost override, if not provided the cost will be the distance from start to end
+        // making the cost 0 means the teleporter will be more preferred over normal walkable paths
+        cost: 0,
+    };
+
+    // add the off-mesh connection to the nav mesh, returns the off-mesh connection id
+    const oneWayTeleporterOffMeshConnectionId = Nav.addOffMeshConnection(navMesh, oneWayTeleporterOffMeshConnection);
+
+    // remove the off-mesh connection from the nav mesh
+    Nav.removeOffMeshConnection(navMesh, oneWayTeleporterOffMeshConnectionId);
+    /* SNIPPET_END: offMeshConnections */
+}
+
+{
+    /* SNIPPET_START: debug */
+    const triangleAreaIdsHelper = Nav.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
+
+    const heightfieldHelper = Nav.createHeightfieldHelper(heightfield);
+
+    const compactHeightfieldSolidHelper = Nav.createCompactHeightfieldSolidHelper(compactHeightfield);
+
+    const compactHeightfieldDistancesHelper = Nav.createCompactHeightfieldDistancesHelper(compactHeightfield);
+
+    const compactHeightfieldRegionsHelper = Nav.createCompactHeightfieldRegionsHelper(compactHeightfield);
+
+    const rawContoursHelper = Nav.createRawContoursHelper(contourSet);
+
+    const simplifiedContoursHelper = Nav.createSimplifiedContoursHelper(contourSet);
+
+    const polyMeshHelper = Nav.createPolyMeshHelper(polyMesh);
+
+    const polyMeshDetailHelper = Nav.createPolyMeshDetailHelper(polyMeshDetail);
+
+    const navMeshHelper = Nav.createNavMeshHelper(navMesh);
+
+    const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, '0,0,1');
+
+    const navMeshTileBvTreeHelper = Nav.createNavMeshTileBvTreeHelper(tile);
+
+    const navMeshBvTreeHelper = Nav.createNavMeshBvTreeHelper(navMesh);
+
+    const navMeshLinksHelper = Nav.createNavMeshLinksHelper(navMesh);
+
+    const navMeshTilePortalsHelper = Nav.createNavMeshTilePortalsHelper(tile);
+
+    const navMeshPortalsHelper = Nav.createNavMeshPortalsHelper(navMesh);
+
+    const findNodePathResult = Nav.findNodePath(
+        navMesh,
+        '0,0,1',
+        '0,0,8',
+        [1, 0, 1],
+        [8, 0, 8],
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+    const searchNodesHelper = Nav.createSearchNodesHelper(findNodePathResult.nodes);
+
+    const navMeshOffMeshConnectionsHelper = Nav.createNavMeshOffMeshConnectionsHelper(navMesh);
+    /* SNIPPET_END: debug */
+}
+
+{
+    /* SNIPPET_START: debugThree */
+    const triangleAreaIdsHelper = Nav.three.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
+    console.log(triangleAreaIdsHelper.object) // THREE.Object3D
+    triangleAreaIdsHelper.dispose() // disposes geometry and materials
+
+    const heightfieldHelper = Nav.three.createHeightfieldHelper(heightfield);
+
+    const compactHeightfieldSolidHelper = Nav.three.createCompactHeightfieldSolidHelper(compactHeightfield);
+
+    const compactHeightfieldDistancesHelper = Nav.three.createCompactHeightfieldDistancesHelper(compactHeightfield);
+
+    const compactHeightfieldRegionsHelper = Nav.three.createCompactHeightfieldRegionsHelper(compactHeightfield);
+
+    const rawContoursHelper = Nav.three.createRawContoursHelper(contourSet);
+
+    const simplifiedContoursHelper = Nav.three.createSimplifiedContoursHelper(contourSet);
+
+    const polyMeshHelper = Nav.three.createPolyMeshHelper(polyMesh);
+
+    const polyMeshDetailHelper = Nav.three.createPolyMeshDetailHelper(polyMeshDetail);
+
+    const navMeshHelper = Nav.three.createNavMeshHelper(navMesh);
+
+    const navMeshPolyHelper = Nav.three.createNavMeshPolyHelper(navMesh, '0,0,1');
+
+    const navMeshTileBvTreeHelper = Nav.three.createNavMeshTileBvTreeHelper(tile);
+
+    const navMeshBvTreeHelper = Nav.three.createNavMeshBvTreeHelper(navMesh);
+
+    const navMeshLinksHelper = Nav.three.createNavMeshLinksHelper(navMesh);
+
+    const navMeshTilePortalsHelper = Nav.three.createNavMeshTilePortalsHelper(tile);
+
+    const navMeshPortalsHelper = Nav.three.createNavMeshPortalsHelper(navMesh);
+
+    const findNodePathResult = Nav.findNodePath(
+        navMesh,
+        '0,0,1',
+        '0,0,8',
+        [1, 0, 1],
+        [8, 0, 8],
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+    const searchNodesHelper = Nav.three.createSearchNodesHelper(findNodePathResult.nodes);
+
+    const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnectionsHelper(navMesh);
+    /* SNIPPET_END: debugThree */
 }
