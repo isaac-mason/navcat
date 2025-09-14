@@ -7,10 +7,41 @@ const readmeOutPath = path.join(path.dirname(new URL(import.meta.url).pathname),
 
 let readmeText = fs.readFileSync(readmeTemplatePath, 'utf-8');
 
-/* handle <RenderType="import('navcat').TypeName" /> */
-const renderTypeRegex = /<RenderType="import\([']navcat[']\)\.(\w+)"\s*\/>/g;
+/* <Examples /> */
+const examplesRegex = /<Examples\s*\/>/g;
+const examplesJsonPath = path.join(path.dirname(new URL(import.meta.url).pathname), '../examples/src/examples.json');
+if (!fs.existsSync(examplesJsonPath)) {
+    throw new Error(`Examples JSON file not found: ${examplesJsonPath}`);
+}
+const examplesData = JSON.parse(fs.readFileSync(examplesJsonPath, 'utf-8'));
+const exampleKeys = Object.keys(examplesData);
+let examplesHtml = '<table>\n';
+const examplesCols = 3;
+for (let i = 0; i < exampleKeys.length; i += examplesCols) {
+    examplesHtml += '  <tr>\n';
+    for (let j = 0; j < examplesCols; ++j) {
+        const idx = i + j;
+        if (idx >= exampleKeys.length) break;
+        const key = exampleKeys[idx];
+        const example = examplesData[key];
+        const title = example.title || key;
+        const imgSrc = `./examples/public/screenshots/${key}.png`;
+        examplesHtml += `    <td align="center">\n`;
+        examplesHtml += `      <a href="https://navcat.dev/examples#example-${key}">\n`;
+        examplesHtml += `        <img src="${imgSrc}" width="180" height="120" style="object-fit:cover;"/><br/>\n`;
+        examplesHtml += `        ${title}\n`;
+        examplesHtml += `      </a>\n`;
+        examplesHtml += `    </td>\n`;
+    }
+    examplesHtml += '  </tr>\n';
+}
+examplesHtml += '</table>\n';
+readmeText = readmeText.replace(examplesRegex, examplesHtml);
+
+/* <RenderType type="import('navcat').TypeName" /> */
+const renderTypeRegex = /<RenderType\s+type=["']import\(['"]navcat['"]\)\.(\w+)["']\s*\/>/g;
 readmeText = readmeText.replace(renderTypeRegex, (fullMatch, typeName) => {
-    const typeDef = extractType(typeName);
+    const typeDef = getType(typeName);
     if (!typeDef) {
         console.warn(`Type ${typeName} not found`);
         return fullMatch;
@@ -18,7 +49,18 @@ readmeText = readmeText.replace(renderTypeRegex, (fullMatch, typeName) => {
     return `\`\`\`ts\n${typeDef}\n\`\`\``;
 });
 
-/* handle <Snippet source="./snippets/file.ts" select="group" /> */
+/* <RenderSource type="import('navcat').TypeName" /> */
+const renderSourceRegex = /<RenderSource\s+type=["']import\(['"]navcat['"]\)\.(\w+)["']\s*\/>/g;
+readmeText = readmeText.replace(renderSourceRegex, (fullMatch, typeName) => {
+    const typeDef = getSource(typeName);
+    if (!typeDef) {
+        console.warn(`Type ${typeName} not found`);
+        return fullMatch;
+    }
+    return `\`\`\`ts\n${typeDef}\n\`\`\``;
+});
+
+/* <Snippet source="./snippets/file.ts" select="group" /> */
 const snippetRegex = /<Snippet\s+source=["'](.+?)["']\s+select=["'](.+?)["']\s*\/>/g;
 readmeText = readmeText.replace(snippetRegex, (fullMatch, sourcePath, groupName) => {
     const absSourcePath = path.join(path.dirname(new URL(import.meta.url).pathname), sourcePath);
@@ -28,18 +70,24 @@ readmeText = readmeText.replace(snippetRegex, (fullMatch, sourcePath, groupName)
     }
     const sourceText = fs.readFileSync(absSourcePath, 'utf-8');
 
-    // extract the selected group
+    // extract the selected group and its indentation
     const groupRegex = new RegExp(
-        `/\\*\\s*SNIPPET_START:\\s*${groupName}\\s*\\*/([\\s\\S]*?)/\\*\\s*SNIPPET_END:\\s*${groupName}\\s*\\*/`,
-        'g',
+        String.raw`^([ \t]*)\/\*[ \t]*SNIPPET_START:[ \t]*${groupName}[ \t]*\*\/[\r\n]+([\s\S]*?)[ \t]*^\1\/\*[ \t]*SNIPPET_END:[ \t]*${groupName}[ \t]*\*\/`,
+        'm'
     );
     const match = groupRegex.exec(sourceText);
     if (!match) {
         console.warn(`Snippet group '${groupName}' not found in ${sourcePath}`);
         return fullMatch;
     }
-    const snippetCode = match[1].trim();
-
+    const baseIndent = match[1] || '';
+    let snippetCode = match[2];
+    // Remove the detected indentation from all lines
+    if (baseIndent) {
+        snippetCode = snippetCode.replace(new RegExp(`^${baseIndent}`, 'gm'), '');
+    }
+    // Remove any leading/trailing blank lines
+    snippetCode = snippetCode.replace(/^\s*\n|\n\s*$/g, '');
     return `\`\`\`ts\n${snippetCode}\n\`\`\``;
 });
 
@@ -47,7 +95,8 @@ readmeText = readmeText.replace(snippetRegex, (fullMatch, sourcePath, groupName)
 fs.writeFileSync(readmeOutPath, readmeText, 'utf-8');
 
 /* utils */
-function extractType(typeName) {
+
+function getSource(typeName) {
     // find all .ts files in src
     const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../src');
     function getAllSourceFiles(dir) {
@@ -76,6 +125,7 @@ function extractType(typeName) {
 
     let found = null;
     function visit(node, fileText) {
+        // Types, interfaces, classes
         if (
             (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node) || ts.isClassDeclaration(node)) &&
             node.name &&
@@ -83,10 +133,34 @@ function extractType(typeName) {
         ) {
             found = fileText.slice(node.getFullStart(), node.getEnd());
         }
-        ts.forEachChild(node, child => visit(child, fileText));
+        // Exported function declarations
+        if (
+            ts.isFunctionDeclaration(node) &&
+            node.name &&
+            node.name.text === typeName &&
+            node.modifiers &&
+            node.modifiers.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        ) {
+            found = fileText.slice(node.getFullStart(), node.getEnd());
+        }
+        // Exported const function expressions (arrow or function)
+        if (
+            ts.isVariableStatement(node) &&
+            node.modifiers && node.modifiers.some(m => m.kind === ts.SyntaxKind.ExportKeyword)
+        ) {
+            for (const decl of node.declarationList.declarations) {
+                if (
+                    decl.name && ts.isIdentifier(decl.name) && decl.name.text === typeName &&
+                    decl.initializer && (ts.isFunctionExpression(decl.initializer) || ts.isArrowFunction(decl.initializer))
+                ) {
+                    found = fileText.slice(node.getFullStart(), node.getEnd());
+                }
+            }
+        }
+        ts.forEachChild(node, (child) => visit(child, fileText));
     }
 
-    // Search all files for the type
+    // search all files for the type or function
     for (const file of dtsFiles) {
         const sf = program.getSourceFile(file);
         if (sf) {
@@ -97,4 +171,121 @@ function extractType(typeName) {
     }
 
     return found ? found.trimStart() : null;
+}
+
+function getType(typeName) {
+    // find all .ts files in src
+    const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../src');
+    function getAllSourceFiles(dir) {
+        let files = [];
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                files = files.concat(getAllSourceFiles(fullPath));
+            } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+                files.push(fullPath);
+            }
+        }
+        return files;
+    }
+    const dtsFiles = getAllSourceFiles(srcDir);
+
+    // create a TypeScript program from all .ts files
+    const program = ts.createProgram(dtsFiles, {
+        allowJs: false,
+        declaration: true,
+        emitDeclarationOnly: true,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        strict: true,
+        noEmit: true,
+    });
+    const checker = program.getTypeChecker();
+
+    let found = null;
+    function visit(node, fileText) {
+        // Types, interfaces, classes
+        if (
+            (ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node) || ts.isClassDeclaration(node)) &&
+            node.name &&
+            node.name.text === typeName
+        ) {
+            const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+            found = printer.printNode(ts.EmitHint.Unspecified, node, node.getSourceFile());
+        }
+        // Exported function declarations
+        if (
+            ts.isFunctionDeclaration(node) &&
+            node.name &&
+            node.name.text === typeName &&
+            node.modifiers &&
+            node.modifiers.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+        ) {
+            // Get JSDoc (if any)
+            const jsDoc = ts
+                .getJSDocCommentsAndTags(node)
+                .map((doc) => fileText.slice(doc.pos, doc.end))
+                .join('');
+            // Get signature
+            const sig = checker.getSignatureFromDeclaration(node);
+            let sigStr = '';
+            if (sig) {
+                const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+                // Print the function signature as a declaration
+                const sigNode = ts.factory.createFunctionDeclaration(
+                    node.modifiers,
+                    node.asteriskToken,
+                    node.name,
+                    node.typeParameters,
+                    node.parameters,
+                    node.type,
+                    undefined, // no body
+                );
+                sigStr = printer.printNode(ts.EmitHint.Unspecified, sigNode, node.getSourceFile());
+            }
+            found = (jsDoc ? jsDoc + '\n' : '') + sigStr;
+        }
+        // Exported const function expressions (arrow or function)
+        if (
+            ts.isVariableStatement(node) &&
+            node.modifiers && node.modifiers.some(m => m.kind === ts.SyntaxKind.ExportKeyword)
+        ) {
+            for (const decl of node.declarationList.declarations) {
+                if (
+                    decl.name && ts.isIdentifier(decl.name) && decl.name.text === typeName &&
+                    decl.initializer && (ts.isFunctionExpression(decl.initializer) || ts.isArrowFunction(decl.initializer))
+                ) {
+                    // Get JSDoc (if any)
+                    const jsDoc = ts.getJSDocCommentsAndTags(node)
+                        .map(doc => fileText.slice(doc.pos, doc.end)).join('');
+                    // Print only the signature for getType
+                    const func = decl.initializer;
+                    const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+                    const sigNode = ts.factory.createFunctionDeclaration(
+                        [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+                        undefined,
+                        decl.name,
+                        func.typeParameters,
+                        func.parameters,
+                        func.type,
+                        undefined // no body
+                    );
+                    const sigStr = printer.printNode(ts.EmitHint.Unspecified, sigNode, node.getSourceFile());
+                    found = (jsDoc ? jsDoc + '\n' : '') + sigStr;
+                }
+            }
+        }
+        ts.forEachChild(node, (child) => visit(child, fileText));
+    }
+
+    // search all files for the type or function
+    for (const file of dtsFiles) {
+        const sf = program.getSourceFile(file);
+        if (sf) {
+            const fileText = sf.getFullText();
+            visit(sf, fileText);
+        }
+        if (found) break;
+    }
+
+    return found;
 }

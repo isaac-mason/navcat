@@ -1,5 +1,6 @@
 /* SNIPPET_START: input */
 import * as Nav from 'navcat';
+import type { Vec3, Box3 } from 'maaths';
 
 // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const positions: number[] = [];
@@ -36,7 +37,10 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: [[number, number, number], [number, number, number]] = [[0, 0, 0], [0, 0, 0]];
+const bounds: Box3 = [
+    [0, 0, 0],
+    [0, 0, 0],
+];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -112,7 +116,7 @@ for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
         polyMesh.areas[polyIndex] = 0;
     }
 
-    // give all base "walkable" polys all flags 
+    // give all base "walkable" polys all flags
     if (polyMesh.areas[polyIndex] === 0) {
         polyMesh.flags[polyIndex] = 1;
     }
@@ -164,3 +168,223 @@ Nav.buildNavMeshBvTree(tile);
 // add the tile to the navmesh
 Nav.addTile(navMesh, tile);
 /* SNIPPET_END: navMesh */
+
+{
+    /* SNIPPET_START: findPath */
+    const start: Vec3 = [1, 0, 1];
+    const end: Vec3 = [8, 0, 8];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    // find a path from start to end
+    const findPathResult = Nav.findPath(navMesh, start, end, halfExtents, Nav.DEFAULT_QUERY_FILTER);
+
+    if (findPathResult.success) {
+        const points = findPathResult.path.map((p) => p.position);
+        console.log('path points:', points); // [ [x1, y1, z1], [x2, y2, z2], ... ]
+    }
+    /* SNIPPET_END: findPath */
+}
+
+{
+    /* SNIPPET_START: findNearestPoly */
+    const position: Vec3 = [1, 0, 1];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    // find the nearest nav mesh poly node to the position
+    const findNearestPolyResult = Nav.createFindNearestPolyResult();
+    Nav.findNearestPoly(
+        findNearestPolyResult,
+        navMesh,
+        position,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+
+    console.log(findNearestPolyResult.success); // true if a nearest poly was found
+    console.log(findNearestPolyResult.nearestPolyRef); // the nearest poly's node ref, or 0 if none found
+    console.log(findNearestPolyResult.nearestPoint); // the nearest point on the poly in world space [x, y, z]
+    /* SNIPPET_END: findNearestPoly */
+
+    /* SNIPPET_START: getClosestPointOnPoly */
+    const polyRef = findNearestPolyResult.nearestPolyRef;
+    const getClosestPointOnPolyResult = Nav.createGetClosestPointOnPolyResult();
+    
+    Nav.getClosestPointOnPoly(
+        getClosestPointOnPolyResult,
+        navMesh,
+        polyRef,
+        position,
+    );
+
+    console.log(getClosestPointOnPolyResult.success); // true if a closest point was found
+    console.log(getClosestPointOnPolyResult.isOverPoly); // true if the position was inside the poly
+    console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on the poly in world space [x, y, z]
+    /* SNIPPET_END: getClosestPointOnPoly */
+}
+
+{
+    /* SNIPPET_START: findNodePath */
+    const start: Vec3 = [1, 0, 1];
+    const end: Vec3 = [8, 0, 8];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    // find the nearest nav mesh poly node to the start position
+    const startNode = Nav.findNearestPoly(
+        Nav.createFindNearestPolyResult(),
+        navMesh,
+        start,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+
+    // find the nearest nav mesh poly node to the end position
+    const endNode = Nav.findNearestPoly(Nav.createFindNearestPolyResult(), navMesh, end, halfExtents, Nav.DEFAULT_QUERY_FILTER);
+
+    // find a "node" path from start to end
+    if (startNode.success && endNode.success) {
+        const nodePath = Nav.findNodePath(
+            navMesh,
+            startNode.nearestPolyRef,
+            endNode.nearestPolyRef,
+            startNode.nearestPoint,
+            endNode.nearestPoint,
+            Nav.DEFAULT_QUERY_FILTER,
+        );
+
+        console.log('node path success:', nodePath.success); // true if a partial or full path was found
+        console.log('node path:', nodePath.path); // ['0.0.1', '0.0.5', '0.0.8', ... ]
+    }
+    /* SNIPPET_END: findNodePath */
+}
+
+{
+    /* SNIPPET_START: findStraightPath */
+    const start: Vec3 = [1, 0, 1];
+    const end: Vec3 = [8, 0, 8];
+
+    // array of nav mesh node refs, often retrieved from a call to findNodePath
+    const findStraightPathNodes: Nav.NodeRef[] = [
+        /* ... */
+    ];
+
+    // find the nearest nav mesh poly node to the start position
+    const straightPathResult = Nav.findStraightPath(navMesh, start, end, findStraightPathNodes);
+
+    console.log('straight path success:', straightPathResult.success); // true if a partial or full path was found
+    console.log('straight path:', straightPathResult.path); // [ { position: [x, y, z], nodeType: NodeType, nodeRef: NodeRef }, ... ]
+    /* SNIPPET_END: findStraightPath */
+}
+
+{
+    /* SNIPPET_START: moveAlongSurface */
+    const start: Vec3 = [1, 0, 1];
+    const end: Vec3 = [8, 0, 8];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    const startNode = Nav.findNearestPoly(
+        Nav.createFindNearestPolyResult(),
+        navMesh,
+        start,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+    
+    const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.nearestPolyRef, start, end, Nav.DEFAULT_QUERY_FILTER);
+
+    console.log(moveAlongSurfaceResult.success); // true if the move was successful
+    console.log(moveAlongSurfaceResult.resultPosition); // the resulting position after the move [x, y, z]
+    console.log(moveAlongSurfaceResult.resultRef); // the resulting poly node ref after the move, or 0 if none
+    console.log(moveAlongSurfaceResult.visited); // array of node refs that were visited during the move
+    /* SNIPPET_END: moveAlongSurface */
+}
+
+{
+    /* SNIPPET_START: raycast */
+    const start: Vec3 = [1, 0, 1];
+    const end: Vec3 = [8, 0, 8];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    
+    const startNode = Nav.findNearestPoly(
+        Nav.createFindNearestPolyResult(),
+        navMesh,
+        start,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+
+    const raycastResult = Nav.raycast(navMesh, startNode.nearestPolyRef, start, end, Nav.DEFAULT_QUERY_FILTER);
+
+    console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
+    console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
+    console.log(raycastResult.hitEdgeIndex); // the index of the edge of the poly that was hit, or -1 if none
+    console.log(raycastResult.path); // array of node refs that were visited during the raycast
+    /* SNIPPET_END: raycast */
+}
+
+{
+    /* SNIPPET_START: getPolyHeight */
+    const position: Vec3 = [1, 0, 1];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    const nearestPoly = Nav.findNearestPoly(
+        Nav.createFindNearestPolyResult(),
+        navMesh,
+        position,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+
+    const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nearestPolyRef, navMesh);
+
+    if (nearestPoly.success) {
+        const getPolyHeightResult = Nav.createGetPolyHeightResult();
+        Nav.getPolyHeight(getPolyHeightResult, tileAndPoly.tile!, tileAndPoly.poly!, tileAndPoly.polyIndex, position);
+
+        console.log(getPolyHeightResult.success); // true if a height was found
+        console.log(getPolyHeightResult.height); // the height of the poly at the position
+    }
+    /* SNIPPET_END: getPolyHeight */
+}
+
+{
+    /* SNIPPET_START: findRandomPoint */
+    const randomPoint = Nav.findRandomPoint(navMesh, Nav.DEFAULT_QUERY_FILTER, Math.random);
+
+    console.log(randomPoint.success); // true if a random point was found
+    console.log(randomPoint.position); // [x, y, z]
+    console.log(randomPoint.ref); // the poly node ref that the random point is on
+    
+    /* SNIPPET_END: findRandomPoint */
+}
+
+{
+    /* SNIPPET_START: findRandomPointAroundCircle */
+    const center: Vec3 = [5, 0, 5];
+    const radius = 3.0; // world units
+    
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    const centerNode = Nav.findNearestPoly(
+        Nav.createFindNearestPolyResult(),
+        navMesh,
+        center,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+
+    if (centerNode.success) {
+        const randomPointAroundCircle = Nav.findRandomPointAroundCircle(
+            navMesh,
+            centerNode.nearestPolyRef,
+            center,
+            radius,
+            Nav.DEFAULT_QUERY_FILTER,
+            Math.random,
+        );
+
+        console.log(randomPointAroundCircle.success); // true if a random point was found
+        console.log(randomPointAroundCircle.position); // [x, y, z]
+        console.log(randomPointAroundCircle.randomRef); // the poly node ref that the random point is on
+    }
+    /* SNIPPET_END: findRandomPointAroundCircle */
+}

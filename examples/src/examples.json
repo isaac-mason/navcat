@@ -1,0 +1,72 @@
+{
+    "example-crowd-simulation": {
+        "title": "Crowd Simulation",
+        "description": "Example of crowd simulation with agent and wall avoidance",
+        "tags": ["movement", "agent"]
+    },
+    "example-navmesh-constrained-character-controller": {
+        "title": "Navmesh Constrained Character Controller",
+        "description": "Example of a simple character controller constrained to a navmesh",
+        "tags": ["movement", "character controller"]
+    },
+    "example-flow-field-pathfinding": {
+        "title": "Flow Field Pathfinding",
+        "description": "Example of flow field pathfinding on a navmesh",
+        "tags": ["pathfinding", "navmesh"]
+    },
+    "example-solo-navmesh": {
+        "title": "Solo NavMesh",
+        "description": "Example of generating a single tile navmesh",
+        "tags": ["navmesh generation"]
+    },
+    "example-tiled-navmesh": {
+        "title": "Tiled NavMesh",
+        "description": "Example of generating a tiled navmesh",
+        "tags": ["navmesh generation"]
+    },
+    "example-flood-fill-pruning": {
+        "title": "Flood Fill Pruning",
+        "description": "Example of flood fill pruning to remove disconnected polygon regions from a tiled navmesh",
+        "tags": ["navmesh", "pruning", "algorithm"]
+    },
+    "example-find-path": {
+        "title": "Find Path",
+        "description": "Example of finding a path on the navmesh",
+        "tags": ["path"]
+    },
+    "example-find-smooth-path": {
+        "title": "Find Smooth Path",
+        "description": "Example of finding a smooth path on the navmesh",
+        "tags": ["path"]
+    },
+    "example-off-mesh-connections": {
+        "title": "Off-Mesh Connections",
+        "description": "Example of using off-mesh connections in a navmesh",
+        "tags": ["navmesh", "off-mesh"]
+    },
+    "example-raycast": {
+        "title": "Raycast",
+        "description": "Example of a walkability raycast on a navmesh",
+        "tags": ["raycast"]
+    },
+    "example-move-along-surface": {
+        "title": "Move Along Surface",
+        "description": "Example of using moveAlongSurface for navmesh constrained movement",
+        "tags": ["movement"]
+    },
+    "example-find-nearest-poly": {
+        "title": "Find Nearest Poly",
+        "description": "Example of finding the nearest polygon on the navmesh",
+        "tags": ["query"]
+    },
+    "example-find-random-point": {
+        "title": "Find Random Point",
+        "description": "Example of finding a random point on the navmesh",
+        "tags": ["random"]
+    },
+    "example-find-random-point-around-circle": {
+        "title": "Find Random Point Around Circle",
+        "description": "Example of finding a random point around a circle on the navmesh",
+        "tags": ["random"]
+    }
+}

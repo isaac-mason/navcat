@@ -16,10 +16,9 @@
     "noImplicitReturns": true,
     "skipLibCheck": true,
     "baseUrl": "./",
-    "rootDir": "./src",
+    "rootDir": "./",
     "allowSyntheticDefaultImports": true,
     "outDir": "dist"
   },
-  "include": ["./src", "vite-env.d.ts"],
-  "exclude": ["./dist"]
+  "include": ["./*.ts"]
 }

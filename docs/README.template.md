@@ -1,3 +1,5 @@
+<!-- Hi README.md editors, make changes in docs/README.template.md and run `node docs/build.js` :) -->
+
 ![./docs/cover.png](./docs/cover.png)
 
 ```bash
@@ -17,38 +19,33 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Fully JSON serializable data structures
 - Tiny - 40.32 kB minified + gzipped
 
-**Showcase Examples**
+**Examples**
 
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://navcat.dev/examples#example-find-path">
-        <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        A* Pathfinding
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://navcat.dev/examples#example-navmesh-constrained-controller">
-        <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Character Controllers
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://navcat.dev/examples#example-crowd-simulation">
-        <img src="./examples/public/screenshots/example-crowd-simulation.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Crowd Simulation
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://navcat.dev/examples#example-flow-field">
-        <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Flow Field Pathfinding
-      </a>
-    </td>
-  </tr>
-</table>
+<Examples />
 
-## Can navcat be used with XYZ?
+## Introduction
+
+### What is a navigation mesh?
+
+A navigation mesh (or navmesh) is a simplified representation of a 3D environment that is used for pathfinding and AI navigation in video games and simulations. It consists of interconnected polygons that define walkable areas within the environment. These polygons are connected by edges and off-mesh connections, allowing agents (characters) to move from one polygon to another.
+
+![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
+
+### The navcat navigation mesh structure
+
+In navcat, a navigation mesh is represented as a graph of `nodes` and `links`.
+
+Each `node` represents either a polygon in the navigation mesh or an off-mesh connection.
+
+Each `link` represents a connection between two nodes, either between two polygons if they share an edge, or between a polygon and an off-mesh connection.
+
+The "navigation mesh" object itself can contain many tiles in a grid, where navcat will stitch together the tiles into the global `nodes` and `links` used for pathfinding.
+
+Because the navigation mesh is a fully JSON-serializable data structure, you can easily save and load navigation meshes to/from disk, or send them over a network. It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
+
+The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to.
+
+## Can navcat be integrated with XYZ?
 
 navcat is agnostic of other javascript libraries, but should work well with any of them.
 
@@ -59,16 +56,6 @@ navcat works with vector3's that adhere to the OpenGL conventions:
 - Indices should be in counter-clockwise winding order
 
 If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
-
-## What's a navigation mesh?
-
-A navigation mesh (or navmesh) is a simplified representation of a 3D environment that is used for pathfinding and AI navigation in video games and simulations. It consists of interconnected polygons (usually triangles or convex shapes) that define walkable areas within the environment. These polygons are connected by edges, allowing characters or agents to move from one polygon to another.
-
-![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
-
-In navcat, a navigation mesh is a fully JSON-serializable object that contains navigation mesh tile data, off-mesh connections, and `nodes` and `links` for the stitched together navigation mesh tiles and off-mesh connections.
-
-<RenderType="import('navcat').NavMesh" />
 
 ## How are navigation meshes generated with navcat?
 
@@ -169,17 +156,69 @@ Finally, the polygon mesh and detail mesh are combined to create a navigation me
 
 <Snippet source="./snippets/solo-navmesh.ts" select="navMesh" />
 
-## Navigation Mesh Debugging
-
-...
-
-### Navigation Mesh Serialization & Deserialization
-
-All navigation mesh data structures in navcat are fully JSON serializable. This means you can easily save and load navigation meshes to/from disk, or send them over a network.
-
-It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
-
 ## Navigation Mesh Querying
+
+### findPath
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findPath" />
+
+<RenderType type="import('navcat').findPath" />
+
+### findNearestPoly
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findNearestPoly" />
+
+<RenderType type="import('navcat').findNearestPoly" />
+
+### getClosestPointOnPoly
+
+<Snippet source="./snippets/solo-navmesh.ts" select="getClosestPointOnPoly" />
+
+<RenderType type="import('navcat').getClosestPointOnPoly" />
+
+### findNodePath
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findNodePath" />
+
+<RenderType type="import('navcat').findNodePath" />
+
+### findStraightPath
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findStraightPath" />
+
+<RenderType type="import('navcat').findStraightPath" />
+
+### moveAlongSurface
+
+<Snippet source="./snippets/solo-navmesh.ts" select="moveAlongSurface" />
+
+<RenderType type="import('navcat').moveAlongSurface" />
+
+### raycast
+
+<Snippet source="./snippets/solo-navmesh.ts" select="raycast" />
+
+<RenderType type="import('navcat').raycast" />
+
+### getPolyHeight
+
+<Snippet source="./snippets/solo-navmesh.ts" select="getPolyHeight" />
+
+<RenderType type="import('navcat').getPolyHeight" />
+
+### findRandomPoint
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findRandomPoint" />
+
+<RenderType type="import('navcat').findRandomPoint" />
+
+### findRandomPointAroundCircle
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findRandomPointAroundCircle" />
+
+<RenderType type="import('navcat').findRandomPointAroundCircle" />
+
+## Navigation Mesh Debugging
 
 ...
 

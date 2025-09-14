@@ -10,7 +10,7 @@ importers:
     dependencies:
       maaths:
         specifier: 0.0.0-placeholder-1
-        version: 0.0.0-placeholder-1
+        version: link:../maaths
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.2.0
@@ -1736,10 +1736,6 @@ packages:
     resolution: {integrity: sha512-jumlc0BIUrS3qJGgIkWZsyfAM7NCWiBcCDhnd+3NNM5KbBmLTgHVfWBcg6W+rLUsIpzpERPsvwUP7CckAQSOoA==}
     engines: {node: '>=12'}
     dev: true
-
-  /maaths@0.0.0-placeholder-1:
-    resolution: {integrity: sha512-kV8gnwCZEE24n5gKaiWhE7skM96V8pZrYFHpTWFvGjp19dHxfpFH9RU351GLdeF+VKrwdyxJace1SgPgU12aVA==}
-    dev: false
 
   /magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
