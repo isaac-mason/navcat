@@ -1,7 +1,7 @@
 import type { Box3, Triangle3, Vec2, Vec3 } from 'maaths';
 import { box3, vec2, vec3 } from 'maaths';
 import { DETAIL_EDGE_BOUNDARY, POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
-import { closestHeightPointTriangle, distancePtSegSqr2d, pointInPoly } from '../geometry';
+import { closestHeightPointTriangle, createDistancePtSegSqr2dResult, distancePtSegSqr2d, pointInPoly } from '../geometry';
 import {
     type NavMesh,
     type NavMeshLink,
@@ -300,6 +300,7 @@ const getDetailTriEdgeFlags = (triFlags: number, edgeIndex: number): number => {
 const _closestPointOnDetailEdgesTriangleVertices: Vec3[] = [vec3.create(), vec3.create(), vec3.create()];
 const _closestPointOnDetailEdgesPmin = vec3.create();
 const _closestPointOnDetailEdgesPmax = vec3.create();
+const _closestPointOnDetailEdges_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 /**
  * Finds the closest point on detail mesh edges to a given point
@@ -367,7 +368,7 @@ export const closestPointOnDetailEdges = (
                 continue;
             }
 
-            const result = distancePtSegSqr2d(pos, triangleVertices[j], triangleVertices[k]);
+            const result = distancePtSegSqr2d(_closestPointOnDetailEdges_distancePtSegSqr2dResult, pos, triangleVertices[j], triangleVertices[k]);
 
             if (result.distSqr < dmin) {
                 dmin = result.distSqr;
@@ -438,6 +439,7 @@ export const getClosestPointOnPoly = (
 const _closestPointOnPolyBoundaryLineStart = vec3.create();
 const _closestPointOnPolyBoundaryLineEnd = vec3.create();
 const _closestPointOnPolyBoundaryVertices: number[] = [];
+const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 export const getClosestPointOnPolyBoundary = (
     navMesh: NavMesh,
@@ -485,9 +487,9 @@ export const getClosestPointOnPolyBoundary = (
         lineEnd[0] = vertices[vbIndex + 0];
         lineEnd[1] = vertices[vbIndex + 1];
         lineEnd[2] = vertices[vbIndex + 2];
-        const d = distancePtSegSqr2d(point, lineStart, lineEnd).distSqr;
-        if (d < dmin) {
-            dmin = d;
+        distancePtSegSqr2d(_closestPointOnPolyBoundary_distancePtSegSqr2dResult, point, lineStart, lineEnd);
+        if (_closestPointOnPolyBoundary_distancePtSegSqr2dResult.distSqr < dmin) {
+            dmin = _closestPointOnPolyBoundary_distancePtSegSqr2dResult.distSqr;
             imin = i;
         }
     }

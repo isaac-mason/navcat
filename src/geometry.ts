@@ -125,7 +125,14 @@ export const distancePtSeg = (pt: Vec3, p: Vec3, q: Vec3): number => {
     return vec3.dot(pq, pq); // return squared distance
 };
 
-export const distancePtSeg2d = (pt: Vec3, p: Vec3, q: Vec3) => {
+export type DistPtSeg2dResult = { dist: number; t: number };
+
+export const createDistPtSeg2dResult = (): DistPtSeg2dResult => ({
+    dist: 0,
+    t: 0
+});
+
+export const distancePtSeg2d = (out: DistPtSeg2dResult, pt: Vec3, p: Vec3, q: Vec3) => {
     const pqx = q[0] - p[0];
     const pqz = q[2] - p[2];
     const dx = pt[0] - p[0];
@@ -142,10 +149,19 @@ export const distancePtSeg2d = (pt: Vec3, p: Vec3, q: Vec3) => {
 
     const dist = closeDx * closeDx + closeDz * closeDz;
 
-    return { dist, t };
+    out.dist = Math.sqrt(dist);
+    out.t = t;
+    return out;
 };
 
-export const distancePtSegSqr2d = (pt: Vec3, p: Vec3, q: Vec3) => {
+export type DistancePtSegSqr2dResult = { distSqr: number; t: number };
+
+export const createDistancePtSegSqr2dResult = (): DistancePtSegSqr2dResult => ({
+    distSqr: 0,
+    t: 0
+});
+
+export const distancePtSegSqr2d = (out: DistancePtSegSqr2dResult, pt: Vec3, p: Vec3, q: Vec3) => {
     const pqx = q[0] - p[0];
     const pqz = q[2] - p[2];
     const dx = pt[0] - p[0];
@@ -165,7 +181,10 @@ export const distancePtSegSqr2d = (pt: Vec3, p: Vec3, q: Vec3) => {
 
     const distSqr = distX * distX + distZ * distZ;
 
-    return { distSqr, t };
+    out.distSqr = distSqr;
+    out.t = t;
+
+    return out;
 };
 
 const _distPtTriA: Vec3 = vec3.create();
@@ -192,6 +211,7 @@ export const distToTriMesh = (p: Vec3, verts: number[], tris: number[], ntris: n
 
 const _distToPolyVj: Vec3 = vec3.create();
 const _distToPolyVi: Vec3 = vec3.create();
+const _distToPoly_distPtSeg2dResult = createDistPtSeg2dResult();
 
 export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
     let dmin = Number.MAX_VALUE;
@@ -210,7 +230,8 @@ export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
         vec3.fromBuffer(_distToPolyVj, verts, vj);
         vec3.fromBuffer(_distToPolyVi, verts, vi);
 
-        dmin = Math.min(dmin, distancePtSeg2d(p, _distToPolyVj, _distToPolyVi).dist);
+        distancePtSeg2d(_distToPoly_distPtSeg2dResult, p, _distToPolyVj, _distToPolyVi);
+        dmin = Math.min(dmin, _distToPoly_distPtSeg2dResult.dist);
     }
     return c ? -dmin : dmin;
 };
@@ -425,6 +446,7 @@ export const intersectSegSeg2D = (out: IntersectSegSeg2DResult, a: Vec3, b: Vec3
 const _polyMinExtentPt: Vec3 = vec3.create();
 const _polyMinExtentP1: Vec3 = vec3.create();
 const _polyMinExtentP2: Vec3 = vec3.create();
+const _polyMinExtent_distPtSeg2dResult = createDistPtSeg2dResult();
 
 // calculate minimum extend of the polygon.
 export const polyMinExtent = (verts: number[], nverts: number): number => {
@@ -443,8 +465,8 @@ export const polyMinExtent = (verts: number[], nverts: number): number => {
             vec3.fromBuffer(_polyMinExtentP1, verts, p1);
             vec3.fromBuffer(_polyMinExtentP2, verts, p2);
 
-            const { dist } = distancePtSeg2d(_polyMinExtentPt, _polyMinExtentP1, _polyMinExtentP2);
-            maxEdgeDist = Math.max(maxEdgeDist, dist);
+            distancePtSeg2d(_polyMinExtent_distPtSeg2dResult, _polyMinExtentPt, _polyMinExtentP1, _polyMinExtentP2);
+            maxEdgeDist = Math.max(maxEdgeDist, _polyMinExtent_distPtSeg2dResult.dist);
         }
         minDist = Math.min(minDist, maxEdgeDist);
     }

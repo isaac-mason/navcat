@@ -6,6 +6,7 @@ import {
     type IntersectSegSeg2DResult,
     intersectSegSeg2D,
     triArea2D,
+    createDistancePtSegSqr2dResult,
 } from '../geometry';
 import type { NavMesh } from './nav-mesh';
 import { getClosestPointOnPolyBoundary, getNodeAreaAndFlags } from './nav-mesh-api';
@@ -149,6 +150,7 @@ const appendPortals = (
 
 const _findStraightPathLeftPortalPoint = vec3.create();
 const _findStraightPathRightPortalPoint = vec3.create();
+const _findStraightPath_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 const makeFindStraightPathResult = (flags: FindStraightPathResultFlags, path: StraightPathPoint[]): FindStraightPathResult => ({
     flags,
@@ -260,8 +262,8 @@ export const findStraightPath = (
 
                 if (i === 0) {
                     // if starting really close to the portal, advance
-                    const d2 = distancePtSegSqr2d(portalApex, left, right).distSqr;
-                    if (d2 < 1e-6) continue;
+                    const result = distancePtSegSqr2d(_findStraightPath_distancePtSegSqr2dResult, portalApex, left, right);
+                    if (result.distSqr < 1e-6) continue;
                 }
             } else {
                 // end of path

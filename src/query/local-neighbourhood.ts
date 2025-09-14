@@ -1,7 +1,7 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import { POLY_NEIS_FLAG_EXT_LINK } from '../generate';
-import { distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry';
+import { createDistancePtSegSqr2dResult, distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry';
 import type { NavMesh } from './nav-mesh';
 import { getTileAndPolyByRef } from './nav-mesh-api';
 import {
@@ -43,6 +43,7 @@ export type FindLocalNeighbourhoodResult = {
 
 const _findLocalNeighbourhoodPolyVerticesA: number[] = [];
 const _findLocalNeighbourhoodPolyVerticesB: number[] = [];
+const _findLocalNeighbourhood_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 /**
  * Finds all polygons within a radius of a center position, avoiding overlapping polygons.
@@ -144,8 +145,8 @@ export const findLocalNeighbourhood = (
             if (!getPortalPoints(navMesh, curRef, neighbourRef, va, vb)) continue;
 
             // if the circle is not touching the next polygon, skip it
-            const { distSqr } = distancePtSegSqr2d(centerPos, va, vb);
-            if (distSqr > radiusSqr) continue;
+            distancePtSegSqr2d(_findLocalNeighbourhood_distancePtSegSqr2dResult, centerPos, va, vb);
+            if (_findLocalNeighbourhood_distancePtSegSqr2dResult.distSqr > radiusSqr) continue;
 
             // mark node visited before overlap test
             const neighbourNode: SearchNode = {
