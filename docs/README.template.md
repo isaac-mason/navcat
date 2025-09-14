@@ -344,6 +344,14 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <RenderType type="import('navcat').queryPolygonsInTile" />
 
+## Custom Query Filter
+
+... TODO ...
+
+## Agent / Crowd Simulation
+
+... TODO ...
+
 ## Off-Mesh Connections
 
 Off-mesh connections are used for navigation that isn't just traversal between adjacent polygons. They can represent actions like jumping, climbing, or using a door, the details of how they are created and represented in animation are up to you.
@@ -378,7 +386,11 @@ The structure of a navigation mesh node in navcat is `0,tileId,polyIndex`, where
 
 When you add a tile to a navigation mesh, a new unique `tileId` is assigned to the tile to force any existing node references to become invalid, so you don't accidentally start referencing polygons incorrectly.
 
-## Navigation Mesh Debugging
+## BYO Navigation Meshes
+
+... TODO ...
+
+## Debug Utilities
 
 navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
 
@@ -398,11 +410,6 @@ If you are using threejs, navcat provides utilities to convert the debug primiti
 
 <Snippet source="./snippets/solo-navmesh.ts" select="debugThree" />
 
-## BYO Navigation Meshes
-
-...
-
 ## Acknowledgements
 
-...
-
+... TODO ...
