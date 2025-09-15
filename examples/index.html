@@ -279,6 +279,33 @@
         <iframe class="example-frame" id="example-frame"></iframe>
     </div>
 
+    <a id="source-link" href="#" target="_blank" style="
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 2000;
+        background: #222;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-size: 15px;
+        text-decoration: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        opacity: 0.85;
+        transition: opacity 0.2s;
+      " title="View source code on GitHub">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle">
+            <path d="M9 18v-6h6v6M9 6h6" />
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+        </svg>
+        <span>Source</span>
+    </a>
+
     <script type="module">
         import examples from "./src/examples.json" assert { type: "json" };
 
@@ -374,7 +401,7 @@
             sidebarOverlay.classList.remove("show");
         });
 
-        function loadExample(exampleKey) {
+        function loadExample(exampleKey, scrollIntoView) {
             const example = examples[exampleKey];
             if (!example) return;
 
@@ -383,15 +410,30 @@
 
             // update active item
             const exampleItems = document.querySelectorAll(".example-item");
+
+            let activeItem = null;
             exampleItems.forEach((item) => {
                 item.classList.remove("active");
                 if (item.getAttribute("data-example") === exampleKey) {
                     item.classList.add("active");
+                    activeItem = item;
                 }
             });
 
+            // scroll active item into view
+            if (scrollIntoView && activeItem) {
+                activeItem.scrollIntoView({ block: "center", behavior: "auto" });
+            }
+
             // update URL
             window.location.hash = exampleKey;
+
+            // update source link
+            const sourceLink = document.getElementById("source-link");
+            // assumes source files are in the repo under 'examples/'
+            const githubBase =
+                "https://github.com/isaac-mason/navcat/blob/main/examples/";
+            sourceLink.href = githubBase + exampleKey + ".html";
 
             // close mobile sidebar
             sidebar.classList.remove("open");
@@ -399,21 +441,21 @@
         }
 
         // handle hash changes
-        function handleHashChange() {
+        function handleHashChange(scrollIntoView = false) {
             const hash = window.location.hash.substring(1);
             if (hash && examples[hash]) {
-                loadExample(hash);
+                loadExample(hash, scrollIntoView);
             } else {
                 // load first example by default
                 const firstExample = Object.keys(examples)[0];
-                loadExample(firstExample);
+                loadExample(firstExample, scrollIntoView);
             }
         }
 
         // initialize
+        handleHashChange(true);
         attachEventListeners();
-        window.addEventListener("hashchange", handleHashChange);
-        handleHashChange(); // check initial hash or load default
+        window.addEventListener("hashchange", () => handleHashChange(true));
     </script>
 </body>
 

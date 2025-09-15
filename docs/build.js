@@ -71,7 +71,7 @@ for (let i = 0; i < exampleKeys.length; i += examplesCols) {
         const title = example.title || key;
         const imgSrc = `./examples/public/screenshots/${key}.png`;
         examplesHtml += `    <td align="center">\n`;
-        examplesHtml += `      <a href="https://navcat.dev#example-${key}">\n`;
+        examplesHtml += `      <a href="https://navcat.dev#${key}">\n`;
         examplesHtml += `        <img src="${imgSrc}" width="180" height="120" style="object-fit:cover;"/><br/>\n`;
         examplesHtml += `        ${title}\n`;
         examplesHtml += `      </a>\n`;
@@ -101,7 +101,7 @@ readmeText = readmeText.replace(exampleRegex, (fullMatch, exampleId) => {
     const imgSrc = `./examples/public/screenshots/${exampleId}.png`;
     const exampleHtml = `
 <div align="center">
-  <a href="https://navcat.dev#example-${exampleId}">
+  <a href="https://navcat.dev#${exampleId}">
     <img src="${imgSrc}" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>${title}</strong>
   </a>
