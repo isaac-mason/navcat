@@ -50,19 +50,25 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
+      <a href="https://navcat.dev/examples#example-example-byo-navmesh">
+        <img src="./examples/public/screenshots/example-byo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        BYO NavMesh
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev/examples#example-example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Solo NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -75,14 +81,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -95,14 +101,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Raycast
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Move Along Surface
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -115,6 +121,8 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Random Point
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -1587,7 +1595,23 @@ When you add a tile to a navigation mesh, a new unique `tileId` is assigned to t
 
 ## BYO Navigation Meshes
 
-... TODO ...
+Although this library provides a robust method of generating navigation meshes from 3D geometry, you can also bring your own navigation meshes if you author them manually, or generate them with another tool.
+
+You can pass any external polygon data to the `polygonsToNavMeshTilePolys` utility to convert it into the navcat runtime navigation mesh tile format.
+
+You can also use `polysToTileDetailMesh` to generate a detail mesh for your polygons, or you can provide your own detail mesh if you have height data for your polygons.
+
+See the "BYO NavMesh Example" to see how to use an "externally generated" navigation mesh with navcat:
+
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-byo-navmesh">
+    <img src="./examples/public/screenshots/example-byo-navmesh.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>BYO NavMesh</strong>
+  </a>
+  <p>Example of using a navigation mesh created with an external tool</p>
+</div>
+
 
 ## Debug Utilities
 
@@ -1741,4 +1765,6 @@ const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnection
 
 ## Acknowledgements
 
-... TODO ...
+- This library is heavily inspired by the recastnavigation library
+  - Although navcat is not a direct port of recastnavigation, the core navigation mesh generation approach is based on the recastnavigation library's voxelization-based approach to navigation mesh generation.
+- Shoutout to @verekia for the cute name idea :)

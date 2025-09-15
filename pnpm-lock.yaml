@@ -63,6 +63,9 @@ importers:
       three:
         specifier: ^0.179.1
         version: 0.179.1
+      three-mesh-bvh:
+        specifier: ^0.9.1
+        version: 0.9.1(three@0.179.1)
     devDependencies:
       '@types/three':
         specifier: ^0.179.0
@@ -2526,6 +2529,14 @@ packages:
       commander: 2.20.3
       source-map-support: 0.5.21
     dev: true
+
+  /three-mesh-bvh@0.9.1(three@0.179.1):
+    resolution: {integrity: sha512-WNT+m9jGQgtp4YdtwEnl4oFylNVifRf7iphlwWdJ4bJu7oNkY0xHIyntep9OzHuR1hpe/pyAP840gB/EsYDJfg==}
+    peerDependencies:
+      three: '>= 0.159.0'
+    dependencies:
+      three: 0.179.1
+    dev: false
 
   /three@0.179.1:
     resolution: {integrity: sha512-5y/elSIQbrvKOISxpwXCR4sQqHtGiOI+MKLc3SsBdDXA2hz3Mdp3X59aUp8DyybMa34aeBwbFTpdoLJaUDEWSw==}

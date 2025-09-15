@@ -11,7 +11,8 @@
     "dependencies": {
         "lil-gui": "^0.20.0",
         "navcat": "workspace:*",
-        "three": "^0.179.1"
+        "three": "^0.179.1",
+        "three-mesh-bvh": "^0.9.1"
     },
     "devDependencies": {
         "@types/three": "^0.179.0",

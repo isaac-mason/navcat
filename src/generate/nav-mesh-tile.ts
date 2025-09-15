@@ -57,6 +57,8 @@ export const polyMeshToTilePolys = (polyMesh: PolyMesh): NavMeshTilePolys => {
     };
 };
 
+export type ExternalPolygon = Pick<NavMeshPoly, 'vertices' | 'flags' | 'area'>;
+
 /**
  * Builds NavMeshTile polys from given polygons. Use this method when you are creating a nav mesh tile from external polygon data.
  *
@@ -71,7 +73,7 @@ export const polyMeshToTilePolys = (polyMesh: PolyMesh): NavMeshTilePolys => {
  * @returns NavMeshTile polygons
  */
 export const polygonsToNavMeshTilePolys = (
-    polygons: Array<Pick<NavMeshPoly, 'vertices' | 'flags' | 'area'>>,
+    polygons: Array<ExternalPolygon>,
     vertices: number[],
     borderSize: number,
     bounds: Box3,

@@ -19,6 +19,11 @@
         "description": "Example of using custom area types in a navmesh",
         "tags": ["navmesh", "areas"]
     },
+    "example-byo-navmesh": {
+        "title": "BYO NavMesh",
+        "description": "Example of using a navigation mesh created with an external tool",
+        "tags": ["navmesh", "custom"]
+    },
     "example-solo-navmesh": {
         "title": "Solo NavMesh",
         "description": "Example of generating a single tile navmesh",

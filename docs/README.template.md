@@ -414,7 +414,15 @@ When you add a tile to a navigation mesh, a new unique `tileId` is assigned to t
 
 ## BYO Navigation Meshes
 
-... TODO ...
+Although this library provides a robust method of generating navigation meshes from 3D geometry, you can also bring your own navigation meshes if you author them manually, or generate them with another tool.
+
+You can pass any external polygon data to the `polygonsToNavMeshTilePolys` utility to convert it into the navcat runtime navigation mesh tile format.
+
+You can also use `polysToTileDetailMesh` to generate a detail mesh for your polygons, or you can provide your own detail mesh if you have height data for your polygons.
+
+See the "BYO NavMesh Example" to see how to use an "externally generated" navigation mesh with navcat:
+
+<Example id="example-byo-navmesh" />
 
 ## Debug Utilities
 
@@ -438,4 +446,6 @@ If you are using threejs, navcat provides utilities to convert the debug primiti
 
 ## Acknowledgements
 
-... TODO ...
+- This library is heavily inspired by the recastnavigation library
+  - Although navcat is not a direct port of recastnavigation, the core navigation mesh generation approach is based on the recastnavigation library's voxelization-based approach to navigation mesh generation.
+- Shoutout to @verekia for the cute name idea :)

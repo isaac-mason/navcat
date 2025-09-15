@@ -730,6 +730,10 @@ export const queryPolygons = (navMesh: NavMesh, center: Vec3, halfExtents: Vec3,
     const maxTile = worldToTilePosition(_queryPolygonsMaxTile, navMesh, bounds[1]);
 
     // iterate through the tiles in the query bounds
+    if (!vec2.finite(minTile) || !vec2.finite(maxTile)) {
+        return result;
+    }
+
     for (let x = minTile[0]; x <= maxTile[0]; x++) {
         for (let y = minTile[1]; y <= maxTile[1]; y++) {
             const tiles = getTilesAt(navMesh, x, y);
