@@ -24,19 +24,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 <table>
   <tr>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-crowd-simulation">
+      <a href="https://navcat.dev#example-example-crowd-simulation">
         <img src="./examples/public/screenshots/example-crowd-simulation.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Crowd Simulation
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-navmesh-constrained-character-controller">
+      <a href="https://navcat.dev#example-example-navmesh-constrained-character-controller">
         <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Navmesh Constrained Character Controller
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-flow-field-pathfinding">
+      <a href="https://navcat.dev#example-example-flow-field-pathfinding">
         <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flow Field Pathfinding
       </a>
@@ -44,19 +44,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
   <tr>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-custom-areas">
+      <a href="https://navcat.dev#example-example-custom-areas">
         <img src="./examples/public/screenshots/example-custom-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom Areas
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-byo-navmesh">
+      <a href="https://navcat.dev#example-example-byo-navmesh">
         <img src="./examples/public/screenshots/example-byo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         BYO NavMesh
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-solo-navmesh">
+      <a href="https://navcat.dev#example-example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Solo NavMesh
       </a>
@@ -64,19 +64,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
   <tr>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-tiled-navmesh">
+      <a href="https://navcat.dev#example-example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-flood-fill-pruning">
+      <a href="https://navcat.dev#example-example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flood Fill Pruning
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-find-path">
+      <a href="https://navcat.dev#example-example-find-path">
         <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Path
       </a>
@@ -84,19 +84,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
   <tr>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-find-smooth-path">
+      <a href="https://navcat.dev#example-example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-off-mesh-connections">
+      <a href="https://navcat.dev#example-example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Off-Mesh Connections
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-raycast">
+      <a href="https://navcat.dev#example-example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Raycast
       </a>
@@ -104,19 +104,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
   <tr>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-move-along-surface">
+      <a href="https://navcat.dev#example-example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Move Along Surface
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-find-nearest-poly">
+      <a href="https://navcat.dev#example-example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Nearest Poly
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-find-random-point">
+      <a href="https://navcat.dev#example-example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point
       </a>
@@ -124,7 +124,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
   <tr>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-example-find-random-point-around-circle">
+      <a href="https://navcat.dev#example-example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point Around Circle
       </a>
@@ -890,7 +890,7 @@ export function findPath(navMesh: NavMesh, start: Vec3, end: Vec3, halfExtents: 
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-find-path">
+  <a href="https://navcat.dev#example-example-find-path">
     <img src="./examples/public/screenshots/example-find-path.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Find Path</strong>
   </a>
@@ -919,7 +919,7 @@ export function findNearestPoly(result: FindNearestPolyResult, navMesh: NavMesh,
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-find-nearest-poly">
+  <a href="https://navcat.dev#example-example-find-nearest-poly">
     <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Find Nearest Poly</strong>
   </a>
@@ -1068,7 +1068,7 @@ export function moveAlongSurface(navMesh: NavMesh, startRef: NodeRef, startPosit
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-move-along-surface">
+  <a href="https://navcat.dev#example-example-move-along-surface">
     <img src="./examples/public/screenshots/example-move-along-surface.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Move Along Surface</strong>
   </a>
@@ -1078,7 +1078,7 @@ export function moveAlongSurface(navMesh: NavMesh, startRef: NodeRef, startPosit
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-navmesh-constrained-character-controller">
+  <a href="https://navcat.dev#example-example-navmesh-constrained-character-controller">
     <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Navmesh Constrained Character Controller</strong>
   </a>
@@ -1128,7 +1128,7 @@ export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-raycast">
+  <a href="https://navcat.dev#example-example-raycast">
     <img src="./examples/public/screenshots/example-raycast.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Raycast</strong>
   </a>
@@ -1198,7 +1198,7 @@ export function findRandomPoint(navMesh: NavMesh, filter: QueryFilter, rand: () 
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-find-random-point">
+  <a href="https://navcat.dev#example-example-find-random-point">
     <img src="./examples/public/screenshots/example-find-random-point.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Find Random Point</strong>
   </a>
@@ -1260,7 +1260,7 @@ export function findRandomPointAroundCircle(navMesh: NavMesh, startRef: NodeRef,
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-find-random-point-around-circle">
+  <a href="https://navcat.dev#example-example-find-random-point-around-circle">
     <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Find Random Point Around Circle</strong>
   </a>
@@ -1490,7 +1490,7 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-custom-areas">
+  <a href="https://navcat.dev#example-example-custom-areas">
     <img src="./examples/public/screenshots/example-custom-areas.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Custom Areas</strong>
   </a>
@@ -1508,7 +1508,7 @@ Instead of providing an abstraction for agent simulation, navcat provides a set 
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-crowd-simulation">
+  <a href="https://navcat.dev#example-example-crowd-simulation">
     <img src="./examples/public/screenshots/example-crowd-simulation.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Crowd Simulation</strong>
   </a>
@@ -1578,7 +1578,7 @@ To see a live example, see the "Off-Mesh Connections Example":
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-off-mesh-connections">
+  <a href="https://navcat.dev#example-example-off-mesh-connections">
     <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Off-Mesh Connections</strong>
   </a>
@@ -1619,7 +1619,7 @@ To see an example of creating a tiled navigation mesh, see the "Tiled NavMesh Ex
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-tiled-navmesh">
+  <a href="https://navcat.dev#example-example-tiled-navmesh">
     <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>Tiled NavMesh</strong>
   </a>
@@ -1647,7 +1647,7 @@ See the "BYO NavMesh Example" to see how to use an "externally generated" naviga
 
 
 <div align="center">
-  <a href="https://navcat.dev/examples#example-example-byo-navmesh">
+  <a href="https://navcat.dev#example-example-byo-navmesh">
     <img src="./examples/public/screenshots/example-byo-navmesh.png" width="360" height="240" style="object-fit:cover;"/><br/>
     <strong>BYO NavMesh</strong>
   </a>
