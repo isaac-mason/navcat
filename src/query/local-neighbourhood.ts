@@ -13,7 +13,7 @@ import {
     type SearchNodeRef,
 } from './nav-mesh-search';
 import { getNodeRefType, type NodeRef, NodeType, serPolyNodeRef } from './node';
-import type { QueryFilter } from './query-filter';
+import type { QueryFilter } from './nav-mesh-api';
 
 type SegmentInterval = {
     ref: NodeRef | null;

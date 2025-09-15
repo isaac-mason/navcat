@@ -5,16 +5,14 @@ import { closestHeightPointTriangle, createDistancePtSegSqr2dResult, distancePtS
 import {
     type NavMesh,
     type NavMeshLink,
-    type OffMeshConnection,
-    type OffMeshConnectionAttachment,
     type NavMeshPoly,
     type NavMeshTile,
+    type OffMeshConnection,
+    type OffMeshConnectionAttachment,
     OffMeshConnectionDirection,
     OffMeshConnectionSide,
 } from './nav-mesh';
 import { desNodeRef, getNodeRefType, type NodeRef, NodeType, serOffMeshNodeRef, serPolyNodeRef } from './node';
-import type { QueryFilter } from './query-filter';
-import { DEFAULT_QUERY_FILTER } from './query-filter';
 
 export const createNavMesh = (): NavMesh => {
     return {
@@ -111,30 +109,38 @@ export type GetNodeAreaAndFlagsResult = {
     flags: number;
 };
 
-export const getNodeAreaAndFlags = (nodeRef: NodeRef, navMesh: NavMesh): GetNodeAreaAndFlagsResult => {
-    const result: GetNodeAreaAndFlagsResult = {
-        success: false,
-        flags: 0,
-        area: 0,
-    };
+export const createGetNodeAreaAndFlagsResult = (): GetNodeAreaAndFlagsResult => ({
+    success: false,
+    area: 0,
+    flags: 0,
+});
+
+export const getNodeAreaAndFlags = (
+    out: GetNodeAreaAndFlagsResult,
+    navMesh: NavMesh,
+    nodeRef: NodeRef,
+): GetNodeAreaAndFlagsResult => {
+    out.success = false;
+    out.area = 0;
+    out.flags = 0;
 
     const nodeType = getNodeRefType(nodeRef);
 
     if (nodeType === NodeType.GROUND_POLY) {
         const [, tileId, polyIndex] = desNodeRef(nodeRef);
         const poly = navMesh.tiles[tileId].polys[polyIndex];
-        result.flags = poly.flags;
-        result.area = poly.area;
-        result.success = true;
+        out.flags = poly.flags;
+        out.area = poly.area;
+        out.success = true;
     } else if (nodeType === NodeType.OFFMESH_CONNECTION) {
         const [, offMeshConnectionId] = desNodeRef(nodeRef);
         const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
-        result.flags = offMeshConnection.flags;
-        result.area = offMeshConnection.area;
-        result.success = true;
+        out.flags = offMeshConnection.flags;
+        out.area = offMeshConnection.area;
+        out.success = true;
     }
 
-    return result;
+    return out;
 };
 
 export type GetTileAndPolyByRefResult =
@@ -368,7 +374,12 @@ export const closestPointOnDetailEdges = (
                 continue;
             }
 
-            const result = distancePtSegSqr2d(_closestPointOnDetailEdges_distancePtSegSqr2dResult, pos, triangleVertices[j], triangleVertices[k]);
+            const result = distancePtSegSqr2d(
+                _closestPointOnDetailEdges_distancePtSegSqr2dResult,
+                pos,
+                triangleVertices[j],
+                triangleVertices[k],
+            );
 
             if (result.distSqr < dmin) {
                 dmin = result.distSqr;
@@ -647,13 +658,10 @@ export const queryPolygonsInTile = (
 
             if (isLeafNode && overlap) {
                 const polyId = node.i;
-                const poly = tile.polys[polyId];
                 const ref: NodeRef = serPolyNodeRef(tile.id, polyId);
 
-                if ((poly.flags & filter.includeFlags) !== 0 && (poly.flags & filter.excludeFlags) === 0) {
-                    if (filter.passFilter(ref, navMesh)) {
-                        out.push(ref);
-                    }
+                if (filter.passFilter(ref, navMesh)) {
+                    out.push(ref);
                 }
             }
 
@@ -673,10 +681,6 @@ export const queryPolygonsInTile = (
             const polyRef = serPolyNodeRef(tile.id, polyIndex);
 
             // must pass filter
-            if ((poly.flags & filter.includeFlags) === 0 || (poly.flags & filter.excludeFlags) !== 0) {
-                continue;
-            }
-
             if (!filter.passFilter(polyRef, navMesh)) {
                 continue;
             }
@@ -1376,3 +1380,64 @@ export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnection
     // is connected if the tile ids are still valid
     return !!navMesh.tiles[startTileId] && !!navMesh.tiles[endTileId];
 };
+
+export type QueryFilter = {
+    /**
+     * Checks if a NavMesh node passes the filter.
+     * @param ref The node reference.
+     * @param navMesh The navmesh
+     * @returns Whether the node reference passes the filter.
+     */
+    passFilter(nodeRef: NodeRef, navMesh: NavMesh): boolean;
+
+    /**
+     * Calculates the cost of moving from one point to another.
+     * @param pa The start position on the edge of the previous and current node. [(x, y, z)]
+     * @param pb The end position on the edge of the current and next node. [(x, y, z)]
+     * @param navMesh The navigation mesh
+     * @param prevRef The reference id of the previous node. [opt]
+     * @param curRef The reference id of the current node.
+     * @param nextRef The reference id of the next node. [opt]
+     * @returns The cost of moving from the start to the end position.
+     */
+    getCost(
+        pa: Vec3,
+        pb: Vec3,
+        navMesh: NavMesh,
+        prevRef: NodeRef | undefined,
+        curRef: NodeRef,
+        nextRef: NodeRef | undefined,
+    ): number;
+};
+export type DefaultQueryFilter = QueryFilter & {
+    includeFlags: number;
+    excludeFlags: number;
+};
+
+export const DEFAULT_QUERY_FILTER = (() => {
+    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
+
+    return {
+        includeFlags: 0xffffffff,
+        excludeFlags: 0,
+        getCost(pa, pb, navMesh, _prevRef, _curRef, nextRef) {
+            // handle offmesh connection 'cost' override
+            if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION) {
+                const [, offMeshConnectionId] = desNodeRef(nextRef);
+                const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+                if (offMeshConnection.cost !== undefined) {
+                    return offMeshConnection.cost;
+                }
+            }
+
+            // use the distance between the two points as the cost
+            return vec3.distance(pa, pb);
+        },
+        passFilter(nodeRef, navMesh) {
+            // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
+            const { flags } = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
+
+            return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
+        },
+    } satisfies DefaultQueryFilter;
+})();

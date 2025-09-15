@@ -130,7 +130,7 @@ The heightfield resolution is configurable, and greatly affects the fidelity of 
 
 <RenderType type="import('navcat').filterWalkableLowHeightSpans" />
 
-### 3. Build compact heightfield, erode walkable area
+### 3. Build compact heightfield, erode walkable area, mark areas
 
 The heightfield is then compacted to only represent the top walkable surfaces.
 
@@ -206,15 +206,13 @@ A "detail triangle mesh" is also generated to capture more accurate height infor
 
 <RenderType type="import('navcat').buildPolyMeshDetail" />
 
-### 7. Assemble the navigation mesh
+### 7. Convert build-time poly mesh and poly mesh detail to runtime navmesh tile format
 
-Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
+Next, we do a post-processing step on the poly mesh and the poly mesh detail to prepare them for use in the navigation mesh.
 
-<Snippet source="./snippets/solo-navmesh.ts" select="navMesh" />
+This step involes computing adjacency information for the polygons, and mapping the generation-time format to the runtime navigation mesh tile format.
 
-![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
-
-<RenderType type="import('navcat').createNavMesh" />
+<Snippet source="./snippets/solo-navmesh.ts" select="convert" />
 
 <RenderType type="import('navcat').polyMeshToTilePolys" />
 
@@ -223,6 +221,16 @@ Finally, the polygon mesh and detail mesh are combined to create a navigation me
 <RenderType type="import('navcat').polyMeshDetailToTileDetailMesh" />
 
 <RenderSource type="import('navcat').NavMeshPolyDetail" />
+
+### 8. Assemble the navigation mesh
+
+Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="navMesh" />
+
+![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
+
+<RenderType type="import('navcat').createNavMesh" />
 
 <RenderType type="import('navcat').buildNavMeshBvTree" />
 
@@ -344,9 +352,21 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <RenderType type="import('navcat').queryPolygonsInTile" />
 
-## Custom Query Filter
+## Custom Query Filters and Custom Area Types
 
-... TODO ...
+Most navigation mesh querying APIs accept a `queryFilter` parameter that allows you to customize how the query is performed.
+
+You can provide a cost calculation function to modify the cost of traversing polygons, and you can provide a filter function to include/exclude polygons based on their area and flags.
+
+<RenderSource type="import('navcat').QueryFilter" />
+
+<RenderSource type="import('navcat').DEFAULT_QUERY_FILTER" />
+
+Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
+
+You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
+
+<Example id="example-custom-areas" />
 
 ## Agent / Crowd Simulation
 

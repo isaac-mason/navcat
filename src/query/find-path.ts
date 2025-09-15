@@ -5,7 +5,7 @@ import type { NavMesh } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
 import { FindNodePathResultFlags, type FindNodePathResult, findNodePath } from './nav-mesh-search';
 import type { NodeRef } from './node';
-import type { QueryFilter } from './query-filter';
+import type { QueryFilter } from './nav-mesh-api';
 
 export enum FindPathResultFlags {
     NONE = 0,

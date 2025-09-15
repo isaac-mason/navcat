@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/correctness/noUnusedVariables: examples */
+
 /* SNIPPET_START: input */
 import * as Nav from 'navcat';
 import type { Vec3, Box3 } from 'maaths';
@@ -68,6 +70,9 @@ const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 
 // erode the walkable area by the agent radius / walkable radius
 Nav.erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
+
+// OPTIONAL: you can use utilities like markBoxArea here on the compact heightfield to mark custom areas
+// see the "Custom Query Filters and Custom Area Types" section of the docs for more info
 /* SNIPPET_END: compactHeightfield */
 
 /* SNIPPET_START: compactHeightfieldRegions */
@@ -125,6 +130,14 @@ for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
 const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, 1.0, 1.0);
 /* SNIPPET_END: polyMesh */
 
+/* SNIPPET_START: convert */
+// convert the poly mesh to a navmesh tile polys
+const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
+
+// convert the poly mesh detail to a navmesh tile detail mesh
+const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
+/* SNIPPET_END: convert */
+
 /* SNIPPET_START: navMesh */
 // create the navigation mesh
 const navMesh = Nav.createNavMesh();
@@ -136,12 +149,6 @@ navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
 navMesh.origin[0] = polyMesh.bounds[0][0];
 navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
-
-// convert the poly mesh to a navmesh tile polys
-const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
-
-// convert the poly mesh detail to a navmesh tile detail mesh
-const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
 
 // create the navmesh tile
 const tile: Nav.NavMeshTile = {
@@ -442,7 +449,7 @@ Nav.addTile(navMesh, tile);
     /* SNIPPET_START: getNodeAreaAndFlags */
     const nodeRef: Nav.NodeRef = '0,0,1';
 
-    const areaAndFlags = Nav.getNodeAreaAndFlags(nodeRef, navMesh);
+    const areaAndFlags = Nav.getNodeAreaAndFlags(Nav.createGetNodeAreaAndFlagsResult(), navMesh, nodeRef);
     console.log(areaAndFlags.success);
     console.log(areaAndFlags.area);
     console.log(areaAndFlags.flags);

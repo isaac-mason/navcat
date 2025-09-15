@@ -5,7 +5,7 @@ import { type NavMesh, OffMeshConnectionSide } from './nav-mesh';
 import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
 import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
 import { type NodeRef, NodeType, desNodeRef } from './node';
-import type { QueryFilter } from './query-filter';
+import type { QueryFilter } from './nav-mesh-api';
 
 const _findSmoothPathDelta = vec3.create();
 const _findSmoothPathMoveTarget = vec3.create();

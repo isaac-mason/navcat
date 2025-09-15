@@ -7,4 +7,4 @@ export * from './nav-mesh';
 export * from './nav-mesh-api';
 export * from './nav-mesh-search';
 export * from './node';
-export * from './query-filter';
+

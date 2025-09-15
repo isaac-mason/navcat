@@ -42,6 +42,7 @@ import {
     rasterizeTriangles,
     three as threeUtils,
     WALKABLE_AREA,
+    createGetNodeAreaAndFlagsResult,
 } from 'navcat';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
@@ -56,21 +57,29 @@ enum NavMeshAreaType {
 }
 
 /* custom query filters */
-const WATER_ONLY_QUERY_FILTER: QueryFilter = {
-    ...DEFAULT_QUERY_FILTER,
-    passFilter(nodeRef, navMesh) {
-        const areaAndFlags = getNodeAreaAndFlags(nodeRef, navMesh);
-        return areaAndFlags.area === NavMeshAreaType.WATER;
-    },
-};
+const WATER_ONLY_QUERY_FILTER: QueryFilter = (() => {
+    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
 
-const GROUND_ONLY_QUERY_FILTER: QueryFilter = {
-    ...DEFAULT_QUERY_FILTER,
-    passFilter(nodeRef, navMesh) {
-        const areaAndFlags = getNodeAreaAndFlags(nodeRef, navMesh);
-        return areaAndFlags.area === NavMeshAreaType.GROUND;
-    },
-};
+    return {
+        ...DEFAULT_QUERY_FILTER,
+        passFilter(nodeRef, navMesh) {
+            const areaAndFlags = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
+            return areaAndFlags.area === NavMeshAreaType.WATER;
+        },
+    };
+})();
+
+const GROUND_ONLY_QUERY_FILTER: QueryFilter = (() => {
+    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
+
+    return {
+        ...DEFAULT_QUERY_FILTER,
+        passFilter(nodeRef, navMesh) {
+            const areaAndFlags = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
+            return areaAndFlags.area === NavMeshAreaType.GROUND;
+        },
+    };
+})();
 
 /* navmesh generator for water and ground custom areas */
 type NavMeshInput = {

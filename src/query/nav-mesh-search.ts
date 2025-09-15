@@ -18,7 +18,8 @@ import {
     getTileAndPolyByRef,
 } from './nav-mesh-api';
 import { desNodeRef, getNodeRefType, type NodeRef, NodeType, serPolyNodeRef } from './node';
-import { DEFAULT_QUERY_FILTER, type QueryFilter } from './query-filter';
+import { DEFAULT_QUERY_FILTER } from './nav-mesh-api';
+import { type QueryFilter } from './nav-mesh-api';
 
 export const NODE_FLAG_OPEN = 0x01;
 export const NODE_FLAG_CLOSED = 0x02;

@@ -44,6 +44,12 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
   <tr>
     <td align="center">
+      <a href="https://navcat.dev/examples#example-example-custom-areas">
+        <img src="./examples/public/screenshots/example-custom-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Custom Areas
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev/examples#example-example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Solo NavMesh
@@ -55,14 +61,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Tiled NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flood Fill Pruning
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-find-path">
         <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -75,14 +81,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Smooth Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Off-Mesh Connections
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -95,14 +101,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Move Along Surface
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Nearest Poly
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -338,7 +344,7 @@ export function filterLedgeSpans(heightfield: Heightfield, walkableHeight: numbe
 export function filterWalkableLowHeightSpans(heightfield: Heightfield, walkableHeight: number);
 ```
 
-### 3. Build compact heightfield, erode walkable area
+### 3. Build compact heightfield, erode walkable area, mark areas
 
 The heightfield is then compacted to only represent the top walkable surfaces.
 
@@ -354,6 +360,9 @@ const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 
 // erode the walkable area by the agent radius / walkable radius
 Nav.erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
+
+// OPTIONAL: you can use utilities like markBoxArea here on the compact heightfield to mark custom areas
+// see the "Custom Query Filters and Custom Area Types" section of the docs for more info
 ```
 
 ![2-4-compact-heightfield](./docs/2-4-navmesh-gen-compact-heightfield.png)
@@ -642,59 +651,18 @@ export function buildPolyMesh(ctx: BuildContextState, contourSet: ContourSet, ma
 export function buildPolyMeshDetail(ctx: BuildContextState, polyMesh: PolyMesh, compactHeightfield: CompactHeightfield, sampleDist: number, sampleMaxError: number): PolyMeshDetail;
 ```
 
-### 7. Assemble the navigation mesh
+### 7. Convert build-time poly mesh and poly mesh detail to runtime navmesh tile format
 
-Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
+Next, we do a post-processing step on the poly mesh and the poly mesh detail to prepare them for use in the navigation mesh.
+
+This step involes computing adjacency information for the polygons, and mapping the generation-time format to the runtime navigation mesh tile format.
 
 ```ts
-// create the navigation mesh
-const navMesh = Nav.createNavMesh();
-
-// set the navmesh parameters using the poly mesh bounds
-// this example is for a single tile navmesh, so the tile width/height is the same as the poly mesh bounds size
-navMesh.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
-navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
-navMesh.origin[0] = polyMesh.bounds[0][0];
-navMesh.origin[1] = polyMesh.bounds[0][1];
-navMesh.origin[2] = polyMesh.bounds[0][2];
-
 // convert the poly mesh to a navmesh tile polys
 const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
 
 // convert the poly mesh detail to a navmesh tile detail mesh
 const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
-
-// create the navmesh tile
-const tile: Nav.NavMeshTile = {
-    id: -1,
-    bounds: polyMesh.bounds,
-    vertices: tilePolys.vertices,
-    polys: tilePolys.polys,
-    detailMeshes: tileDetailMesh.detailMeshes,
-    detailVertices: tileDetailMesh.detailVertices,
-    detailTriangles: tileDetailMesh.detailTriangles,
-    tileX: 0,
-    tileY: 0,
-    tileLayer: 0,
-    bvTree: null,
-    cellSize,
-    cellHeight,
-    walkableHeight: walkableHeightWorld,
-    walkableRadius: walkableRadiusWorld,
-    walkableClimb: walkableClimbWorld,
-};
-
-// OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tile);
-
-// add the tile to the navmesh
-Nav.addTile(navMesh, tile);
-```
-
-![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
-
-```ts
-export function createNavMesh(): NavMesh;
 ```
 
 ```ts
@@ -750,6 +718,55 @@ export type NavMeshPolyDetail = {
     /** The number of triangles in the sub-mesh */
     trianglesCount: number;
 };
+```
+
+### 8. Assemble the navigation mesh
+
+Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
+
+```ts
+// create the navigation mesh
+const navMesh = Nav.createNavMesh();
+
+// set the navmesh parameters using the poly mesh bounds
+// this example is for a single tile navmesh, so the tile width/height is the same as the poly mesh bounds size
+navMesh.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
+navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
+navMesh.origin[0] = polyMesh.bounds[0][0];
+navMesh.origin[1] = polyMesh.bounds[0][1];
+navMesh.origin[2] = polyMesh.bounds[0][2];
+
+// create the navmesh tile
+const tile: Nav.NavMeshTile = {
+    id: -1,
+    bounds: polyMesh.bounds,
+    vertices: tilePolys.vertices,
+    polys: tilePolys.polys,
+    detailMeshes: tileDetailMesh.detailMeshes,
+    detailVertices: tileDetailMesh.detailVertices,
+    detailTriangles: tileDetailMesh.detailTriangles,
+    tileX: 0,
+    tileY: 0,
+    tileLayer: 0,
+    bvTree: null,
+    cellSize,
+    cellHeight,
+    walkableHeight: walkableHeightWorld,
+    walkableRadius: walkableRadiusWorld,
+    walkableClimb: walkableClimbWorld,
+};
+
+// OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
+Nav.buildNavMeshBvTree(tile);
+
+// add the tile to the navmesh
+Nav.addTile(navMesh, tile);
+```
+
+![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
+
+```ts
+export function createNavMesh(): NavMesh;
 ```
 
 ```ts
@@ -1309,14 +1326,14 @@ export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
 ```ts
 const nodeRef: Nav.NodeRef = '0,0,1';
 
-const areaAndFlags = Nav.getNodeAreaAndFlags(nodeRef, navMesh);
+const areaAndFlags = Nav.getNodeAreaAndFlags(Nav.createGetNodeAreaAndFlagsResult(), navMesh, nodeRef);
 console.log(areaAndFlags.success);
 console.log(areaAndFlags.area);
 console.log(areaAndFlags.flags);
 ```
 
 ```ts
-export function getNodeAreaAndFlags(nodeRef: NodeRef, navMesh: NavMesh): GetNodeAreaAndFlagsResult;
+export function getNodeAreaAndFlags(out: GetNodeAreaAndFlagsResult, navMesh: NavMesh, nodeRef: NodeRef): GetNodeAreaAndFlagsResult;
 ```
 
 ### queryPolygons
@@ -1349,6 +1366,88 @@ Nav.queryPolygonsInTile(outNodeRefs, navMesh, tile, bounds, Nav.DEFAULT_QUERY_FI
 ```ts
 export function queryPolygonsInTile(out: NodeRef[], navMesh: NavMesh, tile: NavMeshTile, bounds: Box3, filter: QueryFilter): void;
 ```
+
+## Custom Query Filters and Custom Area Types
+
+Most navigation mesh querying APIs accept a `queryFilter` parameter that allows you to customize how the query is performed.
+
+You can provide a cost calculation function to modify the cost of traversing polygons, and you can provide a filter function to include/exclude polygons based on their area and flags.
+
+```ts
+export type QueryFilter = {
+    /**
+     * Checks if a NavMesh node passes the filter.
+     * @param ref The node reference.
+     * @param navMesh The navmesh
+     * @returns Whether the node reference passes the filter.
+     */
+    passFilter(nodeRef: NodeRef, navMesh: NavMesh): boolean;
+
+    /**
+     * Calculates the cost of moving from one point to another.
+     * @param pa The start position on the edge of the previous and current node. [(x, y, z)]
+     * @param pb The end position on the edge of the current and next node. [(x, y, z)]
+     * @param navMesh The navigation mesh
+     * @param prevRef The reference id of the previous node. [opt]
+     * @param curRef The reference id of the current node.
+     * @param nextRef The reference id of the next node. [opt]
+     * @returns The cost of moving from the start to the end position.
+     */
+    getCost(
+        pa: Vec3,
+        pb: Vec3,
+        navMesh: NavMesh,
+        prevRef: NodeRef | undefined,
+        curRef: NodeRef,
+        nextRef: NodeRef | undefined,
+    ): number;
+};
+```
+
+```ts
+export const DEFAULT_QUERY_FILTER = (() => {
+    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
+
+    return {
+        includeFlags: 0xffffff,
+        excludeFlags: 0,
+        getCost: (pa, pb, navMesh, _prevRef, _curRef, nextRef) => {
+            if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION) {
+                const [, offMeshConnectionId] = desNodeRef(nextRef);
+                const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+                if (offMeshConnection.cost !== undefined) {
+                    return offMeshConnection.cost;
+                }
+            }
+
+            return vec3.distance(pa, pb);
+        },
+        passFilter(nodeRef, navMesh) {
+            const { flags } = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
+
+            return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
+        },
+    } satisfies DefaultQueryFilter;
+})();
+```
+
+Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
+
+You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
+
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-custom-areas">
+    <img src="./examples/public/screenshots/example-custom-areas.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Custom Areas</strong>
+  </a>
+  <p>Example of using custom area types in a navmesh</p>
+</div>
+
+
+## Agent / Crowd Simulation
+
+... TODO ...
 
 ## Off-Mesh Connections
 
@@ -1469,7 +1568,11 @@ The structure of a navigation mesh node in navcat is `0,tileId,polyIndex`, where
 
 When you add a tile to a navigation mesh, a new unique `tileId` is assigned to the tile to force any existing node references to become invalid, so you don't accidentally start referencing polygons incorrectly.
 
-## Navigation Mesh Debugging
+## BYO Navigation Meshes
+
+... TODO ...
+
+## Debug Utilities
 
 navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
 
@@ -1619,11 +1722,6 @@ const searchNodesHelper = Nav.three.createSearchNodesHelper(findNodePathResult.n
 const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnectionsHelper(navMesh);
 ```
 
-## BYO Navigation Meshes
-
-...
-
 ## Acknowledgements
 
-...
-
+... TODO ...

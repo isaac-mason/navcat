@@ -10,7 +10,8 @@
     "scripts": {
         "build": "rm -rf ./dist && rollup --config rollup.config.mjs",
         "format": "biome format --write src/.",
-        "lint": "biome lint --write src/."
+        "lint": "biome lint --write src/.",
+        "docs": "cd docs && node ./build.js"
     },
     "packageManager": "pnpm@8.15.2+sha1.798034f615aa211c6c2ae00010cc20be5fc102ee",
     "dependencies": {

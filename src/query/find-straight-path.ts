@@ -9,7 +9,7 @@ import {
     createDistancePtSegSqr2dResult,
 } from '../geometry';
 import type { NavMesh } from './nav-mesh';
-import { getClosestPointOnPolyBoundary, getNodeAreaAndFlags } from './nav-mesh-api';
+import { createGetNodeAreaAndFlagsResult, getClosestPointOnPolyBoundary, getNodeAreaAndFlags } from './nav-mesh-api';
 import { getPortalPoints } from './nav-mesh-search';
 import { getNodeRefType, type NodeRef, NodeType } from './node';
 
@@ -95,6 +95,8 @@ const _intersectSegSeg2DResult: IntersectSegSeg2DResult = createIntersectSegSeg2
 const _appendPortalsPoint = vec3.create();
 const _appendPortalsLeft = vec3.create();
 const _appendPortalsRight = vec3.create();
+const _appendPortals_nodeAreaAndFlags_a = createGetNodeAreaAndFlagsResult();
+const _appendPortals_nodeAreaAndFlags_b = createGetNodeAreaAndFlagsResult();
 
 const appendPortals = (
     navMesh: NavMesh,
@@ -114,8 +116,8 @@ const appendPortals = (
 
         // skip intersection if only area crossings requested and areas equal.
         if (options & FindStraightPathOptions.AREA_CROSSINGS) {
-            const a = getNodeAreaAndFlags(from, navMesh);
-            const b = getNodeAreaAndFlags(to, navMesh);
+            const a = getNodeAreaAndFlags(_appendPortals_nodeAreaAndFlags_a, navMesh, from);
+            const b = getNodeAreaAndFlags(_appendPortals_nodeAreaAndFlags_b, navMesh, to);
 
             if (a.success && b.success) {
                 if (a.area === b.area) continue;

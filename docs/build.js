@@ -2,6 +2,32 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 
+// find all .ts files in src
+const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../src');
+function getAllSourceFiles(dir) {
+    let files = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            files = files.concat(getAllSourceFiles(fullPath));
+        } else if (entry.isFile() && entry.name.endsWith('.ts')) {
+            files.push(fullPath);
+        }
+    }
+    return files;
+}
+const sourceFiles = getAllSourceFiles(srcDir);
+
+// create a TypeScript program from all .ts files
+const tsProgram = ts.createProgram(sourceFiles, {
+    allowJs: false,
+    declaration: true,
+    emitDeclarationOnly: true,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    strict: true,
+    noEmit: true,
+});
+
 const readmeTemplatePath = path.join(path.dirname(new URL(import.meta.url).pathname), './README.template.md');
 const readmeOutPath = path.join(path.dirname(new URL(import.meta.url).pathname), '../README.md');
 
@@ -125,34 +151,7 @@ readmeText = readmeText.replace(snippetRegex, (fullMatch, sourcePath, groupName)
 fs.writeFileSync(readmeOutPath, readmeText, 'utf-8');
 
 /* utils */
-
 function getSource(typeName) {
-    // find all .ts files in src
-    const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../src');
-    function getAllSourceFiles(dir) {
-        let files = [];
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                files = files.concat(getAllSourceFiles(fullPath));
-            } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-                files.push(fullPath);
-            }
-        }
-        return files;
-    }
-    const dtsFiles = getAllSourceFiles(srcDir);
-
-    // create a TypeScript program from all .ts files
-    const program = ts.createProgram(dtsFiles, {
-        allowJs: false,
-        declaration: true,
-        emitDeclarationOnly: true,
-        moduleResolution: ts.ModuleResolutionKind.Bundler,
-        strict: true,
-        noEmit: true,
-    });
-
     let found = null;
     function visit(node, fileText) {
         // Types, interfaces, classes
@@ -173,15 +172,15 @@ function getSource(typeName) {
         ) {
             found = fileText.slice(node.getFullStart(), node.getEnd());
         }
-        // Exported const function expressions (arrow or function)
+        // Exported const expressions
         if (
             ts.isVariableStatement(node) &&
             node.modifiers && node.modifiers.some(m => m.kind === ts.SyntaxKind.ExportKeyword)
         ) {
             for (const decl of node.declarationList.declarations) {
                 if (
-                    decl.name && ts.isIdentifier(decl.name) && decl.name.text === typeName &&
-                    decl.initializer && (ts.isFunctionExpression(decl.initializer) || ts.isArrowFunction(decl.initializer))
+                    decl.name && ts.isIdentifier(decl.name) && decl.name.text === typeName //&&
+                    // decl.initializer && (ts.isFunctionExpression(decl.initializer) || ts.isArrowFunction(decl.initializer))
                 ) {
                     found = fileText.slice(node.getFullStart(), node.getEnd());
                 }
@@ -191,8 +190,8 @@ function getSource(typeName) {
     }
 
     // search all files for the type or function
-    for (const file of dtsFiles) {
-        const sf = program.getSourceFile(file);
+    for (const file of sourceFiles) {
+        const sf = tsProgram.getSourceFile(file);
         if (sf) {
             const fileText = sf.getFullText();
             visit(sf, fileText);
@@ -204,32 +203,7 @@ function getSource(typeName) {
 }
 
 function getType(typeName) {
-    // find all .ts files in src
-    const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../src');
-    function getAllSourceFiles(dir) {
-        let files = [];
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-            const fullPath = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                files = files.concat(getAllSourceFiles(fullPath));
-            } else if (entry.isFile() && entry.name.endsWith('.ts')) {
-                files.push(fullPath);
-            }
-        }
-        return files;
-    }
-    const dtsFiles = getAllSourceFiles(srcDir);
-
-    // create a TypeScript program from all .ts files
-    const program = ts.createProgram(dtsFiles, {
-        allowJs: false,
-        declaration: true,
-        emitDeclarationOnly: true,
-        moduleResolution: ts.ModuleResolutionKind.Bundler,
-        strict: true,
-        noEmit: true,
-    });
-    const checker = program.getTypeChecker();
+    const checker = tsProgram.getTypeChecker();
 
     let found = null;
     function visit(node, fileText) {
@@ -308,8 +282,8 @@ function getType(typeName) {
     }
 
     // search all files for the type or function
-    for (const file of dtsFiles) {
-        const sf = program.getSourceFile(file);
+    for (const file of sourceFiles) {
+        const sf = tsProgram.getSourceFile(file);
         if (sf) {
             const fileText = sf.getFullText();
             visit(sf, fileText);
