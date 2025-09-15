@@ -1409,9 +1409,10 @@ export const DEFAULT_QUERY_FILTER = (() => {
     const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
 
     return {
-        includeFlags: 0xffffff,
+        includeFlags: 0xffffffff,
         excludeFlags: 0,
-        getCost: (pa, pb, navMesh, _prevRef, _curRef, nextRef) => {
+        getCost(pa, pb, navMesh, _prevRef, _curRef, nextRef) {
+            // handle offmesh connection 'cost' override
             if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION) {
                 const [, offMeshConnectionId] = desNodeRef(nextRef);
                 const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
@@ -1420,9 +1421,11 @@ export const DEFAULT_QUERY_FILTER = (() => {
                 }
             }
 
+            // use the distance between the two points as the cost
             return vec3.distance(pa, pb);
         },
         passFilter(nodeRef, navMesh) {
+            // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
             const { flags } = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
 
             return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
@@ -1447,7 +1450,21 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
 
 ## Agent / Crowd Simulation
 
-... TODO ...
+This library provides tools for you to simulate agents / crowds navigating the navmesh, but it deliberately does not do everything for you.
+
+Agent simulation varies greatly between use cases, with lots of different approaches to steering, collision avoidance, velocity control, off mesh connection animation, etc.
+
+Instead of providing an abstraction for agent simulation, navcat provides a set of tools, and a "starting point" in the "Crowd Simulation Example". You can copy/paste this into your project and maintain full control over customizing the simulation to your needs.
+
+
+<div align="center">
+  <a href="https://navcat.dev/examples#example-example-crowd-simulation">
+    <img src="./examples/public/screenshots/example-crowd-simulation.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Crowd Simulation</strong>
+  </a>
+  <p>Example of crowd simulation with agent and wall avoidance</p>
+</div>
+
 
 ## Off-Mesh Connections
 

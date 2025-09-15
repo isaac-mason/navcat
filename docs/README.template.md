@@ -370,7 +370,13 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
 
 ## Agent / Crowd Simulation
 
-... TODO ...
+This library provides tools for you to simulate agents / crowds navigating the navmesh, but it deliberately does not do everything for you.
+
+Agent simulation varies greatly between use cases, with lots of different approaches to steering, collision avoidance, velocity control, off mesh connection animation, etc.
+
+Instead of providing an abstraction for agent simulation, navcat provides a set of tools, and a "starting point" in the "Crowd Simulation Example". You can copy/paste this into your project and maintain full control over customizing the simulation to your needs.
+
+<Example id="example-crowd-simulation" />
 
 ## Off-Mesh Connections
 
