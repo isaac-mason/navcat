@@ -37,15 +37,14 @@ let readmeText = fs.readFileSync(readmeTemplatePath, 'utf-8');
 const tocRegex = /<TOC\s*\/>/g;
 const tocLines = [];
 const headingRegex = /^(#{2,6})\s+(.*)$/gm;
-let match;
-while ((match = headingRegex.exec(readmeText)) !== null) {
+for (const match of readmeText.matchAll(headingRegex)) {
     const level = match[1].length - 1; // level 2-6 becomes 1-5
     const title = match[2].trim();
     const anchor = title
-        .toLowerCase()
-        .replace(/[^\w\s-]/g, '') // remove non-alphanumeric characters except spaces and hyphens
-        .replace(/\s+/g, '-') // replace spaces with hyphens
-        .replace(/-+/g, '-'); // collapse multiple hyphens
+            .toLowerCase()
+            .replace(/[^\w\s-]/g, '') // remove non-alphanumeric characters except spaces and hyphens
+            .replace(/\s+/g, '-') // replace spaces with hyphens
+            .replace(/-+/g, '-'); // collapse multiple hyphens
     const indent = '  '.repeat(level - 1);
     tocLines.push(`${indent}- [${title}](#${anchor})`);
 }
