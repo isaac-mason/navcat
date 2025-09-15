@@ -457,7 +457,7 @@ const queryFilterConfig = {
     filter: 'ground' as 'all' | 'ground' | 'water',
 };
 const queryFilterFolder = gui.addFolder('Query Filter');
-queryFilterFolder.add(queryFilterConfig, 'filter', ['all', 'ground', 'water']).name('area');
+queryFilterFolder.add(queryFilterConfig, 'filter', ['all', 'ground', 'water']).name('area').onChange(updatePath);
 
 /* find path */
 let start: Vec3 = [-8, 1.5, -2.3];

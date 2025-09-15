@@ -92,7 +92,7 @@ The navigation mesh generation process emits diagnostic messages, warnings, and 
 
 ### 1. Mark walkable triangles
 
-The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are too steep are discarded.
+The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are walkable are marked with the `WALKABLE_AREA` (`1`) area type.
 
 <Snippet source="./snippets/solo-navmesh.ts" select="walkableTriangles" />
 

@@ -220,7 +220,7 @@ export type BuildContextState = {
 
 ### 1. Mark walkable triangles
 
-The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are too steep are discarded.
+The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are walkable are marked with the `WALKABLE_AREA` (`1`) area type.
 
 ```ts
 // CONFIG: agent walkable slope angle
