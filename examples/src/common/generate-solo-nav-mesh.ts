@@ -139,7 +139,7 @@ export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMes
 
     BuildContext.end(ctx, 'filter walkable surfaces');
 
-    /* 5. partition walkable surface to simple regions. */
+    /* 5. compact the heightfield */
 
     // Compact the heightfield so that it is faster to handle from now on.
     // This will result more cache coherent data as well as the neighbours

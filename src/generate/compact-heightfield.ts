@@ -1,4 +1,5 @@
 import type { Box3 } from 'maaths';
+import { pointInPoly } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common';
 import type { Heightfield } from './heightfield';
@@ -406,35 +407,15 @@ export const erodeWalkableArea = (walkableRadiusVoxels: number, compactHeightfie
 };
 
 /**
- * Helper function to test if a point is inside a polygon (2D)
- */
-const pointInPoly = (numVerts: number, verts: number[], point: number[]): boolean => {
-    let inside = false;
-    let j = numVerts - 1;
-
-    for (let i = 0; i < numVerts; j = i++) {
-        const xi = verts[i * 3]; // x coordinate of vertex i
-        const zi = verts[i * 3 + 2]; // z coordinate of vertex i
-        const xj = verts[j * 3]; // x coordinate of vertex j
-        const zj = verts[j * 3 + 2]; // z coordinate of vertex j
-
-        if (zi > point[2] !== zj > point[2] && point[0] < ((xj - xi) * (point[2] - zi)) / (zj - zi) + xi) {
-            inside = !inside;
-        }
-    }
-
-    return inside;
-};
-
-/**
  * Marks spans in the heightfield that intersect the specified box area with the given area ID.
  */
 export const markBoxArea = (
-    boxMinBounds: number[],
-    boxMaxBounds: number[],
+    bounds: Box3,
     areaId: number,
     compactHeightfield: CompactHeightfield,
 ) => {
+    const [boxMinBounds, boxMaxBounds] = bounds;
+
     const xSize = compactHeightfield.width;
     const zSize = compactHeightfield.height;
     const zStride = xSize; // For readability

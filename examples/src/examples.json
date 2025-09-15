@@ -14,6 +14,11 @@
         "description": "Example of flow field pathfinding on a navmesh",
         "tags": ["pathfinding", "navmesh"]
     },
+    "example-custom-areas": {
+        "title": "Custom Areas",
+        "description": "Example of using custom area types in a navmesh",
+        "tags": ["navmesh", "areas"]
+    },
     "example-solo-navmesh": {
         "title": "Solo NavMesh",
         "description": "Example of generating a single tile navmesh",

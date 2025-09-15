@@ -27,31 +27,27 @@ export const closestPtSeg2d = (out: Vec3, pt: Vec3, p: Vec3, q: Vec3): void => {
     out[2] = p[2] + t * pqz;
 };
 
-const _pointInPolyVI = vec3.create();
-const _pointInPolyVJ = vec3.create();
-
 /**
  * Tests if a point is inside a polygon in 2D (XZ plane)
- * @param nvert Number of vertices in the polygon
- * @param verts Array of vertex coordinates [x,y,z,x,y,z,...]
- * @param p The point to test
- * @returns True if the point is inside the polygon
  */
-export const pointInPoly = (nvert: number, verts: number[], p: Vec3): boolean => {
-    let c = false;
-    let j = nvert - 1;
+export const pointInPoly = (numVerts: number, verts: number[], point: number[]): boolean => {
+    let inside = false;
+    let j = numVerts - 1;
 
-    for (let i = 0; i < nvert; j = i++) {
-        const vi = vec3.fromBuffer(_pointInPolyVI, verts, i * 3);
-        const vj = vec3.fromBuffer(_pointInPolyVJ, verts, j * 3);
+    for (let i = 0; i < numVerts; j = i++) {
+        const xi = verts[i * 3]; // x coordinate of vertex i
+        const zi = verts[i * 3 + 2]; // z coordinate of vertex i
+        const xj = verts[j * 3]; // x coordinate of vertex j
+        const zj = verts[j * 3 + 2]; // z coordinate of vertex j
 
-        if (vi[2] > p[2] !== vj[2] > p[2] && p[0] < ((vj[0] - vi[0]) * (p[2] - vi[2])) / (vj[2] - vi[2]) + vi[0]) {
-            c = !c;
+        if (zi > point[2] !== zj > point[2] && point[0] < ((xj - xi) * (point[2] - zi)) / (zj - zi) + xi) {
+            inside = !inside;
         }
     }
 
-    return c;
+    return inside;
 };
+
 
 const _distPtTriV0: Vec3 = vec3.create();
 const _distPtTriV1: Vec3 = vec3.create();
