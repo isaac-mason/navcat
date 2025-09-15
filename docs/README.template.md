@@ -446,6 +446,6 @@ If you are using threejs, navcat provides utilities to convert the debug primiti
 
 ## Acknowledgements
 
-- This library is heavily inspired by the recastnavigation library
+- This library is heavily inspired by the recastnavigation library: https://github.com/recastnavigation/recastnavigation
   - Although navcat is not a direct port of recastnavigation, the core navigation mesh generation approach is based on the recastnavigation library's voxelization-based approach to navigation mesh generation.
 - Shoutout to @verekia for the cute name idea :)
