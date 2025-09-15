@@ -33,6 +33,25 @@ const readmeOutPath = path.join(path.dirname(new URL(import.meta.url).pathname),
 
 let readmeText = fs.readFileSync(readmeTemplatePath, 'utf-8');
 
+/* <TOC /> */
+const tocRegex = /<TOC\s*\/>/g;
+const tocLines = [];
+const headingRegex = /^(#{2,6})\s+(.*)$/gm;
+let match;
+while ((match = headingRegex.exec(readmeText)) !== null) {
+    const level = match[1].length - 1; // level 2-6 becomes 1-5
+    const title = match[2].trim();
+    const anchor = title
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, '') // remove non-alphanumeric characters except spaces and hyphens
+        .replace(/\s+/g, '-') // replace spaces with hyphens
+        .replace(/-+/g, '-'); // collapse multiple hyphens
+    const indent = '  '.repeat(level - 1);
+    tocLines.push(`${indent}- [${title}](#${anchor})`);
+}
+const tocText = tocLines.join('\n');
+readmeText = readmeText.replace(tocRegex, tocText);
+
 /* <Examples /> */
 const examplesRegex = /<Examples\s*\/>/g;
 const examplesJsonPath = path.join(path.dirname(new URL(import.meta.url).pathname), '../examples/src/examples.json');

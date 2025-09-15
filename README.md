@@ -133,6 +133,48 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 </table>
 
 
+## Table of Contents
+
+- [Table of Contents](#table-of-contents)
+- [Introduction](#introduction)
+  - [What is a navigation mesh?](#what-is-a-navigation-mesh)
+  - [The navcat navigation mesh structure](#the-navcat-navigation-mesh-structure)
+  - [Can navcat be integrated with XYZ?](#can-navcat-be-integrated-with-xyz)
+- [How are navigation meshes generated with navcat?](#how-are-navigation-meshes-generated-with-navcat)
+  - [0. Input and setup](#0-input-and-setup)
+  - [1. Mark walkable triangles](#1-mark-walkable-triangles)
+  - [2. Rasterize triangles into a heightfield, do filtering with the heightfield](#2-rasterize-triangles-into-a-heightfield-do-filtering-with-the-heightfield)
+  - [3. Build compact heightfield, erode walkable area, mark areas](#3-build-compact-heightfield-erode-walkable-area-mark-areas)
+  - [4. Build compact heightfield regions](#4-build-compact-heightfield-regions)
+  - [5. Build contours from compact heightfield regions](#5-build-contours-from-compact-heightfield-regions)
+  - [6. Build polygon mesh from contours, build detail mesh](#6-build-polygon-mesh-from-contours-build-detail-mesh)
+  - [7. Convert build-time poly mesh and poly mesh detail to runtime navmesh tile format](#7-convert-build-time-poly-mesh-and-poly-mesh-detail-to-runtime-navmesh-tile-format)
+  - [8. Assemble the navigation mesh](#8-assemble-the-navigation-mesh)
+- [Navigation Mesh Querying](#navigation-mesh-querying)
+  - [findPath](#findpath)
+  - [findNearestPoly](#findnearestpoly)
+  - [findNodePath](#findnodepath)
+  - [findStraightPath](#findstraightpath)
+  - [moveAlongSurface](#movealongsurface)
+  - [raycast](#raycast)
+  - [getPolyHeight](#getpolyheight)
+  - [findRandomPoint](#findrandompoint)
+  - [findRandomPointAroundCircle](#findrandompointaroundcircle)
+  - [getClosestPointOnPoly](#getclosestpointonpoly)
+  - [closestPointOnDetailEdges](#closestpointondetailedges)
+  - [getPortalPoints](#getportalpoints)
+  - [isValidNodeRef](#isvalidnoderef)
+  - [getNodeAreaAndFlags](#getnodeareaandflags)
+  - [queryPolygons](#querypolygons)
+  - [queryPolygonsInTile](#querypolygonsintile)
+- [Custom Query Filters and Custom Area Types](#custom-query-filters-and-custom-area-types)
+- [Agent / Crowd Simulation](#agent-crowd-simulation)
+- [Off-Mesh Connections](#off-mesh-connections)
+- [Tiled Navigation Meshes](#tiled-navigation-meshes)
+- [BYO Navigation Meshes](#byo-navigation-meshes)
+- [Debug Utilities](#debug-utilities)
+- [Acknowledgements](#acknowledgements)
+
 ## Introduction
 
 ### What is a navigation mesh?
