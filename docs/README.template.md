@@ -37,13 +37,13 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 
 ### The navcat navigation mesh structure
 
-In navcat, a navigation mesh is represented as a graph of `nodes` and `links`.
+In navcat, a navigation mesh can contain multiple "tiles", where each tile contains a set of polygons and a detail mesh. A navigation mesh can either have one tile that covers the entire area, or multiple tiles can be added in a grid for more advanced use cases.
+
+As tiles are added and removed from a navmesh, a global graph of `nodes` and `links` is maintained to represent the entire navigation mesh, which is used for pathfinding and navigation queries.
 
 Each `node` represents either a polygon in the navigation mesh or an off-mesh connection.
 
 Each `link` represents a connection between two nodes, either between two polygons if they share an edge, or between a polygon and an off-mesh connection.
-
-The "navigation mesh" object itself can contain many tiles in a grid, where navcat will stitch together the tiles into the global `nodes` and `links` used for pathfinding.
 
 Because the navigation mesh is a fully JSON-serializable data structure, you can easily save and load navigation meshes to/from disk, or send them over a network. It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
 
@@ -77,10 +77,14 @@ At a high-level:
 
 Like recast, navcat supports both single and tiled navigation meshes. Single-tile meshes are suitable for many simple, static cases and are easy to work with. Tiled navmeshes are more complex to work with but better support larger, more dynamic environments, and enable advanced use cases like re-baking, navmesh data-streaming.
 
-Below is an overview of the steps involved in generating a "solo" / single-tile navigation mesh from a set of input triangles. If you want a copy-and-pasteable starter, see the examples:
+If you want an interactive example / starter, see the examples:
 - https://navcat.dev/examples#example-generate-navmesh
 - [./examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
 - [./examples/src/common/generate-solo-nav-mesh.ts](./examples/src/common/generate-solo-nav-mesh.ts)
+
+If you are looking for a minimal snippet to copy & paste into your project to quick-start, see below. The sections following the snippet provides a step-by-step breakdown of the process with images and explanations.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="generationFull" />
 
 ### 0. Input and setup
 

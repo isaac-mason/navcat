@@ -1,8 +1,12 @@
 /** biome-ignore-all lint/correctness/noUnusedVariables: examples */
 
+/* SNIPPET_START: generationFull */
+
 /* SNIPPET_START: input */
 import * as Nav from 'navcat';
-import type { Vec3, Box3 } from 'maaths';
+
+type Vec3 = [number, number, number];
+type Box3 = [Vec3, Vec3];
 
 // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const positions: number[] = [];
@@ -176,6 +180,8 @@ Nav.buildNavMeshBvTree(tile);
 // add the tile to the navmesh
 Nav.addTile(navMesh, tile);
 /* SNIPPET_END: navMesh */
+
+/* SNIPPET_END: generationFull */
 
 {
     /* SNIPPET_START: findPath */

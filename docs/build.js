@@ -159,9 +159,12 @@ readmeText = readmeText.replace(snippetRegex, (fullMatch, sourcePath, groupName)
     if (baseIndent) {
         snippetCode = snippetCode.replace(new RegExp(`^${baseIndent}`, 'gm'), '');
     }
-    // Remove any leading/trailing blank lines
-    snippetCode = snippetCode.replace(/^\s*\n|\n\s*$/g, '');
-    return `\`\`\`ts\n${snippetCode}\n\`\`\``;
+        // Remove lines containing nested SNIPPET_START/SNIPPET_END blocks for any group
+        snippetCode = snippetCode.replace(/^.*\/\*[ \t]*SNIPPET_START:[^*]*\*\/.*\n?/gm, '');
+        snippetCode = snippetCode.replace(/^.*\/\*[ \t]*SNIPPET_END:[^*]*\*\/.*\n?/gm, '');
+        // Remove any leading/trailing blank lines
+        snippetCode = snippetCode.replace(/^\s*\n|\n\s*$/g, '');
+        return `\`\`\`ts\n${snippetCode}\n\`\`\``;
 });
 
 /* write result */
