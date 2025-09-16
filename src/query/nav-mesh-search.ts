@@ -390,6 +390,7 @@ export const findNodePath = (
 
         // get current node
         const currentNodeLinks = navMesh.nodes[currentNodeRef];
+        if (!currentNodeLinks) continue;
 
         // get parent node ref
         let parentNodeRef: NodeRef | undefined;
@@ -730,6 +731,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
         // get current node info
         const currentNodeRef = bestNode.nodeRef;
         const currentNodeLinks = navMesh.nodes[currentNodeRef];
+        if (!currentNodeLinks) continue;
 
         // get parent for backtracking prevention
         let parentNodeRef: NodeRef | undefined;

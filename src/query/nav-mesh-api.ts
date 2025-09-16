@@ -783,7 +783,7 @@ const releaseLink = (navMesh: NavMesh, index: number) => {
     navMesh.freeLinkIndices.push(index);
 };
 
-const createInternalLinks = (navMesh: NavMesh, tile: NavMeshTile) => {
+const connectInternalLinks = (navMesh: NavMesh, tile: NavMeshTile) => {
     // create links between polygons within the tile
     // based on the neighbor information stored in each polygon
 
@@ -813,7 +813,6 @@ const createInternalLinks = (navMesh: NavMesh, tile: NavMeshTile) => {
                 link.bmin = 0; // not used for internal links
                 link.bmax = 0; // not used for internal links
 
-                navMesh.nodes[polyRef] ??= [];
                 navMesh.nodes[polyRef].push(linkIndex);
             }
         }
@@ -1012,8 +1011,7 @@ const connectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, target: NavMe
                 link.side = dir;
                 link.bmin = Math.round(tmin * 255);
                 link.bmax = Math.round(tmax * 255);
-
-                navMesh.nodes[polyRef] ??= [];
+                
                 navMesh.nodes[polyRef].push(linkIndex);
             }
         }
@@ -1253,8 +1251,14 @@ export const addTile = (navMesh: NavMesh, tile: NavMeshTile) => {
     navMesh.tiles[tile.id] = tile;
     navMesh.tilePositionHashToTileId[tileHash] = tile.id;
 
+    // create empty 'nodes' for each poly, to be populated by connectInternalLinks, connectExternalLinks
+    for (let i = 0; i < tile.polys.length; i++) {
+        const ref = serPolyNodeRef(tile.id, i)
+        navMesh.nodes[ref] = [];
+    }
+
     // create internal links within the tile
-    createInternalLinks(navMesh, tile);
+    connectInternalLinks(navMesh, tile);
 
     // connect with layers in current tile.
     const tilesAtCurrentPosition = getTilesAt(navMesh, tile.tileX, tile.tileY);
