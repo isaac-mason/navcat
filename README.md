@@ -50,19 +50,25 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-byo-navmesh">
-        <img src="./examples/public/screenshots/example-byo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        BYO NavMesh
+      <a href="https://navcat.dev#example-custom-gltf-navmesh">
+        <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Custom GLTF NavMesh
       </a>
     </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-custom-navmesh-generation">
+        <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Custom NavMesh Generation
+      </a>
+    </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Solo NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -75,14 +81,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Flood Fill Pruning
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-path">
         <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -95,14 +101,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Off-Mesh Connections
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Raycast
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -115,14 +121,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Nearest Poly
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -1643,15 +1649,15 @@ You can pass any external polygon data to the `polygonsToNavMeshTilePolys` utili
 
 You can also use `polysToTileDetailMesh` to generate a detail mesh for your polygons, or you can provide your own detail mesh if you have height data for your polygons.
 
-See the "BYO NavMesh Example" to see how to use an "externally generated" navigation mesh with navcat:
+See the "Custom GLTF NavMesh" Example to see how to use an "externally generated" navigation mesh with navcat:
 
 
 <div align="center">
-  <a href="https://navcat.dev#example-byo-navmesh">
-    <img src="./examples/public/screenshots/example-byo-navmesh.png" width="360" height="240" style="object-fit:cover;"/><br/>
-    <strong>BYO NavMesh</strong>
+  <a href="https://navcat.dev#example-custom-gltf-navmesh">
+    <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Custom GLTF NavMesh</strong>
   </a>
-  <p>Example of using a navigation mesh created with an external tool</p>
+  <p>Example of loading a level model and navmesh from a GLTF file</p>
 </div>
 
 
