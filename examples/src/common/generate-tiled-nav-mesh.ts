@@ -170,7 +170,7 @@ const buildTile = (
     filterLedgeSpans(heightfield, walkableHeightVoxels, walkableClimbVoxels);
     filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
 
-    /* 6. partition walkable surface to simple regions. */
+    /* 6. build the compact heightfield */
 
     const compactHeightfield = buildCompactHeightfield(ctx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
 

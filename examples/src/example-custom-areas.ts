@@ -188,7 +188,7 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     BuildContext.end(ctx, 'build compact heightfield');
 
-    /* 5. partition walkable surface to simple regions. */
+    /* 5. mark custom areas */
 
     // mark 'water' custom area with bounds
     markBoxArea(navMeshInput.waterBounds, NavMeshAreaType.WATER, compactHeightfield);
