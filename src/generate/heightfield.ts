@@ -66,7 +66,7 @@ export const createHeightfield = (
  * Adds a span to the heightfield. If the new span overlaps existing spans,
  * it will merge the new span with the existing ones.
  */
-const addSpan = (
+export const addHeightfieldSpan = (
     heightfield: Heightfield,
     x: number,
     z: number,
@@ -374,7 +374,7 @@ const rasterizeTriangle = (
             const spanMinCellIndex = clamp(Math.floor(spanMin * inverseCellHeight), 0, SPAN_MAX_HEIGHT);
             const spanMaxCellIndex = clamp(Math.ceil(spanMax * inverseCellHeight), spanMinCellIndex + 1, SPAN_MAX_HEIGHT);
 
-            if (!addSpan(heightfield, x, z, spanMinCellIndex, spanMaxCellIndex, areaID, flagMergeThreshold)) {
+            if (!addHeightfieldSpan(heightfield, x, z, spanMinCellIndex, spanMaxCellIndex, areaID, flagMergeThreshold)) {
                 return false;
             }
         }
