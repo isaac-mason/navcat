@@ -209,9 +209,11 @@ navcat is agnostic of other javascript libraries, but should work well with any 
 
 There are some built-in utilities for creating debug visualisations with threejs. But navcat will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
 
-navcat works with vector3's that adhere to the OpenGL conventions:
+navcat supports inputs that adhere to the OpenGL conventions:
 - Uses the right-handed coordinate system
 - Indices should be in counter-clockwise winding order
+
+If you are importing a navmesh created externally, note that navmesh poly vertices must be indexed / must share vertices between adjacent polygons.
 
 If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
 
