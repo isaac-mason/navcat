@@ -13,7 +13,7 @@ export const polyMeshToTilePolys = (polyMesh: PolyMesh): NavMeshTilePolys => {
 
     // create polys from input PolyMesh
     const nvp = polyMesh.maxVerticesPerPoly;
-    const nPolys = polyMesh.vertices.length / nvp;
+    const nPolys = polyMesh.nPolys;
 
     const polys: NavMeshPoly[] = [];
 
