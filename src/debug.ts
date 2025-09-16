@@ -715,7 +715,7 @@ export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[] {
     }
 
     // Draw vertices (points)
-    const vertexColor: [number, number, number] = [0, 0, 0];
+    const vertexColor: [number, number, number] = [1, 1, 1];
     for (let i = 0; i < polyMesh.nVertices; i++) {
         const vertIndex = i * 3;
         const x = orig[0] + polyMesh.vertices[vertIndex] * cs;
@@ -756,7 +756,7 @@ export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[] {
             type: DebugPrimitiveType.Points,
             positions: vertexPositions,
             colors: vertexColors,
-            size: 0.01,
+            size: 0.025,
             transparent: true,
         });
     }
@@ -772,7 +772,7 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
     const primitives: DebugPrimitive[] = [];
 
     const edgeColor: [number, number, number] = [0, 0, 0];
-    const vertexColor: [number, number, number] = [0, 0, 0];
+    const vertexColor: [number, number, number] = [1, 1, 1];
 
     const submeshToColor = (submeshIndex: number): [number, number, number] => {
         const hash = submeshIndex * 137.5;
@@ -985,8 +985,7 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
             type: DebugPrimitiveType.Points,
             positions: vertexPositions,
             colors: vertexColors,
-            size: 0.01,
-            transparent: true,
+            size: 0.025,
         });
     }
 
@@ -1107,7 +1106,7 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
         }
 
         // Draw vertices
-        const vertexColor = [0, 0, 0];
+        const vertexColor = [1, 1, 1];
         for (let i = 0; i < tile.vertices.length; i += 3) {
             const worldX = tile.vertices[i];
             const worldY = tile.vertices[i + 1];
@@ -1161,7 +1160,7 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
             type: DebugPrimitiveType.Points,
             positions: vertexPositions,
             colors: vertexColors,
-            size: 0.01,
+            size: 0.025,
         });
     }
 
