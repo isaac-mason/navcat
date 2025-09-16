@@ -83,8 +83,8 @@ const GROUND_ONLY_QUERY_FILTER: QueryFilter = (() => {
 
 /* navmesh generator for water and ground custom areas */
 type NavMeshInput = {
-    positions: Float32Array;
-    indices: Uint32Array;
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
     waterBounds: Box3;
 };
 
