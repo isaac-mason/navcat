@@ -720,6 +720,7 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
     mesh.polys.length = mesh.nPolys * maxVerticesPerPoly;
     mesh.regions.length = mesh.nPolys;
     mesh.flags.length = mesh.nPolys;
+    mesh.vertices.length = mesh.nVertices * 3;
 
     // allocate and initialize mesh flags array
     mesh.flags = new Array(mesh.nPolys).fill(0);
