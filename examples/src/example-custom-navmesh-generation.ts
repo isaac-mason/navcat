@@ -6,8 +6,8 @@ import {
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     type ExternalPolygon,
-    FindStraightPathResultFlags,
     findPath,
+    FindStraightPathResultFlags,
     getNodeRefType,
     type NavMeshTile,
     NodeType,
@@ -15,11 +15,11 @@ import {
     polysToTileDetailMesh,
     three as threeUtils,
 } from 'navcat';
+import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 
 /* setup three-mesh-bvh for faster raycasting */
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -76,7 +76,7 @@ const levelMeshes: THREE.Object3D[] = [];
 const simplexNoise = createSimplex2D(42);
 const maxHeight = 2;
 
-const terrainSize = 20;
+const terrainSize = 50;
 const terrainSegments = 128;
 const terrainGeometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
 terrainGeometry.rotateX(-Math.PI / 2);
@@ -112,7 +112,7 @@ houseGeometry.computeBoundingSphere();
 const houseMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
 
 const random = createMulberry32Generator(42);
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 30; i++) {
     const houseMesh = new THREE.Mesh(houseGeometry, houseMaterial);
     houseMesh.userData.type = 'obstacle';
     houseMesh.position.set((random() - 0.5) * terrainSize * 0.9, 0, (random() - 0.5) * terrainSize * 0.9);
@@ -145,9 +145,10 @@ terrainGeometry.computeBoundsTree();
 houseGeometry.computeBoundsTree();
 
 /* generate navmesh */
+console.time('generate navmesh');
 
 // raycast down and build a grid with shared vertices
-const gridSize = 1.5;
+const gridSize = 2;
 
 const walkablePoints: Vec3[] = [];
 
@@ -226,6 +227,8 @@ for (let ix = 0; ix < nx - 1; ix++) {
         }
     }
 }
+
+console.timeEnd('generate navmesh');
 
 // visualise walkable points
 const walkablePointsGroup = new THREE.Group();
@@ -346,8 +349,8 @@ debugFolder.add(debugConfig, 'triangulation').onChange(updateDebugViews);
 debugFolder.open();
 
 /* find path */
-let start: Vec3 = [-6.5, 0.3, 3];
-let end: Vec3 = [5.6, -0.8, -3];
+let start: Vec3 = [-6.1, 0.3, 5];
+let end: Vec3 = [8.6, -0.4, -3.7];
 const halfExtents: Vec3 = [1, 1, 1];
 
 type Visual = { object: THREE.Object3D; dispose: () => void };
@@ -366,7 +369,7 @@ function addVisual(visual: Visual) {
     scene.add(visual.object);
 }
 
-function createFlag(color: number): THREE.Group {
+function createFlag(color: number) {
     const poleGeom = new THREE.BoxGeometry(0.12, 1.2, 0.12);
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
     const pole = new THREE.Mesh(poleGeom, poleMat);
@@ -378,51 +381,28 @@ function createFlag(color: number): THREE.Group {
     const group = new THREE.Group();
     group.add(pole);
     group.add(flag);
-    return group;
+
+    return {
+        object: group,
+        dispose: () => {
+            poleGeom.dispose();
+            poleMat.dispose();
+            flagGeom.dispose();
+            flagMat.dispose();
+        },
+    };
 }
 
 function updatePath() {
     clearVisuals();
 
     const startFlag = createFlag(0x2196f3);
-    startFlag.position.set(...start);
-    addVisual({
-        object: startFlag,
-        dispose: () => {
-            startFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            if (mat.dispose) mat.dispose();
-                        });
-                    } else {
-                        child.material?.dispose?.();
-                    }
-                }
-            });
-        },
-    });
+    startFlag.object.position.set(...start);
+    addVisual(startFlag);
 
     const endFlag = createFlag(0x00ff00);
-    endFlag.position.set(...end);
-    addVisual({
-        object: endFlag,
-        dispose: () => {
-            endFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            if (mat.dispose) mat.dispose();
-                        });
-                    } else {
-                        child.material?.dispose?.();
-                    }
-                }
-            });
-        },
-    });
+    endFlag.object.position.set(...end);
+    addVisual(endFlag);
 
     const pathResult = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
 
@@ -475,8 +455,12 @@ function updatePath() {
                     color: 'yellow',
                     linewidth: 0.1,
                     worldUnits: true,
+                    depthTest: false,
+                    depthWrite: false,
                 });
+
                 const line = new Line2(geometry, material);
+                line.renderOrder = 999;
 
                 addVisual({
                     object: line,

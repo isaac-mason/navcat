@@ -424,9 +424,9 @@ You can pass any external polygon data to the `polygonsToNavMeshTilePolys` utili
 
 You can also use `polysToTileDetailMesh` to generate a detail mesh for your polygons, or you can provide your own detail mesh if you have height data for your polygons.
 
-See the "BYO NavMesh Example" to see how to use an "externally generated" navigation mesh with navcat:
+See the "Custom GLTF NavMesh" Example to see how to use an "externally generated" navigation mesh with navcat:
 
-<Example id="example-byo-navmesh" />
+<Example id="example-custom-gltf-navmesh" />
 
 ## Debug Utilities
 

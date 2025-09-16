@@ -19,9 +19,14 @@
         "description": "Example of using custom area types in a navmesh",
         "tags": ["navmesh", "areas"]
     },
-    "example-byo-navmesh": {
-        "title": "BYO NavMesh",
-        "description": "Example of using a navigation mesh created with an external tool",
+    "example-custom-gltf-navmesh": {
+        "title": "Custom GLTF NavMesh",
+        "description": "Example of loading a level model and navmesh from a GLTF file",
+        "tags": ["navmesh", "custom", "gltf"]
+    },
+    "example-custom-navmesh-generation": {
+        "title": "Custom NavMesh Generation",
+        "description": "Example of generating a navmesh with a custom approach",
         "tags": ["navmesh", "custom"]
     },
     "example-solo-navmesh": {

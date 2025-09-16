@@ -171,7 +171,11 @@ function updatePath() {
         },
     });
 
+    console.time('findPath');
+
     const pathResult = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
+
+    console.timeEnd('findPath');
 
     console.log('pathResult', pathResult);
     console.log('partial?', (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0);

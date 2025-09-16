@@ -34,8 +34,8 @@ import {
 } from 'navcat';
 
 export type SoloNavMeshInput = {
-    positions: Float32Array;
-    indices: Uint32Array;
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
 };
 
 export type SoloNavMeshOptions = {
