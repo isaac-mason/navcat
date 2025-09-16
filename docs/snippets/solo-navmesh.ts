@@ -44,8 +44,8 @@ const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
 const bounds: Box3 = [
-    [0, 0, 0],
-    [0, 0, 0],
+    [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
+    [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
 ];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
@@ -575,14 +575,7 @@ Nav.addTile(navMesh, tile);
 
     const navMeshPortalsHelper = Nav.createNavMeshPortalsHelper(navMesh);
 
-    const findNodePathResult = Nav.findNodePath(
-        navMesh,
-        '0,0,1',
-        '0,0,8',
-        [1, 0, 1],
-        [8, 0, 8],
-        Nav.DEFAULT_QUERY_FILTER,
-    );
+    const findNodePathResult = Nav.findNodePath(navMesh, '0,0,1', '0,0,8', [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
     const searchNodesHelper = Nav.createSearchNodesHelper(findNodePathResult.nodes);
 
     const navMeshOffMeshConnectionsHelper = Nav.createNavMeshOffMeshConnectionsHelper(navMesh);
@@ -592,8 +585,8 @@ Nav.addTile(navMesh, tile);
 {
     /* SNIPPET_START: debugThree */
     const triangleAreaIdsHelper = Nav.three.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
-    console.log(triangleAreaIdsHelper.object) // THREE.Object3D
-    triangleAreaIdsHelper.dispose() // disposes geometry and materials
+    console.log(triangleAreaIdsHelper.object); // THREE.Object3D
+    triangleAreaIdsHelper.dispose(); // disposes geometry and materials
 
     const heightfieldHelper = Nav.three.createHeightfieldHelper(heightfield);
 
@@ -625,14 +618,7 @@ Nav.addTile(navMesh, tile);
 
     const navMeshPortalsHelper = Nav.three.createNavMeshPortalsHelper(navMesh);
 
-    const findNodePathResult = Nav.findNodePath(
-        navMesh,
-        '0,0,1',
-        '0,0,8',
-        [1, 0, 1],
-        [8, 0, 8],
-        Nav.DEFAULT_QUERY_FILTER,
-    );
+    const findNodePathResult = Nav.findNodePath(navMesh, '0,0,1', '0,0,8', [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
     const searchNodesHelper = Nav.three.createSearchNodesHelper(findNodePathResult.nodes);
 
     const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnectionsHelper(navMesh);
