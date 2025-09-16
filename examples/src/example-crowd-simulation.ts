@@ -784,7 +784,7 @@ const onPointerDown = (event: MouseEvent) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    const intersects = raycaster.intersectObject(navMeshHelper.object, true);
+    const intersects = raycaster.intersectObjects(walkableMeshes, true);
 
     if (intersects.length === 0) return;
 
