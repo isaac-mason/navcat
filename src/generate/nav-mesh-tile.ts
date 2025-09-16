@@ -8,8 +8,7 @@ import { buildPolyNeighbours } from './poly-neighbours';
 export type NavMeshTilePolys = Pick<NavMeshTile, 'vertices' | 'polys'>;
 
 export const polyMeshToTilePolys = (polyMesh: PolyMesh): NavMeshTilePolys => {
-    // copy polyMesh local space vertices
-    const vertices: number[] = structuredClone(polyMesh.vertices);
+    const vertices = polyMesh.vertices.slice();
 
     // create polys from input PolyMesh
     const nvp = polyMesh.maxVerticesPerPoly;
@@ -27,13 +26,9 @@ export const polyMeshToTilePolys = (polyMesh: PolyMesh): NavMeshTilePolys => {
 
         // extract polygon data for this polygon
         const polyStart = i * nvp;
-        const vertIndices = polyMesh.polys.slice(polyStart, polyStart + nvp);
-
-        // build vertex indices and neighbor data
         for (let j = 0; j < nvp; j++) {
-            const vertIndex = vertIndices[j];
+            const vertIndex = polyMesh.polys[polyStart + j];
             if (vertIndex === MESH_NULL_IDX) break;
-
             poly.vertices.push(vertIndex);
         }
 
