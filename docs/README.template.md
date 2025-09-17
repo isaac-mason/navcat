@@ -8,6 +8,8 @@
 
 navcat is a javascript navigation mesh construction and querying library for 3D floor-based navigation.
 
+> 🚧 navcat is undergoing heavy development ahead of a v1 release. if you want to try it out early, go ahead! but prepare for breaking changes :)
+
 **Features**
 
 - Navigation mesh generation from 3D geometry
