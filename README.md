@@ -1,5 +1,3 @@
-<!-- Hi README.md editors, make changes in docs/README.template.md and run `node docs/build.js` :) -->
-
 ![./docs/cover.png](./docs/cover.png)
 
 ```bash
