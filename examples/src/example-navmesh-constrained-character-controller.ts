@@ -360,7 +360,7 @@ const animationUpdate = (delta: number) => {
 
     // update rotation
     if (movement.vector.length() > 0) {
-        const rotation = Math.atan2(movement.vector.x, movement.vector.z); // Removed the - Math.PI
+        const rotation = Math.atan2(movement.vector.x, movement.vector.z);
         const targetQuaternion = playerQuaternion.setFromEuler(playerEuler.set(0, rotation, 0));
         playerGroup.quaternion.slerp(targetQuaternion, t * 5);
     }
@@ -388,13 +388,13 @@ const animationUpdate = (delta: number) => {
 
     // apply the weights directly with lerping for smooth transitions
     if (animations.idle) {
-        animations.idle.weight = THREE.MathUtils.lerp(animations.idle.weight, idleWeight, t * 10);
+        animations.idle.weight = THREE.MathUtils.lerp(animations.idle.weight, idleWeight, t * 5);
     }
     if (animations.walk) {
-        animations.walk.weight = THREE.MathUtils.lerp(animations.walk.weight, walkWeight, t * 10);
+        animations.walk.weight = THREE.MathUtils.lerp(animations.walk.weight, walkWeight, t * 5);
     }
     if (animations.run) {
-        animations.run.weight = THREE.MathUtils.lerp(animations.run.weight, runWeight, t * 10);
+        animations.run.weight = THREE.MathUtils.lerp(animations.run.weight, runWeight, t * 5);
     }
 
     // raycast to correct character height
