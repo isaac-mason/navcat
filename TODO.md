@@ -5,6 +5,8 @@
   - ref
   - probably should all just become nodeRef?
 
+- queryPolygons and queryPolygonsInTile should have the same interface?
+
 - zero alloc for all apis? just some?
 
 - zero alloc for pathfinding? what is perf implication?
