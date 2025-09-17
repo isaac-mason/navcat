@@ -275,10 +275,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Box3 = [
-    [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
-    [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
-];
+const bounds: Box3 = [[0, 0, 0], [0, 0, 0]];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -491,10 +488,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Box3 = [
-    [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
-    [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
-];
+const bounds: Box3 = [[0, 0, 0], [0, 0, 0]];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
