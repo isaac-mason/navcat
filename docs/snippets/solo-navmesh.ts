@@ -131,7 +131,13 @@ for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
     }
 }
 
-const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, 1.0, 1.0);
+// CONFIG: detail mesh sample distance
+const sampleDist = 1.0; // world units
+
+// CONFIG: detail mesh max sample error
+const sampleMaxError = 1.0; // world units
+
+const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, sampleDist, sampleMaxError);
 /* SNIPPET_END: polyMesh */
 
 /* SNIPPET_START: convert */

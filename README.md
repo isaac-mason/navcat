@@ -64,6 +64,12 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
   <tr>
     <td align="center">
+      <a href="https://navcat.dev#example-voxels">
+        <img src="./examples/public/screenshots/example-voxels.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Voxels
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev#example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Solo NavMesh
@@ -75,14 +81,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Tiled NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flood Fill Pruning
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-path">
         <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -95,14 +101,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Smooth Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Off-Mesh Connections
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -115,14 +121,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Move Along Surface
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Nearest Poly
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -276,8 +282,8 @@ const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
 const bounds: Box3 = [
-    [0, 0, 0],
-    [0, 0, 0],
+    [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
+    [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
 ];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
@@ -355,7 +361,13 @@ for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
     }
 }
 
-const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, 1.0, 1.0);
+// CONFIG: detail mesh sample distance
+const sampleDist = 1.0; // world units
+
+// CONFIG: detail mesh max sample error
+const sampleMaxError = 1.0; // world units
+
+const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, sampleDist, sampleMaxError);
 
 // convert the poly mesh to a navmesh tile polys
 const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
@@ -486,8 +498,8 @@ const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
 const bounds: Box3 = [
-    [0, 0, 0],
-    [0, 0, 0],
+    [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY],
+    [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY],
 ];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
@@ -802,7 +814,13 @@ for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
     }
 }
 
-const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, 1.0, 1.0);
+// CONFIG: detail mesh sample distance
+const sampleDist = 1.0; // world units
+
+// CONFIG: detail mesh max sample error
+const sampleMaxError = 1.0; // world units
+
+const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, sampleDist, sampleMaxError);
 ```
 
 ![2-9-poly-mesh](./docs/2-9-navmesh-gen-poly-mesh.png)
@@ -1867,14 +1885,7 @@ const navMeshTilePortalsHelper = Nav.createNavMeshTilePortalsHelper(tile);
 
 const navMeshPortalsHelper = Nav.createNavMeshPortalsHelper(navMesh);
 
-const findNodePathResult = Nav.findNodePath(
-    navMesh,
-    '0,0,1',
-    '0,0,8',
-    [1, 0, 1],
-    [8, 0, 8],
-    Nav.DEFAULT_QUERY_FILTER,
-);
+const findNodePathResult = Nav.findNodePath(navMesh, '0,0,1', '0,0,8', [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
 const searchNodesHelper = Nav.createSearchNodesHelper(findNodePathResult.nodes);
 
 const navMeshOffMeshConnectionsHelper = Nav.createNavMeshOffMeshConnectionsHelper(navMesh);
@@ -1934,8 +1945,8 @@ If you are using threejs, navcat provides utilities to convert the debug primiti
 
 ```ts
 const triangleAreaIdsHelper = Nav.three.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
-console.log(triangleAreaIdsHelper.object) // THREE.Object3D
-triangleAreaIdsHelper.dispose() // disposes geometry and materials
+console.log(triangleAreaIdsHelper.object); // THREE.Object3D
+triangleAreaIdsHelper.dispose(); // disposes geometry and materials
 
 const heightfieldHelper = Nav.three.createHeightfieldHelper(heightfield);
 
@@ -1967,14 +1978,7 @@ const navMeshTilePortalsHelper = Nav.three.createNavMeshTilePortalsHelper(tile);
 
 const navMeshPortalsHelper = Nav.three.createNavMeshPortalsHelper(navMesh);
 
-const findNodePathResult = Nav.findNodePath(
-    navMesh,
-    '0,0,1',
-    '0,0,8',
-    [1, 0, 1],
-    [8, 0, 8],
-    Nav.DEFAULT_QUERY_FILTER,
-);
+const findNodePathResult = Nav.findNodePath(navMesh, '0,0,1', '0,0,8', [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
 const searchNodesHelper = Nav.three.createSearchNodesHelper(findNodePathResult.nodes);
 
 const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnectionsHelper(navMesh);
