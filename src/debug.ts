@@ -965,7 +965,7 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
 
     for (let i = 0; i < polyMeshDetail.nMeshes; ++i) {
         const m = i * 4;
-        const bverts = polyMeshDetail.meshes[m + 0];
+        const bverts = polyMeshDetail.meshes[m];
         const nverts = polyMeshDetail.meshes[m + 1];
         const verts = bverts * 3;
 
