@@ -80,8 +80,8 @@ const polyMeshFolder = gui.addFolder('PolyMesh');
 polyMeshFolder.add(config, 'maxVerticesPerPoly', 3, 12, 1);
 
 const detailFolder = gui.addFolder('Detail');
-detailFolder.add(config, 'detailSampleDistance', 0, 16, 1);
-detailFolder.add(config, 'detailSampleMaxError', 0, 16, 1);
+detailFolder.add(config, 'detailSampleDistance', 0, 16, 0.1);
+detailFolder.add(config, 'detailSampleMaxError', 0, 16, 0.1);
 
 const debugFolder = gui.addFolder('Debug Helpers');
 debugFolder

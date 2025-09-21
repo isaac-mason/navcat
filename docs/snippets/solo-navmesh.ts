@@ -142,7 +142,7 @@ const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield
 const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
 
 // convert the poly mesh detail to a navmesh tile detail mesh
-const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
+const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 /* SNIPPET_END: convert */
 
 /* SNIPPET_START: navMesh */

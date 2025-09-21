@@ -158,7 +158,6 @@ export const polysToTileDetailMesh = (polys: NavMeshPoly[]): NavMeshTileDetailMe
  */
 export const polyMeshDetailToTileDetailMesh = (
     polys: NavMeshPoly[],
-    maxVerticesPerPoly: number,
     polyMeshDetail: PolyMeshDetail,
 ) => {
     const detailMeshes: NavMeshPolyDetail[] = [];
@@ -172,10 +171,13 @@ export const polyMeshDetailToTileDetailMesh = (
     for (let i = 0; i < polys.length; i++) {
         const poly = polys[i];
         const nPolyVertices = poly.vertices.length;
+
+        const vb = polyMeshDetail.meshes[i * 4];
         const nDetailVertices = polyMeshDetail.meshes[i * 4 + 1];
-        const nAdditionalDetailVertices = nDetailVertices - nPolyVertices;
         const trianglesBase = polyMeshDetail.meshes[i * 4 + 2];
         const trianglesCount = polyMeshDetail.meshes[i * 4 + 3];
+
+        const nAdditionalDetailVertices = nDetailVertices - nPolyVertices;
 
         const detailMesh: NavMeshPolyDetail = {
             verticesBase: vbase,
@@ -186,9 +188,11 @@ export const polyMeshDetailToTileDetailMesh = (
 
         detailMeshes[i] = detailMesh;
 
-        if (nDetailVertices - nPolyVertices > 0) {
+        // Copy vertices except the first 'nv' verts which are equal to nav poly verts.
+        if (nAdditionalDetailVertices > 0) {
             for (let j = nPolyVertices; j < nDetailVertices; j++) {
-                const detailVertIndex = (vbase + j) * 3;
+                const detailVertIndex = (vb + j) * 3;
+
                 detailVertices.push(
                     polyMeshDetail.vertices[detailVertIndex],
                     polyMeshDetail.vertices[detailVertIndex + 1],
@@ -196,7 +200,7 @@ export const polyMeshDetailToTileDetailMesh = (
                 );
             }
 
-            vbase += maxVerticesPerPoly - nPolyVertices;
+            vbase += nAdditionalDetailVertices;
         }
     }
 

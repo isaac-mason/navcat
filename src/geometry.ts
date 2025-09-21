@@ -277,88 +277,88 @@ export const closestHeightPointTriangle = (p: Vec3, a: Vec3, b: Vec3, c: Vec3): 
     return Number.NaN;
 };
 
-const _circumCircleCenter: Vec3 = vec3.create();
-const _circumCircleResultVec: Vec3 = vec3.create();
+// const _circumCircleCenter: Vec3 = vec3.create();
+// const _circumCircleResultVec: Vec3 = vec3.create();
 
-const _circumCircleV1 = vec3.create();
-const _circumCircleV2 = vec3.create();
-const _circumCircleV3 = vec3.create();
+// const _circumCircleV1 = vec3.create();
+// const _circumCircleV2 = vec3.create();
+// const _circumCircleV3 = vec3.create();
 
-const _circumCircleV1Proj: Vec2 = vec2.create();
-const _circumCircleV2Proj: Vec2 = vec2.create();
-const _circumCircleV3Proj: Vec2 = vec2.create();
-const _circumCircleCenter2D: Vec2 = vec2.create();
-const _circumCircleRadiusCalc: Vec2 = vec2.create();
+// const _circumCircleV1Proj: Vec2 = vec2.create();
+// const _circumCircleV2Proj: Vec2 = vec2.create();
+// const _circumCircleV3Proj: Vec2 = vec2.create();
+// const _circumCircleCenter2D: Vec2 = vec2.create();
+// const _circumCircleRadiusCalc: Vec2 = vec2.create();
 
-/**
- * Calculates the circumcircle of three points and stores the center in the output parameter.
- * @param p1 First point
- * @param p2 Second point
- * @param p3 Third point
- * @param c Output parameter for the circumcircle center
- * @returns The radius of the circumcircle, or 0 if the points are collinear
- */
-export const circumCircle = (p1: Vec3, p2: Vec3, p3: Vec3, c: Vec3): number => {
-    // Calculate the circle relative to p1, to avoid some precision issues.
-    const v1 = _circumCircleV1;
-    const v2 = _circumCircleV2;
-    const v3 = _circumCircleV3;
+// /**
+//  * Calculates the circumcircle of three points and stores the center in the output parameter.
+//  * @param p1 First point
+//  * @param p2 Second point
+//  * @param p3 Third point
+//  * @param c Output parameter for the circumcircle center
+//  * @returns The radius of the circumcircle, or 0 if the points are collinear
+//  */
+// export const circumCircle = (p1: Vec3, p2: Vec3, p3: Vec3, c: Vec3): number => {
+//     // Calculate the circle relative to p1, to avoid some precision issues.
+//     const v1 = _circumCircleV1;
+//     const v2 = _circumCircleV2;
+//     const v3 = _circumCircleV3;
 
-    // v1 is the origin (p1 - p1 = 0), v2 and v3 are relative to p1
-    vec3.set(v1, 0, 0, 0);
-    vec3.subtract(v2, p2, p1);
-    vec3.subtract(v3, p3, p1);
+//     // v1 is the origin (p1 - p1 = 0), v2 and v3 are relative to p1
+//     vec3.set(v1, 0, 0, 0);
+//     vec3.subtract(v2, p2, p1);
+//     vec3.subtract(v3, p3, p1);
 
-    // Calculate cross product for 2D vectors (v2 - v1) × (v3 - v1)
-    _circumCircleV1Proj[0] = v1[0];
-    _circumCircleV1Proj[1] = v1[2];
+//     // Calculate cross product for 2D vectors (v2 - v1) × (v3 - v1)
+//     _circumCircleV1Proj[0] = v1[0];
+//     _circumCircleV1Proj[1] = v1[2];
 
-    _circumCircleV2Proj[0] = v2[0];
-    _circumCircleV2Proj[1] = v2[2];
+//     _circumCircleV2Proj[0] = v2[0];
+//     _circumCircleV2Proj[1] = v2[2];
 
-    _circumCircleV3Proj[0] = v3[0];
-    _circumCircleV3Proj[1] = v3[2];
+//     _circumCircleV3Proj[0] = v3[0];
+//     _circumCircleV3Proj[1] = v3[2];
 
-    vec2.subtract(_circumCircleV2Proj, _circumCircleV2Proj, _circumCircleV1Proj); // v2 - v1
-    vec2.subtract(_circumCircleV3Proj, _circumCircleV3Proj, _circumCircleV1Proj); // v3 - v1
-    const cp = _circumCircleV2Proj[0] * _circumCircleV3Proj[1] - _circumCircleV2Proj[1] * _circumCircleV3Proj[0];
+//     vec2.subtract(_circumCircleV2Proj, _circumCircleV2Proj, _circumCircleV1Proj); // v2 - v1
+//     vec2.subtract(_circumCircleV3Proj, _circumCircleV3Proj, _circumCircleV1Proj); // v3 - v1
+//     const cp = _circumCircleV2Proj[0] * _circumCircleV3Proj[1] - _circumCircleV2Proj[1] * _circumCircleV3Proj[0];
 
-    if (Math.abs(cp) > EPS) {
-        _circumCircleV1Proj[0] = v1[0];
-        _circumCircleV1Proj[1] = v1[2];
+//     if (Math.abs(cp) > EPS) {
+//         _circumCircleV1Proj[0] = v1[0];
+//         _circumCircleV1Proj[1] = v1[2];
 
-        _circumCircleV2Proj[0] = v2[0];
-        _circumCircleV2Proj[1] = v2[2];
+//         _circumCircleV2Proj[0] = v2[0];
+//         _circumCircleV2Proj[1] = v2[2];
 
-        _circumCircleV3Proj[0] = v3[0];
-        _circumCircleV3Proj[1] = v3[2];
+//         _circumCircleV3Proj[0] = v3[0];
+//         _circumCircleV3Proj[1] = v3[2];
 
-        const v1Sq = vec2.dot(_circumCircleV1Proj, _circumCircleV1Proj);
-        const v2Sq = vec2.dot(_circumCircleV2Proj, _circumCircleV2Proj);
-        const v3Sq = vec2.dot(_circumCircleV3Proj, _circumCircleV3Proj);
-        c[0] = (v1Sq * (v2[2] - v3[2]) + v2Sq * (v3[2] - v1[2]) + v3Sq * (v1[2] - v2[2])) / (2 * cp);
-        c[1] = 0;
-        c[2] = (v1Sq * (v3[0] - v2[0]) + v2Sq * (v1[0] - v3[0]) + v3Sq * (v2[0] - v1[0])) / (2 * cp);
+//         const v1Sq = vec2.dot(_circumCircleV1Proj, _circumCircleV1Proj);
+//         const v2Sq = vec2.dot(_circumCircleV2Proj, _circumCircleV2Proj);
+//         const v3Sq = vec2.dot(_circumCircleV3Proj, _circumCircleV3Proj);
+//         c[0] = (v1Sq * (v2[2] - v3[2]) + v2Sq * (v3[2] - v1[2]) + v3Sq * (v1[2] - v2[2])) / (2 * cp);
+//         c[1] = 0;
+//         c[2] = (v1Sq * (v3[0] - v2[0]) + v2Sq * (v1[0] - v3[0]) + v3Sq * (v2[0] - v1[0])) / (2 * cp);
 
-        _circumCircleCenter2D[0] = c[0];
-        _circumCircleCenter2D[1] = c[2];
+//         _circumCircleCenter2D[0] = c[0];
+//         _circumCircleCenter2D[1] = c[2];
 
-        _circumCircleRadiusCalc[0] = v1[0];
-        _circumCircleRadiusCalc[1] = v1[2];
+//         _circumCircleRadiusCalc[0] = v1[0];
+//         _circumCircleRadiusCalc[1] = v1[2];
 
-        const r = vec2.distance(_circumCircleCenter2D, _circumCircleRadiusCalc);
+//         const r = vec2.distance(_circumCircleCenter2D, _circumCircleRadiusCalc);
 
-        const cVec = vec3.copy(_circumCircleCenter, c);
-        const resultVec = _circumCircleResultVec;
-        vec3.add(resultVec, cVec, p1);
-        vec3.copy(c, resultVec);
+//         const cVec = vec3.copy(_circumCircleCenter, c);
+//         const resultVec = _circumCircleResultVec;
+//         vec3.add(resultVec, cVec, p1);
+//         vec3.copy(c, resultVec);
 
-        return r;
-    }
+//         return r;
+//     }
 
-    vec3.copy(c, p1);
-    return 0;
-};
+//     vec3.copy(c, p1);
+//     return 0;
+// };
 
 const _overlapSegAB: Vec2 = vec2.create();
 const _overlapSegAD: Vec2 = vec2.create();

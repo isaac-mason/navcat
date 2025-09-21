@@ -1,5 +1,5 @@
-import { clamp, type Vec2, type Vec3, vec2, vec3 } from 'maaths';
-import { circumCircle, distancePtSeg, distToPoly, distToTriMesh, overlapSegSeg2d, polyMinExtent } from '../geometry';
+import { clamp, type Vec2, type Vec3, vec2, vec3, triangle2, circle } from 'maaths';
+import { distancePtSeg, distToPoly, distToTriMesh, overlapSegSeg2d, polyMinExtent } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { getDirForOffset, getDirOffsetX, getDirOffsetY, MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED } from './common';
 import type { CompactHeightfield } from './compact-heightfield';
@@ -120,7 +120,16 @@ const getHeight = (
             // | | |__| | |
             // | |______| |
             // |__________|
-            // We want to find the best height as close to the center cell as possible.
+            // We want to find the best height as close to the center cell as possible. This means that
+            // if we find a height in one of the neighbor cells to the center, we don't want to
+            // expand further out than the 8 neighbors - we want to limit our search to the closest
+            // of these "rings", but the best height in the ring.
+            // For example, the center is just 1 cell. We checked that at the entrance to the function.
+            // The next "ring" contains 8 cells (marked 1 above). Those are all the neighbors to the center cell.
+            // The next one again contains 16 cells (marked 2). In general each ring has 8 additional cells, which
+            // can be thought of as adding 2 cells around the "center" of each side when we expand the ring.
+            // Here we detect if we are about to enter the next ring, and if we are and we have found
+            // a height, we abort the search.
             if (i + 1 === nextRingIterStart) {
                 if (h !== UNSET_HEIGHT) break;
 
@@ -186,9 +195,8 @@ const _completeFacetPointU: Vec2 = vec2.create();
 const _completeFacetCircleCenter: Vec2 = vec2.create();
 const _completeFacetDistanceCalc: Vec2 = vec2.create();
 
-const _circumCircleP1: Vec3 = vec3.create();
-const _circumCircleP2: Vec3 = vec3.create();
-const _circumCircleP3: Vec3 = vec3.create();
+const _circumcircleTriangle = triangle2.create();
+const _circumcircleResult = circle.create();
 
 // Triangle completion function for Delaunay triangulation
 const completeFacet = (
@@ -221,7 +229,7 @@ const completeFacet = (
 
     // Find best point on left of edge.
     let pt = nPoints;
-    const c = _completeFacetC;
+    const c = vec3.set(_completeFacetC, 0, 0, 0);
     let r = -1;
 
     for (let u = 0; u < nPoints; ++u) {
@@ -239,10 +247,19 @@ const completeFacet = (
             if (r < 0) {
                 // The circle is not updated yet, do it now.
                 pt = u;
-                vec3.fromBuffer(_circumCircleP1, points, s * 3);
-                vec3.fromBuffer(_circumCircleP2, points, t * 3);
-                vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                r = circumCircle(_circumCircleP1, _circumCircleP2, _circumCircleP3, c);
+
+                getVec2XZ(_circumcircleTriangle[0], points, s * 3);
+                getVec2XZ(_circumcircleTriangle[1], points, t * 3);
+                getVec2XZ(_circumcircleTriangle[2], points, u * 3);
+
+                triangle2.circumcircle(_circumcircleResult, _circumcircleTriangle);
+
+                c[0] = _circumcircleResult.center[0];
+                c[1] = 0;
+                c[2] = _circumcircleResult.center[1];
+
+                r = _circumcircleResult.radius;
+
                 continue;
             }
             getVec2XZ(_completeFacetCircleCenter, c, 0);
@@ -251,28 +268,30 @@ const completeFacet = (
             const tol = 0.001;
 
             if (d > r * (1 + tol)) {
-                // Outside current circumcircle, skip.
+                // Outside current circumcircle, skip
                 continue;
             }
 
-            if (d < r * (1 - tol)) {
-                // Inside safe circumcircle, update circle.
-                pt = u;
-                vec3.fromBuffer(_circumCircleP1, points, s * 3);
-                vec3.fromBuffer(_circumCircleP2, points, t * 3);
-                vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                r = circumCircle(_circumCircleP1, _circumCircleP2, _circumCircleP3, c);
-            } else {
+            if (d >= r * (1 - tol)) {
                 // Inside epsilon circumcircle, do extra tests to make sure the edge is valid.
                 if (overlapEdges(points, edges, nEdges.value, s, u)) continue;
                 if (overlapEdges(points, edges, nEdges.value, t, u)) continue;
-                // Edge is valid.
-                pt = u;
-                vec3.fromBuffer(_circumCircleP1, points, s * 3);
-                vec3.fromBuffer(_circumCircleP2, points, t * 3);
-                vec3.fromBuffer(_circumCircleP3, points, u * 3);
-                r = circumCircle(_circumCircleP1, _circumCircleP2, _circumCircleP3, c);
             }
+
+            // Edge is valid.
+            pt = u;
+
+            getVec2XZ(_circumcircleTriangle[0], points, s * 3);
+            getVec2XZ(_circumcircleTriangle[1], points, t * 3);
+            getVec2XZ(_circumcircleTriangle[2], points, u * 3);
+
+            triangle2.circumcircle(_circumcircleResult, _circumcircleTriangle);
+
+            c[0] = _circumcircleResult.center[0];
+            c[1] = 0;
+            c[2] = _circumcircleResult.center[1];
+
+            r = _circumcircleResult.radius;
         }
     }
 
@@ -414,7 +433,6 @@ const delaunayHull = (
     }
 };
 
-// Hull triangulation function (fallback when delaunay is not used)
 const triangulateHull = (verts: number[], nhull: number, hull: number[], nin: number, tris: number[]): void => {
     let start = 0;
     let left = 1;
@@ -514,11 +532,6 @@ const setTriFlags = (tris: number[], nhull: number, hull: number[]): void => {
         flags |= (onHull(c, a, nhull, hull) ? DETAIL_EDGE_BOUNDARY : 0) << 4;
         tris[i + 3] = flags;
     }
-};
-
-// Helper function to push 3 values to queue
-const push3 = (queue: number[], v1: number, v2: number, v3: number): void => {
-    queue.push(v1, v2, v3);
 };
 
 const SEED_ARRAY_WITH_POLY_CENTER_OFFSET = [
@@ -711,7 +724,7 @@ const getHeightData = (
                                 }
                             }
                         }
-                        if (border) push3(queue, x, y, i);
+                        if (border) queue.push(x, y, i);
                         break;
                     }
                 }
@@ -757,17 +770,17 @@ const getHeightData = (
 
             hp.data[hx + hy * hp.width] = as.y;
 
-            push3(queue, ax, ay, ai);
+            queue.push(ax, ay, ai);
         }
     }
 };
 
 // Pre-allocated Vec3 objects for buildPolyDetail function
-const _buildPolyDetailV1: Vec3 = vec3.create();
-const _buildPolyDetailV2: Vec3 = vec3.create();
-const _buildPolyDetailEdgePt: Vec3 = vec3.create();
-const _buildPolyDetailEdgeA: Vec3 = vec3.create();
-const _buildPolyDetailEdgeB: Vec3 = vec3.create();
+const _buildPolyDetail_vj: Vec3 = vec3.create();
+const _buildPolyDetail_vi: Vec3 = vec3.create();
+const _buildPolyDetail_pt: Vec3 = vec3.create();
+const _buildPolyDetail_va: Vec3 = vec3.create();
+const _buildPolyDetail_vb: Vec3 = vec3.create();
 const _buildPolyDetailSamplePt: Vec3 = vec3.create();
 const _buildPolyDetailGridPt: Vec3 = vec3.create();
 
@@ -813,34 +826,41 @@ const buildPolyDetail = (
     const minExtent = polyMinExtent(verts, nverts.value);
 
     // Tessellate outlines.
+    // This is done in separate pass in order to ensure
+    // seamless height values across the ply boundaries.
     if (sampleDist > 0) {
         for (let i = 0, j = nin - 1; i < nin; j = i++) {
-            const vj = j * 3;
-            const vi = i * 3;
+            let vjStart = j * 3;
+            let viStart = i * 3;
             let swapped = false;
 
-            // Make sure the segments are always handled in same order using lexological sort
-            if (Math.abs(inVerts[vj] - inVerts[vi]) < 1e-6) {
-                if (inVerts[vj + 2] > inVerts[vi + 2]) {
+            // Make sure the segments are always handled in same order
+            // using lexological sort or else there will be seams.
+            if (Math.abs(inVerts[vjStart] - inVerts[viStart]) < 1e-6) {
+                if (inVerts[vjStart + 2] > inVerts[viStart + 2]) {
+                    const tmp = viStart;
+                    viStart = vjStart;
+                    vjStart = tmp;
+
                     swapped = true;
                 }
             } else {
-                if (inVerts[vj] > inVerts[vi]) {
+                if (inVerts[vjStart] > inVerts[viStart]) {
+                    const tmp = viStart;
+                    viStart = vjStart;
+                    vjStart = tmp;
+
                     swapped = true;
                 }
             }
 
-            const v1 = swapped
-                ? vec3.fromBuffer(_buildPolyDetailV1, inVerts, vi)
-                : vec3.fromBuffer(_buildPolyDetailV1, inVerts, vj);
-            const v2 = swapped
-                ? vec3.fromBuffer(_buildPolyDetailV2, inVerts, vj)
-                : vec3.fromBuffer(_buildPolyDetailV2, inVerts, vi);
+            const vj = vec3.fromBuffer(_buildPolyDetail_vj, inVerts, vjStart);
+            const vi = vec3.fromBuffer(_buildPolyDetail_vi, inVerts, viStart);
 
             // Create samples along the edge.
-            const dx = v2[0] - v1[0];
-            const dy = v2[1] - v1[1];
-            const dz = v2[2] - v1[2];
+            const dx = vi[0] - vj[0];
+            const dy = vi[1] - vj[1];
+            const dz = vi[2] - vj[2];
             const d = Math.sqrt(dx * dx + dz * dz);
             let nn = 1 + Math.floor(d / sampleDist);
             if (nn >= MAX_VERTS_PER_EDGE) nn = MAX_VERTS_PER_EDGE - 1;
@@ -849,9 +869,9 @@ const buildPolyDetail = (
             for (let k = 0; k <= nn; ++k) {
                 const u = k / nn;
                 const pos = k * 3;
-                edge[pos] = v1[0] + dx * u;
-                edge[pos + 1] = v1[1] + dy * u;
-                edge[pos + 2] = v1[2] + dz * u;
+                edge[pos] = vj[0] + dx * u;
+                edge[pos + 1] = vj[1] + dy * u;
+                edge[pos + 2] = vj[2] + dz * u;
                 edge[pos + 1] =
                     getHeight(edge[pos], edge[pos + 1], edge[pos + 2], cs, ics, chf.cellHeight, heightSearchRadius, hp) *
                     chf.cellHeight;
@@ -866,24 +886,27 @@ const buildPolyDetail = (
             for (let k = 0; k < nidx - 1; ) {
                 const a = idx[k];
                 const b = idx[k + 1];
-                const va = a * 3;
-                const vb = b * 3;
+                const vaStart = a * 3;
+                const vbStart = b * 3;
 
                 // Find maximum deviation along the segment.
                 let maxd = 0;
                 let maxi = -1;
                 for (let m = a + 1; m < b; ++m) {
-                    vec3.fromBuffer(_buildPolyDetailEdgePt, edge, m * 3);
-                    vec3.fromBuffer(_buildPolyDetailEdgeA, edge, va);
-                    vec3.fromBuffer(_buildPolyDetailEdgeB, edge, vb);
-                    const dev = distancePtSeg(_buildPolyDetailEdgePt, _buildPolyDetailEdgeA, _buildPolyDetailEdgeB);
+                    const pt = vec3.fromBuffer(_buildPolyDetail_pt, edge, m * 3);
+                    const va = vec3.fromBuffer(_buildPolyDetail_va, edge, vaStart);
+                    const vb = vec3.fromBuffer(_buildPolyDetail_vb, edge, vbStart);
+
+                    const dev = distancePtSeg(pt, va, vb);
+
                     if (dev > maxd) {
                         maxd = dev;
                         maxi = m;
                     }
                 }
 
-                // If the max deviation is larger than accepted error, add new point
+                // If the max deviation is larger than accepted error,
+                // add new point, else continue to next segment.
                 if (maxi !== -1 && maxd > sampleMaxError * sampleMaxError) {
                     for (let m = nidx; m > k; --m) {
                         idx[m] = idx[m - 1];
@@ -1001,6 +1024,7 @@ const buildPolyDetail = (
             nverts.value++;
 
             // Create new triangulation.
+            // TODO: Incremental add instead of full rebuild.
             edges.length = 0;
             tris.length = 0;
             delaunayHull(ctx, nverts.value, verts, nhull, hull, tris, edges);

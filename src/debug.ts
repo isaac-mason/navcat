@@ -1043,11 +1043,11 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
                         vy = tile.vertices[vBase + 1];
                         vz = tile.vertices[vBase + 2];
                     } else {
-                        // Vertex from detail mesh - transform to world space
+                        // Vertex from detail mesh
                         const detailVertIndex = (polyDetail.verticesBase + vertIndex - poly.vertices.length) * 3;
-                        vx = tile.bounds[0][0] + tile.detailVertices[detailVertIndex];
-                        vy = tile.bounds[0][1] + tile.detailVertices[detailVertIndex + 1];
-                        vz = tile.bounds[0][2] + tile.detailVertices[detailVertIndex + 2];
+                        vx = tile.detailVertices[detailVertIndex];
+                        vy = tile.detailVertices[detailVertIndex + 1];
+                        vz = tile.detailVertices[detailVertIndex + 2];
                     }
 
                     triPositions.push(vx, vy, vz);

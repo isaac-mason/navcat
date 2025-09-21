@@ -273,7 +273,7 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     const tilePolys = polyMeshToTilePolys(polyMesh);
 
-    const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
+    const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 
     const tile: NavMeshTile = {
         id: -1,
