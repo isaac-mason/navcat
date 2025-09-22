@@ -1033,7 +1033,7 @@ const buildPolyDetail = (
     const ntris = tris.length / 4;
     if (ntris > MAX_TRIS) {
         tris.length = MAX_TRIS * 4;
-        BuildContext.warn(ctx, `rcBuildPolyMeshDetail: Shrinking triangle count from ${ntris} to max ${MAX_TRIS}.`);
+        BuildContext.warn(ctx, `buildPolyMeshDetail: Shrinking triangle count from ${ntris} to max ${MAX_TRIS}.`);
     }
 
     setTriFlags(tris, nhull, hull);
