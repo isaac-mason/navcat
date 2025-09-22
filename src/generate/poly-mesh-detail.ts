@@ -331,7 +331,6 @@ const updateLeftFace = (edges: number[], edgeIdx: number, s: number, t: number, 
     }
 };
 
-// Pre-allocated Vec2 objects for overlapEdges function
 const _overlapEdgesS0: Vec2 = vec2.create();
 const _overlapEdgesT0: Vec2 = vec2.create();
 const _overlapEdgesS1: Vec2 = vec2.create();
