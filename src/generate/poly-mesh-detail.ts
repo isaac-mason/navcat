@@ -797,7 +797,6 @@ const buildPolyDetail = (
     chf: CompactHeightfield,
     hp: HeightPatch,
     verts: number[],
-    nverts: { value: number },
     tris: number[],
     edges: number[],
     samples: number[],
@@ -806,7 +805,7 @@ const buildPolyDetail = (
     const hull = new Array(MAX_VERTS);
     let nhull = 0;
 
-    nverts.value = nin;
+    let nverts = nin;
 
     // Copy input vertices
     for (let i = 0; i < nin; ++i) {
@@ -823,7 +822,7 @@ const buildPolyDetail = (
     const ics = 1.0 / cs;
 
     // Calculate minimum extents of the polygon based on input data.
-    const minExtent = polyMinExtent(verts, nverts.value);
+    const minExtent = polyMinExtent(verts, nverts);
 
     // Tessellate outlines.
     // This is done in separate pass in order to ensure
@@ -864,7 +863,7 @@ const buildPolyDetail = (
             const d = Math.sqrt(dx * dx + dz * dz);
             let nn = 1 + Math.floor(d / sampleDist);
             if (nn >= MAX_VERTS_PER_EDGE) nn = MAX_VERTS_PER_EDGE - 1;
-            if (nverts.value + nn >= MAX_VERTS) nn = MAX_VERTS - 1 - nverts.value;
+            if (nverts + nn >= MAX_VERTS) nn = MAX_VERTS - 1 - nverts;
 
             for (let k = 0; k <= nn; ++k) {
                 const u = k / nn;
@@ -922,21 +921,21 @@ const buildPolyDetail = (
             // Add new vertices.
             if (swapped) {
                 for (let k = nidx - 2; k > 0; --k) {
-                    verts[nverts.value * 3] = edge[idx[k] * 3];
-                    verts[nverts.value * 3 + 1] = edge[idx[k] * 3 + 1];
-                    verts[nverts.value * 3 + 2] = edge[idx[k] * 3 + 2];
+                    verts[nverts * 3] = edge[idx[k] * 3];
+                    verts[nverts * 3 + 1] = edge[idx[k] * 3 + 1];
+                    verts[nverts * 3 + 2] = edge[idx[k] * 3 + 2];
 
-                    hull[nhull++] = nverts.value;
-                    nverts.value++;
+                    hull[nhull++] = nverts;
+                    nverts++;
                 }
             } else {
                 for (let k = 1; k < nidx - 1; ++k) {
-                    verts[nverts.value * 3] = edge[idx[k] * 3];
-                    verts[nverts.value * 3 + 1] = edge[idx[k] * 3 + 1];
-                    verts[nverts.value * 3 + 2] = edge[idx[k] * 3 + 2];
+                    verts[nverts * 3] = edge[idx[k] * 3];
+                    verts[nverts * 3 + 1] = edge[idx[k] * 3 + 1];
+                    verts[nverts * 3 + 2] = edge[idx[k] * 3 + 2];
 
-                    hull[nhull++] = nverts.value;
-                    nverts.value++;
+                    hull[nhull++] = nverts;
+                    nverts++;
                 }
             }
         }
@@ -953,7 +952,7 @@ const buildPolyDetail = (
     triangulateHull(verts, nhull, hull, nin, tris);
 
     if (tris.length === 0) {
-        BuildContext.warn(ctx, `buildPolyDetail: Could not triangulate polygon (${nverts.value} verts).`);
+        BuildContext.warn(ctx, `buildPolyDetail: Could not triangulate polygon (${nverts} verts).`);
         return true;
     }
 
@@ -990,7 +989,7 @@ const buildPolyDetail = (
         // Add the samples starting from the one that has the most error.
         const nsamples = samples.length / 4;
         for (let iter = 0; iter < nsamples; ++iter) {
-            if (nverts.value >= MAX_VERTS) break;
+            if (nverts >= MAX_VERTS) break;
 
             // Find sample with most error.
             const bestpt = [0, 0, 0];
@@ -1021,13 +1020,13 @@ const buildPolyDetail = (
             samples[besti * 4 + 3] = 1;
             // Add the new sample point.
             verts.push(bestpt[0], bestpt[1], bestpt[2]);
-            nverts.value++;
+            nverts++;
 
             // Create new triangulation.
             // TODO: Incremental add instead of full rebuild.
             edges.length = 0;
             tris.length = 0;
-            delaunayHull(ctx, nverts.value, verts, nhull, hull, tris, edges);
+            delaunayHull(ctx, nverts, verts, nhull, hull, tris, edges);
         }
     }
 
@@ -1071,12 +1070,6 @@ export const buildPolyMeshDetail = (
     const orig = [polyMesh.bounds[0][0], polyMesh.bounds[0][1], polyMesh.bounds[0][2]];
     const borderSize = polyMesh.borderSize;
     const heightSearchRadius = Math.max(1, Math.ceil(polyMesh.maxEdgeError));
-
-    const edges: number[] = [];
-    const tris: number[] = [];
-    const arr: number[] = [];
-    const samples: number[] = [];
-    const verts: number[] = [];
 
     const hp: HeightPatch = {
         data: [],
@@ -1131,6 +1124,12 @@ export const buildPolyMeshDetail = (
     for (let i = 0; i < polyMesh.nPolys; ++i) {
         const p = i * nvp;
 
+        const edges: number[] = [];
+        const tris: number[] = [];
+        const arr: number[] = [];
+        const samples: number[] = [];
+        const verts: number[] = [];
+
         // Store polygon vertices for processing.
         let npoly = 0;
         for (let j = 0; j < nvp; ++j) {
@@ -1161,8 +1160,6 @@ export const buildPolyMeshDetail = (
         );
 
         // Build detail mesh.
-        const nverts = { value: 0 };
-
         if (
             !buildPolyDetail(
                 ctx,
@@ -1174,7 +1171,6 @@ export const buildPolyMeshDetail = (
                 compactHeightfield,
                 hp,
                 verts,
-                nverts,
                 tris,
                 edges,
                 samples,
@@ -1185,10 +1181,10 @@ export const buildPolyMeshDetail = (
         }
 
         // Move detail verts to world space.
-        for (let j = 0; j < nverts.value; ++j) {
-            verts[j * 3] += orig[0];
-            verts[j * 3 + 1] += orig[1] + compactHeightfield.cellHeight; // Is this offset necessary?
-            verts[j * 3 + 2] += orig[2];
+        for (let i = 0; i < verts.length; i += 3) {
+            verts[i] += orig[0];
+            verts[i + 1] += orig[1] + compactHeightfield.cellHeight; // Is this offset necessary?
+            verts[i + 2] += orig[2];
         }
 
         // Offset poly too, will be used to flag checking.
@@ -1202,20 +1198,19 @@ export const buildPolyMeshDetail = (
         const ntris = tris.length / 4;
 
         dmesh.meshes[i * 4] = dmesh.nVertices;
-        dmesh.meshes[i * 4 + 1] = nverts.value;
+        dmesh.meshes[i * 4 + 1] = verts.length / 3;
         dmesh.meshes[i * 4 + 2] = dmesh.nTriangles;
         dmesh.meshes[i * 4 + 3] = ntris;
 
         // Store vertices
-        for (let j = 0; j < nverts.value; ++j) {
-            dmesh.vertices.push(verts[j * 3], verts[j * 3 + 1], verts[j * 3 + 2]);
+        for (let i = 0; i < verts.length; i += 3) {
+            dmesh.vertices.push(verts[i], verts[i + 1], verts[i + 2]);
             dmesh.nVertices++;
         }
 
         // Store triangles
-        for (let j = 0; j < ntris; ++j) {
-            const t = j * 4;
-            dmesh.triangles.push(tris[t], tris[t + 1], tris[t + 2], tris[t + 3]);
+        for (let i = 0; i < tris.length; i += 4) {
+            dmesh.triangles.push(tris[i], tris[i + 1], tris[i + 2], tris[i + 3]);
             dmesh.nTriangles++;
         }
     }
