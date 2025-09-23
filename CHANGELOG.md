@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.0.3 (Unreleased)
+
+- Add `markCylinderArea` compact heightfield function for marking all spans within a cylinder area with a given area ID
+
 ## 0.0.2
 
 - Moved `mergePositionsAndIndices` out of `import('navcat').three` to core / top level export

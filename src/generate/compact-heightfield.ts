@@ -1,4 +1,4 @@
-import type { Box3 } from 'maaths';
+import type { Box3, Vec3 } from 'maaths';
 import { pointInPoly } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common';
@@ -469,7 +469,7 @@ export const markBoxArea = (
 /**
  * Marks spans in the heightfield that intersect the specified convex polygon area with the given area ID.
  */
-export const markPolyArea = (
+export const markConvexPolyArea = (
     verts: number[],
     minY: number,
     maxY: number,
@@ -539,6 +539,86 @@ export const markPolyArea = (
                 ];
 
                 if (pointInPoly(numVerts, verts, point)) {
+                    compactHeightfield.areas[spanIndex] = areaId;
+                }
+            }
+        }
+    }
+};
+
+/**
+ * Marks spans in the heightfield that intersect the specified cylinder area with the given area ID.
+ */
+export const markCylinderArea = (
+    position: Vec3,
+    radius: number,
+    height: number,
+    areaId: number,
+    compactHeightfield: CompactHeightfield
+) => {
+    const xSize = compactHeightfield.width;
+    const zSize = compactHeightfield.height;
+    const zStride = xSize; // for readability
+
+    // compute the bounding box of the cylinder
+    const cylinderBBMin = [
+        position[0] - radius,
+        position[1],
+        position[2] - radius,
+    ];
+    const cylinderBBMax = [
+        position[0] + radius,
+        position[1] + height,
+        position[2] + radius,
+    ];
+
+    // compute the grid footprint of the cylinder
+    let minx = Math.floor((cylinderBBMin[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
+    const miny = Math.floor((cylinderBBMin[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
+    let minz = Math.floor((cylinderBBMin[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+    let maxx = Math.floor((cylinderBBMax[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
+    const maxy = Math.floor((cylinderBBMax[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
+    let maxz = Math.floor((cylinderBBMax[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+
+    // early-out if the cylinder is completely outside the grid bounds.
+    if (maxx < 0 || minx >= xSize || maxz < 0 || minz >= zSize) {
+        return;
+    }
+
+    // clamp the cylinder bounds to the grid.
+    if (minx < 0) minx = 0;
+    if (maxx >= xSize) maxx = xSize - 1;
+    if (minz < 0) minz = 0;
+    if (maxz >= zSize) maxz = zSize - 1;
+
+    const radiusSq = radius * radius;
+
+    for (let z = minz; z <= maxz; ++z) {
+        for (let x = minx; x <= maxx; ++x) {
+            const cell = compactHeightfield.cells[x + z * zStride];
+            const maxSpanIndex = cell.index + cell.count;
+
+            const cellX = compactHeightfield.bounds[0][0] + (x + 0.5) * compactHeightfield.cellSize;
+            const cellZ = compactHeightfield.bounds[0][2] + (z + 0.5) * compactHeightfield.cellSize;
+            const deltaX = cellX - position[0];
+            const deltaZ = cellZ - position[2];
+
+            // skip this column if it's too far from the center point of the cylinder.
+            if (deltaX * deltaX + deltaZ * deltaZ >= radiusSq) {
+                continue;
+            }
+
+            // mark all overlapping spans
+            for (let spanIndex = cell.index; spanIndex < maxSpanIndex; ++spanIndex) {
+                const span = compactHeightfield.spans[spanIndex];
+
+                // skip if span is removed.
+                if (compactHeightfield.areas[spanIndex] === NULL_AREA) {
+                    continue;
+                }
+
+                // mark if y extents overlap.
+                if (span.y >= miny && span.y <= maxy) {
                     compactHeightfield.areas[spanIndex] = areaId;
                 }
             }
