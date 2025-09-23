@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.0.2 (Unreleased)
+## 0.0.2
 
 - Moved `mergePositionsAndIndices` out of `import('navcat').three` to core / top level export
 - Fix issues with `buildPolyMeshDetail` duplicating vertices when detailSampleDistance and detailSampleMaxError are set to add new samples to reduce error
