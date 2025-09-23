@@ -1,10 +1,11 @@
-import { three as threeUtils } from 'navcat';
 import type { NavMesh, NodeRef } from 'navcat';
 import { desNodeRef, NodeType, serPolyNodeRef } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { createNavMeshPolyHelper, type DebugObject } from './common/debug';
 import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -48,7 +49,7 @@ const raycaster = new THREE.Raycaster();
 
 // poly visuals
 type PolyHelper = {
-    helper: threeUtils.DebugObject;
+    helper: DebugObject;
     polyRef: NodeRef;
 };
 
@@ -61,7 +62,7 @@ const createPolyHelpers = (navMesh: NavMesh): void => {
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
             const polyRef = serPolyNodeRef(tile.id, polyIndex);
 
-            const helper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.8, 0.3]);
+            const helper = createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.8, 0.3]);
 
             // initially visible with normal appearance
             helper.object.position.y += 0.1; // adjust height for visibility
@@ -82,7 +83,7 @@ const setPolyColor = (polyRef: NodeRef, color: number, transparent: boolean, opa
     helperInfo.helper.object.traverse((child: any) => {
         if (child instanceof THREE.Mesh && child.material) {
             const materials = Array.isArray(child.material) ? child.material : [child.material];
-            
+
             materials.forEach((mat) => {
                 if ('color' in mat) {
                     mat.color.setHex(color);
@@ -120,7 +121,7 @@ function updateNavMeshVisualization() {
             for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
                 const polyRef = serPolyNodeRef(tile.id, polyIndex);
                 const poly = tile.polys[polyIndex];
-                
+
                 if (poly.flags === 0) {
                     setPolyColor(polyRef, 0xff0000, true, 0.3); // red, semi-transparent
                 } else {
@@ -229,7 +230,7 @@ function generate() {
         }
     });
 
-    const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+    const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
     const navMeshInput: TiledNavMeshInput = {
         positions,
@@ -288,7 +289,7 @@ function onMouseClick(event: MouseEvent) {
 
     // Find the clicked polygon
     const clickedPolyRef = findClickedPolygon(raycaster);
-    
+
     if (clickedPolyRef) {
         applyFloodFillPruning(clickedPolyRef);
     }
@@ -305,43 +306,43 @@ function findClickedPolygon(raycaster: THREE.Raycaster): NodeRef | null {
     for (const [tileId, tile] of Object.entries(navMesh.tiles) as [string, any][]) {
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
             const poly = tile.polys[polyIndex];
-            
+
             // Create a temporary geometry for this polygon
             const vertices: number[] = [];
             const indices: number[] = [];
-            
+
             // Get polygon vertices
             for (let i = 0; i < poly.vertices.length; i++) {
                 const vertIndex = poly.vertices[i] * 3;
                 vertices.push(
                     tile.vertices[vertIndex],
                     tile.vertices[vertIndex + 1] + 0.1, // Slightly elevated
-                    tile.vertices[vertIndex + 2]
+                    tile.vertices[vertIndex + 2],
                 );
             }
-            
+
             // Triangulate polygon (simple fan triangulation)
             for (let i = 1; i < poly.vertices.length - 1; i++) {
                 indices.push(0, i, i + 1);
             }
-            
+
             // Create temporary geometry
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
             geometry.setIndex(indices);
-            
+
             // Create temporary mesh
             const material = new THREE.MeshBasicMaterial();
             const mesh = new THREE.Mesh(geometry, material);
-            
+
             // Test intersection
             const intersects = raycaster.intersectObject(mesh);
-            
+
             if (intersects.length > 0 && intersects[0].distance < closestDistance) {
                 closestDistance = intersects[0].distance;
                 closestPolyRef = `0,${tileId},${polyIndex}` as NodeRef;
             }
-            
+
             // Clean up
             geometry.dispose();
             material.dispose();

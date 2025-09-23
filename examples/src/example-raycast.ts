@@ -1,11 +1,13 @@
 import { type Vec3, vec3 } from 'maaths';
-import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, raycast, three as threeUtils } from 'navcat';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, raycast } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
+import { createNavMeshHelper, createNavMeshPolyHelper } from './common/debug';
 import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -29,7 +31,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -86,7 +88,7 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
@@ -262,7 +264,7 @@ function performRaycast() {
     for (let i = 0; i < raycastResult.path.length; i++) {
         const poly = raycastResult.path[i];
         const hslColor = new THREE.Color().setHSL(0.8, 0.9, 0.4 + (i / raycastResult.path.length) * 0.3);
-        const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, poly, hslColor.toArray() as [number, number, number]);
+        const polyHelper = createNavMeshPolyHelper(navMesh, poly, hslColor.toArray() as [number, number, number]);
         polyHelper.object.position.y += 0.35;
         addVisual(polyHelper);
     }

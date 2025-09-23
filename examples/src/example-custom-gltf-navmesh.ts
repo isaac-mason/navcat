@@ -13,14 +13,14 @@ import {
     NodeType,
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
-    three,
-    three as threeUtils,
 } from 'navcat';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
+import { createNavMeshHelper, createNavMeshLinksHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -81,7 +81,7 @@ scene.add(levelNavMesh);
 const bounds = box3.create();
 const boundsPoint: Vec3 = [0, 0, 0];
 
-const [navMeshPositions, navMeshIndices] = three.getPositionsAndIndices([levelNavMesh]);
+const [navMeshPositions, navMeshIndices] = getPositionsAndIndices([levelNavMesh]);
 
 console.log(navMeshPositions);
 
@@ -146,10 +146,10 @@ addTile(navMesh, tile);
 
 console.log('navMesh', navMesh);
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 scene.add(navMeshHelper.object);
 
-const navMeshLinksHelper = threeUtils.createNavMeshLinksHelper(navMesh);
+const navMeshLinksHelper = createNavMeshLinksHelper(navMesh);
 scene.add(navMeshLinksHelper.object);
 
 const gui = new GUI();
@@ -241,19 +241,16 @@ function updatePath() {
         console.log(getTileAndPolyByRef(pathResult.startNodeRef!, navMesh).poly?.vertices);
     }
 
-    // console.log('pathResult', pathResult);
-    // console.log('partial?', (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0);
-
     const { path, nodePath } = pathResult;
 
     if (nodePath) {
-        const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
+        const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
         addVisual(searchNodesHelper);
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
             if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
+                const polyHelper = createNavMeshPolyHelper(navMesh, node);
                 addVisual(polyHelper);
             }
         }

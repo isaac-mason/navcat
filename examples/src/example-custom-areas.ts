@@ -3,29 +3,30 @@ import type { Box3, Vec3 } from 'maaths';
 import { box3, vec2, vec3 } from 'maaths';
 import {
     addTile,
+    buildCompactHeightfield,
     BuildContext,
     type BuildContextState,
-    buildCompactHeightfield,
     buildContours,
     buildDistanceField,
     buildNavMeshBvTree,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
+    calculateGridSize,
+    calculateMeshBounds,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
-    calculateGridSize,
-    calculateMeshBounds,
+    createGetNodeAreaAndFlagsResult,
     createHeightfield,
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     erodeWalkableArea,
-    FindStraightPathResultFlags,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
     filterWalkableLowHeightSpans,
     findPath,
+    FindStraightPathResultFlags,
     getNodeAreaAndFlags,
     getNodeRefType,
     type Heightfield,
@@ -40,14 +41,14 @@ import {
     polyMeshToTilePolys,
     type QueryFilter,
     rasterizeTriangles,
-    three as threeUtils,
     WALKABLE_AREA,
-    createGetNodeAreaAndFlagsResult,
 } from 'navcat';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
+import { createCompactHeightfieldSolidHelper, createHeightfieldHelper, createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* area types */
@@ -362,7 +363,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: NavMeshInput = {
     positions,
@@ -424,15 +425,15 @@ const debugConfig = {
     compactHeightfield: false,
 };
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-const heightfieldHelper = threeUtils.createHeightfieldHelper(navMeshResult.intermediates.heightfield);
+const heightfieldHelper = createHeightfieldHelper(navMeshResult.intermediates.heightfield);
 heightfieldHelper.object.position.y += 0.05;
 scene.add(heightfieldHelper.object);
 
-const compactHeightfieldHelper = threeUtils.createCompactHeightfieldSolidHelper(navMeshResult.intermediates.compactHeightfield);
+const compactHeightfieldHelper = createCompactHeightfieldSolidHelper(navMeshResult.intermediates.compactHeightfield);
 scene.add(compactHeightfieldHelper.object);
 compactHeightfieldHelper.object.position.y += 0.1;
 
@@ -553,13 +554,13 @@ function updatePath() {
     const { path, nodePath } = pathResult;
 
     if (nodePath) {
-        const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
+        const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
         addVisual(searchNodesHelper);
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
             if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
+                const polyHelper = createNavMeshPolyHelper(navMesh, node);
                 polyHelper.object.position.y += 0.15;
                 addVisual(polyHelper);
             }

@@ -1,13 +1,25 @@
 import GUI from 'lil-gui';
-import { three as threeUtils } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { createExample } from './common/example-base';
 import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+    createCompactHeightfieldDistancesHelper,
+    createCompactHeightfieldRegionsHelper,
+    createCompactHeightfieldSolidHelper,
+    createHeightfieldHelper,
+    createNavMeshBvTreeHelper,
+    createNavMeshHelper,
+    createNavMeshLinksHelper,
+    createNavMeshPortalsHelper,
+    createPolyMeshDetailHelper,
+    createPolyMeshHelper,
+    createRawContoursHelper,
+    createSimplifiedContoursHelper,
+    createTriangleAreaIdsHelper,
+    type DebugObject,
+} from './common/debug';
+import { createExample } from './common/example-base';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -99,76 +111,40 @@ debugFolder
     .onChange(() => {
         navTestModel.scene.visible = debugConfig.showMesh;
     });
-debugFolder
-    .add(debugConfig, 'showTriangleAreaIds')
-    .name('Triangle Area IDs')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showHeightfield')
-    .name('Heightfield')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showCompactHeightfieldSolid')
-    .name('Compact Heightfield Solid')
-    .onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showTriangleAreaIds').name('Triangle Area IDs').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showHeightfield').name('Heightfield').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showCompactHeightfieldSolid').name('Compact Heightfield Solid').onChange(updateDebugHelpers);
 debugFolder
     .add(debugConfig, 'showCompactHeightfieldDistances')
     .name('Compact Heightfield Distances')
     .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showCompactHeightfieldRegions')
-    .name('Compact Heightfield Regions')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showRawContours')
-    .name('Raw Contours')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showSimplifiedContours')
-    .name('Simplified Contours')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showPolyMesh')
-    .name('Poly Mesh')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showPolyMeshDetail')
-    .name('Poly Mesh Detail')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showNavMeshBvTree')
-    .name('NavMesh BV Tree')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showNavMesh')
-    .name('NavMesh')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showNavMeshLinks')
-    .name('NavMesh Links')
-    .onChange(updateDebugHelpers);
-debugFolder
-    .add(debugConfig, 'showNavMeshPortals')
-    .name('NavMesh Portals')
-    .onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showCompactHeightfieldRegions').name('Compact Heightfield Regions').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showRawContours').name('Raw Contours').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showSimplifiedContours').name('Simplified Contours').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showPolyMesh').name('Poly Mesh').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showPolyMeshDetail').name('Poly Mesh Detail').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showNavMeshBvTree').name('NavMesh BV Tree').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showNavMesh').name('NavMesh').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showNavMeshLinks').name('NavMesh Links').onChange(updateDebugHelpers);
+debugFolder.add(debugConfig, 'showNavMeshPortals').name('NavMesh Portals').onChange(updateDebugHelpers);
 
 let currentResult: ReturnType<typeof generateTiledNavMesh> | null = null;
 
 // Debug helper objects - arrays to hold helpers for each tile
 const debugHelpers: {
-    triangleAreaIds: threeUtils.DebugObject[];
-    heightfield: threeUtils.DebugObject[];
-    compactHeightfieldSolid: threeUtils.DebugObject[];
-    compactHeightfieldDistances: threeUtils.DebugObject[];
-    compactHeightfieldRegions: threeUtils.DebugObject[];
-    rawContours: threeUtils.DebugObject[];
-    simplifiedContours: threeUtils.DebugObject[];
-    polyMesh: threeUtils.DebugObject[];
-    polyMeshDetail: threeUtils.DebugObject[];
-    navMeshBvTree: threeUtils.DebugObject | null;
-    navMesh: threeUtils.DebugObject | null;
-    navMeshLinks: threeUtils.DebugObject | null;
-    navMeshPortals: threeUtils.DebugObject | null;
+    triangleAreaIds: DebugObject[];
+    heightfield: DebugObject[];
+    compactHeightfieldSolid: DebugObject[];
+    compactHeightfieldDistances: DebugObject[];
+    compactHeightfieldRegions: DebugObject[];
+    rawContours: DebugObject[];
+    simplifiedContours: DebugObject[];
+    polyMesh: DebugObject[];
+    polyMeshDetail: DebugObject[];
+    navMeshBvTree: DebugObject | null;
+    navMesh: DebugObject | null;
+    navMeshLinks: DebugObject | null;
+    navMeshPortals: DebugObject | null;
 } = {
     triangleAreaIds: [],
     heightfield: [],
@@ -215,10 +191,7 @@ function updateDebugHelpers() {
     // create debug helpers for each tile based on current config
     if (debugConfig.showTriangleAreaIds) {
         intermediates.triAreaIds.forEach((triAreaIds) => {
-            const helper = threeUtils.createTriangleAreaIdsHelper(
-                intermediates.input,
-                triAreaIds,
-            );
+            const helper = createTriangleAreaIdsHelper(intermediates.input, triAreaIds);
             debugHelpers.triangleAreaIds.push(helper);
             scene.add(helper.object);
         });
@@ -226,7 +199,7 @@ function updateDebugHelpers() {
 
     if (debugConfig.showHeightfield) {
         intermediates.heightfield.forEach((heightfield) => {
-            const helper = threeUtils.createHeightfieldHelper(heightfield);
+            const helper = createHeightfieldHelper(heightfield);
             debugHelpers.heightfield.push(helper);
             scene.add(helper.object);
         });
@@ -234,10 +207,7 @@ function updateDebugHelpers() {
 
     if (debugConfig.showCompactHeightfieldSolid) {
         intermediates.compactHeightfield.forEach((compactHeightfield) => {
-            const helper =
-                threeUtils.createCompactHeightfieldSolidHelper(
-                    compactHeightfield,
-                );
+            const helper = createCompactHeightfieldSolidHelper(compactHeightfield);
             debugHelpers.compactHeightfieldSolid.push(helper);
             scene.add(helper.object);
         });
@@ -245,10 +215,7 @@ function updateDebugHelpers() {
 
     if (debugConfig.showCompactHeightfieldDistances) {
         intermediates.compactHeightfield.forEach((compactHeightfield) => {
-            const helper =
-                threeUtils.createCompactHeightfieldDistancesHelper(
-                    compactHeightfield,
-                );
+            const helper = createCompactHeightfieldDistancesHelper(compactHeightfield);
             debugHelpers.compactHeightfieldDistances.push(helper);
             scene.add(helper.object);
         });
@@ -256,10 +223,7 @@ function updateDebugHelpers() {
 
     if (debugConfig.showCompactHeightfieldRegions) {
         intermediates.compactHeightfield.forEach((compactHeightfield) => {
-            const helper =
-                threeUtils.createCompactHeightfieldRegionsHelper(
-                    compactHeightfield,
-                );
+            const helper = createCompactHeightfieldRegionsHelper(compactHeightfield);
             debugHelpers.compactHeightfieldRegions.push(helper);
             scene.add(helper.object);
         });
@@ -267,7 +231,7 @@ function updateDebugHelpers() {
 
     if (debugConfig.showRawContours) {
         intermediates.contourSet.forEach((contourSet) => {
-            const helper = threeUtils.createRawContoursHelper(contourSet);
+            const helper = createRawContoursHelper(contourSet);
             debugHelpers.rawContours.push(helper);
             scene.add(helper.object);
         });
@@ -275,8 +239,7 @@ function updateDebugHelpers() {
 
     if (debugConfig.showSimplifiedContours) {
         intermediates.contourSet.forEach((contourSet) => {
-            const helper =
-                threeUtils.createSimplifiedContoursHelper(contourSet);
+            const helper = createSimplifiedContoursHelper(contourSet);
             debugHelpers.simplifiedContours.push(helper);
             scene.add(helper.object);
         });
@@ -284,7 +247,7 @@ function updateDebugHelpers() {
 
     if (debugConfig.showPolyMesh) {
         intermediates.polyMesh.forEach((polyMesh) => {
-            const helper = threeUtils.createPolyMeshHelper(polyMesh);
+            const helper = createPolyMeshHelper(polyMesh);
             debugHelpers.polyMesh.push(helper);
             scene.add(helper.object);
         });
@@ -292,34 +255,30 @@ function updateDebugHelpers() {
 
     if (debugConfig.showPolyMeshDetail) {
         intermediates.polyMeshDetail.forEach((polyMeshDetail) => {
-            const helper =
-                threeUtils.createPolyMeshDetailHelper(polyMeshDetail);
+            const helper = createPolyMeshDetailHelper(polyMeshDetail);
             debugHelpers.polyMeshDetail.push(helper);
             scene.add(helper.object);
         });
     }
 
     if (debugConfig.showNavMeshBvTree) {
-        debugHelpers.navMeshBvTree =
-            threeUtils.createNavMeshBvTreeHelper(navMesh);
+        debugHelpers.navMeshBvTree = createNavMeshBvTreeHelper(navMesh);
         scene.add(debugHelpers.navMeshBvTree.object);
     }
 
     if (debugConfig.showNavMesh) {
-        debugHelpers.navMesh = threeUtils.createNavMeshHelper(navMesh);
+        debugHelpers.navMesh = createNavMeshHelper(navMesh);
         debugHelpers.navMesh.object.position.y += 0.1;
         scene.add(debugHelpers.navMesh.object);
     }
 
     if (debugConfig.showNavMeshLinks) {
-        debugHelpers.navMeshLinks =
-            threeUtils.createNavMeshLinksHelper(navMesh);
+        debugHelpers.navMeshLinks = createNavMeshLinksHelper(navMesh);
         scene.add(debugHelpers.navMeshLinks.object);
     }
 
     if (debugConfig.showNavMeshPortals) {
-        debugHelpers.navMeshPortals =
-            threeUtils.createNavMeshPortalsHelper(navMesh);
+        debugHelpers.navMeshPortals = createNavMeshPortalsHelper(navMesh);
         scene.add(debugHelpers.navMeshPortals.object);
     }
 }
@@ -336,8 +295,7 @@ function generate() {
         }
     });
 
-    const [positions, indices] =
-        threeUtils.getPositionsAndIndices(walkableMeshes);
+    const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
     const navMeshInput: TiledNavMeshInput = {
         positions,
@@ -345,15 +303,9 @@ function generate() {
     };
 
     const tileSizeWorld = config.tileSizeVoxels * config.cellSize;
-    const walkableRadiusVoxels = Math.ceil(
-        config.walkableRadiusWorld / config.cellSize,
-    );
-    const walkableClimbVoxels = Math.ceil(
-        config.walkableClimbWorld / config.cellHeight,
-    );
-    const walkableHeightVoxels = Math.ceil(
-        config.walkableHeightWorld / config.cellHeight,
-    );
+    const walkableRadiusVoxels = Math.ceil(config.walkableRadiusWorld / config.cellSize);
+    const walkableClimbVoxels = Math.ceil(config.walkableClimbWorld / config.cellHeight);
+    const walkableHeightVoxels = Math.ceil(config.walkableHeightWorld / config.cellHeight);
 
     const navMeshConfig: TiledNavMeshOptions = {
         cellSize: config.cellSize,

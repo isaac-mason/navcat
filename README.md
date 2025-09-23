@@ -207,8 +207,6 @@ The navigation mesh data is transparent enough that you can write your own logic
 
 navcat is agnostic of other javascript libraries, but should work well with any of them.
 
-There are some built-in utilities for creating debug visualisations with threejs. But navcat will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
-
 navcat supports inputs that adhere to the OpenGL conventions:
 - Uses the right-handed coordinate system
 - Indices should be in counter-clockwise winding order
@@ -217,7 +215,7 @@ If you are importing a navmesh created externally, note that navmesh poly vertic
 
 If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
 
-The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
+The examples use threejs for rendering, but navcat is completely agnostic of any rendering or game engine libraries.
 
 ## How are navigation meshes generated with navcat?
 
@@ -1929,48 +1927,7 @@ export type DebugBoxes = {
 };
 ```
 
-If you are using threejs, navcat provides utilities to convert the debug primitives into threejs objects, and convenience wrappers for the helper functions.
-
-```ts
-const triangleAreaIdsHelper = Nav.three.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
-console.log(triangleAreaIdsHelper.object); // THREE.Object3D
-triangleAreaIdsHelper.dispose(); // disposes geometry and materials
-
-const heightfieldHelper = Nav.three.createHeightfieldHelper(heightfield);
-
-const compactHeightfieldSolidHelper = Nav.three.createCompactHeightfieldSolidHelper(compactHeightfield);
-
-const compactHeightfieldDistancesHelper = Nav.three.createCompactHeightfieldDistancesHelper(compactHeightfield);
-
-const compactHeightfieldRegionsHelper = Nav.three.createCompactHeightfieldRegionsHelper(compactHeightfield);
-
-const rawContoursHelper = Nav.three.createRawContoursHelper(contourSet);
-
-const simplifiedContoursHelper = Nav.three.createSimplifiedContoursHelper(contourSet);
-
-const polyMeshHelper = Nav.three.createPolyMeshHelper(polyMesh);
-
-const polyMeshDetailHelper = Nav.three.createPolyMeshDetailHelper(polyMeshDetail);
-
-const navMeshHelper = Nav.three.createNavMeshHelper(navMesh);
-
-const navMeshPolyHelper = Nav.three.createNavMeshPolyHelper(navMesh, '0,0,1');
-
-const navMeshTileBvTreeHelper = Nav.three.createNavMeshTileBvTreeHelper(tile);
-
-const navMeshBvTreeHelper = Nav.three.createNavMeshBvTreeHelper(navMesh);
-
-const navMeshLinksHelper = Nav.three.createNavMeshLinksHelper(navMesh);
-
-const navMeshTilePortalsHelper = Nav.three.createNavMeshTilePortalsHelper(tile);
-
-const navMeshPortalsHelper = Nav.three.createNavMeshPortalsHelper(navMesh);
-
-const findNodePathResult = Nav.findNodePath(navMesh, '0,0,1', '0,0,8', [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
-const searchNodesHelper = Nav.three.createSearchNodesHelper(findNodePathResult.nodes);
-
-const navMeshOffMeshConnectionsHelper = Nav.three.createNavMeshOffMeshConnectionsHelper(navMesh);
-```
+If you are using threejs, you can reference/copy [./examples/src/common/debug.ts](./examples/src/common/debug.ts) for how to convert these debug primitives into threejs objects for rendering.
 
 ## Acknowledgements
 

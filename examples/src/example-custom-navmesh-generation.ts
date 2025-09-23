@@ -6,20 +6,20 @@ import {
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     type ExternalPolygon,
-    findPath,
     FindStraightPathResultFlags,
+    findPath,
     getNodeRefType,
     type NavMeshTile,
     NodeType,
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
-    three as threeUtils,
 } from 'navcat';
-import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
+import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
+import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
 
 /* setup three-mesh-bvh for faster raycasting */
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
@@ -321,7 +321,7 @@ navMesh.origin[2] = bounds[0][2];
 
 addTile(navMesh, tile);
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.4;
 scene.add(navMeshHelper.object);
 
@@ -412,13 +412,13 @@ function updatePath() {
     const { path, nodePath } = pathResult;
 
     if (nodePath) {
-        const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
+        const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
         addVisual(searchNodesHelper);
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
             if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
+                const polyHelper = createNavMeshPolyHelper(navMesh, node);
                 polyHelper.object.position.y += 0.15;
                 addVisual(polyHelper);
             }

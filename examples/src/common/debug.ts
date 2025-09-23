@@ -1,9 +1,23 @@
+import type {
+    ArrayLike,
+    CompactHeightfield,
+    ContourSet,
+    DebugBoxes,
+    DebugLines,
+    DebugPoints,
+    DebugPrimitive,
+    DebugTriangles,
+    Heightfield,
+    NavMesh,
+    NavMeshTile,
+    NodeRef,
+    PolyMesh,
+    PolyMeshDetail,
+    SearchNodePool,
+} from 'navcat';
+import * as Debug from 'navcat';
+import { DebugPrimitiveType } from 'navcat';
 import * as THREE from 'three';
-import type { DebugBoxes, DebugLines, DebugPoints, DebugPrimitive, DebugTriangles } from '../debug';
-import * as Debug from '../debug';
-import { DebugPrimitiveType } from '../debug';
-import type { ArrayLike, CompactHeightfield, ContourSet, Heightfield, PolyMesh, PolyMeshDetail } from '../generate';
-import type { NavMesh, NavMeshTile, NodeRef, SearchNodePool } from '../query';
 
 export type DebugObject = {
     object: THREE.Object3D;
@@ -92,7 +106,7 @@ function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D
             if (numPoints > 0) {
                 // Create sphere geometry for instancing
                 const sphereGeometry = new THREE.SphereGeometry(1, 8, 6); // Low-poly sphere for performance
-                
+
                 const material = new THREE.MeshBasicMaterial({
                     vertexColors: true,
                     transparent: pointPrimitive.transparent || false,

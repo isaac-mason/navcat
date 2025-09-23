@@ -1,18 +1,13 @@
 import type { Vec3 } from 'maaths';
-import {
-    DEFAULT_QUERY_FILTER,
-    FindStraightPathResultFlags,
-    findPath,
-    getNodeRefType,
-    NodeType,
-    three as threeUtils,
-} from 'navcat';
+import { DEFAULT_QUERY_FILTER, FindStraightPathResultFlags, findPath, getNodeRefType, NodeType } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
+import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
 import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -35,7 +30,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -92,7 +87,7 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
@@ -101,7 +96,7 @@ let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [2.52, 2.39, -2.2];
 const halfExtents: Vec3 = [1, 1, 1];
 
-type Visual = { object: THREE.Object3D, dispose: () => void };
+type Visual = { object: THREE.Object3D; dispose: () => void };
 let visuals: Visual[] = [];
 
 function clearVisuals() {
@@ -144,7 +139,9 @@ function updatePath() {
                 if (child instanceof THREE.Mesh) {
                     child.geometry?.dispose();
                     if (Array.isArray(child.material)) {
-                        child.material.forEach(mat => { if (mat.dispose) mat.dispose(); });
+                        child.material.forEach((mat) => {
+                            if (mat.dispose) mat.dispose();
+                        });
                     } else {
                         child.material?.dispose?.();
                     }
@@ -162,7 +159,9 @@ function updatePath() {
                 if (child instanceof THREE.Mesh) {
                     child.geometry?.dispose();
                     if (Array.isArray(child.material)) {
-                        child.material.forEach(mat => { if (mat.dispose) mat.dispose(); });
+                        child.material.forEach((mat) => {
+                            if (mat.dispose) mat.dispose();
+                        });
                     } else {
                         child.material?.dispose?.();
                     }
@@ -183,13 +182,13 @@ function updatePath() {
     const { path, nodePath } = pathResult;
 
     if (nodePath) {
-        const searchNodesHelper = threeUtils.createSearchNodesHelper(nodePath.nodes);
+        const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
         addVisual(searchNodesHelper);
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
             if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, node);
+                const polyHelper = createNavMeshPolyHelper(navMesh, node);
                 polyHelper.object.position.y += 0.15;
                 addVisual(polyHelper);
             }

@@ -7,15 +7,16 @@ import {
     findNearestPoly,
     findStraightPath,
     NodeType,
-    three as threeUtils,
 } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
+import { createNavMeshHelper, createNavMeshPolyHelper, type DebugObject } from './common/debug';
 import { createExample } from './common/example-base';
 import { computeUniformCostFlowField, type FlowField, getNodePathFromFlowField } from './common/flow-field';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -38,7 +39,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const cellSize = 0.15;
 const cellHeight = 0.15;
@@ -90,7 +91,7 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
@@ -207,7 +208,7 @@ function showFlagAt(position: [number, number, number] | null) {
     }
 }
 
-const polyHelpers: threeUtils.DebugObject[] = [];
+const polyHelpers: DebugObject[] = [];
 const arrowHelpers: THREE.ArrowHelper[] = [];
 const pathHelpers: THREE.Mesh[] = [];
 
@@ -281,7 +282,7 @@ function showFlowFieldArrows(navMesh: NavMesh, flowField: FlowField) {
         const g = 0;
         const b = t;
         const color = new THREE.Color(r, g, b);
-        const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [color.r, color.g, color.b]);
+        const polyHelper = createNavMeshPolyHelper(navMesh, polyRef, [color.r, color.g, color.b]);
         polyHelper.object.position.y += 0.15;
         polyHelpers.push(polyHelper);
         scene.add(polyHelper.object);
@@ -309,7 +310,7 @@ function showPath(pathPolys: NodeRef[], pathPoints: number[][]) {
 
     // poly helpers
     for (const polyRef of pathPolys) {
-        const polyHelper = threeUtils.createNavMeshPolyHelper(navMesh!, polyRef, [1, 0.7, 0.2]);
+        const polyHelper = createNavMeshPolyHelper(navMesh!, polyRef, [1, 0.7, 0.2]);
         polyHelper.object.position.y += 0.15;
         polyHelpers.push(polyHelper);
         scene.add(polyHelper.object);

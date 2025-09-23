@@ -3,7 +3,6 @@ import {
     createFindNearestPolyResult,
     DEFAULT_QUERY_FILTER,
     findNearestPoly,
-    three as threeUtils,
 } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
@@ -14,6 +13,8 @@ import {
     type TiledNavMeshOptions,
 } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
+import { createNavMeshHelper } from './common/debug';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -35,7 +36,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -92,7 +93,7 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 scene.add(navMeshHelper.object);
 
 /* find nearest poly logic */

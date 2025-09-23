@@ -1,19 +1,11 @@
 import type { Vec3 } from 'maaths';
-import {
-    createFindNearestPolyResult,
-    DEFAULT_QUERY_FILTER,
-    findNearestPoly,
-    findRandomPointAroundCircle,
-    three as threeUtils,
-} from 'navcat';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, findRandomPointAroundCircle } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { createNavMeshHelper } from './common/debug';
 import { createExample } from './common/example-base';
-import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -36,7 +28,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -93,48 +85,26 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
 /* find random point logic */
-const pointMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.1, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-);
+const pointMesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 scene.add(pointMesh);
 
-const arrow = new THREE.ArrowHelper(
-    new THREE.Vector3(0, 1, 0),
-    pointMesh.position,
-    1,
-    0xffff00,
-    0.2,
-);
+const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), pointMesh.position, 1, 0xffff00, 0.2);
 scene.add(arrow);
 
 const updateRandomPoint = (point: Vec3) => {
-    const nearestPoly = findNearestPoly(
-        createFindNearestPolyResult(),
-        navMesh,
-        point,
-        [0.5, 0.5, 0.5],
-        DEFAULT_QUERY_FILTER,
-    );
+    const nearestPoly = findNearestPoly(createFindNearestPolyResult(), navMesh, point, [0.5, 0.5, 0.5], DEFAULT_QUERY_FILTER);
 
     if (!nearestPoly.success) return;
 
     const startRef = nearestPoly.nearestPolyRef;
     const startPoint = nearestPoly.nearestPoint;
 
-    const result = findRandomPointAroundCircle(
-        navMesh,
-        startRef,
-        startPoint,
-        0.5,
-        DEFAULT_QUERY_FILTER,
-        Math.random,
-    );
+    const result = findRandomPointAroundCircle(navMesh, startRef, startPoint, 0.5, DEFAULT_QUERY_FILTER, Math.random);
 
     if (result.success) {
         pointMesh.position.fromArray(result.position);

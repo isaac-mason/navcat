@@ -11,21 +11,27 @@ import {
     type OffMeshConnection,
     OffMeshConnectionDirection,
     serPolyNodeRef,
-    three as threeUtils,
 } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import {
-    addAgent,
     type Agent,
     type AgentParams,
-    createCrowd,
+    addAgent,
     CrowdUpdateFlags,
+    createCrowd,
     requestMoveTarget,
     updateCrowd,
 } from './common/crowd';
+import {
+    createNavMeshHelper,
+    createNavMeshOffMeshConnectionsHelper,
+    createNavMeshPolyHelper,
+    type DebugObject,
+} from './common/debug';
 import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
 
@@ -137,7 +143,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -241,11 +247,11 @@ for (const offMeshConnection of offMeshConnections) {
     addOffMeshConnection(navMesh, offMeshConnection);
 }
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-const offMeshConnectionsHelper = threeUtils.createNavMeshOffMeshConnectionsHelper(navMesh);
+const offMeshConnectionsHelper = createNavMeshOffMeshConnectionsHelper(navMesh);
 scene.add(offMeshConnectionsHelper.object);
 
 /* Visuals */
@@ -280,7 +286,7 @@ type AgentVisualsOptions = {
 
 // poly visuals
 type PolyHelper = {
-    helper: threeUtils.DebugObject;
+    helper: DebugObject;
     polyRef: NodeRef;
 };
 
@@ -293,7 +299,7 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
             const polyRef = serPolyNodeRef(tile.id, polyIndex);
 
-            const helper = threeUtils.createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.3, 1]);
+            const helper = createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.3, 1]);
 
             // initially hidden and semi-transparent
             helper.object.visible = false;

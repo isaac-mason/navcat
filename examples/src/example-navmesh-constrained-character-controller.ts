@@ -1,15 +1,11 @@
 import { GUI } from 'lil-gui';
 import type { Vec3 } from 'maaths';
-import {
-    createFindNearestPolyResult,
-    DEFAULT_QUERY_FILTER,
-    findNearestPoly,
-    moveAlongSurface,
-    three as threeUtils,
-} from 'navcat';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, moveAlongSurface } from 'navcat';
 import * as THREE from 'three';
+import { createNavMeshHelper } from './common/debug';
 import { createExample } from './common/example-base';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from './common/generate-solo-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* controls */
@@ -214,7 +210,7 @@ const generateNavMesh = () => {
         }
     });
 
-    const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+    const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
     const navMeshInput: SoloNavMeshInput = {
         positions,
@@ -245,7 +241,7 @@ const generateNavMesh = () => {
     navMesh = navMeshResult.navMesh;
 
     // create new helper and add to scene
-    navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+    navMeshHelper = createNavMeshHelper(navMesh);
     navMeshHelper.object.position.y += 0.15;
     scene.add(navMeshHelper.object);
 

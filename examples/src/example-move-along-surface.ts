@@ -1,19 +1,11 @@
 import { type Vec3, vec3 } from 'maaths';
-import {
-    createFindNearestPolyResult,
-    DEFAULT_QUERY_FILTER,
-    findNearestPoly,
-    moveAlongSurface,
-    three as threeUtils,
-} from 'navcat';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, moveAlongSurface } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { createNavMeshHelper, createNavMeshLinksHelper } from './common/debug';
 import { createExample } from './common/example-base';
-import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -36,7 +28,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -93,11 +85,11 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-const navMeshLinksHelper = threeUtils.createNavMeshLinksHelper(navMesh);
+const navMeshLinksHelper = createNavMeshLinksHelper(navMesh);
 scene.add(navMeshLinksHelper.object);
 
 /* create agent state */
@@ -120,10 +112,7 @@ const agentState: {
 };
 
 /* create agent mesh */
-const agentMesh = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.2, 0.6),
-    new THREE.MeshStandardMaterial({ color: 0xff0000 }),
-);
+const agentMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.6), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
 agentMesh.geometry.translate(0, 0.3, 0);
 
 scene.add(agentMesh);
@@ -197,13 +186,9 @@ function updateAgentMovement(deltaTime: number) {
 
     if (!nearestPolyResult.success) return;
 
-     // get move target position
-    const moveRequestTarget = vec3.add(
-        vec3.create(),
-        nearestPolyResult.nearestPoint,
-        moveRequest,
-    );
-    
+    // get move target position
+    const moveRequestTarget = vec3.add(vec3.create(), nearestPolyResult.nearestPoint, moveRequest);
+
     if (vec3.length(moveRequest) <= 0) return;
 
     // move along surface

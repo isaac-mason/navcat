@@ -4,22 +4,19 @@ import {
     DEFAULT_QUERY_FILTER,
     findPath,
     getNodeRefType,
-    type OffMeshConnection,
     NodeType,
+    type OffMeshConnection,
     OffMeshConnectionDirection,
-    three as threeUtils,
 } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
-import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
+import { createNavMeshHelper, createNavMeshOffMeshConnectionsHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -41,7 +38,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -116,12 +113,11 @@ for (const connection of offMeshConnections) {
 }
 
 /* create debug helpers */
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-const offMeshConnectionsHelper =
-    threeUtils.createNavMeshOffMeshConnectionsHelper(navMesh);
+const offMeshConnectionsHelper = createNavMeshOffMeshConnectionsHelper(navMesh);
 scene.add(offMeshConnectionsHelper.object);
 
 /* find path */
@@ -129,13 +125,7 @@ const start: Vec3 = [-3.94, 0.26, 4.71];
 const end: Vec3 = [2.52, 2.39, -2.2];
 const halfExtents: Vec3 = [1, 1, 1];
 
-const pathResult = findPath(
-    navMesh,
-    start,
-    end,
-    halfExtents,
-    DEFAULT_QUERY_FILTER,
-);
+const pathResult = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
 
 console.log(pathResult);
 
@@ -143,21 +133,15 @@ if (pathResult.success) {
     const { path, nodePath } = pathResult;
 
     if (nodePath) {
-        if (nodePath.intermediates?.nodes) {
-            const searchNodesHelper = threeUtils.createSearchNodesHelper(
-                nodePath.intermediates.nodes,
-            );
-            scene.add(searchNodesHelper.object);
-        }
+        const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
+        scene.add(searchNodesHelper.object);
+    
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
 
             if (getNodeRefType(node) === NodeType.GROUND_POLY) {
-                const polyHelper = threeUtils.createNavMeshPolyHelper(
-                    navMesh,
-                    node,
-                );
+                const polyHelper = createNavMeshPolyHelper(navMesh, node);
                 polyHelper.object.position.y += 0.15;
                 scene.add(polyHelper.object);
             }
@@ -169,10 +153,7 @@ if (pathResult.success) {
             const point = path[i];
 
             // point
-            const mesh = new THREE.Mesh(
-                new THREE.SphereGeometry(0.2),
-                new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-            );
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
             mesh.position.set(...point.position);
             scene.add(mesh);
 
@@ -181,10 +162,7 @@ if (pathResult.success) {
                 const prevPoint = path[i - 1];
 
                 const geometry = new LineGeometry();
-                geometry.setFromPoints([
-                    new THREE.Vector3(...prevPoint.position),
-                    new THREE.Vector3(...point.position),
-                ]);
+                geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
 
                 const material = new Line2NodeMaterial({
                     color: 'yellow',

@@ -1,9 +1,24 @@
 import GUI from 'lil-gui';
-import { three as threeUtils } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import {
+    createCompactHeightfieldDistancesHelper,
+    createCompactHeightfieldRegionsHelper,
+    createCompactHeightfieldSolidHelper,
+    createHeightfieldHelper,
+    createNavMeshBvTreeHelper,
+    createNavMeshHelper,
+    createNavMeshLinksHelper,
+    createPolyMeshDetailHelper,
+    createPolyMeshHelper,
+    createRawContoursHelper,
+    createSimplifiedContoursHelper,
+    createTriangleAreaIdsHelper,
+    type DebugObject,
+} from './common/debug';
 import { createExample } from './common/example-base';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from './common/generate-solo-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -109,18 +124,18 @@ let result: ReturnType<typeof generateSoloNavMesh> | null = null;
 
 // Debug helper objects
 const debugHelpers: {
-    triangleAreaIds: threeUtils.DebugObject | null;
-    heightfield: threeUtils.DebugObject | null;
-    compactHeightfieldSolid: threeUtils.DebugObject | null;
-    compactHeightfieldDistances: threeUtils.DebugObject | null;
-    compactHeightfieldRegions: threeUtils.DebugObject | null;
-    rawContours: threeUtils.DebugObject | null;
-    simplifiedContours: threeUtils.DebugObject | null;
-    polyMesh: threeUtils.DebugObject | null;
-    polyMeshDetail: threeUtils.DebugObject | null;
-    navMeshBvTree: threeUtils.DebugObject | null;
-    navMesh: threeUtils.DebugObject | null;
-    navMeshLinks: threeUtils.DebugObject | null;
+    triangleAreaIds: DebugObject | null;
+    heightfield: DebugObject | null;
+    compactHeightfieldSolid: DebugObject | null;
+    compactHeightfieldDistances: DebugObject | null;
+    compactHeightfieldRegions: DebugObject | null;
+    rawContours: DebugObject | null;
+    simplifiedContours: DebugObject | null;
+    polyMesh: DebugObject | null;
+    polyMeshDetail: DebugObject | null;
+    navMeshBvTree: DebugObject | null;
+    navMesh: DebugObject | null;
+    navMeshLinks: DebugObject | null;
 } = {
     triangleAreaIds: null,
     heightfield: null,
@@ -169,67 +184,63 @@ function updateDebugHelpers() {
 
     // Create debug helpers based on current config
     if (debugConfig.showTriangleAreaIds) {
-        debugHelpers.triangleAreaIds = threeUtils.createTriangleAreaIdsHelper(intermediates.input, intermediates.triAreaIds);
+        debugHelpers.triangleAreaIds = createTriangleAreaIdsHelper(intermediates.input, intermediates.triAreaIds);
         scene.add(debugHelpers.triangleAreaIds.object);
     }
 
     if (debugConfig.showHeightfield) {
-        debugHelpers.heightfield = threeUtils.createHeightfieldHelper(intermediates.heightfield);
+        debugHelpers.heightfield = createHeightfieldHelper(intermediates.heightfield);
         scene.add(debugHelpers.heightfield.object);
     }
 
     if (debugConfig.showCompactHeightfieldSolid) {
-        debugHelpers.compactHeightfieldSolid = threeUtils.createCompactHeightfieldSolidHelper(intermediates.compactHeightfield);
+        debugHelpers.compactHeightfieldSolid = createCompactHeightfieldSolidHelper(intermediates.compactHeightfield);
         scene.add(debugHelpers.compactHeightfieldSolid.object);
     }
 
     if (debugConfig.showCompactHeightfieldDistances) {
-        debugHelpers.compactHeightfieldDistances = threeUtils.createCompactHeightfieldDistancesHelper(
-            intermediates.compactHeightfield,
-        );
+        debugHelpers.compactHeightfieldDistances = createCompactHeightfieldDistancesHelper(intermediates.compactHeightfield);
         scene.add(debugHelpers.compactHeightfieldDistances.object);
     }
 
     if (debugConfig.showCompactHeightfieldRegions) {
-        debugHelpers.compactHeightfieldRegions = threeUtils.createCompactHeightfieldRegionsHelper(
-            intermediates.compactHeightfield,
-        );
+        debugHelpers.compactHeightfieldRegions = createCompactHeightfieldRegionsHelper(intermediates.compactHeightfield);
         scene.add(debugHelpers.compactHeightfieldRegions.object);
     }
 
     if (debugConfig.showRawContours) {
-        debugHelpers.rawContours = threeUtils.createRawContoursHelper(intermediates.contourSet);
+        debugHelpers.rawContours = createRawContoursHelper(intermediates.contourSet);
         scene.add(debugHelpers.rawContours.object);
     }
 
     if (debugConfig.showSimplifiedContours) {
-        debugHelpers.simplifiedContours = threeUtils.createSimplifiedContoursHelper(intermediates.contourSet);
+        debugHelpers.simplifiedContours = createSimplifiedContoursHelper(intermediates.contourSet);
         scene.add(debugHelpers.simplifiedContours.object);
     }
 
     if (debugConfig.showPolyMesh) {
-        debugHelpers.polyMesh = threeUtils.createPolyMeshHelper(intermediates.polyMesh);
+        debugHelpers.polyMesh = createPolyMeshHelper(intermediates.polyMesh);
         scene.add(debugHelpers.polyMesh.object);
     }
 
     if (debugConfig.showPolyMeshDetail) {
-        debugHelpers.polyMeshDetail = threeUtils.createPolyMeshDetailHelper(intermediates.polyMeshDetail);
+        debugHelpers.polyMeshDetail = createPolyMeshDetailHelper(intermediates.polyMeshDetail);
         scene.add(debugHelpers.polyMeshDetail.object);
     }
 
     if (debugConfig.showNavMeshBvTree) {
-        debugHelpers.navMeshBvTree = threeUtils.createNavMeshBvTreeHelper(navMesh);
+        debugHelpers.navMeshBvTree = createNavMeshBvTreeHelper(navMesh);
         scene.add(debugHelpers.navMeshBvTree.object);
     }
 
     if (debugConfig.showNavMesh) {
-        debugHelpers.navMesh = threeUtils.createNavMeshHelper(navMesh);
+        debugHelpers.navMesh = createNavMeshHelper(navMesh);
         debugHelpers.navMesh.object.position.y += 0.1;
         scene.add(debugHelpers.navMesh.object);
     }
 
     if (debugConfig.showNavMeshLinks) {
-        debugHelpers.navMeshLinks = threeUtils.createNavMeshLinksHelper(navMesh);
+        debugHelpers.navMeshLinks = createNavMeshLinksHelper(navMesh);
         scene.add(debugHelpers.navMeshLinks.object);
     }
 }
@@ -246,7 +257,7 @@ function generate() {
         }
     });
 
-    const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+    const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
     const navMeshInput: SoloNavMeshInput = {
         positions,

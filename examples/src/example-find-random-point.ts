@@ -1,17 +1,11 @@
 import GUI from 'lil-gui';
-import {
-    DEFAULT_QUERY_FILTER,
-    findRandomPoint,
-    three as threeUtils,
-} from 'navcat';
+import { DEFAULT_QUERY_FILTER, findRandomPoint } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { createNavMeshHelper } from './common/debug';
 import { createExample } from './common/example-base';
-import {
-    generateTiledNavMesh,
-    type TiledNavMeshInput,
-    type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -34,7 +28,7 @@ scene.traverse((object) => {
     }
 });
 
-const [positions, indices] = threeUtils.getPositionsAndIndices(walkableMeshes);
+const [positions, indices] = getPositionsAndIndices(walkableMeshes);
 
 const navMeshInput: TiledNavMeshInput = {
     positions,
@@ -91,24 +85,15 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const navMeshHelper = threeUtils.createNavMeshHelper(navMesh);
+const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
 /* find random point logic */
-const pointMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.1, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
-);
+const pointMesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
 scene.add(pointMesh);
 
-const arrow = new THREE.ArrowHelper(
-    new THREE.Vector3(0, 1, 0),
-    pointMesh.position,
-    1,
-    0xffff00,
-    0.2,
-);
+const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), pointMesh.position, 1, 0xffff00, 0.2);
 scene.add(arrow);
 
 const updateRandomPoint = () => {
@@ -129,9 +114,7 @@ updateRandomPoint();
 const gui = new GUI();
 
 const randomPointFolder = gui.addFolder('Random Point');
-randomPointFolder
-    .add({ run: updateRandomPoint }, 'run')
-    .name('Find Random Point');
+randomPointFolder.add({ run: updateRandomPoint }, 'run').name('Find Random Point');
 
 /* start loop */
 function update() {

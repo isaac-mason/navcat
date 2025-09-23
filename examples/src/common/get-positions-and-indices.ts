@@ -1,5 +1,5 @@
+import { mergePositionsAndIndices } from 'navcat';
 import { type BufferAttribute, type Mesh, Vector3 } from 'three';
-import { mergePositionsAndIndices } from '../generate';
 
 const _position = new Vector3();
 

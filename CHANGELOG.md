@@ -2,6 +2,7 @@
 
 ## 0.0.3 (Unreleased)
 
+- Remove `three` dependency from navcat, move threejs utilities to examples in lieu of a potential @navcat/three package in the future
 - Add `markCylinderArea` compact heightfield function for marking all spans within a cylinder area with a given area ID
 
 ## 0.0.2
