@@ -19,6 +19,11 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Fully JSON serializable data structures
 - Tiny - 40.32 kB minified + gzipped
 
+**Used in**
+
+- [manablade.com](https://manablade.com)
+- ... add your project!
+
 **Examples**
 
 <table>
@@ -137,7 +142,6 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
     </td>
   </tr>
 </table>
-
 
 ## Table of Contents
 
