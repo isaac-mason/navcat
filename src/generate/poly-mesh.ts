@@ -1,4 +1,4 @@
-import { type Box3, box3, type Vec3, vec3 } from 'maaths';
+import { type Box3, box3, vec3 } from 'maaths';
 import { BuildContext, type BuildContextState } from './build-context';
 import { BORDER_VERTEX, MESH_NULL_IDX, MULTIPLE_REGS } from './common';
 import type { ContourSet } from './contour-set';
@@ -39,7 +39,7 @@ export type PolyMesh = {
     maxEdgeError: number;
 };
 
-type VertexEntry = [Vec3, number];
+type VertexEntry = [y: number, index: number];
 
 const VERTEX_Y_TOLERANCE = 2;
 
@@ -48,37 +48,38 @@ const addVertex = (
     y: number,
     z: number,
     vertices: number[],
-    vertexCount: { value: number },
+    vflags: number[],
     vertexMap: Record<string, VertexEntry[]>,
 ): number => {
     // key by X and Z only; we'll search the bucket for a vertex with similar Y
     const keyXZ = `${x},${z}`;
     const bucket = vertexMap[keyXZ];
+
     if (bucket) {
         for (let i = 0; i < bucket.length; i++) {
             const entry = bucket[i];
-            const pos = entry[0];
-            const idx = entry[1];
+            const [entryY, idx] = entry;
             // x and z match, check y tolerance
-            if (Math.abs(pos[1] - y) <= VERTEX_Y_TOLERANCE) {
+            if (Math.abs(entryY - y) <= VERTEX_Y_TOLERANCE) {
                 return idx;
             }
         }
     }
 
     // could not find — create new
-    const i = vertexCount.value;
-    vertexCount.value++;
-    vertices[i * 3] = x;
-    vertices[i * 3 + 1] = y;
-    vertices[i * 3 + 2] = z;
+    const i = Math.floor(vertices.length / 3);
 
-    const newEntry: VertexEntry = [[x, y, z], i];
+    vertices.push(x, y, z);
+
+    const newEntry: VertexEntry = [y, i];
+
     if (bucket) {
         bucket.push(newEntry);
     } else {
         vertexMap[keyXZ] = [newEntry];
     }
+
+    vflags.push(0);
 
     return i;
 };
@@ -546,29 +547,23 @@ const mergePolyVerts = (
 
 export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, maxVerticesPerPoly: number): PolyMesh => {
     // calculate sizes
-    let maxVertices = 0;
     let maxTris = 0;
     let maxVertsPerCont = 0;
 
     for (let i = 0; i < contourSet.contours.length; i++) {
         const contour = contourSet.contours[i];
         if (contour.nVertices < 3) continue;
-        maxVertices += contour.nVertices;
         maxTris += contour.nVertices - 2;
         maxVertsPerCont = Math.max(maxVertsPerCont, contour.nVertices);
     }
 
-    if (maxVertices >= 0xfffe) {
-        throw new Error(`Too many vertices: ${maxVertices}`);
-    }
-
     // initialize mesh
     const mesh: PolyMesh = {
-        vertices: new Array(maxVertices * 3).fill(0),
-        polys: new Array(maxTris * maxVerticesPerPoly).fill(MESH_NULL_IDX),
-        regions: new Array(maxTris).fill(0),
-        flags: new Array(maxTris).fill(0),
-        areas: new Array(maxTris).fill(0),
+        vertices: [],
+        polys: [],
+        regions: [],
+        flags: [],
+        areas: [],
         nVertices: 0,
         nPolys: 0,
         maxVerticesPerPoly,
@@ -581,15 +576,12 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
         maxEdgeError: contourSet.maxError,
     };
 
-    const vflags = new Array(maxVertices).fill(0);
-    // Simple bucket map for deduplicating vertices: XZ key -> array of [position, index]
+    const vflags: number[] = [];
     const vertexMap: Record<string, VertexEntry[]> = {};
     const indices = new Array(maxVertsPerCont);
     const tris = new Array(maxVertsPerCont * 3);
     const polys = new Array((maxVertsPerCont + 1) * maxVerticesPerPoly).fill(MESH_NULL_IDX);
     const tmpPolyStart = maxVertsPerCont * maxVerticesPerPoly;
-
-    const vertexCount = { value: 0 };
 
     // process each contour
     for (let i = 0; i < contourSet.contours.length; i++) {
@@ -611,10 +603,17 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
 
         // add vertices
         for (let j = 0; j < cont.nVertices; j++) {
-            const v = [cont.vertices[j * 4], cont.vertices[j * 4 + 1], cont.vertices[j * 4 + 2], cont.vertices[j * 4 + 3]];
-            indices[j] = addVertex(v[0], v[1], v[2], mesh.vertices, vertexCount, vertexMap);
-            if (v[3] & BORDER_VERTEX) {
-                vflags[indices[j]] = 1;
+            const x = cont.vertices[j * 4];
+            const y = cont.vertices[j * 4 + 1];
+            const z = cont.vertices[j * 4 + 2];
+            const flags = cont.vertices[j * 4 + 3];
+
+            const idx = addVertex(x, y, z, mesh.vertices, vflags, vertexMap);
+
+            indices[j] = idx;
+
+            if (flags & BORDER_VERTEX) {
+                vflags[idx] = 1;
             }
         }
 
@@ -691,7 +690,7 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
         }
     }
 
-    mesh.nVertices = vertexCount.value;
+    mesh.nVertices = Math.floor(mesh.vertices.length / 3);
 
     // remove edge vertices
     for (let i = 0; i < mesh.nVertices; i++) {
