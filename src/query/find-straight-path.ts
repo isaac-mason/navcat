@@ -1,12 +1,12 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
+    createDistancePtSegSqr2dResult,
     createIntersectSegSeg2DResult,
     distancePtSegSqr2d,
     type IntersectSegSeg2DResult,
     intersectSegSeg2D,
     triArea2D,
-    createDistancePtSegSqr2dResult,
 } from '../geometry';
 import type { NavMesh } from './nav-mesh';
 import { createGetNodeAreaAndFlagsResult, getClosestPointOnPolyBoundary, getNodeAreaAndFlags } from './nav-mesh-api';
@@ -199,7 +199,14 @@ export const findStraightPath = (
         return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
     // add start point
-    const startAppendStatus = appendVertex(closestStartPos, pathNodeRefs[0], StraightPathPointFlags.START, path, getNodeRefType(pathNodeRefs[0]), maxPoints);
+    const startAppendStatus = appendVertex(
+        closestStartPos,
+        pathNodeRefs[0],
+        StraightPathPointFlags.START,
+        path,
+        getNodeRefType(pathNodeRefs[0]),
+        maxPoints,
+    );
 
     if (startAppendStatus !== AppendVertexStatus.IN_PROGRESS) {
         // if we hit max points on the first vertex, it's a degenerate case
@@ -246,7 +253,10 @@ export const findStraightPath = (
 
                     // this should only happen when the first polygon is invalid.
                     if (!getClosestPointOnPolyBoundary(navMesh, pathNodeRefs[i], end, endClamp))
-                        return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
+                        return makeFindStraightPathResult(
+                            FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT,
+                            path,
+                        );
 
                     // append portals along the current straight path segment.
                     if (straightPathOptions & (FindStraightPathOptions.AREA_CROSSINGS | FindStraightPathOptions.ALL_CROSSINGS)) {
@@ -259,7 +269,10 @@ export const findStraightPath = (
                     // ignore status return value as we're just about to return
                     appendVertex(endClamp, pathNodeRefs[i], 0, path, nodeType, maxPoints);
 
-                    return makeFindStraightPathResult(FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH, path);
+                    return makeFindStraightPathResult(
+                        FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH,
+                        path,
+                    );
                 }
 
                 if (i === 0) {
@@ -306,10 +319,10 @@ export const findStraightPath = (
                     apexIndex = leftIndex;
 
                     let pointFlags = 0;
-					if (!leftNodeRef) {
-						pointFlags = StraightPathPointFlags.END;
+                    if (!leftNodeRef) {
+                        pointFlags = StraightPathPointFlags.END;
                     } else if (leftNodeType === NodeType.OFFMESH_CONNECTION) {
-						pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
+                        pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
                     }
 
                     // append or update vertex
@@ -370,7 +383,7 @@ export const findStraightPath = (
 
                         if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                             const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
-                            
+
                             let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
                             if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
 
@@ -382,10 +395,10 @@ export const findStraightPath = (
                     apexIndex = rightIndex;
 
                     let pointFlags = 0;
-					if (!rightNodeRef) {
-						pointFlags = StraightPathPointFlags.END;
+                    if (!rightNodeRef) {
+                        pointFlags = StraightPathPointFlags.END;
                     } else if (rightNodeType === NodeType.OFFMESH_CONNECTION) {
-						pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
+                        pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
                     }
 
                     // add/update vertex
@@ -445,7 +458,14 @@ export const findStraightPath = (
     // append end point
     // attach the last poly ref if available for the end point for easier identification
     const endRef = pathNodeRefs.length > 0 ? pathNodeRefs[pathNodeRefs.length - 1] : null;
-    const endAppendStatus = appendVertex(closestEndPos, endRef, StraightPathPointFlags.END, path, NodeType.GROUND_POLY, maxPoints);
+    const endAppendStatus = appendVertex(
+        closestEndPos,
+        endRef,
+        StraightPathPointFlags.END,
+        path,
+        NodeType.GROUND_POLY,
+        maxPoints,
+    );
     const maxPointsReached = (endAppendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
 
     let resultFlags = FindStraightPathResultFlags.SUCCESS;
