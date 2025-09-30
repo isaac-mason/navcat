@@ -39,25 +39,47 @@ export type PolyMesh = {
     maxEdgeError: number;
 };
 
-// TODO: this previously had some tolerance for merging similar Y values, evaluate if needed
+type VertexEntry = [[number, number, number], number];
+
+const VERTEX_Y_TOLERANCE = 2;
+
 const addVertex = (
     x: number,
     y: number,
     z: number,
     vertices: number[],
     vertexCount: { value: number },
-    vertexMap: Map<string, number>,
+    vertexMap: Record<string, VertexEntry[]>,
 ): number => {
-    const key = `${x},${y},${z}`;
-    const existing = vertexMap.get(key);
-    if (existing !== undefined) return existing;
+    // key by X and Z only; we'll search the bucket for a vertex with similar Y
+    const keyXZ = `${x},${z}`;
+    const bucket = vertexMap[keyXZ];
+    if (bucket) {
+        for (let i = 0; i < bucket.length; i++) {
+            const entry = bucket[i];
+            const pos = entry[0];
+            const idx = entry[1];
+            // x and z match, check y tolerance
+            if (Math.abs(pos[1] - y) <= VERTEX_Y_TOLERANCE) {
+                return idx;
+            }
+        }
+    }
 
+    // could not find — create new
     const i = vertexCount.value;
     vertexCount.value++;
     vertices[i * 3] = x;
     vertices[i * 3 + 1] = y;
     vertices[i * 3 + 2] = z;
-    vertexMap.set(key, i);
+
+    const newEntry: VertexEntry = [[x, y, z], i];
+    if (bucket) {
+        bucket.push(newEntry);
+    } else {
+        vertexMap[keyXZ] = [newEntry];
+    }
+
     return i;
 };
 
@@ -560,8 +582,8 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
     };
 
     const vflags = new Array(maxVertices).fill(0);
-    // Simple map for deduplicating vertices: key -> index
-    const vertexMap: Map<string, number> = new Map();
+    // Simple bucket map for deduplicating vertices: XZ key -> array of [position, index]
+    const vertexMap: Record<string, VertexEntry[]> = {};
     const indices = new Array(maxVertsPerCont);
     const tris = new Array(maxVertsPerCont * 3);
     const polys = new Array((maxVertsPerCont + 1) * maxVerticesPerPoly).fill(MESH_NULL_IDX);
