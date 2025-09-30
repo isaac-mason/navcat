@@ -6,7 +6,8 @@
 - Add `markCylinderArea` compact heightfield function for marking all spans within a cylinder area with a given area ID
 - Change `queryPolygons` to accept a `bounds` Box3 instead of center and halfExtents, same as `queryPolygonsInTile`
 - Change `FindNearestPolyResult` property names from `nearestPolyRef` and `nearestPoint` to `ref` and `point`
-- Refactor poly mesh vertex duplication logic in `buildPolyMeshDetail`
+- Refactor poly mesh vertex duplication logic in `buildPolyMesh`
+- Remove all all error throwing in `buildPolyMesh`, replace with build context errors and best-effort continued processing
 
 ## 0.0.2
 
