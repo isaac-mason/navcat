@@ -143,6 +143,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   </tr>
 </table>
 
+
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
@@ -211,6 +212,8 @@ The navigation mesh data is transparent enough that you can write your own logic
 
 navcat is agnostic of other javascript libraries, but should work well with any of them.
 
+There are some built-in utilities for creating debug visualisations with threejs. But navcat will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
+
 navcat supports inputs that adhere to the OpenGL conventions:
 - Uses the right-handed coordinate system
 - Indices should be in counter-clockwise winding order
@@ -219,7 +222,7 @@ If you are importing a navmesh created externally, note that navmesh poly vertic
 
 If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
 
-The examples use threejs for rendering, but navcat is completely agnostic of any rendering or game engine libraries.
+The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
 
 ## How are navigation meshes generated with navcat?
 
@@ -241,6 +244,7 @@ If you want an interactive example / starter, see the examples:
 If you are looking for a minimal snippet to copy & paste into your project to quick-start, see below. The sections following the snippet provides a step-by-step breakdown of the process with images and explanations.
 
 ```ts
+import { box3 } from 'maaths';
 import * as Nav from 'navcat';
 
 type Vec3 = [number, number, number];
@@ -366,7 +370,7 @@ const polyMeshDetail = Nav.buildPolyMeshDetail(ctx, polyMesh, compactHeightfield
 const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
 
 // convert the poly mesh detail to a navmesh tile detail mesh
-const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
+const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 
 // create the navigation mesh
 const navMesh = Nav.createNavMesh();
@@ -415,6 +419,7 @@ The input positions should adhere to the OpenGL conventions (right-handed coordi
 The navigation mesh generation process emits diagnostic messages, warnings, and errors. These are captured with a build context object.
 
 ```ts
+import { box3 } from 'maaths';
 import * as Nav from 'navcat';
 
 type Vec3 = [number, number, number];
@@ -895,7 +900,7 @@ This step involes computing adjacency information for the polygons, and mapping 
 const tilePolys = Nav.polyMeshToTilePolys(polyMesh);
 
 // convert the poly mesh detail to a navmesh tile detail mesh
-const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, maxVerticesPerPoly, polyMeshDetail);
+const tileDetailMesh = Nav.polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 ```
 
 ```ts
@@ -929,7 +934,7 @@ export type NavMeshPoly = {
  * @param polyMeshDetail
  * @returns
  */
-export function polyMeshDetailToTileDetailMesh(polys: NavMeshPoly[], maxVerticesPerPoly: number, polyMeshDetail: PolyMeshDetail);
+export function polyMeshDetailToTileDetailMesh(polys: NavMeshPoly[], polyMeshDetail: PolyMeshDetail);
 ```
 
 ```ts
@@ -1572,17 +1577,19 @@ export function getNodeAreaAndFlags(out: GetNodeAreaAndFlagsResult, navMesh: Nav
 ### queryPolygons
 
 ```ts
-const center: Vec3 = [5, 0, 5];
-const halfExtents: Vec3 = [2, 2, 2];
-
 // find all polys within a box area
-const queryPolygonsResult = Nav.queryPolygons(navMesh, center, halfExtents, Nav.DEFAULT_QUERY_FILTER);
+const bounds: Box3 = [
+    [0, 0, 0],
+    [1, 1, 1],
+];
+
+const queryPolygonsResult = Nav.queryPolygons(navMesh, bounds, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(queryPolygonsResult); // array of node refs that overlap the box area
 ```
 
 ```ts
-export function queryPolygons(navMesh: NavMesh, center: Vec3, halfExtents: Vec3, filter: QueryFilter): NodeRef[];
+export function queryPolygons(navMesh: NavMesh, bounds: Box3, filter: QueryFilter): NodeRef[];
 ```
 
 ### queryPolygonsInTile
@@ -1931,7 +1938,9 @@ export type DebugBoxes = {
 };
 ```
 
-If you are using threejs, you can reference/copy [./examples/src/common/debug.ts](./examples/src/common/debug.ts) for how to convert these debug primitives into threejs objects for rendering.
+If you are using threejs, navcat provides utilities to convert the debug primitives into threejs objects, and convenience wrappers for the helper functions.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="debugThree" />
 
 ## Acknowledgements
 

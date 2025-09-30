@@ -548,6 +548,7 @@ export const createFindNearestPolyResult = (): FindNearestPolyResult => {
 
 const _findNearestPolyClosestPointResult = createGetClosestPointOnPolyResult();
 const _findNearestPolyDiff = vec3.create();
+const _findNearestPolyBounds = box3.create();
 
 export const findNearestPoly = (
     result: FindNearestPolyResult,
@@ -560,8 +561,13 @@ export const findNearestPoly = (
     result.nearestPolyRef = '' as NodeRef;
     vec3.copy(result.nearestPoint, center);
 
-    // query polygons in the area
-    const polys = queryPolygons(navMesh, center, halfExtents, queryFilter);
+    // get bounds for the query
+    const bounds = _findNearestPolyBounds;
+    vec3.sub(bounds[0], center, halfExtents);
+    vec3.add(bounds[1], center, halfExtents);
+    
+    // query polygons within the query bounds
+    const polys = queryPolygons(navMesh, bounds, queryFilter);
 
     let nearestDistSqr = Number.MAX_VALUE;
 
@@ -713,17 +719,11 @@ export const queryPolygonsInTile = (
     }
 };
 
-const _queryPolygonsBounds = box3.create();
 const _queryPolygonsMinTile = vec2.create();
 const _queryPolygonsMaxTile = vec2.create();
 
-export const queryPolygons = (navMesh: NavMesh, center: Vec3, halfExtents: Vec3, filter: QueryFilter): NodeRef[] => {
+export const queryPolygons = (navMesh: NavMesh, bounds: Box3, filter: QueryFilter): NodeRef[] => {
     const result: NodeRef[] = [];
-
-    // set the bounds for the query
-    const bounds = _queryPolygonsBounds;
-    vec3.sub(bounds[0], center, halfExtents);
-    vec3.add(bounds[1], center, halfExtents);
 
     // find min and max tile positions
     const minTile = worldToTilePosition(_queryPolygonsMinTile, navMesh, bounds[0]);

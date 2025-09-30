@@ -3,6 +3,7 @@
 /* SNIPPET_START: generationFull */
 
 /* SNIPPET_START: input */
+import { box3 } from 'maaths';
 import * as Nav from 'navcat';
 
 type Vec3 = [number, number, number];
@@ -467,11 +468,14 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: queryPolygons */
-    const center: Vec3 = [5, 0, 5];
-    const halfExtents: Vec3 = [2, 2, 2];
-
+    
     // find all polys within a box area
-    const queryPolygonsResult = Nav.queryPolygons(navMesh, center, halfExtents, Nav.DEFAULT_QUERY_FILTER);
+    const bounds: Box3 = [
+        [0, 0, 0],
+        [1, 1, 1],
+    ];
+
+    const queryPolygonsResult = Nav.queryPolygons(navMesh, bounds, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(queryPolygonsResult); // array of node refs that overlap the box area
     /* SNIPPET_END: queryPolygons */
