@@ -39,7 +39,7 @@ export type PolyMesh = {
     maxEdgeError: number;
 };
 
-
+// TODO: this previously had some tolerance for merging similar Y values, evaluate if needed
 const addVertex = (
     x: number,
     y: number,
