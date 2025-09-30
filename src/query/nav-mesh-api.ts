@@ -453,10 +453,10 @@ const _closestPointOnPolyBoundaryVertices: number[] = [];
 const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 export const getClosestPointOnPolyBoundary = (
+    outClosestPoint: Vec3,
     navMesh: NavMesh,
     polyRef: NodeRef,
     point: Vec3,
-    outClosestPoint: Vec3,
 ): boolean => {
     const tileAndPoly = getTileAndPolyByRef(polyRef, navMesh);
 

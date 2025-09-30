@@ -191,11 +191,11 @@ export const findStraightPath = (
 
     // clamp start & end to poly boundaries
     const closestStartPos = vec3.create();
-    if (!getClosestPointOnPolyBoundary(navMesh, pathNodeRefs[0], start, closestStartPos))
+    if (!getClosestPointOnPolyBoundary(closestStartPos, navMesh, pathNodeRefs[0], start))
         return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
     const closestEndPos = vec3.create();
-    if (!getClosestPointOnPolyBoundary(navMesh, pathNodeRefs[pathNodeRefs.length - 1], end, closestEndPos))
+    if (!getClosestPointOnPolyBoundary(closestEndPos, navMesh, pathNodeRefs[pathNodeRefs.length - 1], end))
         return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
     // add start point
@@ -252,7 +252,7 @@ export const findStraightPath = (
                     const endClamp = vec3.create();
 
                     // this should only happen when the first polygon is invalid.
-                    if (!getClosestPointOnPolyBoundary(navMesh, pathNodeRefs[i], end, endClamp))
+                    if (!getClosestPointOnPolyBoundary(endClamp, navMesh, pathNodeRefs[i], end))
                         return makeFindStraightPathResult(
                             FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT,
                             path,
