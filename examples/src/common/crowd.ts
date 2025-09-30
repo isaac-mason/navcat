@@ -268,9 +268,9 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 continue;
             }
 
-            fixPathStart(agent.corridor, nearestPolyResult.nearestPolyRef, agent.position);
+            fixPathStart(agent.corridor, nearestPolyResult.ref, agent.position);
             resetLocalBoundary(agent.boundary);
-            vec3.copy(agent.position, nearestPolyResult.nearestPoint);
+            vec3.copy(agent.position, nearestPolyResult.point);
 
             replan = true;
         }
@@ -296,7 +296,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                     agent.params.queryFilter,
                 );
 
-                vec3.copy(agent.targetPos, nearestPolyResult.nearestPoint);
+                vec3.copy(agent.targetPos, nearestPolyResult.point);
                 replan = true;
 
                 if (!nearestPolyResult.success) {

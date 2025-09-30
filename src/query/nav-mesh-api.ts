@@ -534,15 +534,15 @@ export const getClosestPointOnPolyBoundary = (
 
 export type FindNearestPolyResult = {
     success: boolean;
-    nearestPolyRef: NodeRef;
-    nearestPoint: Vec3;
+    ref: NodeRef;
+    point: Vec3;
 };
 
 export const createFindNearestPolyResult = (): FindNearestPolyResult => {
     return {
         success: false,
-        nearestPolyRef: '' as NodeRef,
-        nearestPoint: [0, 0, 0],
+        ref: '' as NodeRef,
+        point: [0, 0, 0],
     };
 };
 
@@ -558,8 +558,8 @@ export const findNearestPoly = (
     queryFilter: QueryFilter,
 ): FindNearestPolyResult => {
     result.success = false;
-    result.nearestPolyRef = '' as NodeRef;
-    vec3.copy(result.nearestPoint, center);
+    result.ref = '' as NodeRef;
+    vec3.copy(result.point, center);
 
     // get bounds for the query
     const bounds = _findNearestPolyBounds;
@@ -601,8 +601,8 @@ export const findNearestPoly = (
 
         if (distSqr < nearestDistSqr) {
             nearestDistSqr = distSqr;
-            result.nearestPolyRef = polyRef;
-            vec3.copy(result.nearestPoint, closestPoint.closestPoint);
+            result.ref = polyRef;
+            vec3.copy(result.point, closestPoint.closestPoint);
             result.success = true;
         }
     }
@@ -1147,10 +1147,10 @@ const connectOffMeshConnection = (
     }
 
     // get start and end poly nodes
-    const startPolyRef = startTilePolyResult.nearestPolyRef;
+    const startPolyRef = startTilePolyResult.ref;
     const startPolyLinks = navMesh.nodes[startPolyRef];
 
-    const endPolyRef = endTilePolyResult.nearestPolyRef;
+    const endPolyRef = endTilePolyResult.ref;
     const endPolyLinks = navMesh.nodes[endPolyRef];
 
     // create a node for the off mesh connection start

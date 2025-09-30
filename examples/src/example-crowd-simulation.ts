@@ -809,7 +809,7 @@ const onPointerDown = (event: MouseEvent) => {
     if (!nearestResult.success) return;
 
     for (const agentId in crowd.agents) {
-        requestMoveTarget(crowd, agentId, nearestResult.nearestPolyRef, nearestResult.nearestPoint);
+        requestMoveTarget(crowd, agentId, nearestResult.ref, nearestResult.point);
     }
 
     console.log('target position:', targetPosition);

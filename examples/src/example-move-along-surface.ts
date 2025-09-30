@@ -187,15 +187,15 @@ function updateAgentMovement(deltaTime: number) {
     if (!nearestPolyResult.success) return;
 
     // get move target position
-    const moveRequestTarget = vec3.add(vec3.create(), nearestPolyResult.nearestPoint, moveRequest);
+    const moveRequestTarget = vec3.add(vec3.create(), nearestPolyResult.point, moveRequest);
 
     if (vec3.length(moveRequest) <= 0) return;
 
     // move along surface
     const moveAlongSurfaceResult = moveAlongSurface(
         navMesh,
-        nearestPolyResult.nearestPolyRef,
-        nearestPolyResult.nearestPoint,
+        nearestPolyResult.ref,
+        nearestPolyResult.point,
         moveRequestTarget,
         DEFAULT_QUERY_FILTER,
     );

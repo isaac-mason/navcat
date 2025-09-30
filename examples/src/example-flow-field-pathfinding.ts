@@ -113,7 +113,7 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
         if (polyRef) {
             const hitPos = pointerRaycast(event);
             const startResult = findNearestPoly(createFindNearestPolyResult(), navMesh, hitPos, [1, 1, 1], DEFAULT_QUERY_FILTER);
-            const closest = startResult?.success ? startResult.nearestPoint : null;
+            const closest = startResult?.success ? startResult.point : null;
             flowFieldTargetNodeRef = polyRef;
             flowFieldTargetPosition = closest;
 
@@ -134,7 +134,7 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
 
         const hitPos = pointerRaycast(event);
         const startResult = findNearestPoly(createFindNearestPolyResult(), navMesh, hitPos, [1, 1, 1], DEFAULT_QUERY_FILTER);
-        const startPt = startResult?.success ? startResult.nearestPoint : null;
+        const startPt = startResult?.success ? startResult.point : null;
 
         const endResult = findNearestPoly(
             createFindNearestPolyResult(),
@@ -143,7 +143,7 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
             [1, 1, 1],
             DEFAULT_QUERY_FILTER,
         );
-        const endPt = endResult?.success ? endResult.nearestPoint : null;
+        const endPt = endResult?.success ? endResult.point : null;
 
         console.time('getNodePathFromFlowField');
         const polyPath = getNodePathFromFlowField(flowField, polyRef);
@@ -372,7 +372,7 @@ function getPolyRefAtMouse(event: MouseEvent): NodeRef | null {
 
     if (!nearestResult.success) return null;
 
-    return nearestResult.nearestPolyRef;
+    return nearestResult.ref;
 }
 
 /* start loop */

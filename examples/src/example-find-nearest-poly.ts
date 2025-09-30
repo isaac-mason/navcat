@@ -131,14 +131,14 @@ const updateNearestPoly = (point: Vec3) => {
 
     if (!nearestPoly.success) return;
 
-    pointMesh.position.fromArray(nearestPoly.nearestPoint);
+    pointMesh.position.fromArray(nearestPoly.point);
 
     arrow.setDirection(new THREE.Vector3(0, -1, 0));
     arrow.position.copy(pointMesh.position);
     arrow.position.y += 1.5;
 
     const nearestPolyElement = document.getElementById('nearest-poly')!;
-    nearestPolyElement.textContent = nearestPoly.nearestPolyRef;
+    nearestPolyElement.textContent = nearestPoly.ref;
 };
 
 updateNearestPoly([-3.94, 0.26, 4.71]);

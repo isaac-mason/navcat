@@ -118,15 +118,15 @@ export const findSmoothPath = (
     );
     if (!startNearestPolyResult.success) return result;
 
-    vec3.copy(result.startPoint, startNearestPolyResult.nearestPoint);
-    result.startNodeRef = startNearestPolyResult.nearestPolyRef;
+    vec3.copy(result.startPoint, startNearestPolyResult.point);
+    result.startNodeRef = startNearestPolyResult.ref;
 
     /* find end nearest poly */
     const endNearestPolyResult = findNearestPoly(_findSmoothPathEndNearestPolyResult, navMesh, end, halfExtents, queryFilter);
     if (!endNearestPolyResult.success) return result;
 
-    vec3.copy(result.endPoint, endNearestPolyResult.nearestPoint);
-    result.endNodeRef = endNearestPolyResult.nearestPolyRef;
+    vec3.copy(result.endPoint, endNearestPolyResult.point);
+    result.endNodeRef = endNearestPolyResult.ref;
 
     /* find node path */
     const nodePath = findNodePath(
