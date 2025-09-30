@@ -1097,8 +1097,8 @@ const findNearestPolyResult = Nav.createFindNearestPolyResult();
 Nav.findNearestPoly(findNearestPolyResult, navMesh, position, halfExtents, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(findNearestPolyResult.success); // true if a nearest poly was found
-console.log(findNearestPolyResult.nearestPolyRef); // the nearest poly's node ref, or 0 if none found
-console.log(findNearestPolyResult.nearestPoint); // the nearest point on the poly in world space [x, y, z]
+console.log(findNearestPolyResult.ref); // the nearest poly's node ref, or 0 if none found
+console.log(findNearestPolyResult.point); // the nearest point on the poly in world space [x, y, z]
 ```
 
 ```ts
@@ -1138,10 +1138,10 @@ const endNode = Nav.findNearestPoly(Nav.createFindNearestPolyResult(), navMesh, 
 if (startNode.success && endNode.success) {
     const nodePath = Nav.findNodePath(
         navMesh,
-        startNode.nearestPolyRef,
-        endNode.nearestPolyRef,
-        startNode.nearestPoint,
-        endNode.nearestPoint,
+        startNode.ref,
+        endNode.ref,
+        startNode.point,
+        endNode.point,
         Nav.DEFAULT_QUERY_FILTER,
     );
 
@@ -1222,7 +1222,7 @@ const startNode = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.nearestPolyRef, start, end, Nav.DEFAULT_QUERY_FILTER);
+const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(moveAlongSurfaceResult.success); // true if the move was successful
 console.log(moveAlongSurfaceResult.resultPosition); // the resulting position after the move [x, y, z]
@@ -1289,7 +1289,7 @@ const startNode = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const raycastResult = Nav.raycast(navMesh, startNode.nearestPolyRef, start, end, Nav.DEFAULT_QUERY_FILTER);
+const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
 console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
@@ -1338,7 +1338,7 @@ const nearestPoly = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nearestPolyRef, navMesh);
+const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
 
 if (nearestPoly.success) {
     const getPolyHeightResult = Nav.createGetPolyHeightResult();
@@ -1413,7 +1413,7 @@ const centerNode = Nav.findNearestPoly(
 if (centerNode.success) {
     const randomPointAroundCircle = Nav.findRandomPointAroundCircle(
         navMesh,
-        centerNode.nearestPolyRef,
+        centerNode.ref,
         center,
         radius,
         Nav.DEFAULT_QUERY_FILTER,
@@ -1459,7 +1459,7 @@ export function findRandomPointAroundCircle(navMesh: NavMesh, startRef: NodeRef,
 ### getClosestPointOnPoly
 
 ```ts
-const polyRef = findNearestPolyResult.nearestPolyRef;
+const polyRef = findNearestPolyResult.ref;
 const getClosestPointOnPolyResult = Nav.createGetClosestPointOnPolyResult();
 
 Nav.getClosestPointOnPoly(getClosestPointOnPolyResult, navMesh, polyRef, position);
@@ -1488,17 +1488,17 @@ const nearestPoly = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nearestPolyRef, navMesh);
+const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
 
 const closestPoint: Vec3 = [0, 0, 0];
 const onlyBoundaryEdges = false;
 
-const squaredDistance = Nav.closestPointOnDetailEdges(
+const squaredDistance = Nav.getClosestPointOnDetailEdges(
+    closestPoint,
     tileAndPoly.tile!,
     tileAndPoly.poly!,
     tileAndPoly.polyIndex,
     position,
-    closestPoint,
     onlyBoundaryEdges,
 );
 
@@ -1506,20 +1506,7 @@ console.log(squaredDistance); // squared distance from position to closest point
 console.log(closestPoint); // the closest point on the detail edges in world space [x, y, z]
 ```
 
-```ts
-/**
- * Finds the closest point on detail mesh edges to a given point
- * @param tile The tile containing the detail mesh
- * @param poly The polygon
- * @param detailMesh The detail mesh
- * @param pos The position to find closest point for
- * @param outClosest Output parameter for the closest point
- * @param onlyBoundary If true, only consider boundary edges
- * @returns The squared distance to the closest point
- *  closest point
- */
-export function closestPointOnDetailEdges(tile: NavMeshTile, poly: NavMeshPoly, polyIndex: number, pos: Vec3, outClosest: Vec3, onlyBoundary = false): number;
-```
+<RenderType type="import('navcat').closestPointOnDetailEdges" />
 
 ### getPortalPoints
 
