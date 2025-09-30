@@ -208,9 +208,9 @@ function showFlagAt(position: [number, number, number] | null) {
     }
 }
 
-const polyHelpers: DebugObject[] = [];
+const flowFieldHelpers: DebugObject[] = [];
 const arrowHelpers: THREE.ArrowHelper[] = [];
-const pathHelpers: THREE.Mesh[] = [];
+const pathHelpers: DebugObject[] = [];
 
 function getPolyCenter(navMesh: NavMesh, nodeRef: NodeRef): [number, number, number] | null {
     const [type, tileId, polyIndex] = desNodeRef(nodeRef);
@@ -236,11 +236,11 @@ function getPolyCenter(navMesh: NavMesh, nodeRef: NodeRef): [number, number, num
 }
 
 function clearPolyHelpers() {
-    for (const helper of polyHelpers) {
+    for (const helper of flowFieldHelpers) {
         scene.remove(helper.object);
         helper.dispose();
     }
-    polyHelpers.length = 0;
+    flowFieldHelpers.length = 0;
 }
 
 function clearArrowHelpers() {
@@ -252,10 +252,8 @@ function clearArrowHelpers() {
 }
 
 function clearPathHelpers() {
-    for (const mesh of pathHelpers) {
-        scene.remove(mesh);
-        mesh.geometry.dispose();
-        (mesh.material as THREE.Material).dispose();
+    for (const helper of pathHelpers) {
+        helper.dispose();
     }
     pathHelpers.length = 0;
 }
@@ -284,7 +282,7 @@ function showFlowFieldArrows(navMesh: NavMesh, flowField: FlowField) {
         const color = new THREE.Color(r, g, b);
         const polyHelper = createNavMeshPolyHelper(navMesh, polyRef, [color.r, color.g, color.b]);
         polyHelper.object.position.y += 0.15;
-        polyHelpers.push(polyHelper);
+        flowFieldHelpers.push(polyHelper);
         scene.add(polyHelper.object);
     }
 
@@ -312,7 +310,14 @@ function showPath(pathPolys: NodeRef[], pathPoints: number[][]) {
     for (const polyRef of pathPolys) {
         const polyHelper = createNavMeshPolyHelper(navMesh!, polyRef, [1, 0.7, 0.2]);
         polyHelper.object.position.y += 0.15;
-        polyHelpers.push(polyHelper);
+        pathHelpers.push({
+            object: polyHelper.object,
+            dispose: () => {
+                polyHelper.object.removeFromParent();
+                polyHelper.dispose();
+            },
+        });
+
         scene.add(polyHelper.object);
     }
 
@@ -321,8 +326,18 @@ function showPath(pathPolys: NodeRef[], pathPoints: number[][]) {
         const pt = pathPoints[i];
         const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
         mesh.position.set(pt[0], pt[1] + 0.3, pt[2]);
-        pathHelpers.push(mesh);
+
+        pathHelpers.push({
+            object: mesh,
+            dispose: () => {
+                mesh.removeFromParent();
+                mesh.geometry.dispose();
+                mesh.material.dispose();
+            },
+        });
+
         scene.add(mesh);
+
         if (i > 0) {
             const prev = pathPoints[i - 1];
 
@@ -340,7 +355,15 @@ function showPath(pathPolys: NodeRef[], pathPoints: number[][]) {
 
             const line = new Line2(geometry, material);
 
-            pathHelpers.push(line);
+            pathHelpers.push({
+                object: line,
+                dispose: () => {
+                    line.removeFromParent();
+                    geometry.dispose();
+                    material.dispose();
+                },
+            });
+
             scene.add(line);
         }
     }
