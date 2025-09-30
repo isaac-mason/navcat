@@ -543,17 +543,13 @@ const mergePolyVerts = (
     }
 };
 
-// TODO: return errors instead of throwing errors in buildPolyMesh
-
 export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, maxVerticesPerPoly: number): PolyMesh => {
     // calculate sizes
-    let maxTris = 0;
     let maxVertsPerCont = 0;
 
     for (let i = 0; i < contourSet.contours.length; i++) {
         const contour = contourSet.contours[i];
         if (contour.nVertices < 3) continue;
-        maxTris += contour.nVertices - 2;
         maxVertsPerCont = Math.max(maxVertsPerCont, contour.nVertices);
     }
 
@@ -683,10 +679,6 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
             mesh.regions[mesh.nPolys] = cont.reg;
             mesh.areas[mesh.nPolys] = cont.area;
             mesh.nPolys++;
-
-            if (mesh.nPolys > maxTris) {
-                throw new Error(`Too many polygons: ${mesh.nPolys} (max: ${maxTris})`);
-            }
         }
     }
 
@@ -698,18 +690,23 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
             if (!canRemoveVertex(mesh, i)) {
                 continue;
             }
-            if (!removeVertex(ctx, mesh, i, maxTris)) {
+            if (removeVertex(ctx, mesh, i)) {
+                // remove vertex - note: mesh.nVertices is already decremented inside removeVertex()!
+                // fixup vertex flags
+                for (let j = i; j < mesh.nVertices; j++) {
+                    vflags[j] = vflags[j + 1];
+                }
+                i--;
+            } else {
                 BuildContext.error(ctx, `Failed to remove edge vertex ${i}`);
-                throw new Error(`Failed to remove edge vertex ${i}`);
             }
-            // remove vertex - note: mesh.nVertices is already decremented inside removeVertex()!
-            // fixup vertex flags
-            for (let j = i; j < mesh.nVertices; j++) {
-                vflags[j] = vflags[j + 1];
-            }
-            i--;
         }
     }
+
+    // trim arrays to size
+    mesh.polys.length = mesh.nPolys * maxVerticesPerPoly;
+    mesh.regions.length = mesh.nPolys;
+    mesh.vertices.length = mesh.nVertices * 3;
 
     // allocate and initialize mesh flags array
     mesh.flags = new Array(mesh.nPolys).fill(0);
@@ -819,7 +816,7 @@ const pushBack = (v: number, arr: number[], an: { value: number }) => {
     an.value++;
 };
 
-const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: number, maxTris: number): boolean => {
+const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: number): boolean => {
     const nvp = mesh.maxVerticesPerPoly;
 
     // Count number of polygons to remove
@@ -839,9 +836,7 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
     const hole: number[] = new Array(numRemovedVerts * nvp);
     let nhole = 0;
     const hreg: number[] = new Array(numRemovedVerts * nvp);
-    // let nhreg = 0;
     const harea: number[] = new Array(numRemovedVerts * nvp);
-    // let nharea = 0;
 
     for (let i = 0; i < mesh.nPolys; i++) {
         const polyStart = i * nvp;
@@ -926,8 +921,6 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
     pushBack(edges[3], harea, nhareaRef);
 
     nhole = nholeRef.value;
-    // nhreg = nhregRef.value;
-    // nharea = nhareaRef.value;
 
     while (nedges > 0) {
         let match = false;
@@ -965,8 +958,6 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
             }
 
             nhole = nholeRef.value;
-            // nhreg = nhregRef.value;
-            // nharea = nhareaRef.value;
         }
 
         if (!match) {
@@ -974,7 +965,7 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
         }
     }
 
-    // Generate temp vertex array for triangulation
+    // generate temp vertex array for triangulation
     const tris: number[] = new Array(nhole * 3);
     const tverts: number[] = new Array(nhole * 4);
     const thole: number[] = new Array(nhole);
@@ -988,21 +979,21 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
         thole[i] = i;
     }
 
-    // Triangulate the hole
+    // triangulate the hole
     let ntris = triangulate(nhole, tverts, thole, tris);
     if (ntris < 0) {
         ntris = -ntris;
         BuildContext.warn(ctx, 'removeVertex: triangulate() returned bad results');
     }
 
-    // Merge the hole triangles back to polygons
+    // merge the hole triangles back to polygons
     const polys: number[] = new Array((ntris + 1) * nvp);
     const pregs: number[] = new Array(ntris);
     const pareas: number[] = new Array(ntris);
 
     polys.fill(MESH_NULL_IDX);
 
-    // Build initial polygons
+    // build initial polygons
     let npolys = 0;
     for (let j = 0; j < ntris; j++) {
         const t = [tris[j * 3], tris[j * 3 + 1], tris[j * 3 + 2]];
@@ -1027,10 +1018,10 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
         return true;
     }
 
-    // Merge polygons
+    // merge polygons
     if (nvp > 3) {
         while (true) {
-            // Find best polygons to merge
+            // find best polygons to merge
             let bestMergeVal = 0;
             let bestPa = 0;
             let bestPb = 0;
@@ -1053,7 +1044,7 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
             }
 
             if (bestMergeVal > 0) {
-                // Found best, merge
+                // found best, merge
                 const paStart = bestPa * nvp;
                 const pbStart = bestPb * nvp;
                 mergePolyVerts(polys, paStart, pbStart, bestEa, bestEb, ntris * nvp, nvp);
@@ -1072,20 +1063,18 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
                 pareas[bestPb] = pareas[npolys - 1];
                 npolys--;
             } else {
-                // Could not merge any polygons, stop
+                // could not merge any polygons, stop
                 break;
             }
         }
     }
 
-    // Store polygons
+    // store polygons
     for (let i = 0; i < npolys; i++) {
-        if (mesh.nPolys >= maxTris) break;
-
         const meshPolyStart = mesh.nPolys * nvp;
         const polyStart = i * nvp;
 
-        // Clear the polygon
+        // clear the polygon
         for (let j = 0; j < nvp; j++) {
             mesh.polys[meshPolyStart + j] = MESH_NULL_IDX;
         }
@@ -1097,11 +1086,6 @@ const removeVertex = (ctx: BuildContextState, mesh: PolyMesh, remVertexIdx: numb
         mesh.regions[mesh.nPolys] = pregs[i];
         mesh.areas[mesh.nPolys] = pareas[i];
         mesh.nPolys++;
-
-        if (mesh.nPolys > maxTris) {
-            BuildContext.error(ctx, `removeVertex: Too many polygons ${mesh.nPolys} (max:${maxTris})`);
-            return false;
-        }
     }
 
     return true;

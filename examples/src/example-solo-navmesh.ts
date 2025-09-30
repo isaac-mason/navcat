@@ -288,7 +288,11 @@ function generate() {
         detailSampleMaxError: config.detailSampleMaxError,
     };
 
+    console.time('generateSoloNavMesh');
+
     result = generateSoloNavMesh(navMeshInput, navMeshConfig);
+
+    console.timeEnd('generateSoloNavMesh');
 
     console.log(result);
 
