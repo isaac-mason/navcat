@@ -39,65 +39,38 @@ export type PolyMesh = {
     maxEdgeError: number;
 };
 
-const VERTEX_BUCKET_COUNT = 1 << 12;
-
-// Helper functions
-const computeVertexHash = (x: number, y: number, z: number): number => {
-    const h1 = 0x8da6b343; // Large multiplicative constants
-    const h2 = 0xd8163841; // arbitrarily chosen primes
-    const h3 = 0xcb1ab31f;
-    const n = h1 * x + h2 * y + h3 * z;
-    return n & (VERTEX_BUCKET_COUNT - 1);
-};
 
 const addVertex = (
     x: number,
     y: number,
     z: number,
     vertices: number[],
-    firstVertexInBucket: number[],
-    nextVertexInBucket: number[],
     vertexCount: { value: number },
+    vertexMap: Map<string, number>,
 ): number => {
-    const bucket = computeVertexHash(x, 0, z);
-    let i = firstVertexInBucket[bucket];
+    const key = `${x},${y},${z}`;
+    const existing = vertexMap.get(key);
+    if (existing !== undefined) return existing;
 
-    while (i !== -1) {
-        const vx = vertices[i * 3];
-        const vy = vertices[i * 3 + 1];
-        const vz = vertices[i * 3 + 2];
-        if (vx === x && Math.abs(vy - y) <= 2 && vz === z) {
-            return i;
-        }
-        i = nextVertexInBucket[i];
-    }
-
-    // Could not find, create new
-    i = vertexCount.value;
+    const i = vertexCount.value;
     vertexCount.value++;
     vertices[i * 3] = x;
     vertices[i * 3 + 1] = y;
     vertices[i * 3 + 2] = z;
-    nextVertexInBucket[i] = firstVertexInBucket[bucket];
-    firstVertexInBucket[bucket] = i;
-
+    vertexMap.set(key, i);
     return i;
 };
 
-// Helper functions for polygon operations
 const prev = (i: number, n: number): number => (i - 1 >= 0 ? i - 1 : n - 1);
 const next = (i: number, n: number): number => (i + 1 < n ? i + 1 : 0);
 
-/**
- *
- */
 const area2 = (vertexA: number[], vertexB: number[], vertexC: number[]): number => {
     return (vertexB[0] - vertexA[0]) * (vertexC[2] - vertexA[2]) - (vertexC[0] - vertexA[0]) * (vertexB[2] - vertexA[2]);
 };
 
 const xorb = (x: boolean, y: boolean): boolean => !x !== !y;
 
-// Returns true iff c is strictly to the left of the directed
+// returns true if c is strictly to the left of the directed
 // line through a to b.
 const left = (firstVertex: number[], secondVertex: number[], testVertex: number[]): boolean =>
     area2(firstVertex, secondVertex, testVertex) < 0;
@@ -152,7 +125,7 @@ const intersect = (segmentAStart: number[], segmentAEnd: number[], segmentBStart
     );
 };
 
-// Returns whether the two vertices are equal in the XZ plane
+// returns whether the two vertices are equal in the XZ plane
 const vec3EqualXZ = (vertexA: number[], vertexB: number[]): boolean => vertexA[0] === vertexB[0] && vertexA[2] === vertexB[2];
 
 const _diagonalStart = vec3.create();
@@ -160,7 +133,7 @@ const _diagonalEnd = vec3.create();
 const _edgeStart = vec3.create();
 const _edgeEnd = vec3.create();
 
-// Returns T iff (v_i, v_j) is a proper internal *or* external
+// returns T iff (v_i, v_j) is a proper internal *or* external
 // diagonal of P, *ignoring edges incident to v_i and v_j*.
 const diagonalie = (
     startVertexIdx: number,
@@ -454,7 +427,7 @@ const getPolyMergeValue = (
     let ea = -1;
     let eb = -1;
 
-    // Check if polygons share an edge
+    // check if polygons share an edge
     for (let i = 0; i < numVertsA; i++) {
         let va0 = polygons[polyAStartIdx + i];
         let va1 = polygons[polyAStartIdx + ((i + 1) % numVertsA)];
@@ -477,7 +450,7 @@ const getPolyMergeValue = (
         return { value: -1, ea: -1, eb: -1 };
     }
 
-    // Check convexity
+    // check convexity
     const va = polygons[polyAStartIdx + ((ea + numVertsA - 1) % numVertsA)];
     const vb = polygons[polyAStartIdx + ea];
     const vc = polygons[polyBStartIdx + ((eb + 2) % numVertsB)];
@@ -535,6 +508,7 @@ const mergePolyVerts = (
     for (let i = 0; i < numVertsA - 1; i++) {
         polygons[tempStartIdx + n++] = polygons[polyAStartIdx + ((edgeIdxA + 1 + i) % numVertsA)];
     }
+
     // add pb
     for (let i = 0; i < numVertsB - 1; i++) {
         polygons[tempStartIdx + n++] = polygons[polyBStartIdx + ((edgeIdxB + 1 + i) % numVertsB)];
@@ -586,8 +560,8 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
     };
 
     const vflags = new Array(maxVertices).fill(0);
-    const nextVert = new Array(maxVertices).fill(0);
-    const firstVert = new Array(VERTEX_BUCKET_COUNT).fill(-1);
+    // Simple map for deduplicating vertices: key -> index
+    const vertexMap: Map<string, number> = new Map();
     const indices = new Array(maxVertsPerCont);
     const tris = new Array(maxVertsPerCont * 3);
     const polys = new Array((maxVertsPerCont + 1) * maxVerticesPerPoly).fill(MESH_NULL_IDX);
@@ -616,7 +590,7 @@ export const buildPolyMesh = (ctx: BuildContextState, contourSet: ContourSet, ma
         // add vertices
         for (let j = 0; j < cont.nVertices; j++) {
             const v = [cont.vertices[j * 4], cont.vertices[j * 4 + 1], cont.vertices[j * 4 + 2], cont.vertices[j * 4 + 3]];
-            indices[j] = addVertex(v[0], v[1], v[2], mesh.vertices, firstVert, nextVert, vertexCount);
+            indices[j] = addVertex(v[0], v[1], v[2], mesh.vertices, vertexCount, vertexMap);
             if (v[3] & BORDER_VERTEX) {
                 vflags[indices[j]] = 1;
             }
@@ -754,12 +728,12 @@ const canRemoveVertex = (mesh: PolyMesh, remVertexIdx: number): boolean => {
         }
     }
 
-    // There would be too few edges remaining to create a polygon
+    // there would be too few edges remaining to create a polygon
     if (numRemainingEdges <= 2) {
         return false;
     }
 
-    // Find edges which share the removed vertex
+    // find edges which share the removed vertex
     const maxEdges = numTouchedVerts * 2;
     const edges: number[] = new Array(maxEdges * 3);
     let nedges = 0;
@@ -768,14 +742,17 @@ const canRemoveVertex = (mesh: PolyMesh, remVertexIdx: number): boolean => {
         const polyStart = i * nvp;
         const nv = countPolyVerts(mesh.polys, polyStart, nvp);
 
-        // Collect edges which touch the removed vertex
+        // collect edges which touch the removed vertex
         for (let j = 0, k = nv - 1; j < nv; k = j++) {
             if (mesh.polys[polyStart + j] === remVertexIdx || mesh.polys[polyStart + k] === remVertexIdx) {
-                // Arrange edge so that a=rem
+                // arrange edge so that a=rem
                 let a = mesh.polys[polyStart + j];
                 let b = mesh.polys[polyStart + k];
                 if (b === remVertexIdx) {
-                    [a, b] = [b, a];
+                    // [a, b] = [b, a];
+                    const tmp = a;
+                    a = b;
+                    b = tmp;
                 }
 
                 // Check if the edge exists

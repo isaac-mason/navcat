@@ -37,7 +37,7 @@ export const AXIS_Y = 1;
 export const AXIS_Z = 2;
 
 export const MULTIPLE_REGS = 0;
-export const MESH_NULL_IDX = 0xffff;
+export const MESH_NULL_IDX = -1;
 export const BORDER_VERTEX = 0x10000;
 export const CONTOUR_REG_MASK = 0xffff;
 export const AREA_BORDER = 0x20000;
