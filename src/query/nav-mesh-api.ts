@@ -285,7 +285,7 @@ export const getPolyHeight = (
     // closest.
     // this should almost never happen so the extra iteration here is ok.
     const closest = vec3.create();
-    closestPointOnDetailEdges(tile, poly, polyIndex, pos, closest, false);
+    getClosestPointOnDetailEdges(closest, tile, poly, polyIndex, pos, false);
     result.success = true;
     result.height = closest[1];
 
@@ -309,23 +309,23 @@ const _closestPointOnDetailEdgesPmax = vec3.create();
 const _closestPointOnDetailEdges_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 /**
- * Finds the closest point on detail mesh edges to a given point
+ * Gets the closest point on detail mesh edges to a given point
  * @param tile The tile containing the detail mesh
  * @param poly The polygon
  * @param detailMesh The detail mesh
  * @param pos The position to find closest point for
- * @param outClosest Output parameter for the closest point
+ * @param outClosestPoint Output parameter for the closest point
  * @param onlyBoundary If true, only consider boundary edges
  * @returns The squared distance to the closest point
  *  closest point
  */
-export const closestPointOnDetailEdges = (
+export const getClosestPointOnDetailEdges = (
+    outClosestPoint: Vec3,
     tile: NavMeshTile,
     poly: NavMeshPoly,
     polyIndex: number,
     pos: Vec3,
-    outClosest: Vec3,
-    onlyBoundary = false,
+    onlyBoundary: boolean,
 ): number => {
     const detailMesh = tile.detailMeshes[polyIndex];
 
@@ -392,7 +392,7 @@ export const closestPointOnDetailEdges = (
 
     // interpolate the final closest point
     if (pmin && pmax) {
-        vec3.lerp(outClosest, pmin, pmax, tmin);
+        vec3.lerp(outClosestPoint, pmin, pmax, tmin);
     }
 
     return dmin;
@@ -442,7 +442,7 @@ export const getClosestPointOnPoly = (
         return result;
     }
 
-    closestPointOnDetailEdges(tile, poly, polyIndex, point, result.closestPoint, true);
+    getClosestPointOnDetailEdges(result.closestPoint, tile, poly, polyIndex, point, true);
 
     return result;
 };
