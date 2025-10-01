@@ -8,6 +8,7 @@
 - Change `FindNearestPolyResult` property names from `nearestPolyRef` and `nearestPoint` to `ref` and `point`
 - Refactor poly mesh vertex duplication logic in `buildPolyMesh`
 - Remove all all error throwing in `buildPolyMesh`, replace with build context errors and best-effort continued processing
+- Fix poly mesh detail `getHeightData` BFS logic
 
 ## 0.0.2
 

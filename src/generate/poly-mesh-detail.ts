@@ -744,11 +744,10 @@ const getHeightData = (
         const cy = queue[head * 3 + 1];
         const ci = queue[head * 3 + 2];
         head++;
+
         if (head >= RETRACT_SIZE) {
             head = 0;
-            if (queue.length > RETRACT_SIZE * 3) {
-                queue.splice(0, RETRACT_SIZE * 3);
-            }
+            queue.splice(0, RETRACT_SIZE * 3);
         }
 
         const cs = chf.spans[ci];
