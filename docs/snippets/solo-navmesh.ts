@@ -3,7 +3,6 @@
 /* SNIPPET_START: generationFull */
 
 /* SNIPPET_START: input */
-import { box3 } from 'maaths';
 import * as Nav from 'navcat';
 
 type Vec3 = [number, number, number];
@@ -230,7 +229,7 @@ Nav.addTile(navMesh, tile);
 }
 
 {
-    /* SNIPPET_START: closestPointOnDetailEdges */
+    /* SNIPPET_START: getClosestPointOnDetailEdges */
     const position: Vec3 = [1, 0, 1];
     const halfExtents: Vec3 = [0.5, 0.5, 0.5];
 
@@ -259,7 +258,7 @@ Nav.addTile(navMesh, tile);
 
     console.log(squaredDistance); // squared distance from position to closest point
     console.log(closestPoint); // the closest point on the detail edges in world space [x, y, z]
-    /* SNIPPET_END: closestPointOnDetailEdges */
+    /* SNIPPET_END: getClosestPointOnDetailEdges */
 }
 
 {

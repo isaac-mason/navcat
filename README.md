@@ -172,7 +172,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   - [findRandomPoint](#findrandompoint)
   - [findRandomPointAroundCircle](#findrandompointaroundcircle)
   - [getClosestPointOnPoly](#getclosestpointonpoly)
-  - [closestPointOnDetailEdges](#closestpointondetailedges)
+  - [getClosestPointOnDetailEdges](#getclosestpointondetailedges)
   - [getPortalPoints](#getportalpoints)
   - [isValidNodeRef](#isvalidnoderef)
   - [getNodeAreaAndFlags](#getnodeareaandflags)
@@ -244,7 +244,6 @@ If you want an interactive example / starter, see the examples:
 If you are looking for a minimal snippet to copy & paste into your project to quick-start, see below. The sections following the snippet provides a step-by-step breakdown of the process with images and explanations.
 
 ```ts
-import { box3 } from 'maaths';
 import * as Nav from 'navcat';
 
 type Vec3 = [number, number, number];
@@ -419,7 +418,6 @@ The input positions should adhere to the OpenGL conventions (right-handed coordi
 The navigation mesh generation process emits diagnostic messages, warnings, and errors. These are captured with a build context object.
 
 ```ts
-import { box3 } from 'maaths';
 import * as Nav from 'navcat';
 
 type Vec3 = [number, number, number];
@@ -1473,7 +1471,7 @@ console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on t
 export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, ref: NodeRef, point: Vec3): GetClosestPointOnPolyResult;
 ```
 
-### closestPointOnDetailEdges
+### getClosestPointOnDetailEdges
 
 ```ts
 const position: Vec3 = [1, 0, 1];
@@ -1506,7 +1504,20 @@ console.log(squaredDistance); // squared distance from position to closest point
 console.log(closestPoint); // the closest point on the detail edges in world space [x, y, z]
 ```
 
-<RenderType type="import('navcat').closestPointOnDetailEdges" />
+```ts
+/**
+ * Gets the closest point on detail mesh edges to a given point
+ * @param tile The tile containing the detail mesh
+ * @param poly The polygon
+ * @param detailMesh The detail mesh
+ * @param pos The position to find closest point for
+ * @param outClosestPoint Output parameter for the closest point
+ * @param onlyBoundary If true, only consider boundary edges
+ * @returns The squared distance to the closest point
+ *  closest point
+ */
+export function getClosestPointOnDetailEdges(outClosestPoint: Vec3, tile: NavMeshTile, poly: NavMeshPoly, polyIndex: number, pos: Vec3, onlyBoundary: boolean): number;
+```
 
 ### getPortalPoints
 
@@ -1924,10 +1935,6 @@ export type DebugBoxes = {
     opacity?: number;
 };
 ```
-
-If you are using threejs, navcat provides utilities to convert the debug primitives into threejs objects, and convenience wrappers for the helper functions.
-
-<Snippet source="./snippets/solo-navmesh.ts" select="debugThree" />
 
 ## Acknowledgements
 

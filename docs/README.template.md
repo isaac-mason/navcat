@@ -331,11 +331,11 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <RenderType type="import('navcat').getClosestPointOnPoly" />
 
-### closestPointOnDetailEdges
+### getClosestPointOnDetailEdges
 
-<Snippet source="./snippets/solo-navmesh.ts" select="closestPointOnDetailEdges" />
+<Snippet source="./snippets/solo-navmesh.ts" select="getClosestPointOnDetailEdges" />
 
-<RenderType type="import('navcat').closestPointOnDetailEdges" />
+<RenderType type="import('navcat').getClosestPointOnDetailEdges" />
 
 ### getPortalPoints
 
@@ -454,10 +454,6 @@ navcat provides graphics-library agnostic debug drawing functions to help visual
 <RenderSource type="import('navcat').DebugPoints" />
 
 <RenderSource type="import('navcat').DebugBoxes" />
-
-If you are using threejs, navcat provides utilities to convert the debug primitives into threejs objects, and convenience wrappers for the helper functions.
-
-<Snippet source="./snippets/solo-navmesh.ts" select="debugThree" />
 
 ## Acknowledgements
 
