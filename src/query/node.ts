@@ -30,9 +30,10 @@ export function serPolyNodeRef(tileId: number, polyIndex: number): NodeRef {
 }
 
 export const getNodeRefType = (nodeRef: NodeRef): NodeType => {
-    return Number(nodeRef[0]) as NodeType;
+    return parseInt(nodeRef[0], 10) as NodeType;
 };
 
 export const desNodeRef = (nodeRef: NodeRef): DeserialisedNodeRef => {
-    return nodeRef.split(',').map(Number) as DeserialisedNodeRef;
+    const parts = nodeRef.split(',');
+    return [parseInt(parts[0], 10) as NodeType, parseInt(parts[1], 10), parseInt(parts[2], 10)] as DeserialisedNodeRef;
 };
