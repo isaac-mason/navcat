@@ -21,7 +21,7 @@ export type DeserialisedOffMeshConnectionNodeRef = [
     side: OffMeshConnectionSide,
 ];
 
-export const serOffMeshNodeRef = (offMeshConnectionId: string, side: OffMeshConnectionSide): NodeRef => {
+export const serOffMeshNodeRef = (offMeshConnectionId: number, side: OffMeshConnectionSide): NodeRef => {
     return `${NodeType.OFFMESH_CONNECTION},${offMeshConnectionId},${side}` as OffMeshConnectionNodeRef;
 };
 

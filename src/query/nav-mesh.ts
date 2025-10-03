@@ -1,4 +1,5 @@
 import type { Box3, Vec3 } from 'maaths';
+import type { IndexPool } from '../index-pool';
 import type { NodeRef } from './node';
 
 /** A navigation mesh based on tiles of convex polygons */
@@ -15,17 +16,8 @@ export type NavMesh = {
     /** Global node ref to link indices map */
     nodes: Record<NodeRef, number[]>;
 
-    /**
-     * The global navmesh tile links pool.
-     * When iterating, you can filter on @see NavMeshLink.allocated to only consider in-use links.
-     */
-    links: NavMeshLink[];
-
-    /** Free link indices */
-    freeLinkIndices: number[];
-
-    /** Tile id counter, used to ensure modified tiles in the same position have new node references */
-    tileIdCounter: number;
+    /** Global navmesh tile links */
+    links: Record<number, NavMeshLink>;
 
     /** Map of tile ids to tiles */
     tiles: Record<string, NavMeshTile>;
@@ -33,14 +25,19 @@ export type NavMesh = {
     /** Map of tile position hashes to tile ids */
     tilePositionHashToTileId: Record<string, number>;
 
-    /** Off mesh connection id counter */
-    offMeshConnectionIdCounter: number;
-
     /** Off mesh connection definitions */
     offMeshConnections: Record<string, OffMeshConnection>;
 
     /** Off mesh connection attachments */
     offMeshConnectionAttachments: Record<string, OffMeshConnectionAttachment>;
+
+    /** Pool for link indices */
+    linkIndexPool: IndexPool;
+
+    /** Pool for tile indices */
+    tileIndexPool: IndexPool;
+
+    offMeshConnectionIndexPool: IndexPool;
 };
 
 export type NavMeshPoly = {
@@ -80,8 +77,8 @@ export type NavMeshPolyDetail = {
 };
 
 export type NavMeshLink = {
-    /** true if the link is allocated / in use, false if it's pooled */
-    allocated: boolean;
+    /** the id of the link */
+    id: number;
 
     /** node reference that owns this link */
     ref: NodeRef;
@@ -113,6 +110,8 @@ export enum OffMeshConnectionSide {
 }
 
 export type OffMeshConnection = {
+    /** the id of the off mesh connection */
+    id: number;
     /** the start position of the off mesh connection */
     start: Vec3;
     /** the end position of the off mesh connection */
@@ -131,6 +130,8 @@ export type OffMeshConnection = {
      */
     cost?: number;
 };
+
+export type OffMeshConnectionParams = Omit<OffMeshConnection, 'id'>;
 
 export type OffMeshConnectionAttachment = {
     /** the start polygon that the off mesh connection has linked to */

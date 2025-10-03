@@ -1375,10 +1375,6 @@ export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
 export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     const primitives: DebugPrimitive[] = [];
 
-    if (!navMesh.links || navMesh.links.length === 0) {
-        return primitives;
-    }
-
     // Arrays for line data
     const linePositions: number[] = [];
     const lineColors: number[] = [];
@@ -1407,8 +1403,8 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     };
 
     // Process each link
-    for (const link of navMesh.links) {
-        if (!link.allocated) continue;
+    for (const linkId in navMesh.links) {
+        const link = navMesh.links[linkId];
 
         // Get source polygon info
         const [, sourceTileId, sourcePolyId] = desNodeRef(link.ref);

@@ -170,7 +170,6 @@ function floodFillPruneNavMesh(navMesh: NavMesh, startRef: NodeRef) {
         // follow all links to neighboring polygons
         for (const linkIndex of polyLinks) {
             const link = navMesh.links[linkIndex];
-            if (!link || !link.allocated) continue;
 
             const neighborRef = link.neighbourRef;
             if (!neighborRef || visited.has(neighborRef)) continue;
