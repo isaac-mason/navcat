@@ -9,7 +9,7 @@ import {
     findPath,
     getNodeRefType,
     getTileAndPolyByRef,
-    type NavMeshTile,
+    type NavMeshTileParams,
     NodeType,
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
@@ -18,9 +18,9 @@ import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { loadGLTF } from './common/load-gltf';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { createNavMeshHelper, createNavMeshLinksHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
+import { getPositionsAndIndices } from './common/get-positions-and-indices';
+import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -111,9 +111,7 @@ const tilePolys = polygonsToNavMeshTilePolys(polys, navMeshPositions, 0, bounds)
 const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
 
 /* create nav mesh tile */
-const tile: NavMeshTile = {
-    id: -1,
-    salt: -1,
+const tile: NavMeshTileParams = {
     bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,

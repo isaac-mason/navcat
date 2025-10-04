@@ -8,6 +8,7 @@ import {
     type NavMeshLink,
     type NavMeshPoly,
     type NavMeshTile,
+    type NavMeshTileParams,
     type OffMeshConnection,
     type OffMeshConnectionAttachment,
     OffMeshConnectionDirection,
@@ -1308,7 +1309,7 @@ export const reconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: 
 const updateOffMeshConnections = (navMesh: NavMesh) => {
     for (const id in navMesh.offMeshConnections) {
         const offMeshConnection = navMesh.offMeshConnections[id];
-        const connected = isOffMeshConnectionConnected(navMesh, id);
+        const connected = isOffMeshConnectionConnected(navMesh, offMeshConnection.id);
 
         if (!connected) {
             reconnectOffMeshConnection(navMesh, offMeshConnection);
@@ -1316,8 +1317,8 @@ const updateOffMeshConnections = (navMesh: NavMesh) => {
     }
 };
 
-export const addTile = (navMesh: NavMesh, tile: NavMeshTile) => {
-    const tileHash = getTilePositionHash(tile.tileX, tile.tileY, tile.tileLayer);
+export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams) => {
+    const tileHash = getTilePositionHash(tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
 
     // tile salt
     let salt = navMesh.tilePositionHashToSalt[tileHash];
@@ -1327,10 +1328,16 @@ export const addTile = (navMesh: NavMesh, tile: NavMeshTile) => {
         salt = (salt + 1) % MAX_SALT;
     }
     navMesh.tilePositionHashToSalt[tileHash] = salt;
-    tile.salt = salt;
-
+    
     // get tile id
-    tile.id = requestIndex(navMesh.tileIndexPool);
+    const id = requestIndex(navMesh.tileIndexPool);
+
+    // create tile
+    const tile: NavMeshTile = {
+        ...tileParams,
+        id,
+        salt,
+    };
 
     // store tile in navmesh
     navMesh.tiles[tile.id] = tile;
@@ -1476,7 +1483,7 @@ export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnection: Off
 const _isOffMeshConnectionConnected_start = createPolyNodeRef();
 const _isOffMeshConnectionConnected_end = createPolyNodeRef();
 
-export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnectionId: string): boolean => {
+export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnectionId: number): boolean => {
     const offMeshConnectionState = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
     // no off mesh connection state, not connected

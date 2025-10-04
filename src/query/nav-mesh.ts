@@ -229,3 +229,5 @@ export type NavMeshTile = {
     /** the agent maximum traversable ledge (up/down) in world units */
     walkableClimb: number;
 };
+
+export type NavMeshTileParams = Omit<NavMeshTile, 'id' | 'salt'>;

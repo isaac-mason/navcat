@@ -24,7 +24,7 @@ import {
     type Heightfield,
     markWalkableTriangles,
     type NavMesh,
-    type NavMeshTile,
+    type NavMeshTileParams,
     type PolyMesh,
     type PolyMeshDetail,
     polyMeshDetailToTileDetailMesh,
@@ -332,9 +332,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
 
             const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 
-            const tile: NavMeshTile = {
-                id: -1,
-                salt: -1,
+            const tile: NavMeshTileParams = {
                 bounds: polyMesh.bounds,
                 vertices: tilePolys.vertices,
                 polys: tilePolys.polys,

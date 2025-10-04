@@ -158,8 +158,7 @@ navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
 // create the navmesh tile
-const tile: Nav.NavMeshTile = {
-    id: -1,
+const tile: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -430,8 +429,8 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: getPortalPoints */
-    const startNodeRef: Nav.NodeRef = '0,0,1'; // example poly node ref, usually retrieved from a pathfinding call
-    const endNodeRef: Nav.NodeRef = '0,0,8'; // example poly node ref, usually retrieved from a pathfinding call
+    const startNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
+    const endNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
 
     const left: Vec3 = [0, 0, 0];
     const right: Vec3 = [0, 0, 0];
@@ -446,7 +445,7 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: isValidNodeRef */
-    const nodeRef: Nav.NodeRef = '0,0,1';
+    const nodeRef: Nav.NodeRef = 0;
 
     // true if the node ref is valid, useful to call after updating tiles to validate the reference is still valid
     const isValid = Nav.isValidNodeRef(navMesh, nodeRef);
@@ -456,7 +455,7 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: getNodeAreaAndFlags */
-    const nodeRef: Nav.NodeRef = '0,0,1';
+    const nodeRef: Nav.NodeRef = 0;
 
     const areaAndFlags = Nav.getNodeAreaAndFlags(Nav.createGetNodeAreaAndFlagsResult(), navMesh, nodeRef);
     console.log(areaAndFlags.success);
@@ -494,7 +493,7 @@ Nav.addTile(navMesh, tile);
 {
     /* SNIPPET_START: offMeshConnections */
     // define a bidirectional off-mesh connection between two points
-    const bidirectionalOffMeshConnection: Nav.OffMeshConnection = {
+    const bidirectionalOffMeshConnection: Nav.OffMeshConnectionParams = {
         // start position in world space
         start: [0, 0, 0],
         // end position in world space

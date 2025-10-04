@@ -33,7 +33,7 @@ import {
     markBoxArea,
     markWalkableTriangles,
     type NavMesh,
-    type NavMeshTile,
+    type NavMeshTileParams,
     NodeType,
     type PolyMesh,
     type PolyMeshDetail,
@@ -276,9 +276,7 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 
-    const tile: NavMeshTile = {
-        id: -1,
-        salt: -1,
+    const tile: NavMeshTileParams = {
         bounds: polyMesh.bounds,
         vertices: tilePolys.vertices,
         polys: tilePolys.polys,

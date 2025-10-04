@@ -9,7 +9,7 @@ import {
     FindStraightPathResultFlags,
     findPath,
     getNodeRefType,
-    type NavMeshTile,
+    type NavMeshTileParams,
     NodeType,
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
@@ -292,9 +292,7 @@ const tilePolys = polygonsToNavMeshTilePolys(polys, externalPolygonVertices, 0, 
 const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
 
 /* create nav mesh tile */
-const tile: NavMeshTile = {
-    id: -1,
-    salt: -1,
+const tile: NavMeshTileParams = {
     bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,

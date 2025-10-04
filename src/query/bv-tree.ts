@@ -1,6 +1,6 @@
 import type { Box3 } from 'maaths';
 import { MESH_NULL_IDX } from '../generate';
-import type { NavMeshBvNode, NavMeshTile } from './nav-mesh';
+import type { NavMeshBvNode, NavMeshTileParams } from './nav-mesh';
 
 const compareItemX = (a: NavMeshBvNode, b: NavMeshBvNode): number => {
     if (a.bounds[0][0] < b.bounds[0][0]) return -1;
@@ -140,7 +140,7 @@ const subdivide = (
  * @param navMeshTile the nav mesh tile to build the BV tree for
  * @returns
  */
-export const buildNavMeshBvTree = (navMeshTile: NavMeshTile): boolean => {
+export const buildNavMeshBvTree = (navMeshTile: NavMeshTileParams): boolean => {
     // fail if the tile has no polys
     if (navMeshTile.polys.length === 0) {
         return false;
