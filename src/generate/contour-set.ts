@@ -1,4 +1,4 @@
-import type { Box3 } from 'maaths';
+import { type Box3, type Vec2, vec2 } from 'maaths';
 import { BuildContext, type BuildContextState } from './build-context';
 import { AREA_BORDER, BORDER_REG, BORDER_VERTEX, CONTOUR_REG_MASK, getDirOffsetX, getDirOffsetY, NOT_CONNECTED } from './common';
 import type { CompactHeightfield } from './compact-heightfield';
@@ -480,210 +480,108 @@ const calcAreaOfPolygon2D = (verts: number[], nverts: number): number => {
 const prev = (i: number, n: number): number => (i - 1 >= 0 ? i - 1 : n - 1);
 const next = (i: number, n: number): number => (i + 1 < n ? i + 1 : 0);
 
-const area2 = (
-    verticesA: number[],
-    startVertexIdx: number,
-    endVertexIdx: number,
-    verticesB: number[],
-    testVertexIdx: number,
-): number => {
-    const startOffset = startVertexIdx * 4;
-    const endOffset = endVertexIdx * 4;
-    const testOffset = testVertexIdx * 4;
-    return (
-        (verticesA[endOffset] - verticesA[startOffset]) * (verticesB[testOffset + 2] - verticesA[startOffset + 2]) -
-        (verticesB[testOffset] - verticesA[startOffset]) * (verticesA[endOffset + 2] - verticesA[startOffset + 2])
-    );
+const area2 = (a: Vec2, b: Vec2, c: Vec2) => {
+    return (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+};
+
+// Returns true iff c is strictly to the left of the directed
+// line through a to b.
+const left = (a: Vec2, b: Vec2, c: Vec2) => {
+    return area2(a, b, c) < 0;
+};
+
+const leftOn = (a: Vec2, b: Vec2, c: Vec2) => {
+    return area2(a, b, c) <= 0;
+};
+
+const collinear = (a: Vec2, b: Vec2, c: Vec2) => {
+    return area2(a, b, c) === 0;
+};
+
+//	Returns true iff ab properly intersects cd: they share
+//	a point interior to both segments.  The properness of the
+//	intersection is ensured by using strict leftness.
+const intersectProp = (a: Vec2, b: Vec2, c: Vec2, d: Vec2) => {
+    // Eliminate improper cases.
+    if (collinear(a, b, c) || collinear(a, b, d) || collinear(c, d, a) || collinear(c, d, b)) return false;
+
+    return xorb(left(a, b, c), left(a, b, d)) && xorb(left(c, d, a), left(c, d, b));
+};
+
+// Returns T iff (a,b,c) are collinear and point c lies
+// on the closed segment ab.
+const between = (a: Vec2, b: Vec2, c: Vec2) => {
+    if (!collinear(a, b, c)) return false;
+    // If ab not vertical, check betweenness on x; else on y.
+    if (a[0] !== b[0]) return (a[0] <= c[0] && c[0] <= b[0]) || (a[0] >= c[0] && c[0] >= b[0]);
+    else return (a[1] <= c[1] && c[1] <= b[1]) || (a[1] >= c[1] && c[1] >= b[1]);
+};
+
+// Returns true iff segments ab and cd intersect, properly or improperly.
+const intersect = (a: Vec2, b: Vec2, c: Vec2, d: Vec2) => {
+    if (intersectProp(a, b, c, d)) return true;
+    else if (between(a, b, c) || between(a, b, d) || between(c, d, a) || between(c, d, b)) return true;
+    else return false;
+};
+
+const _intersectSegContour_p0 = vec2.create();
+const _intersectSegContour_p1 = vec2.create();
+
+const intersectSegContour = (d0: Vec2, d1: Vec2, i: number, n: number, verts: number[]) => {
+    // For each edge (k,k+1) of P
+    for (let k = 0; k < n; k++) {
+        const k1 = next(k, n);
+
+        // Skip edges incident to i.
+        if (i === k || i === k1) {
+            continue;
+        }
+
+        const p0 = vec2.set(_intersectSegContour_p0, verts[k * 4], verts[k * 4 + 2]);
+        const p1 = vec2.set(_intersectSegContour_p1, verts[k1 * 4], verts[k1 * 4 + 2]);
+
+        if (vec2.equals(d0, p0) || vec2.equals(d1, p0) || vec2.equals(d0, p1) || vec2.equals(d1, p1)) {
+            continue;
+        }
+
+        if (intersect(d0, d1, p0, p1)) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+const _inCone_pi = vec2.create();
+const _inCone_pi1 = vec2.create();
+const _inCone_pin1 = vec2.create();
+
+const inCone = (i: number, n: number, verts: number[], pj: Vec2) => {
+    const piIdx = i * 4;
+    const pi1Idx = next(i, n) * 4;
+    const pin1Idx = prev(i, n) * 4;
+
+    const pi = vec2.set(_inCone_pi, verts[piIdx], verts[piIdx + 2]);
+    const pi1 = vec2.set(_inCone_pi1, verts[pi1Idx], verts[pi1Idx + 2]);
+    const pin1 = vec2.set(_inCone_pin1, verts[pin1Idx], verts[pin1Idx + 2]);
+
+    // If P[i] is a convex vertex [ i+1 left or on (i-1,i) ].
+    if (leftOn(pin1, pi, pi1)) {
+        return left(pi, pj, pin1) && left(pj, pi, pi1);
+    }
+    // Assume (i-1,i,i+1) not collinear.
+    // else P[i] is reflex.
+    return !(leftOn(pi, pj, pi1) && leftOn(pj, pi, pin1));
 };
 
 const xorb = (x: boolean, y: boolean): boolean => {
     return !x !== !y;
 };
 
-const left = (
-    verticesA: number[],
-    startVertexIdx: number,
-    endVertexIdx: number,
-    verticesB: number[],
-    testVertexIdx: number,
-): boolean => {
-    return area2(verticesA, startVertexIdx, endVertexIdx, verticesB, testVertexIdx) < 0;
-};
-
-const leftOn = (
-    verticesA: number[],
-    startVertexIdx: number,
-    endVertexIdx: number,
-    verticesB: number[],
-    testVertexIdx: number,
-): boolean => {
-    return area2(verticesA, startVertexIdx, endVertexIdx, verticesB, testVertexIdx) <= 0;
-};
-
-const collinear = (
-    verticesA: number[],
-    startVertexIdx: number,
-    endVertexIdx: number,
-    verticesB: number[],
-    testVertexIdx: number,
-): boolean => {
-    return area2(verticesA, startVertexIdx, endVertexIdx, verticesB, testVertexIdx) === 0;
-};
-
-const intersectProp = (
-    segmentVertices: number[],
-    segmentStartIdx: number,
-    segmentEndIdx: number,
-    lineVertices: number[],
-    lineStartIdx: number,
-    lineEndIdx: number,
-): boolean => {
-    // Eliminate improper cases.
-    if (
-        collinear(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx) ||
-        collinear(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineEndIdx) ||
-        collinear(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentStartIdx) ||
-        collinear(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentEndIdx)
-    ) {
-        return false;
-    }
-
-    return (
-        xorb(
-            left(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx),
-            left(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineEndIdx),
-        ) &&
-        xorb(
-            left(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentStartIdx),
-            left(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentEndIdx),
-        )
-    );
-};
-
-const between = (
-    lineVertices: number[],
-    lineStartIdx: number,
-    lineEndIdx: number,
-    testVertices: number[],
-    testVertexIdx: number,
-): boolean => {
-    if (!collinear(lineVertices, lineStartIdx, lineEndIdx, testVertices, testVertexIdx)) {
-        return false;
-    }
-    const lineStartOffset = lineStartIdx * 4;
-    const lineEndOffset = lineEndIdx * 4;
-    const testOffset = testVertexIdx * 4;
-    // If line not vertical, check betweenness on x; else on z.
-    if (lineVertices[lineStartOffset] !== lineVertices[lineEndOffset]) {
-        return (
-            (lineVertices[lineStartOffset] <= testVertices[testOffset] &&
-                testVertices[testOffset] <= lineVertices[lineEndOffset]) ||
-            (lineVertices[lineStartOffset] >= testVertices[testOffset] && testVertices[testOffset] >= lineVertices[lineEndOffset])
-        );
-    }
-    return (
-        (lineVertices[lineStartOffset + 2] <= testVertices[testOffset + 2] &&
-            testVertices[testOffset + 2] <= lineVertices[lineEndOffset + 2]) ||
-        (lineVertices[lineStartOffset + 2] >= testVertices[testOffset + 2] &&
-            testVertices[testOffset + 2] >= lineVertices[lineEndOffset + 2])
-    );
-};
-
-const intersect = (
-    segmentVertices: number[],
-    segmentStartIdx: number,
-    segmentEndIdx: number,
-    lineVertices: number[],
-    lineStartIdx: number,
-    lineEndIdx: number,
-): boolean => {
-    if (intersectProp(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx, lineEndIdx)) {
-        return true;
-    }
-    if (
-        between(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineStartIdx) ||
-        between(segmentVertices, segmentStartIdx, segmentEndIdx, lineVertices, lineEndIdx) ||
-        between(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentStartIdx) ||
-        between(lineVertices, lineStartIdx, lineEndIdx, segmentVertices, segmentEndIdx)
-    ) {
-        return true;
-    }
-    return false;
-};
-
 const vequal = (verticesA: number[], vertexAIdx: number, verticesB: number[], vertexBIdx: number): boolean => {
     const offsetA = vertexAIdx * 4;
     const offsetB = vertexBIdx * 4;
     return verticesA[offsetA] === verticesB[offsetB] && verticesA[offsetA + 2] === verticesB[offsetB + 2];
-};
-
-const intersectSegContour = (
-    segmentVertices: number[],
-    segmentStartIdx: number,
-    segmentEndIdx: number,
-    contourVertices: number[],
-    skipVertexIdx: number,
-    numContourVertices: number,
-): boolean => {
-    // For each edge (k,k+1) of the contour
-    for (let k = 0; k < numContourVertices; k++) {
-        const k1 = next(k, numContourVertices);
-        // Skip edges incident to skipVertexIdx.
-        if (skipVertexIdx === k || skipVertexIdx === k1) {
-            continue;
-        }
-
-        if (
-            vequal(segmentVertices, segmentStartIdx, contourVertices, k) ||
-            vequal(segmentVertices, segmentEndIdx, contourVertices, k) ||
-            vequal(segmentVertices, segmentStartIdx, contourVertices, k1) ||
-            vequal(segmentVertices, segmentEndIdx, contourVertices, k1)
-        ) {
-            continue;
-        }
-
-        if (intersect(segmentVertices, segmentStartIdx, segmentEndIdx, contourVertices, k, k1)) {
-            return true;
-        }
-    }
-    return false;
-};
-
-// Helper function to check if a point is in the cone of a vertex - taking point coordinates directly
-const inConePoint = (vertices: number[], vertexIdx: number, numVertices: number, pointX: number, pointZ: number): boolean => {
-    const nextVertexIdx = next(vertexIdx, numVertices);
-    const prevVertexIdx = prev(vertexIdx, numVertices);
-
-    // If P[vertexIdx] is a convex vertex [ next left or on (prev,vertex) ].
-    const convex = leftOn(vertices, prevVertexIdx, vertexIdx, vertices, nextVertexIdx);
-    if (convex) {
-        // Check if point (pointX,pointZ) is left of line from vertex to prev vertex
-        // AND if next vertex is left of line from point to vertex
-        const vertex_x = vertices[vertexIdx * 4];
-        const vertex_z = vertices[vertexIdx * 4 + 2];
-        const prev_x = vertices[prevVertexIdx * 4];
-        const prev_z = vertices[prevVertexIdx * 4 + 2];
-        const next_x = vertices[nextVertexIdx * 4];
-        const next_z = vertices[nextVertexIdx * 4 + 2];
-
-        const leftOfFirst = (pointX - vertex_x) * (prev_z - vertex_z) - (prev_x - vertex_x) * (pointZ - vertex_z) < 0;
-        const leftOfSecond = (next_x - pointX) * (vertex_z - pointZ) - (vertex_x - pointX) * (next_z - pointZ) < 0;
-
-        return leftOfFirst && leftOfSecond;
-    }
-    // Assume (prev,vertex,next) not collinear.
-    // else P[vertexIdx] is reflex.
-    const vertex_x = vertices[vertexIdx * 4];
-    const vertex_z = vertices[vertexIdx * 4 + 2];
-    const prev_x = vertices[prevVertexIdx * 4];
-    const prev_z = vertices[prevVertexIdx * 4 + 2];
-    const next_x = vertices[nextVertexIdx * 4];
-    const next_z = vertices[nextVertexIdx * 4 + 2];
-
-    const leftOnFirst = (pointX - vertex_x) * (next_z - vertex_z) - (next_x - vertex_x) * (pointZ - vertex_z) <= 0;
-    const leftOnSecond = (prev_x - pointX) * (vertex_z - pointZ) - (vertex_x - pointX) * (prev_z - pointZ) <= 0;
-
-    return !(leftOnFirst && leftOnSecond);
 };
 
 const removeDegenerateSegments = (simplified: number[]): void => {
@@ -796,7 +694,8 @@ const compareHoles = (a: ContourHole, b: ContourHole): number => {
     return 0;
 };
 
-const _diagonalVerts = new Array(8);
+const _mergeRegionHoles_corner = vec2.create();
+const _mergeRegionHoles_pt = vec2.create();
 
 const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void => {
     // Sort holes from left to right.
@@ -837,17 +736,22 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
             // j o-----o j+1
             //         :
             let ndiags = 0;
+            const corner = vec2.set(
+                _mergeRegionHoles_corner,
+                hole.vertices[bestVertex * 4 + 0],
+                hole.vertices[bestVertex * 4 + 2],
+            );
+
             for (let j = 0; j < outline.nVertices; j++) {
-                const holeX = hole.vertices[bestVertex * 4 + 0];
-                const holeZ = hole.vertices[bestVertex * 4 + 2];
-                if (inConePoint(outline.vertices, j, outline.nVertices, holeX, holeZ)) {
-                    const dx = outline.vertices[j * 4 + 0] - holeX;
-                    const dz = outline.vertices[j * 4 + 2] - holeZ;
+                if (inCone(j, outline.nVertices, outline.vertices, corner)) {
+                    const dx = outline.vertices[j * 4 + 0] - corner[0];
+                    const dz = outline.vertices[j * 4 + 2] - corner[1];
                     diags[ndiags].vert = j;
                     diags[ndiags].dist = dx * dx + dz * dz;
                     ndiags++;
                 }
             }
+
             // Sort potential diagonals by distance, we want to make the connection as short as possible.
             if (ndiags > 1) {
                 // In-place sort of the first ndiags elements
@@ -862,48 +766,68 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
                 }
             }
 
+            // // Find a diagonal that is not intersecting the outline not the remaining holes.
+            // index = -1;
+            // for (let j = 0; j < ndiags; j++) {
+            //     // Create a vertex array with the two endpoints of the diagonal
+            //     const diagonalVerts = _diagonalVerts;
+
+            //     // Copy outline vertex
+            //     const outlineVertIdx = diags[j].vert * 4;
+            //     diagonalVerts[0] = outline.vertices[outlineVertIdx + 0];
+            //     diagonalVerts[1] = outline.vertices[outlineVertIdx + 1];
+            //     diagonalVerts[2] = outline.vertices[outlineVertIdx + 2];
+            //     diagonalVerts[3] = outline.vertices[outlineVertIdx + 3];
+
+            //     // Copy hole vertex
+            //     const holeVertIdx = bestVertex * 4;
+            //     diagonalVerts[4] = hole.vertices[holeVertIdx + 0];
+            //     diagonalVerts[5] = hole.vertices[holeVertIdx + 1];
+            //     diagonalVerts[6] = hole.vertices[holeVertIdx + 2];
+            //     diagonalVerts[7] = hole.vertices[holeVertIdx + 3];
+
+            //     let intersectFound = intersectSegContour_array(diagonalVerts, 0, 1, outline.vertices, diags[j].vert, outline.nVertices);
+
+            //     for (let k = i; k < region.nholes && !intersectFound; k++) {
+            //         intersectFound = intersectSegContour_array(
+            //             diagonalVerts,
+            //             0,
+            //             1,
+            //             region.holes[k].contour.vertices,
+            //             -1,
+            //             region.holes[k].contour.nVertices,
+            //         );
+            //     }
+
+            //     if (!intersectFound) {
+            //         index = diags[j].vert;
+            //         break;
+            //     }
+            // }
             // Find a diagonal that is not intersecting the outline not the remaining holes.
             index = -1;
             for (let j = 0; j < ndiags; j++) {
-                // Create a vertex array with the two endpoints of the diagonal
-                const diagonalVerts = _diagonalVerts;
+                const ptIdx = diags[j].vert * 4;
+                const pt = vec2.set(_mergeRegionHoles_pt, outline.vertices[ptIdx], outline.vertices[ptIdx + 2]);
 
-                // Copy outline vertex
-                const outlineVertIdx = diags[j].vert * 4;
-                diagonalVerts[0] = outline.vertices[outlineVertIdx + 0];
-                diagonalVerts[1] = outline.vertices[outlineVertIdx + 1];
-                diagonalVerts[2] = outline.vertices[outlineVertIdx + 2];
-                diagonalVerts[3] = outline.vertices[outlineVertIdx + 3];
-
-                // Copy hole vertex
-                const holeVertIdx = bestVertex * 4;
-                diagonalVerts[4] = hole.vertices[holeVertIdx + 0];
-                diagonalVerts[5] = hole.vertices[holeVertIdx + 1];
-                diagonalVerts[6] = hole.vertices[holeVertIdx + 2];
-                diagonalVerts[7] = hole.vertices[holeVertIdx + 3];
-
-                let intersectFound = intersectSegContour(diagonalVerts, 0, 1, outline.vertices, diags[j].vert, outline.nVertices);
-
-                for (let k = i; k < region.nholes && !intersectFound; k++) {
-                    intersectFound = intersectSegContour(
-                        diagonalVerts,
-                        0,
-                        1,
-                        region.holes[k].contour.vertices,
-                        -1,
-                        region.holes[k].contour.nVertices,
-                    );
+                let intersect = intersectSegContour(pt, corner, diags[i].vert, outline.nVertices, outline.vertices);
+                for (let k = i; k < region.nholes && !intersect; k++) {
+                    intersect =
+                        intersect ||
+                        intersectSegContour(pt, corner, -1, region.holes[k].contour.nVertices, region.holes[k].contour.vertices);
                 }
 
-                if (!intersectFound) {
+                if (!intersect) {
                     index = diags[j].vert;
                     break;
                 }
             }
+
             // If found non-intersecting diagonal, stop looking.
             if (index !== -1) {
                 break;
             }
+
             // All the potential diagonals for the current vertex were intersecting, try next vertex.
             bestVertex = (bestVertex + 1) % hole.nVertices;
         }
@@ -912,6 +836,7 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
             BuildContext.warn(ctx, 'mergeHoles: Failed to find merge points for outline and hole.');
             continue;
         }
+
         if (!mergeContours(region.outline!, hole, index, bestVertex)) {
             BuildContext.warn(ctx, 'mergeHoles: Failed to merge contours.');
         }
@@ -1113,7 +1038,10 @@ export const buildContours = (
                     // The region does not have an outline.
                     // This can happen if the contour becaomes selfoverlapping because of
                     // too aggressive simplification settings.
-                    BuildContext.error(ctx, `buildContours: Bad outline for region ${i}, contour simplification is likely too aggressive.`);
+                    BuildContext.error(
+                        ctx,
+                        `buildContours: Bad outline for region ${i}, contour simplification is likely too aggressive.`,
+                    );
                 }
             }
         }
