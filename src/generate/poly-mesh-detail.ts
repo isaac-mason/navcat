@@ -636,7 +636,7 @@ const seedArrayWithPolyCenter = (
         }
 
         // Push the direct dir last so we start with this on next iteration
-        const temp = dirs[directDir];
+        let temp = dirs[directDir];
         dirs[directDir] = dirs[3];
         dirs[3] = temp;
 
@@ -658,12 +658,14 @@ const seedArrayWithPolyCenter = (
             array.push(newX, newY, chf.cells[newX + bs + (newY + bs) * chf.width].index + getCon(cs, dir));
         }
 
-        // Restore dirs array
+        // restore dirs array
+        temp = dirs[directDir];
         dirs[directDir] = dirs[3];
         dirs[3] = temp;
     }
 
     array.length = 0;
+
     // getHeightData seeds are given in coordinates with borders
     array.push(cx + bs, cy + bs, ci);
 
@@ -773,7 +775,6 @@ const getHeightData = (
     }
 };
 
-// Pre-allocated Vec3 objects for buildPolyDetail function
 const _buildPolyDetail_vj: Vec3 = vec3.create();
 const _buildPolyDetail_vi: Vec3 = vec3.create();
 const _buildPolyDetail_pt: Vec3 = vec3.create();
@@ -939,7 +940,7 @@ const buildPolyDetail = (
         }
     }
 
-    // If the polygon minimum extent is small, do not try to add internal points.
+    // If the polygon minimum extent is small (sliver or small triangle), do not try to add internal points.
     if (minExtent < sampleDist * 2) {
         triangulateHull(verts, nhull, hull, nin, tris);
         setTriFlags(tris, nhull, hull);
