@@ -290,7 +290,7 @@ const tile = Nav.addTile(navMesh, tileParams);
         );
 
         console.log(nodePath.success); // true if a partial or full path was found
-        console.log(nodePath.path); // ['0,0,1', '0,0,5', '0,0,8', ... ]
+        console.log(nodePath.path); // [0, 1, 2, ... ]
     }
     /* SNIPPET_END: findNodePath */
 }
