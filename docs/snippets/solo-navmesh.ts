@@ -158,7 +158,7 @@ navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
 // create the navmesh tile
-const tile: Nav.NavMeshTileParams = {
+const tileParams: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -177,10 +177,10 @@ const tile: Nav.NavMeshTileParams = {
 };
 
 // OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tile);
+Nav.buildNavMeshBvTree(tileParams);
 
 // add the tile to the navmesh
-Nav.addTile(navMesh, tile);
+const tile = Nav.addTile(navMesh, tileParams);
 /* SNIPPET_END: navMesh */
 
 /* SNIPPET_END: generationFull */
@@ -526,7 +526,7 @@ Nav.addTile(navMesh, tile);
     Nav.removeOffMeshConnection(navMesh, bidirectionalOffMeshConnectionId);
 
     // define a one-way off-mesh connection (e.g. a teleporter that only goes one way)
-    const oneWayTeleporterOffMeshConnection: Nav.OffMeshConnection = {
+    const oneWayTeleporterOffMeshConnection: Nav.OffMeshConnectionParams = {
         start: [2, 0, 2],
         end: [3, 1, 3],
         radius: 0.5,
@@ -568,7 +568,7 @@ Nav.addTile(navMesh, tile);
 
     const navMeshHelper = Nav.createNavMeshHelper(navMesh);
 
-    const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, '0,0,1');
+    const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, 0);
 
     const navMeshTileBvTreeHelper = Nav.createNavMeshTileBvTreeHelper(tile);
 
@@ -580,7 +580,7 @@ Nav.addTile(navMesh, tile);
 
     const navMeshPortalsHelper = Nav.createNavMeshPortalsHelper(navMesh);
 
-    const findNodePathResult = Nav.findNodePath(navMesh, '0,0,1', '0,0,8', [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
+    const findNodePathResult = Nav.findNodePath(navMesh, 0, 0, [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
     const searchNodesHelper = Nav.createSearchNodesHelper(findNodePathResult.nodes);
 
     const navMeshOffMeshConnectionsHelper = Nav.createNavMeshOffMeshConnectionsHelper(navMesh);

@@ -1317,7 +1317,7 @@ const updateOffMeshConnections = (navMesh: NavMesh) => {
     }
 };
 
-export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams) => {
+export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMeshTile => {
     const tileHash = getTilePositionHash(tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
 
     // tile salt
@@ -1377,6 +1377,8 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams) => {
 
     // update off mesh connections
     updateOffMeshConnections(navMesh);
+
+    return tile;
 };
 
 /**
@@ -1470,8 +1472,10 @@ export const addOffMeshConnection = (navMesh: NavMesh, offMeshConnectionParams: 
  * @param navMesh the navmesh to remove the off mesh connection from
  * @param offMeshConnectionId the ID of the off mesh connection to remove
  */
-export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshConnection): void => {
-    if (!navMesh.offMeshConnections[offMeshConnection.id]) return;
+export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: number): void => {
+    const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+
+    if (!offMeshConnection) return;
 
     releaseIndex(navMesh.offMeshConnectionIndexPool, offMeshConnection.id);
 

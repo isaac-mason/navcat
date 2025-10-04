@@ -383,7 +383,7 @@ navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
 // create the navmesh tile
-const tile: Nav.NavMeshTileParams = {
+const tileParams: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -402,10 +402,10 @@ const tile: Nav.NavMeshTileParams = {
 };
 
 // OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tile);
+Nav.buildNavMeshBvTree(tileParams);
 
 // add the tile to the navmesh
-Nav.addTile(navMesh, tile);
+const tile = Nav.addTile(navMesh, tileParams);
 ```
 
 ### 0. Input and setup
@@ -972,7 +972,7 @@ navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
 // create the navmesh tile
-const tile: Nav.NavMeshTileParams = {
+const tileParams: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -991,10 +991,10 @@ const tile: Nav.NavMeshTileParams = {
 };
 
 // OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tile);
+Nav.buildNavMeshBvTree(tileParams);
 
 // add the tile to the navmesh
-Nav.addTile(navMesh, tile);
+const tile = Nav.addTile(navMesh, tileParams);
 ```
 
 ![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
@@ -1013,7 +1013,7 @@ export function buildNavMeshBvTree(navMeshTile: NavMeshTileParams): boolean;
 ```
 
 ```ts
-export function addTile(navMesh: NavMesh, tileParams: NavMeshTileParams);
+export function addTile(navMesh: NavMesh, tileParams: NavMeshTileParams): NavMeshTile;
 ```
 
 ```ts
@@ -1741,7 +1741,7 @@ if (offMeshConnectionAttachment) {
 Nav.removeOffMeshConnection(navMesh, bidirectionalOffMeshConnectionId);
 
 // define a one-way off-mesh connection (e.g. a teleporter that only goes one way)
-const oneWayTeleporterOffMeshConnection: Nav.OffMeshConnection = {
+const oneWayTeleporterOffMeshConnection: Nav.OffMeshConnectionParams = {
     start: [2, 0, 2],
     end: [3, 1, 3],
     radius: 0.5,
@@ -1788,7 +1788,7 @@ export function addOffMeshConnection(navMesh: NavMesh, offMeshConnectionParams: 
  * @param navMesh the navmesh to remove the off mesh connection from
  * @param offMeshConnectionId the ID of the off mesh connection to remove
  */
-export function removeOffMeshConnection(navMesh: NavMesh, offMeshConnection: OffMeshConnection): void;
+export function removeOffMeshConnection(navMesh: NavMesh, offMeshConnectionId: number): void;
 ```
 
 ```ts
@@ -1866,7 +1866,7 @@ const polyMeshDetailHelper = Nav.createPolyMeshDetailHelper(polyMeshDetail);
 
 const navMeshHelper = Nav.createNavMeshHelper(navMesh);
 
-const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, '0,0,1');
+const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, 0);
 
 const navMeshTileBvTreeHelper = Nav.createNavMeshTileBvTreeHelper(tile);
 
@@ -1878,7 +1878,7 @@ const navMeshTilePortalsHelper = Nav.createNavMeshTilePortalsHelper(tile);
 
 const navMeshPortalsHelper = Nav.createNavMeshPortalsHelper(navMesh);
 
-const findNodePathResult = Nav.findNodePath(navMesh, '0,0,1', '0,0,8', [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
+const findNodePathResult = Nav.findNodePath(navMesh, 0, 0, [1, 0, 1], [8, 0, 8], Nav.DEFAULT_QUERY_FILTER);
 const searchNodesHelper = Nav.createSearchNodesHelper(findNodePathResult.nodes);
 
 const navMeshOffMeshConnectionsHelper = Nav.createNavMeshOffMeshConnectionsHelper(navMesh);
