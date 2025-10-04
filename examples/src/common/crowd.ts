@@ -262,7 +262,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
             if (!nearestPolyResult.success) {
                 // could not find location in navmesh, set agent state to invalid
                 agent.state = AgentState.INVALID;
-                resetCorridor(agent.corridor, '0,0,0', agent.position);
+                resetCorridor(agent.corridor, 0, agent.position);
                 resetLocalBoundary(agent.boundary);
 
                 continue;
@@ -302,7 +302,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 if (!nearestPolyResult.success) {
                     // could not find location in navmesh, set agent state to invalid
                     agent.targetState = AgentTargetState.NONE;
-                    resetCorridor(agent.corridor, '0,0,0', agent.position);
+                    resetCorridor(agent.corridor, 0, agent.position);
                 }
             }
         }
@@ -507,7 +507,7 @@ const agentIsOverOffMeshConnection = (agent: Agent, radius: number): boolean => 
 
     const lastCorner = agent.corners[agent.corners.length - 1];
 
-    if (lastCorner.type !== NodeType.OFFMESH_CONNECTION) return false;
+    if (lastCorner.type !== NodeType.OFFMESH) return false;
 
     const dist = dist2dSqr(agent.position, lastCorner.position);
 

@@ -1,7 +1,7 @@
 import type { ArrayLike, CompactHeightfield, ContourSet, Heightfield, PolyMesh, PolyMeshDetail } from './generate';
 import { MESH_NULL_IDX, NULL_AREA, POLY_NEIS_FLAG_EXT_LINK, WALKABLE_AREA } from './generate';
 import type { NavMesh, NavMeshTile, NodeRef, SearchNodePool, SearchNodeRef } from './query';
-import { desNodeRef, OffMeshConnectionDirection } from './query';
+import { desPolyNodeRef, OffMeshConnectionDirection, createPolyNodeRef } from './query';
 
 // debug primitive types
 export enum DebugPrimitiveType {
@@ -1167,6 +1167,8 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
     return primitives;
 }
 
+const _createNavMeshPolyHelper_polyNodeRef = createPolyNodeRef();
+
 export function createNavMeshPolyHelper(
     navMesh: NavMesh,
     polyRef: NodeRef,
@@ -1175,7 +1177,7 @@ export function createNavMeshPolyHelper(
     const primitives: DebugPrimitive[] = [];
 
     // Get tile and polygon from reference
-    const [, tileId, polyId] = desNodeRef(polyRef);
+    const [tileId, polyId] = desPolyNodeRef(_createNavMeshPolyHelper_polyNodeRef, polyRef);
 
     const tile = navMesh.tiles[tileId];
     if (!tile || !tile.polys[polyId]) {
@@ -1372,6 +1374,8 @@ export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
     return primitives;
 }
 
+const _createNavMeshLinksHelper_polyNodeRef = createPolyNodeRef();
+
 export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     const primitives: DebugPrimitive[] = [];
 
@@ -1403,16 +1407,16 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     };
 
     // Process each link
-    for (const linkId in navMesh.links) {
-        const link = navMesh.links[linkId];
+    for (const link of navMesh.links) {
+        if (!link || !link.allocated) continue;
 
         // Get source polygon info
-        const [, sourceTileId, sourcePolyId] = desNodeRef(link.ref);
+        const [sourceTileId, sourcePolyId] = desPolyNodeRef(_createNavMeshLinksHelper_polyNodeRef, link.ref);
         const sourceTile = navMesh.tiles[sourceTileId];
         const sourcePoly = sourceTile?.polys[sourcePolyId];
 
         // Get target polygon info
-        const [, targetTileId, targetPolyId] = desNodeRef(link.neighbourRef);
+        const [targetTileId, targetPolyId] = desPolyNodeRef(_createNavMeshLinksHelper_polyNodeRef, link.neighbourRef);
         const targetTile = navMesh.tiles[targetTileId];
         const targetPoly = targetTile?.polys[targetPolyId];
 

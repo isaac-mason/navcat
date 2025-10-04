@@ -21,7 +21,7 @@ export enum FindStraightPathOptions {
 export enum StraightPathPointFlags {
     START = 0,
     END = 1,
-    OFFMESH_CONNECTION = 2,
+    OFFMESH = 2,
 }
 
 export type StraightPathPoint = {
@@ -233,11 +233,11 @@ export const findStraightPath = (
 
         let leftNodeRef: NodeRef | null = pathNodeRefs[0];
         let rightNodeRef: NodeRef | null = pathNodeRefs[0];
-        let leftNodeType: NodeType = NodeType.GROUND_POLY;
-        let rightNodeType: NodeType = NodeType.GROUND_POLY;
+        let leftNodeType: NodeType = NodeType.POLY;
+        let rightNodeType: NodeType = NodeType.POLY;
 
         for (let i = 0; i < pathSize; ++i) {
-            let toType: NodeType = NodeType.GROUND_POLY;
+            let toType: NodeType = NodeType.POLY;
 
             const left = _findStraightPathLeftPortalPoint;
             const right = _findStraightPathRightPortalPoint;
@@ -284,7 +284,7 @@ export const findStraightPath = (
                 // end of path
                 vec3.copy(left, closestEndPos);
                 vec3.copy(right, closestEndPos);
-                toType = NodeType.GROUND_POLY;
+                toType = NodeType.POLY;
             }
 
             // right vertex
@@ -321,8 +321,8 @@ export const findStraightPath = (
                     let pointFlags = 0;
                     if (!leftNodeRef) {
                         pointFlags = StraightPathPointFlags.END;
-                    } else if (leftNodeType === NodeType.OFFMESH_CONNECTION) {
-                        pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
+                    } else if (leftNodeType === NodeType.OFFMESH) {
+                        pointFlags = StraightPathPointFlags.OFFMESH;
                     }
 
                     // append or update vertex
@@ -331,7 +331,7 @@ export const findStraightPath = (
                         leftNodeRef,
                         pointFlags,
                         path,
-                        leftNodeRef ? leftNodeType : NodeType.GROUND_POLY,
+                        leftNodeRef ? leftNodeType : NodeType.POLY,
                         maxPoints,
                     );
 
@@ -397,8 +397,8 @@ export const findStraightPath = (
                     let pointFlags = 0;
                     if (!rightNodeRef) {
                         pointFlags = StraightPathPointFlags.END;
-                    } else if (rightNodeType === NodeType.OFFMESH_CONNECTION) {
-                        pointFlags = StraightPathPointFlags.OFFMESH_CONNECTION;
+                    } else if (rightNodeType === NodeType.OFFMESH) {
+                        pointFlags = StraightPathPointFlags.OFFMESH;
                     }
 
                     // add/update vertex
@@ -407,7 +407,7 @@ export const findStraightPath = (
                         rightNodeRef,
                         pointFlags,
                         path,
-                        rightNodeRef ? rightNodeType : NodeType.GROUND_POLY,
+                        rightNodeRef ? rightNodeType : NodeType.POLY,
                         maxPoints,
                     );
 
@@ -463,7 +463,7 @@ export const findStraightPath = (
         endRef,
         StraightPathPointFlags.END,
         path,
-        NodeType.GROUND_POLY,
+        NodeType.POLY,
         maxPoints,
     );
     const maxPointsReached = (endAppendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;

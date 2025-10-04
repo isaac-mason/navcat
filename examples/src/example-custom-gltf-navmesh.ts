@@ -249,7 +249,7 @@ function updatePath() {
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
-            if (getNodeRefType(node) === NodeType.GROUND_POLY) {
+            if (getNodeRefType(node) === NodeType.POLY) {
                 const polyHelper = createNavMeshPolyHelper(navMesh, node);
                 addVisual(polyHelper);
             }

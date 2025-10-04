@@ -1,7 +1,7 @@
 export const createIndexPool = () => {
     return {
         free: [] as number[],
-        counter: -1,
+        counter: 0,
     };
 };
 
