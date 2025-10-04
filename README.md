@@ -383,8 +383,7 @@ navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
 // create the navmesh tile
-const tile: Nav.NavMeshTile = {
-    id: -1,
+const tile: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -973,8 +972,7 @@ navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
 // create the navmesh tile
-const tile: Nav.NavMeshTile = {
-    id: -1,
+const tile: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -1011,11 +1009,11 @@ export function createNavMesh(): NavMesh;
  * @param navMeshTile the nav mesh tile to build the BV tree for
  * @returns
  */
-export function buildNavMeshBvTree(navMeshTile: NavMeshTile): boolean;
+export function buildNavMeshBvTree(navMeshTile: NavMeshTileParams): boolean;
 ```
 
 ```ts
-export function addTile(navMesh: NavMesh, tile: NavMeshTile);
+export function addTile(navMesh: NavMesh, tileParams: NavMeshTileParams);
 ```
 
 ```ts
@@ -1522,8 +1520,8 @@ export function getClosestPointOnDetailEdges(outClosestPoint: Vec3, tile: NavMes
 ### getPortalPoints
 
 ```ts
-const startNodeRef: Nav.NodeRef = '0,0,1'; // example poly node ref, usually retrieved from a pathfinding call
-const endNodeRef: Nav.NodeRef = '0,0,8'; // example poly node ref, usually retrieved from a pathfinding call
+const startNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
+const endNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
 
 const left: Vec3 = [0, 0, 0];
 const right: Vec3 = [0, 0, 0];
@@ -1546,7 +1544,7 @@ export function getPortalPoints(navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRe
 ### isValidNodeRef
 
 ```ts
-const nodeRef: Nav.NodeRef = '0,0,1';
+const nodeRef: Nav.NodeRef = 0;
 
 // true if the node ref is valid, useful to call after updating tiles to validate the reference is still valid
 const isValid = Nav.isValidNodeRef(navMesh, nodeRef);
@@ -1560,7 +1558,7 @@ export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
 ### getNodeAreaAndFlags
 
 ```ts
-const nodeRef: Nav.NodeRef = '0,0,1';
+const nodeRef: Nav.NodeRef = 0;
 
 const areaAndFlags = Nav.getNodeAreaAndFlags(Nav.createGetNodeAreaAndFlagsResult(), navMesh, nodeRef);
 console.log(areaAndFlags.success);
@@ -1652,7 +1650,7 @@ export const DEFAULT_QUERY_FILTER = (() => {
         getCost(pa, pb, navMesh, _prevRef, _curRef, nextRef) {
             // handle offmesh connection 'cost' override
             if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH) {
-                const [, offMeshConnectionId] = desNodeRef(nextRef);
+                const [offMeshConnectionId] = desOffMeshNodeRef(_defaultQueryFilter_offMeshNodeRef, nextRef);
                 const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
                 if (offMeshConnection.cost !== undefined) {
                     return offMeshConnection.cost;
@@ -1710,7 +1708,7 @@ Off-mesh connections are used for navigation that isn't just traversal between a
 
 ```ts
 // define a bidirectional off-mesh connection between two points
-const bidirectionalOffMeshConnection: Nav.OffMeshConnection = {
+const bidirectionalOffMeshConnection: Nav.OffMeshConnectionParams = {
     // start position in world space
     start: [0, 0, 0],
     // end position in world space
@@ -1781,7 +1779,7 @@ To see a live example, see the "Off-Mesh Connections Example":
  * @param offMeshConnection the off mesh connection to add
  * @returns the ID of the added off mesh connection
  */
-export function addOffMeshConnection(navMesh: NavMesh, offMeshConnection: OffMeshConnection): string;
+export function addOffMeshConnection(navMesh: NavMesh, offMeshConnectionParams: OffMeshConnectionParams): number;
 ```
 
 ```ts
@@ -1790,11 +1788,11 @@ export function addOffMeshConnection(navMesh: NavMesh, offMeshConnection: OffMes
  * @param navMesh the navmesh to remove the off mesh connection from
  * @param offMeshConnectionId the ID of the off mesh connection to remove
  */
-export function removeOffMeshConnection(navMesh: NavMesh, offMeshConnectionId: string): void;
+export function removeOffMeshConnection(navMesh: NavMesh, offMeshConnection: OffMeshConnection): void;
 ```
 
 ```ts
-export function isOffMeshConnectionConnected(navMesh: NavMesh, offMeshConnectionId: string): boolean;
+export function isOffMeshConnectionConnected(navMesh: NavMesh, offMeshConnectionId: number): boolean;
 ```
 
 ## Tiled Navigation Meshes
