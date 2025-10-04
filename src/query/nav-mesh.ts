@@ -18,10 +18,10 @@ export type NavMesh = {
     /** The height of each tile along the z axis */
     tileHeight: number;
 
-    /** Global node ref to node containing type and links */
+    /** Global nodes */
     nodes: Record<NodeRef, NavMeshNode>;
 
-    /** Global navmesh tile links. Check 'allocated' for whether the link is in use. */
+    /** Global links. Check 'allocated' for whether the link is in use. */
     links: Array<NavMeshLink>;
 
     /** Off mesh connection definitions */
