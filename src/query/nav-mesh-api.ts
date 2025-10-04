@@ -1226,7 +1226,7 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
     const startNode = navMesh.nodes[startPolyRef];
 
     const endPolyRef = endTilePolyResult.ref;
-    const endPolyLinks = navMesh.nodes[endPolyRef];
+    const endNode = navMesh.nodes[endPolyRef];
 
     // create a node for the off mesh connection start
     const offMeshStartNodeRef = serOffMeshNodeRef(offMeshConnection.id, offMeshConnection.salt, OffMeshConnectionSide.START);
@@ -1270,7 +1270,7 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
         endPolyToOffMeshEndLink.bmax = 0; // not used for offmesh links
         endPolyToOffMeshEndLink.side = 0; // not used for offmesh links
         endPolyToOffMeshEndLink.edge = 0; // not used for offmesh links
-        endPolyLinks.links.push(endPolyToOffMeshEndLinkIndex);
+        endNode.links.push(endPolyToOffMeshEndLinkIndex);
 
         // link the off mesh end node to the start poly node
         const offMeshEndToStartPolyLinkIndex = allocateLink(navMesh);
