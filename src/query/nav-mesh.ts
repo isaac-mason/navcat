@@ -1,5 +1,11 @@
 import type { Box3, Vec3 } from 'maaths';
+import type { IndexPool } from '../index-pool';
 import type { NodeRef } from './node';
+
+export type NavMeshNode = {
+    /** the links for this nav mesh node */
+    links: number[];
+}
 
 /** A navigation mesh based on tiles of convex polygons */
 export type NavMesh = {
@@ -12,20 +18,17 @@ export type NavMesh = {
     /** The height of each tile along the z axis */
     tileHeight: number;
 
-    /** Global node ref to link indices map */
-    nodes: Record<NodeRef, number[]>;
+    /** Global nodes */
+    nodes: Record<NodeRef, NavMeshNode>;
 
-    /**
-     * The global navmesh tile links pool.
-     * When iterating, you can filter on @see NavMeshLink.allocated to only consider in-use links.
-     */
-    links: NavMeshLink[];
+    /** Global links. Check 'allocated' for whether the link is in use. */
+    links: Array<NavMeshLink>;
 
-    /** Free link indices */
-    freeLinkIndices: number[];
+    /** Off mesh connection definitions */
+    offMeshConnections: Record<string, OffMeshConnection>;
 
-    /** Tile id counter, used to ensure modified tiles in the same position have new node references */
-    tileIdCounter: number;
+    /** Off mesh connection attachments */
+    offMeshConnectionAttachments: Record<string, OffMeshConnectionAttachment>;
 
     /** Map of tile ids to tiles */
     tiles: Record<string, NavMeshTile>;
@@ -33,14 +36,17 @@ export type NavMesh = {
     /** Map of tile position hashes to tile ids */
     tilePositionHashToTileId: Record<string, number>;
 
-    /** Off mesh connection id counter */
-    offMeshConnectionIdCounter: number;
+    /** Map of tile position hashes to salts */
+    tilePositionHashToSalt: Record<string, number>;
 
-    /** Off mesh connection definitions */
-    offMeshConnections: Record<string, OffMeshConnection>;
+    /** Pool for tile indices */
+    tileIndexPool: IndexPool;
 
-    /** Off mesh connection attachments */
-    offMeshConnectionAttachments: Record<string, OffMeshConnectionAttachment>;
+    /** Pool for off mesh connection indices */
+    offMeshConnectionIndexPool: IndexPool;
+
+    /** Pool for link indices */
+    linkIndexPool: IndexPool;
 };
 
 export type NavMeshPoly = {
@@ -80,8 +86,11 @@ export type NavMeshPolyDetail = {
 };
 
 export type NavMeshLink = {
-    /** true if the link is allocated / in use, false if it's pooled */
+    /** whether the nav mesh link is allocated */
     allocated: boolean;
+
+    /** the id of the link */
+    id: number;
 
     /** node reference that owns this link */
     ref: NodeRef;
@@ -113,6 +122,10 @@ export enum OffMeshConnectionSide {
 }
 
 export type OffMeshConnection = {
+    /** the id of the off mesh connection */
+    id: number;
+    /** the salt of the off mesh connection */
+    salt: number;
     /** the start position of the off mesh connection */
     start: Vec3;
     /** the end position of the off mesh connection */
@@ -131,6 +144,8 @@ export type OffMeshConnection = {
      */
     cost?: number;
 };
+
+export type OffMeshConnectionParams = Omit<OffMeshConnection, 'id' | 'salt'>;
 
 export type OffMeshConnectionAttachment = {
     /** the start polygon that the off mesh connection has linked to */
@@ -155,8 +170,11 @@ export type NavMeshTileBvTree = {
 };
 
 export type NavMeshTile = {
-    /** the unique id of the tile */
+    /** the id of the tile */
     id: number;
+
+    /** the salt of the tile */
+    salt: number;
 
     /* the tile x position in the nav mesh */
     tileX: number;
@@ -192,9 +210,6 @@ export type NavMeshTile = {
      * The xz-plane cell size of the polygon mesh.
      * If this tile was generated with voxelization, it should be the voxel cell size.
      * If the tile was created with a different method, use a value that approximates the level of precision required for the tile.
-     * This is used to:
-     * - quantize the tile's bounding volume tree, for all dimensions (x, y, z)
-     * - ...
      */
     cellSize: number;
 
@@ -202,8 +217,6 @@ export type NavMeshTile = {
      * The y-axis cell height of the polygon mesh.
      * If this tile was generated with voxelization, it should be the voxel cell height.
      * If the tile was created with a different method, use a value that approximates the level of precision required for the tile.
-     * This is used to:
-     * - ...
      */
     cellHeight: number;
 

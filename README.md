@@ -1651,7 +1651,7 @@ export const DEFAULT_QUERY_FILTER = (() => {
         excludeFlags: 0,
         getCost(pa, pb, navMesh, _prevRef, _curRef, nextRef) {
             // handle offmesh connection 'cost' override
-            if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH_CONNECTION) {
+            if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH) {
                 const [, offMeshConnectionId] = desNodeRef(nextRef);
                 const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
                 if (offMeshConnection.cost !== undefined) {

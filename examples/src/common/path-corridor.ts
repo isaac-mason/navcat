@@ -1,7 +1,8 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
-    desNodeRef,
+    createOffMeshNodeRef,
+    desOffMeshNodeRef,
     findStraightPath,
     isValidNodeRef,
     moveAlongSurface,
@@ -135,7 +136,7 @@ export const findCorridorCorners = (
     let firstOffMeshConnectionIndex = -1;
 
     for (let i = 0; i < corners.length; i++) {
-        if (corners[i].type === NodeType.OFFMESH_CONNECTION) {
+        if (corners[i].type === NodeType.OFFMESH) {
             firstOffMeshConnectionIndex = i;
             break;
         }
@@ -168,15 +169,17 @@ export const fixPathStart = (corridor: PathCorridor, safeRef: NodeRef, safePos: 
     if (corridor.path.length < 3 && corridor.path.length > 0) {
         corridor.path[2] = corridor.path[corridor.path.length - 1];
         corridor.path[0] = safeRef;
-        corridor.path[1] = '' as NodeRef;
+        corridor.path[1] = 0;
         corridor.path.length = 3;
     } else {
         corridor.path[0] = safeRef;
-        corridor.path[1] = '' as NodeRef;
+        corridor.path[1] = 0;
     }
 
     return true;
 };
+
+const _moveOverOffMeshConnection_offMeshNodeRef = createOffMeshNodeRef();
 
 export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef: NodeRef, navMesh: NavMesh) => {
     if (corridor.path.length === 0) return false;
@@ -207,7 +210,7 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef:
     }
 
     // get the off-mesh connection
-    const [, offMeshConnectionId] = desNodeRef(offMeshConRef);
+    const [offMeshConnectionId] = desOffMeshNodeRef(_moveOverOffMeshConnection_offMeshNodeRef, offMeshConRef);
     const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
     const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 

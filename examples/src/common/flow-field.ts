@@ -38,7 +38,6 @@ export function computeUniformCostFlowField(
 
         for (const linkIndex of polyLinks) {
             const link = navMesh.links[linkIndex];
-            if (!link || !link.allocated) continue;
 
             const neighborRef = link.neighbourRef;
 

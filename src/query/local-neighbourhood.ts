@@ -3,10 +3,9 @@ import { vec3 } from 'maaths';
 import { POLY_NEIS_FLAG_EXT_LINK } from '../generate';
 import { createDistancePtSegSqr2dResult, distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry';
 import type { NavMesh } from './nav-mesh';
-import { getTileAndPolyByRef } from './nav-mesh-api';
+import { getTileAndPolyByRef, isValidNodeRef } from './nav-mesh-api';
 import {
     getPortalPoints,
-    isValidNodeRef,
     NODE_FLAG_CLOSED,
     type SearchNode,
     type SearchNodePool,
@@ -118,8 +117,8 @@ export const findLocalNeighbourhood = (
         if (!curTileAndPoly.success) continue;
 
         // iterate through all links
-        const polyLinks = navMesh.nodes[curRef] || [];
-        for (const linkIndex of polyLinks) {
+        const node = navMesh.nodes[curRef] || [];
+        for (const linkIndex of node.links) {
             const link = navMesh.links[linkIndex];
             if (!link || !link.neighbourRef) continue;
 
@@ -134,7 +133,7 @@ export const findLocalNeighbourhood = (
             const { tile: neighbourTile, poly: neighbourPoly } = neighbourTileAndPoly;
 
             // skip off-mesh connections
-            if (getNodeRefType(neighbourRef) === NodeType.OFFMESH_CONNECTION) continue;
+            if (getNodeRefType(neighbourRef) === NodeType.OFFMESH) continue;
 
             // apply filter
             if (!filter.passFilter(neighbourRef, navMesh)) continue;
@@ -176,7 +175,7 @@ export const findLocalNeighbourhood = (
 
                 // connected polys do not overlap
                 let connected = false;
-                for (const pastLinkIndex of navMesh.nodes[curRef] || []) {
+                for (const pastLinkIndex of navMesh.nodes[curRef].links) {
                     if (navMesh.links[pastLinkIndex]?.neighbourRef === pastRef) {
                         connected = true;
                         break;
@@ -264,8 +263,8 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
         // check if this edge has external links (tile boundary)
         if (poly.neis[j] & POLY_NEIS_FLAG_EXT_LINK) {
             // tile border - find all links for this edge
-            const polyLinks = navMesh.nodes[polyRef] || [];
-            for (const linkIndex of polyLinks) {
+            const node = navMesh.nodes[polyRef] || [];
+            for (const linkIndex of node.links) {
                 const link = navMesh.links[linkIndex];
                 if (!link || link.edge !== j) continue;
 
@@ -283,7 +282,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
             let neiRef: NodeRef | null = null;
             if (poly.neis[j]) {
                 const idx = poly.neis[j] - 1;
-                neiRef = serPolyNodeRef(tile.id, idx);
+                neiRef = serPolyNodeRef(tile.id, tile.salt, idx);
 
                 // check if neighbor passes filter
                 const neighbourTileAndPoly = getTileAndPolyByRef(neiRef, navMesh);

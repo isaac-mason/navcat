@@ -2,10 +2,10 @@ import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import { FindStraightPathResultFlags, findStraightPath, type StraightPathPoint } from './find-straight-path';
 import type { NavMesh } from './nav-mesh';
-import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import { FindNodePathResultFlags, type FindNodePathResult, findNodePath } from './nav-mesh-search';
-import type { NodeRef } from './node';
 import type { QueryFilter } from './nav-mesh-api';
+import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
+import { type FindNodePathResult, FindNodePathResultFlags, findNodePath } from './nav-mesh-search';
+import type { NodeRef } from './node';
 
 export enum FindPathResultFlags {
     NONE = 0,
@@ -139,7 +139,10 @@ export const findPath = (
     result.straightPathFlags = straightPath.flags;
 
     let flags = FindPathResultFlags.SUCCESS;
-    if (nodePath.flags & FindNodePathResultFlags.COMPLETE_PATH && (straightPath.flags & FindStraightPathResultFlags.PARTIAL_PATH) === 0) {
+    if (
+        nodePath.flags & FindNodePathResultFlags.COMPLETE_PATH &&
+        (straightPath.flags & FindStraightPathResultFlags.PARTIAL_PATH) === 0
+    ) {
         flags |= FindPathResultFlags.COMPLETE_PATH;
     } else {
         flags |= FindPathResultFlags.PARTIAL_PATH;
