@@ -689,7 +689,7 @@ const getHeightData = (
     // since border size offset is already removed from the polymesh vertices.
 
     queue.length = 0;
-    // Set all heights to RC_UNSET_HEIGHT.
+
     hp.data.fill(UNSET_HEIGHT);
 
     let empty = true;

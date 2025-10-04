@@ -113,6 +113,7 @@ const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
 /* create nav mesh tile */
 const tile: NavMeshTile = {
     id: -1,
+    salt: -1,
     bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,

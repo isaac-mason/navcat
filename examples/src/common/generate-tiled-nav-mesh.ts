@@ -334,6 +334,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
 
             const tile: NavMeshTile = {
                 id: -1,
+                salt: -1,
                 bounds: polyMesh.bounds,
                 vertices: tilePolys.vertices,
                 polys: tilePolys.polys,
