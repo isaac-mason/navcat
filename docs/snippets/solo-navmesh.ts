@@ -84,10 +84,10 @@ Nav.buildDistanceField(compactHeightfield);
 const borderSize = 0;
 
 // CONFIG: minRegionArea
-const minRegionArea = 8; // world units
+const minRegionArea = 8; // voxel units
 
 // CONFIG: mergeRegionArea
-const mergeRegionArea = 20; // world units
+const mergeRegionArea = 20; // voxel units
 
 // partition the walkable surface into simple regions without holes
 Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
@@ -98,7 +98,7 @@ Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegion
 const maxSimplificationError = 1.3; // world units
 
 // CONFIG: maxEdgeLength
-const maxEdgeLength = 6.0; // world units
+const maxEdgeLength = 6.0; // voxel units
 
 // trace and simplify region contours
 const contourSet = Nav.buildContours(
