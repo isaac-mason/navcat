@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 0.0.4 (Unreleased)
+
+- Add NavMeshTileParams, don't require providing dummy NavMeshTile 'id' and 'salt'
+- Return NavMeshTile from addTile
+- Use packed numbers as node refs instead of strings for faster node ref ser/des and comparison
+- Fix poly mesh detail dirs swapping logic
+- Refactor contour set generation logic
+- Use an index pool for tile ids and offmesh connection ids to avoid increasingly larger numbers being used as ids
+
 ## 0.0.3
 
 - Remove `three` dependency from navcat, move threejs utilities to examples in lieu of a potential @navcat/three package in the future

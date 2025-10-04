@@ -33,10 +33,10 @@ export function computeUniformCostFlowField(
         iterations++;
 
         // Get links for this polygon using navMesh.nodes
-        const polyLinks = navMesh.nodes[currentRef];
-        if (!polyLinks) continue;
+        const node = navMesh.nodes[currentRef];
+        if (!node) continue;
 
-        for (const linkIndex of polyLinks) {
+        for (const linkIndex of node.links) {
             const link = navMesh.links[linkIndex];
 
             const neighborRef = link.neighbourRef;

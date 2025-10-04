@@ -145,7 +145,7 @@ export const distancePtSeg2d = (out: DistPtSeg2dResult, pt: Vec3, p: Vec3, q: Ve
 
     const dist = closeDx * closeDx + closeDz * closeDz;
 
-    out.dist = Math.sqrt(dist);
+    out.dist = dist;
     out.t = t;
     return out;
 };
