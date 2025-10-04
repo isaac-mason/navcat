@@ -766,50 +766,13 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
                 }
             }
 
-            // // Find a diagonal that is not intersecting the outline not the remaining holes.
-            // index = -1;
-            // for (let j = 0; j < ndiags; j++) {
-            //     // Create a vertex array with the two endpoints of the diagonal
-            //     const diagonalVerts = _diagonalVerts;
-
-            //     // Copy outline vertex
-            //     const outlineVertIdx = diags[j].vert * 4;
-            //     diagonalVerts[0] = outline.vertices[outlineVertIdx + 0];
-            //     diagonalVerts[1] = outline.vertices[outlineVertIdx + 1];
-            //     diagonalVerts[2] = outline.vertices[outlineVertIdx + 2];
-            //     diagonalVerts[3] = outline.vertices[outlineVertIdx + 3];
-
-            //     // Copy hole vertex
-            //     const holeVertIdx = bestVertex * 4;
-            //     diagonalVerts[4] = hole.vertices[holeVertIdx + 0];
-            //     diagonalVerts[5] = hole.vertices[holeVertIdx + 1];
-            //     diagonalVerts[6] = hole.vertices[holeVertIdx + 2];
-            //     diagonalVerts[7] = hole.vertices[holeVertIdx + 3];
-
-            //     let intersectFound = intersectSegContour_array(diagonalVerts, 0, 1, outline.vertices, diags[j].vert, outline.nVertices);
-
-            //     for (let k = i; k < region.nholes && !intersectFound; k++) {
-            //         intersectFound = intersectSegContour_array(
-            //             diagonalVerts,
-            //             0,
-            //             1,
-            //             region.holes[k].contour.vertices,
-            //             -1,
-            //             region.holes[k].contour.nVertices,
-            //         );
-            //     }
-
-            //     if (!intersectFound) {
-            //         index = diags[j].vert;
-            //         break;
-            //     }
-            // }
             // Find a diagonal that is not intersecting the outline not the remaining holes.
             index = -1;
             for (let j = 0; j < ndiags; j++) {
                 const ptIdx = diags[j].vert * 4;
                 const pt = vec2.set(_mergeRegionHoles_pt, outline.vertices[ptIdx], outline.vertices[ptIdx + 2]);
 
+                // TODO: should intersectSegContour be passed `diags[j].vert` instead of `diags[i].vert` ?
                 let intersect = intersectSegContour(pt, corner, diags[i].vert, outline.nVertices, outline.vertices);
                 for (let k = i; k < region.nholes && !intersect; k++) {
                     intersect =
@@ -1008,22 +971,17 @@ export const buildContours = (
                     regions[contour.reg].nholes++;
                 }
             }
-            let index = 0;
             for (let i = 0; i < nregions; i++) {
                 if (regions[i].nholes > 0) {
-                    regions[i].holes = new Array(regions[i].nholes);
-                    for (let j = 0; j < regions[i].nholes; j++) {
-                        regions[i].holes[j] = holes[index + j];
-                    }
-                    index += regions[i].nholes;
-                    regions[i].nholes = 0;
+                    regions[i].holes = [];
                 }
             }
             for (let i = 0; i < contourSet.contours.length; ++i) {
                 const contour = contourSet.contours[i];
                 const region = regions[contour.reg];
                 if (winding[i] < 0) {
-                    region.holes[region.nholes++] = holes[i];
+                    region.holes.push(holes[i]);
+                    region.nholes++;
                 }
             }
 
