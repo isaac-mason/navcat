@@ -5,18 +5,23 @@ import {
     findPath,
     getNodeRefType,
     NodeType,
-    type OffMeshConnection,
     OffMeshConnectionDirection,
+    type OffMeshConnectionParams,
 } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
+import {
+    createNavMeshHelper,
+    createNavMeshOffMeshConnectionsHelper,
+    createNavMeshPolyHelper,
+    createSearchNodesHelper,
+} from './common/debug';
 import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
-import { loadGLTF } from './common/load-gltf';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
-import { createNavMeshHelper, createNavMeshOffMeshConnectionsHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
+import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -96,7 +101,7 @@ const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
 /* add off mesh connections */
-const offMeshConnections: OffMeshConnection[] = [
+const offMeshConnections: OffMeshConnectionParams[] = [
     {
         start: [-2.4799404316645157, 0.26716880587122915, 4.039628947351325],
         end: [-2.735661224133032, 2.3264200687408447, 0.9084349415865054],
@@ -135,7 +140,6 @@ if (pathResult.success) {
     if (nodePath) {
         const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
         scene.add(searchNodesHelper.object);
-    
 
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];

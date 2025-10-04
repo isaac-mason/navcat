@@ -8,7 +8,7 @@ import {
     findRandomPoint,
     type NavMesh,
     type NodeRef,
-    type OffMeshConnection,
+    type OffMeshConnectionParams,
     OffMeshConnectionDirection,
     serPolyNodeRef,
 } from 'navcat';
@@ -200,7 +200,7 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
-const offMeshConnections: OffMeshConnection[] = [
+const offMeshConnections: OffMeshConnectionParams[] = [
     {
         start: [0.39257542778564014, 3.9164539337158204, 2.7241512942770267],
         end: [1.2915380743929097, 2.8616158587143867, 3.398593875470379],

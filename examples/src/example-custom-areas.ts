@@ -278,6 +278,7 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     const tile: NavMeshTile = {
         id: -1,
+        salt: -1,
         bounds: polyMesh.bounds,
         vertices: tilePolys.vertices,
         polys: tilePolys.polys,

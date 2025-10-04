@@ -22,7 +22,9 @@ import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-
 import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
 
 /* setup three-mesh-bvh for faster raycasting */
+// @ts-expect-error monkeypatch
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+// @ts-expect-error monkeypatch
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
@@ -141,7 +143,9 @@ for (let i = 0; i < 30; i++) {
 }
 
 /* compute three-mesh-bvh bounds trees for faster raycasting */
+// @ts-expect-error monkeypatch
 terrainGeometry.computeBoundsTree();
+// @ts-expect-error monkeypatch
 houseGeometry.computeBoundsTree();
 
 /* generate navmesh */
