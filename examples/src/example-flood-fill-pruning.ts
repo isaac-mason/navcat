@@ -188,7 +188,6 @@ function floodFillPruneNavMesh(navMesh: NavMesh, startRef: NodeRef) {
     for (const tileId in navMesh.tiles) {
         const tile = navMesh.tiles[tileId];
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-            // const polyRef = `0,${tileId},${polyIndex}` as NodeRef;
             const polyRef = serPolyNodeRef(tile.id, tile.salt, polyIndex, )
 
             if (!reachablePolys.has(polyRef)) {

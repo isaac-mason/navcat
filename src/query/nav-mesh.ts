@@ -21,7 +21,7 @@ export type NavMesh = {
     /** Global node ref to node containing type and links */
     nodes: Record<NodeRef, NavMeshNode>;
 
-    /** Global navmesh tile links */
+    /** Global navmesh tile links. Check 'allocated' for whether the link is in use. */
     links: Array<NavMeshLink>;
 
     /** Off mesh connection definitions */
