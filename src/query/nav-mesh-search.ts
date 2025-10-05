@@ -183,7 +183,8 @@ export const getPortalPoints = (
 
     for (const linkIndex of fromNode.links) {
         const link = navMesh.links[linkIndex];
-        if (link?.toNodeRef === toNodeRef) {
+
+        if (link.toNodeRef === toNodeRef) {
             // found the link to the target polygon.
             toLink = link;
             break;
@@ -240,23 +241,24 @@ export const getPortalPoints = (
     // find portal vertices
     const v0Index = fromPoly.vertices[toLink.edge];
     const v1Index = fromPoly.vertices[(toLink.edge + 1) % fromPoly.vertices.length];
-
-    vec3.fromBuffer(outLeft, fromTile.vertices, v0Index * 3);
-    vec3.fromBuffer(outRight, fromTile.vertices, v1Index * 3);
+    const v0Offset = v0Index * 3;
+    const v1Offset = v1Index * 3;
 
     // if the link is at tile boundary, clamp the vertices to the link width.
-    if (toLink.side !== 0xff) {
-        // unpack portal limits.
-        if (toLink.bmin !== 0 || toLink.bmax !== 255) {
-            const s = 1.0 / 255.0;
-            const tmin = toLink.bmin * s;
-            const tmax = toLink.bmax * s;
+    if (toLink.side !== 0xff && (toLink.bmin !== 0 || toLink.bmax !== 255)) {
+        // unpack portal limits and lerp
+        const s = 1.0 / 255.0;
+        const tmin = toLink.bmin * s;
+        const tmax = toLink.bmax * s;
 
-            vec3.fromBuffer(_getPortalPoints_start, fromTile.vertices, v0Index * 3);
-            vec3.fromBuffer(_getPortalPoints_end, fromTile.vertices, v1Index * 3);
-            vec3.lerp(outLeft, _getPortalPoints_start, _getPortalPoints_end, tmin);
-            vec3.lerp(outRight, _getPortalPoints_start, _getPortalPoints_end, tmax);
-        }
+        vec3.fromBuffer(_getPortalPoints_start, fromTile.vertices, v0Offset);
+        vec3.fromBuffer(_getPortalPoints_end, fromTile.vertices, v1Offset);
+        vec3.lerp(outLeft, _getPortalPoints_start, _getPortalPoints_end, tmin);
+        vec3.lerp(outRight, _getPortalPoints_start, _getPortalPoints_end, tmax);
+    } else {
+        // no clamping needed - direct copy
+        vec3.fromBuffer(outLeft, fromTile.vertices, v0Offset);
+        vec3.fromBuffer(outRight, fromTile.vertices, v1Offset);
     }
 
     return true;
