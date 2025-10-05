@@ -24,10 +24,11 @@ export const createNavMesh = (): NavMesh => {
         links: [],
         nodes: [],
         tiles: {},
-        tilePositionHashToTileId: {},
-        tilePositionHashToSequence: {},
+        tilePositionToTileId: {},
+        tileColumnToTileIds: {},
         offMeshConnections: {},
         offMeshConnectionAttachments: {},
+        tilePositionToSequenceCounter: {},
         offMeshConnectionSequenceCounter: 0,
         nodeIndexPool: createIndexPool(),
         tileIndexPool: createIndexPool(),
@@ -119,13 +120,15 @@ export const getTileAt = (navMesh: NavMesh, x: number, y: number, layer: number)
 };
 
 export const getTilesAt = (navMesh: NavMesh, x: number, y: number): NavMeshTile[] => {
+    const tileColumnHash = getTileColumnHash(x, y);
+    const tileIds = navMesh.tileColumnToTileIds[tileColumnHash];
+
+    if (!tileIds) return [];
+
     const tiles: NavMeshTile[] = [];
 
-    for (const tileIndex in navMesh.tiles) {
-        const tile = navMesh.tiles[tileIndex];
-        if (tile.tileX === x && tile.tileY === y) {
-            tiles.push(tile);
-        }
+    for (const tileId of tileIds) {
+        tiles.push(navMesh.tiles[tileId]);
     }
 
     return tiles;
@@ -171,6 +174,10 @@ const getNeighbourTilesAt = (navMesh: NavMesh, x: number, y: number, side: numbe
 
 const getTilePositionHash = (x: number, y: number, layer: number): string => {
     return `${x},${y},${layer}`;
+};
+
+const getTileColumnHash = (x: number, y: number): string => {
+    return `${x},${y}`;
 };
 
 /**
@@ -1385,16 +1392,18 @@ const updateOffMeshConnections = (navMesh: NavMesh) => {
 };
 
 export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMeshTile => {
-    const tileHash = getTilePositionHash(tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
+    const tilePositionHash = getTilePositionHash(tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
+    const tileColumnHash = getTileColumnHash(tileParams.tileX, tileParams.tileY);
 
     // tile sequence
-    let sequence = navMesh.tilePositionHashToSequence[tileHash];
+    let sequence = navMesh.tilePositionToSequenceCounter[tilePositionHash];
     if (sequence === undefined) {
         sequence = 0;
     } else {
         sequence = (sequence + 1) % MAX_SEQUENCE;
     }
-    navMesh.tilePositionHashToSequence[tileHash] = sequence;
+
+    navMesh.tilePositionToSequenceCounter[tilePositionHash] = sequence;
 
     // get tile id
     const id = requestIndex(navMesh.tileIndexPool);
@@ -1409,7 +1418,15 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMes
 
     // store tile in navmesh
     navMesh.tiles[tile.id] = tile;
-    navMesh.tilePositionHashToTileId[tileHash] = tile.id;
+
+    // store position lookup
+    navMesh.tilePositionToTileId[tilePositionHash] = tile.id;
+
+    // store column lookup
+    if (!navMesh.tileColumnToTileIds[tileColumnHash]) {
+        navMesh.tileColumnToTileIds[tileColumnHash] = [];
+    }
+    navMesh.tileColumnToTileIds[tileColumnHash].push(tile.id);
 
     // allocate nodes
     for (let i = 0; i < tile.polys.length; i++) {
@@ -1463,7 +1480,7 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMes
  */
 export const removeTile = (navMesh: NavMesh, x: number, y: number, layer: number): boolean => {
     const tileHash = getTilePositionHash(x, y, layer);
-    const tileId = navMesh.tilePositionHashToTileId[tileHash];
+    const tileId = navMesh.tilePositionToTileId[tileHash];
     const tile = navMesh.tiles[tileId];
 
     if (!tile) {
@@ -1507,7 +1524,22 @@ export const removeTile = (navMesh: NavMesh, x: number, y: number, layer: number
 
     // remove tile from navmesh
     delete navMesh.tiles[tileId];
-    delete navMesh.tilePositionHashToTileId[tileHash];
+
+    // remove position lookup
+    delete navMesh.tilePositionToTileId[tileHash];
+
+    // remove column lookup
+    const tileColumnHash = getTileColumnHash(x, y);
+    const tileColumn = navMesh.tileColumnToTileIds[tileColumnHash];
+    if (tileColumn) {
+        const tileIndexInColumn = tileColumn.indexOf(tileId);
+        if (tileIndexInColumn !== -1) {
+            tileColumn.splice(tileIndexInColumn, 1);
+        }
+        if (tileColumn.length === 0) {
+            delete navMesh.tileColumnToTileIds[tileColumnHash];
+        }
+    }
 
     // release tile index to the pool
     releaseIndex(navMesh.tileIndexPool, tileId);

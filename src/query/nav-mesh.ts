@@ -29,10 +29,13 @@ export type NavMesh = {
     tiles: Record<string, NavMeshTile>;
 
     /** Map of tile position hashes to tile ids */
-    tilePositionHashToTileId: Record<string, number>;
+    tilePositionToTileId: Record<string, number>;
+
+    /** Map of tile column hashes to array of tile ids in that column */
+    tileColumnToTileIds: Record<string, number[]>;
 
     /** Map of tile position hashes to sequence counter */
-    tilePositionHashToSequence: Record<string, number>;
+    tilePositionToSequenceCounter: Record<string, number>;
 
     /** The off mesh connection sequence counter */
     offMeshConnectionSequenceCounter: number;
