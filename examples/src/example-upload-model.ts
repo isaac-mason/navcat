@@ -47,10 +47,10 @@ let currentModel: THREE.Group | null = null;
 let walkableMeshes: THREE.Mesh[] = [];
 
 /* tool state */
-type ToolType = 'none' | 'pathfinding' | 'query';
+type ToolType = 'pathfinding' | 'query';
 
 const toolConfig = {
-    activeTool: 'none' as ToolType,
+    activeTool: 'pathfinding' as ToolType,
 };
 
 /* pathfinding tool state */
@@ -491,7 +491,7 @@ function addPathVisual(visual: PathVisual) {
 }
 
 function updatePath() {
-    if (!pathStart || !pathEnd || !currentResult) return;
+    if (!currentResult) return;
     
     // Save start and end before clearing (clearPathVisuals sets them to null)
     const start = pathStart;
@@ -501,47 +501,59 @@ function updatePath() {
     
     const { navMesh } = currentResult;
     
-    // Create start flag
-    const startFlag = createFlag(0x2196f3);
-    startFlag.position.set(...start);
-    addPathVisual({
-        object: startFlag,
-        dispose: () => {
-            startFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        for (const mat of child.material) {
-                            mat?.dispose?.();
+    // Create start flag if start point is set
+    if (start) {
+        const startFlag = createFlag(0x2196f3);
+        startFlag.position.set(...start);
+        addPathVisual({
+            object: startFlag,
+            dispose: () => {
+                startFlag.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.geometry?.dispose();
+                        if (Array.isArray(child.material)) {
+                            for (const mat of child.material) {
+                                mat?.dispose?.();
+                            }
+                        } else {
+                            child.material?.dispose?.();
                         }
-                    } else {
-                        child.material?.dispose?.();
                     }
-                }
-            });
-        },
-    });
+                });
+            },
+        });
+    }
     
-    // Create end flag
-    const endFlag = createFlag(0x00ff00);
-    endFlag.position.set(...end);
-    addPathVisual({
-        object: endFlag,
-        dispose: () => {
-            endFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        for (const mat of child.material) {
-                            mat?.dispose?.();
+    // Create end flag if end point is set
+    if (end) {
+        const endFlag = createFlag(0x00ff00);
+        endFlag.position.set(...end);
+        addPathVisual({
+            object: endFlag,
+            dispose: () => {
+                endFlag.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.geometry?.dispose();
+                        if (Array.isArray(child.material)) {
+                            for (const mat of child.material) {
+                                mat?.dispose?.();
+                            }
+                        } else {
+                            child.material?.dispose?.();
                         }
-                    } else {
-                        child.material?.dispose?.();
                     }
-                }
-            });
-        },
-    });
+                });
+            },
+        });
+    }
+    
+    // Only compute path if both start and end are set
+    if (!start || !end) {
+        // Restore start and end points (clearPathVisuals set them to null)
+        pathStart = start;
+        pathEnd = end;
+        return;
+    }
     
     // Find path
     const halfExtents: Vec3 = [pathfindingConfig.halfExtentsX, pathfindingConfig.halfExtentsY, pathfindingConfig.halfExtentsZ];
@@ -641,15 +653,15 @@ function clearQueryVisuals() {
     queryVisuals = [];
     
     // Update info panel (only if elements exist)
-    const queryRef = document.getElementById('query-ref');
+    const queryPoint = document.getElementById('query-point');
+    const queryNearest = document.getElementById('query-nearest');
     const queryDistance = document.getElementById('query-distance');
-    const queryPosition = document.getElementById('query-position');
-    const queryArea = document.getElementById('query-area');
+    const queryRef = document.getElementById('query-ref');
     
-    if (queryRef) queryRef.textContent = '-';
+    if (queryPoint) queryPoint.textContent = '-';
+    if (queryNearest) queryNearest.textContent = '-';
     if (queryDistance) queryDistance.textContent = '-';
-    if (queryPosition) queryPosition.textContent = '-';
-    if (queryArea) queryArea.textContent = '-';
+    if (queryRef) queryRef.textContent = '-';
 }
 
 function addQueryVisual(visual: QueryVisual) {
@@ -676,22 +688,37 @@ function updateQuery(point: THREE.Vector3) {
         addQueryVisual(polyHelper);
         
         // Update info panel
-        document.getElementById('query-ref')!.textContent = result.ref.toString();
-        document.getElementById('query-distance')!.textContent = Math.sqrt(
-            Math.pow(result.point[0] - pos[0], 2) +
-            Math.pow(result.point[1] - pos[1], 2) +
-            Math.pow(result.point[2] - pos[2], 2)
-        ).toFixed(3);
-        document.getElementById('query-position')!.textContent = 
-            `${result.point[0].toFixed(2)}, ${result.point[1].toFixed(2)}, ${result.point[2].toFixed(2)}`;
+        const queryPoint = document.getElementById('query-point');
+        const queryNearest = document.getElementById('query-nearest');
+        const queryDistance = document.getElementById('query-distance');
+        const queryRef = document.getElementById('query-ref');
         
-        // Get area type - just show the ref for now since getting area requires more API exploration
-        document.getElementById('query-area')!.textContent = '-';
+        if (queryPoint) {
+            queryPoint.textContent = `${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}`;
+        }
+        if (queryNearest) {
+            queryNearest.textContent = `${result.point[0].toFixed(2)}, ${result.point[1].toFixed(2)}, ${result.point[2].toFixed(2)}`;
+        }
+        if (queryDistance) {
+            queryDistance.textContent = Math.sqrt(
+                Math.pow(result.point[0] - pos[0], 2) +
+                Math.pow(result.point[1] - pos[1], 2) +
+                Math.pow(result.point[2] - pos[2], 2)
+            ).toFixed(3);
+        }
+        if (queryRef) queryRef.textContent = result.ref.toString();
     } else {
-        document.getElementById('query-ref')!.textContent = 'Not found';
-        document.getElementById('query-distance')!.textContent = '-';
-        document.getElementById('query-position')!.textContent = '-';
-        document.getElementById('query-area')!.textContent = '-';
+        const queryPoint = document.getElementById('query-point');
+        const queryNearest = document.getElementById('query-nearest');
+        const queryDistance = document.getElementById('query-distance');
+        const queryRef = document.getElementById('query-ref');
+        
+        if (queryPoint) {
+            queryPoint.textContent = `${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}`;
+        }
+        if (queryNearest) queryNearest.textContent = 'Not found';
+        if (queryDistance) queryDistance.textContent = '-';
+        if (queryRef) queryRef.textContent = '-';
     }
 }
 
@@ -1243,43 +1270,6 @@ window.addEventListener('mousemove', (event) => {
 window.addEventListener('contextmenu', (event) => {
     if (toolConfig.activeTool === 'pathfinding') {
         event.preventDefault();
-    }
-});
-
-/* keyboard shortcuts */
-window.addEventListener('keydown', (event) => {
-    // Ignore if typing in an input
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-        return;
-    }
-    
-    switch (event.key.toLowerCase()) {
-        case 'g':
-            event.preventDefault();
-            generate();
-            break;
-        case 'r':
-            event.preventDefault();
-            resetCamera();
-            break;
-        case 'c':
-            event.preventDefault();
-            if (toolConfig.activeTool === 'pathfinding') {
-                clearPathVisuals();
-            }
-            break;
-        case 'escape':
-            event.preventDefault();
-            // Disable active tool
-            if (toolConfig.activeTool !== 'none') {
-                toolConfig.activeTool = 'none';
-                document.getElementById('pathfinding-info')!.classList.remove('visible');
-                document.getElementById('query-info')!.classList.remove('visible');
-                clearPathVisuals();
-                clearQueryVisuals();
-                buildGUI();
-            }
-            break;
     }
 });
 
