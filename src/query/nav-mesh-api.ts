@@ -927,7 +927,7 @@ const connectInternalLinks = (navMesh: NavMesh, tile: NavMeshTile) => {
                 const neighbourNode = getNodeByTileAndPoly(navMesh, tile, neighborPolyIndex);
 
                 link.fromNodeIndex = node.index;
-                link.fromNodeRef = node.index;
+                link.fromNodeRef = node.ref;
                 link.toNodeIndex = neighbourNode.index;
                 link.toNodeRef = neighbourNode.ref;
                 link.edge = edgeIndex; // edge index in current polygon
@@ -1296,9 +1296,9 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
     // link the start poly to the off mesh node start
     const startPolyToOffMeshStartLinkIndex = allocateLink(navMesh);
     const startPolyToOffMeshStartLink = navMesh.links[startPolyToOffMeshStartLinkIndex];
-    startPolyToOffMeshStartLink.fromNodeRef = startNodeRef;
+    startPolyToOffMeshStartLink.fromNodeRef = startNode.ref;
     startPolyToOffMeshStartLink.fromNodeIndex = startNode.index;
-    startPolyToOffMeshStartLink.toNodeRef = offMeshStartNodeRef;
+    startPolyToOffMeshStartLink.toNodeRef = offMeshStartNode.ref;
     startPolyToOffMeshStartLink.toNodeIndex = offMeshStartNode.index;
     startPolyToOffMeshStartLink.bmin = 0; // not used for offmesh links
     startPolyToOffMeshStartLink.bmax = 0; // not used for offmesh links
