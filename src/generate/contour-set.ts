@@ -367,7 +367,7 @@ const simplifyContour = (
             const oldLength = simplified.length;
             simplified.length = oldLength + 4;
             const n = Math.floor(simplified.length / 4);
-            for (let j = n - 1; j > i + 1; --j) {
+            for (let j = n - 1; j > i; --j) {
                 simplified[j * 4 + 0] = simplified[(j - 1) * 4 + 0];
                 simplified[j * 4 + 1] = simplified[(j - 1) * 4 + 1];
                 simplified[j * 4 + 2] = simplified[(j - 1) * 4 + 2];
@@ -432,14 +432,13 @@ const simplifyContour = (
                 }
             }
 
-            // If the max deviation is larger than accepted error,
-            // add new point, else continue to next segment.
+            // If an edge is too long, add a point to split it.
             if (maxi !== -1) {
                 // Add space for the new point.
                 const oldLength = simplified.length;
                 simplified.length = oldLength + 4;
                 const n = Math.floor(simplified.length / 4);
-                for (let j = n - 1; j > i + 1; --j) {
+                for (let j = n - 1; j > i; --j) {
                     simplified[j * 4 + 0] = simplified[(j - 1) * 4 + 0];
                     simplified[j * 4 + 1] = simplified[(j - 1) * 4 + 1];
                     simplified[j * 4 + 2] = simplified[(j - 1) * 4 + 2];
