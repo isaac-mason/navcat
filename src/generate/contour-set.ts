@@ -649,7 +649,6 @@ type ContourHole = {
 type ContourRegion = {
     outline: Contour | null;
     holes: ContourHole[];
-    nholes: number;
 };
 
 type PotentialDiagonal = {
@@ -698,7 +697,7 @@ const _mergeRegionHoles_pt = vec2.create();
 
 const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void => {
     // Sort holes from left to right.
-    for (let i = 0; i < region.nholes; i++) {
+    for (let i = 0; i < region.holes.length; i++) {
         const result = findLeftMostVertex(region.holes[i].contour);
         region.holes[i].minx = result.minx;
         region.holes[i].minz = result.minz;
@@ -708,7 +707,7 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
     region.holes.sort(compareHoles);
 
     let maxVerts = region.outline!.nVertices;
-    for (let i = 0; i < region.nholes; i++) {
+    for (let i = 0; i < region.holes.length; i++) {
         maxVerts += region.holes[i].contour.nVertices;
     }
 
@@ -720,7 +719,7 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
     const outline = region.outline!;
 
     // Merge holes into the outline one by one.
-    for (let i = 0; i < region.nholes; i++) {
+    for (let i = 0; i < region.holes.length; i++) {
         const hole = region.holes[i].contour;
 
         let index = -1;
@@ -773,7 +772,7 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
 
                 // TODO: should intersectSegContour be passed `diags[j].vert` instead of `diags[i].vert` ?
                 let intersect = intersectSegContour(pt, corner, diags[i].vert, outline.nVertices, outline.vertices);
-                for (let k = i; k < region.nholes && !intersect; k++) {
+                for (let k = i; k < region.holes.length && !intersect; k++) {
                     intersect =
                         intersect ||
                         intersectSegContour(pt, corner, -1, region.holes[k].contour.nVertices, region.holes[k].contour.vertices);
@@ -944,7 +943,6 @@ export const buildContours = (
                 regions[i] = {
                     outline: null,
                     holes: [],
-                    nholes: 0,
                 };
             }
 
@@ -960,34 +958,23 @@ export const buildContours = (
 
             for (let i = 0; i < contourSet.contours.length; ++i) {
                 const contour = contourSet.contours[i];
+                const region = regions[contour.reg];
+                
                 // Positively wound contours are outlines, negative holes.
                 if (winding[i] > 0) {
-                    if (regions[contour.reg].outline) {
+                    if (region.outline) {
                         BuildContext.error(ctx, `buildContours: Multiple outlines for region ${contour.reg}.`);
                     }
-                    regions[contour.reg].outline = contour;
+                    region.outline = contour;
                 } else {
-                    regions[contour.reg].nholes++;
-                }
-            }
-            for (let i = 0; i < nregions; i++) {
-                if (regions[i].nholes > 0) {
-                    regions[i].holes = [];
-                }
-            }
-            for (let i = 0; i < contourSet.contours.length; ++i) {
-                const contour = contourSet.contours[i];
-                const region = regions[contour.reg];
-                if (winding[i] < 0) {
                     region.holes.push(holes[i]);
-                    region.nholes++;
                 }
             }
 
             // Finally merge each regions holes into the outline.
             for (let i = 0; i < nregions; i++) {
                 const region = regions[i];
-                if (!region.nholes) continue;
+                if (region.holes.length === 0) continue;
 
                 if (region.outline) {
                     mergeRegionHoles(ctx, region);
