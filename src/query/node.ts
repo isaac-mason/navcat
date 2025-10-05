@@ -31,7 +31,6 @@ const SEQUENCE_MASK = (1 << SEQUENCE_BITS) - 1; // 0xFFFFF (20 bits)
 export const MAX_NODE_INDEX = NODE_INDEX_MASK; // 2147483647 (31 bits: 2^31 - 1)
 export const MAX_SEQUENCE = SEQUENCE_MASK; // 1048575 (20 bits: 2^20 - 1)
 
-
 /** Serializes a node reference from its components */
 export const serNodeRef = (type: NodeType, nodeIndex: number, sequence: number): NodeRef => {
     // NOTE: mask inputs to avoid accidental overflow
