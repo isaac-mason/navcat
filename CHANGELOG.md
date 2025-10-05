@@ -8,6 +8,8 @@
 - Fix poly mesh detail dirs swapping logic
 - Refactor contour set generation logic
 - Use an index pool for tile ids and offmesh connection ids to avoid increasingly larger numbers being used as ids
+- Change navMesh.nodes to be an array with pooled node indices instead of a map keyed by refs
+- Change NodeRef to store a node type, a node index, and a node sequence number for invalidation
 
 ## 0.0.3
 
