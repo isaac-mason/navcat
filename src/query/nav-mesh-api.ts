@@ -1393,7 +1393,11 @@ const updateOffMeshConnections = (navMesh: NavMesh) => {
 
 export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMeshTile => {
     const tilePositionHash = getTilePositionHash(tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
-    const tileColumnHash = getTileColumnHash(tileParams.tileX, tileParams.tileY);
+
+    // remove any existing tile at the same position
+    if (navMesh.tilePositionToTileId[tilePositionHash] !== undefined) {
+        removeTile(navMesh, tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
+    }
 
     // tile sequence
     let sequence = navMesh.tilePositionToSequenceCounter[tilePositionHash];
@@ -1423,6 +1427,7 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMes
     navMesh.tilePositionToTileId[tilePositionHash] = tile.id;
 
     // store column lookup
+    const tileColumnHash = getTileColumnHash(tileParams.tileX, tileParams.tileY);
     if (!navMesh.tileColumnToTileIds[tileColumnHash]) {
         navMesh.tileColumnToTileIds[tileColumnHash] = [];
     }
