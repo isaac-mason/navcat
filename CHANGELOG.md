@@ -2,31 +2,33 @@
 
 ## 0.0.4 (Unreleased)
 
-- Add NavMeshTileParams, don't require providing dummy NavMeshTile 'id' and 'salt'
-- Return NavMeshTile from addTile
-- Use packed numbers as node refs instead of strings for faster node ref ser/des and comparison
-- Fix poly mesh detail dirs swapping logic
-- Refactor contour set generation logic
-- Use an index pool for tile ids and offmesh connection ids to avoid increasingly larger numbers being used as ids
-- Change navMesh.nodes to be an array with pooled node indices instead of a map keyed by refs
-- Change NodeRef to store a node type, a node index, and a node sequence number for invalidation
+- feat: add NavMeshTileParams, don't require providing dummy NavMeshTile 'id' and 'salt'
+- feat: return NavMeshTile from addTile
+- feat: use packed numbers as node refs instead of strings for faster node ref ser/des and comparison
+- fix: poly mesh detail dirs swapping logic
+- feat: refactor contour set generation logic
+- feat: use an index pool for tile ids and offmesh connection ids to avoid increasingly larger numbers being used as ids
+- feat: change navMesh.nodes to be an array with pooled node indices instead of a map keyed by refs
+- feat: change NodeRef to store a node type, a node index, and a node sequence number for invalidation
+- fix: remove existing tiles in positio
+n in addTile before adding new tile
 
 ## 0.0.3
 
-- Remove `three` dependency from navcat, move threejs utilities to examples in lieu of a potential @navcat/three package in the future
-- Add `markCylinderArea` compact heightfield function for marking all spans within a cylinder area with a given area ID
-- Change `queryPolygons` to accept a `bounds` Box3 instead of center and halfExtents, same as `queryPolygonsInTile`
+- feat: remove `three` dependency from navcat, move threejs utilities to examples in lieu of a potential @navcat/three package in the future
+- feat: add `markCylinderArea` compact heightfield function for marking all spans within a cylinder area with a given area ID
+- feat: change `queryPolygons` to accept a `bounds` Box3 instead of center and halfExtents, same as `queryPolygonsInTile`
 - Change `FindNearestPolyResult` property names from `nearestPolyRef` and `nearestPoint` to `ref` and `point`
-- Refactor poly mesh vertex duplication logic in `buildPolyMesh`
-- Remove all all error throwing in `buildPolyMesh`, replace with build context errors and best-effort continued processing
-- Fix poly mesh detail `getHeightData` BFS logic
+- feat: refactor poly mesh vertex duplication logic in `buildPolyMesh`
+- feat: remove all all error throwing in `buildPolyMesh`, replace with build context errors and best-effort continued processing
+- fix: poly mesh detail `getHeightData` BFS logic
 
 ## 0.0.2
 
-- Moved `mergePositionsAndIndices` out of `import('navcat').three` to core / top level export
-- Fix issues with `buildPolyMeshDetail` duplicating vertices when detailSampleDistance and detailSampleMaxError are set to add new samples to reduce error
-- Use circumcircle implementation from maaths in poly mesh detail building logic
+- feat: move `mergePositionsAndIndices` out of `import('navcat').three` to core / top level export
+- fix: issues with `buildPolyMeshDetail` duplicating vertices when detailSampleDistance and detailSampleMaxError are set to add new samples to reduce error
+- feat: Use circumcircle implementation from maaths in poly mesh detail building logic
 
 ## 0.0.1
 
-- Pre-alpha testing release. Use at your own risk!
+- feat: pre-alpha testing release. Use at your own risk!
