@@ -140,6 +140,12 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Random Point Around Circle
       </a>
     </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-upload-model">
+        <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Upload Model
+      </a>
+    </td>
   </tr>
 </table>
 
@@ -328,7 +334,7 @@ const mergeRegionArea = 20; // voxel units
 Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
 
 // CONFIG: maxSimplificationError
-const maxSimplificationError = 1.3; // world units
+const maxSimplificationError = 1.3; // voxel units
 
 // CONFIG: maxEdgeLength
 const maxEdgeLength = 6.0; // voxel units
@@ -723,7 +729,7 @@ Contours are generated around the edges of the regions. These contours are simpl
 
 ```ts
 // CONFIG: maxSimplificationError
-const maxSimplificationError = 1.3; // world units
+const maxSimplificationError = 1.3; // voxel units
 
 // CONFIG: maxEdgeLength
 const maxEdgeLength = 6.0; // voxel units

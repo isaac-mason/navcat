@@ -95,7 +95,7 @@ Nav.buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegion
 
 /* SNIPPET_START: contours */
 // CONFIG: maxSimplificationError
-const maxSimplificationError = 1.3; // world units
+const maxSimplificationError = 1.3; // voxel units
 
 // CONFIG: maxEdgeLength
 const maxEdgeLength = 6.0; // voxel units
