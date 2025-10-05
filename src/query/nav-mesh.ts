@@ -1,11 +1,6 @@
 import type { Box3, Vec3 } from 'maaths';
 import type { IndexPool } from '../index-pool';
-import type { NodeRef } from './node';
-
-export type NavMeshNode = {
-    /** the links for this nav mesh node */
-    links: number[];
-}
+import type { NodeRef, NodeType } from './node';
 
 /** A navigation mesh based on tiles of convex polygons */
 export type NavMesh = {
@@ -19,7 +14,7 @@ export type NavMesh = {
     tileHeight: number;
 
     /** Global nodes */
-    nodes: Record<NodeRef, NavMeshNode>;
+    nodes: Array<NavMeshNode>;
 
     /** Global links. Check 'allocated' for whether the link is in use. */
     links: Array<NavMeshLink>;
@@ -36,8 +31,14 @@ export type NavMesh = {
     /** Map of tile position hashes to tile ids */
     tilePositionHashToTileId: Record<string, number>;
 
-    /** Map of tile position hashes to salts */
-    tilePositionHashToSalt: Record<string, number>;
+    /** Map of tile position hashes to sequence counter */
+    tilePositionHashToSequence: Record<string, number>;
+
+    /** The off mesh connection sequence counter */
+    offMeshConnectionSequenceCounter: number;
+
+    /** Pool for node indices */
+    nodeIndexPool: IndexPool;
 
     /** Pool for tile indices */
     tileIndexPool: IndexPool;
@@ -85,6 +86,36 @@ export type NavMeshPolyDetail = {
     trianglesCount: number;
 };
 
+
+export type NavMeshNode = {
+    /** whether the node is currently allocated */
+    allocated: boolean;
+
+    /** the index of the node */
+    index: number;
+
+    /** the node ref, packed type, index, sequence */
+    ref: NodeRef;
+
+    /** links for this nav mesh node */
+    links: number[];
+
+    /** the type of the nav mesh node */
+    type: NodeType;
+
+    /** the tile id, for poly nodes */
+    tileId: number;
+
+    /** the poly index, for poly nodes */
+    polyIndex: number;
+
+    /** the offmesh connection id, for offmesh connection nodes */
+    offMeshConnectionId: number;
+
+    /** the offmesh connection side, for offmesh connection nodes */
+    offMeshConnectionSide: number;
+};
+
 export type NavMeshLink = {
     /** whether the nav mesh link is allocated */
     allocated: boolean;
@@ -92,11 +123,17 @@ export type NavMeshLink = {
     /** the id of the link */
     id: number;
 
+    /** the node index that owns this link */
+    fromNodeIndex: number;
+
     /** node reference that owns this link */
-    ref: NodeRef;
+    fromNodeRef: NodeRef;
+
+    /** index of the neighbour node that ref links to */
+    toNodeIndex: number;
 
     /** the neighbour node reference that ref links to */
-    neighbourRef: NodeRef;
+    toNodeRef: NodeRef;
 
     /** index of the polygon edge that owns this link */
     edge: number;
@@ -124,8 +161,8 @@ export enum OffMeshConnectionSide {
 export type OffMeshConnection = {
     /** the id of the off mesh connection */
     id: number;
-    /** the salt of the off mesh connection */
-    salt: number;
+    /** the sequence of the off mesh connection */
+    sequence: number;
     /** the start position of the off mesh connection */
     start: Vec3;
     /** the end position of the off mesh connection */
@@ -145,13 +182,20 @@ export type OffMeshConnection = {
     cost?: number;
 };
 
-export type OffMeshConnectionParams = Omit<OffMeshConnection, 'id' | 'salt'>;
+export type OffMeshConnectionParams = Omit<OffMeshConnection, 'id' | 'sequence'>;
 
 export type OffMeshConnectionAttachment = {
+    /** the start offmesh node */
+    startOffMeshNode: NodeRef;
+
+    /** the end offmesh node */
+    endOffMeshNode: NodeRef;
+
     /** the start polygon that the off mesh connection has linked to */
-    start: NodeRef;
+    startPolyNode: NodeRef;
+
     /** the end polygon that the off mesh connection has linked to */
-    end: NodeRef;
+    endPolyNode: NodeRef;
 };
 
 export type NavMeshBvNode = {
@@ -174,7 +218,7 @@ export type NavMeshTile = {
     id: number;
 
     /** the salt of the tile */
-    salt: number;
+    sequence: number;
 
     /* the tile x position in the nav mesh */
     tileX: number;
@@ -203,6 +247,9 @@ export type NavMeshTile = {
     /** the tile polys */
     polys: NavMeshPoly[];
 
+    /** poly index to global node index */
+    polyNodes: number[]
+
     /** the tile's bounding volume tree */
     bvTree: NavMeshTileBvTree | null;
 
@@ -230,4 +277,4 @@ export type NavMeshTile = {
     walkableClimb: number;
 };
 
-export type NavMeshTileParams = Omit<NavMeshTile, 'id' | 'salt'>;
+export type NavMeshTileParams = Omit<NavMeshTile, 'id' | 'sequence' | 'polyNodes'>;

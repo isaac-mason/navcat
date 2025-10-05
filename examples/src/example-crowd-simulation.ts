@@ -10,7 +10,7 @@ import {
     type NodeRef,
     type OffMeshConnectionParams,
     OffMeshConnectionDirection,
-    serPolyNodeRef,
+    getNodeByTileAndPoly,
 } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
@@ -297,7 +297,7 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
     for (const tileId in navMesh.tiles) {
         const tile = navMesh.tiles[tileId];
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-            const polyRef = serPolyNodeRef(tile.id, polyIndex);
+            const polyRef = getNodeByTileAndPoly(navMesh, tile, polyIndex).ref;
 
             const helper = createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.3, 1]);
 

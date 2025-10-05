@@ -1,7 +1,7 @@
 import type { ArrayLike, CompactHeightfield, ContourSet, Heightfield, PolyMesh, PolyMeshDetail } from './generate';
 import { MESH_NULL_IDX, NULL_AREA, POLY_NEIS_FLAG_EXT_LINK, WALKABLE_AREA } from './generate';
-import type { NavMesh, NavMeshTile, NodeRef, SearchNodePool, SearchNodeRef } from './query';
-import { desPolyNodeRef, OffMeshConnectionDirection, createPolyNodeRef } from './query';
+import type { NavMesh, NavMeshTile, NodeRef, SearchNode, SearchNodePool } from './query';
+import { getNodeByRef, OffMeshConnectionDirection } from './query';
 
 // debug primitive types
 export enum DebugPrimitiveType {
@@ -1167,8 +1167,6 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
     return primitives;
 }
 
-const _createNavMeshPolyHelper_polyNodeRef = createPolyNodeRef();
-
 export function createNavMeshPolyHelper(
     navMesh: NavMesh,
     polyRef: NodeRef,
@@ -1177,18 +1175,18 @@ export function createNavMeshPolyHelper(
     const primitives: DebugPrimitive[] = [];
 
     // Get tile and polygon from reference
-    const [tileId, polyId] = desPolyNodeRef(_createNavMeshPolyHelper_polyNodeRef, polyRef);
+    const { tileId, polyIndex } = getNodeByRef(navMesh, polyRef);
 
     const tile = navMesh.tiles[tileId];
-    if (!tile || !tile.polys[polyId]) {
+    if (!tile || !tile.polys[polyIndex]) {
         // Return empty array if polygon not found
         return primitives;
     }
 
-    const poly = tile.polys[polyId];
+    const poly = tile.polys[polyIndex];
 
     // Get the detail mesh for this polygon
-    const detailMesh = tile.detailMeshes?.[polyId];
+    const detailMesh = tile.detailMeshes?.[polyIndex];
     if (!detailMesh) {
         // Fallback: draw basic polygon without detail mesh
         const triPositions: number[] = [];
@@ -1374,8 +1372,6 @@ export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
     return primitives;
 }
 
-const _createNavMeshLinksHelper_polyNodeRef = createPolyNodeRef();
-
 export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     const primitives: DebugPrimitive[] = [];
 
@@ -1411,12 +1407,12 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
         if (!link || !link.allocated) continue;
 
         // Get source polygon info
-        const [sourceTileId, sourcePolyId] = desPolyNodeRef(_createNavMeshLinksHelper_polyNodeRef, link.ref);
+        const { tileId: sourceTileId, polyIndex: sourcePolyId } = getNodeByRef(navMesh, link.fromNodeRef);
         const sourceTile = navMesh.tiles[sourceTileId];
         const sourcePoly = sourceTile?.polys[sourcePolyId];
 
         // Get target polygon info
-        const [targetTileId, targetPolyId] = desPolyNodeRef(_createNavMeshLinksHelper_polyNodeRef, link.neighbourRef);
+        const { tileId: targetTileId, polyIndex: targetPolyId } = getNodeByRef(navMesh, link.toNodeRef);
         const targetTile = navMesh.tiles[targetTileId];
         const targetPoly = targetTile?.polys[targetPolyId];
 
@@ -1653,23 +1649,43 @@ export function createSearchNodesHelper(nodePool: SearchNodePool): DebugPrimitiv
     const pointColor = [1.0, 192 / 255, 0.0];
     const lineColor = [1.0, 192 / 255, 0.0];
 
-    for (const key in nodePool) {
-        const node = nodePool[key as SearchNodeRef];
-        const [x, y, z] = node.position;
-        pointPositions.push(x, y + yOffset, z);
-        pointColors.push(pointColor[0], pointColor[1], pointColor[2]);
+    // Collect all nodes from the pool (each nodeRef can have multiple states)
+    for (const nodeRef in nodePool) {
+        const nodes = nodePool[nodeRef];
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            const [x, y, z] = node.position;
+            pointPositions.push(x, y + yOffset, z);
+            pointColors.push(pointColor[0], pointColor[1], pointColor[2]);
+        }
     }
 
     // Lines to parents
-    for (const key in nodePool) {
-        const node = nodePool[key as SearchNodeRef];
-        if (!node.parent) continue;
-        const parent = nodePool[node.parent];
-        if (!parent) continue;
-        const [cx, cy, cz] = node.position;
-        const [px, py, pz] = parent.position;
-        linePositions.push(cx, cy + yOffset, cz, px, py + yOffset, pz);
-        lineColors.push(lineColor[0], lineColor[1], lineColor[2], lineColor[0], lineColor[1], lineColor[2]);
+    for (const nodeRef in nodePool) {
+        const nodes = nodePool[nodeRef];
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            if (node.parentNodeRef === null || node.parentState === null) continue;
+            
+            // Find parent node
+            const parentNodes = nodePool[node.parentNodeRef];
+            if (!parentNodes) continue;
+            
+            let parent: SearchNode | undefined;
+            for (let j = 0; j < parentNodes.length; j++) {
+                if (parentNodes[j].state === node.parentState) {
+                    parent = parentNodes[j];
+                    break;
+                }
+            }
+            
+            if (!parent) continue;
+            
+            const [cx, cy, cz] = node.position;
+            const [px, py, pz] = parent.position;
+            linePositions.push(cx, cy + yOffset, cz, px, py + yOffset, pz);
+            lineColors.push(lineColor[0], lineColor[1], lineColor[2], lineColor[0], lineColor[1], lineColor[2]);
+        }
     }
 
     if (pointPositions.length > 0) {

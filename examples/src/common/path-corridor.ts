@@ -1,9 +1,8 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import {
-    createOffMeshNodeRef,
-    desOffMeshNodeRef,
     findStraightPath,
+    getNodeByRef,
     isValidNodeRef,
     moveAlongSurface,
     type NavMesh,
@@ -179,8 +178,6 @@ export const fixPathStart = (corridor: PathCorridor, safeRef: NodeRef, safePos: 
     return true;
 };
 
-const _moveOverOffMeshConnection_offMeshNodeRef = createOffMeshNodeRef();
-
 export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef: NodeRef, navMesh: NavMesh) => {
     if (corridor.path.length === 0) return false;
 
@@ -210,16 +207,16 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef:
     }
 
     // get the off-mesh connection
-    const [offMeshConnectionId] = desOffMeshNodeRef(_moveOverOffMeshConnection_offMeshNodeRef, offMeshConRef);
+    const { offMeshConnectionId } = getNodeByRef(navMesh, offMeshConRef);
     const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
     const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
     if (!offMeshConnection || !offMeshConnectionAttachment) return false;
 
     // determine which end we're moving to
-    const onStart = offMeshConnectionAttachment.start === prevNodeRef;
+    const onStart = offMeshConnectionAttachment.startPolyNode === prevNodeRef;
     const endPosition = onStart ? offMeshConnection.end : offMeshConnection.start;
-    const endNodeRef = onStart ? offMeshConnectionAttachment.end : offMeshConnectionAttachment.start;
+    const endNodeRef = onStart ? offMeshConnectionAttachment.endPolyNode : offMeshConnectionAttachment.startPolyNode;
 
     // update corridor position to the end position
     vec3.copy(corridor.position, endPosition);

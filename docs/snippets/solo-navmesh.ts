@@ -518,8 +518,8 @@ const tile = Nav.addTile(navMesh, tileParams);
     const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[bidirectionalOffMeshConnectionId];
 
     if (offMeshConnectionAttachment) {
-        console.log(offMeshConnectionAttachment.start); // the start poly node ref that the off-mesh connection is linked to
-        console.log(offMeshConnectionAttachment.end); // the end poly node ref that the off-mesh connection is linked to
+        console.log(offMeshConnectionAttachment.startPolyNode); // the start poly node ref that the off-mesh connection is linked to
+        console.log(offMeshConnectionAttachment.endPolyNode); // the end poly node ref that the off-mesh connection is linked to
     }
 
     // remove the off-mesh connection from the nav mesh

@@ -3,15 +3,16 @@ import { vec3 } from 'maaths';
 import { POLY_NEIS_FLAG_EXT_LINK } from '../generate';
 import { createDistancePtSegSqr2dResult, distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry';
 import type { NavMesh } from './nav-mesh';
-import { getTileAndPolyByRef, isValidNodeRef } from './nav-mesh-api';
+import { getNodeByRef, getNodeByTileAndPoly, getTileAndPolyByRef, isValidNodeRef } from './nav-mesh-api';
 import {
+    addSearchNode,
     getPortalPoints,
+    getSearchNode,
     NODE_FLAG_CLOSED,
     type SearchNode,
     type SearchNodePool,
-    type SearchNodeRef,
 } from './nav-mesh-search';
-import { getNodeRefType, type NodeRef, NodeType, serPolyNodeRef } from './node';
+import { getNodeRefType, type NodeRef, NodeType } from './node';
 import type { QueryFilter } from './nav-mesh-api';
 
 type SegmentInterval = {
@@ -70,8 +71,8 @@ export const findLocalNeighbourhood = (
     radius: number,
     filter: QueryFilter,
 ): FindLocalNeighbourhoodResult => {
-    // search state - use a simple node pool for this algorithm
-    const nodes: Record<NodeRef, SearchNode> = {};
+    // search state - use SearchNodePool for this algorithm
+    const nodes: SearchNodePool = {};
     const stack: SearchNode[] = [];
 
     const result: FindLocalNeighbourhoodResult = {
@@ -89,13 +90,14 @@ export const findLocalNeighbourhood = (
     const startNode: SearchNode = {
         cost: 0,
         total: 0,
-        parent: null,
+        parentNodeRef: null,
+        parentState: null,
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_CLOSED,
         position: [centerPos[0], centerPos[1], centerPos[2]],
     };
-    nodes[startRef] = startNode;
+    addSearchNode(nodes, startNode);
     stack.push(startNode);
 
     const radiusSqr = radius * radius;
@@ -117,15 +119,17 @@ export const findLocalNeighbourhood = (
         if (!curTileAndPoly.success) continue;
 
         // iterate through all links
-        const node = navMesh.nodes[curRef] || [];
+        const node = getNodeByRef(navMesh, curRef);
+
         for (const linkIndex of node.links) {
             const link = navMesh.links[linkIndex];
-            if (!link || !link.neighbourRef) continue;
+            if (!link || !link.toNodeRef) continue;
 
-            const neighbourRef = link.neighbourRef;
+            const neighbourRef = link.toNodeRef;
 
             // skip if already visited
-            if (nodes[neighbourRef]?.flags & NODE_FLAG_CLOSED) continue;
+            const existingNode = getSearchNode(nodes, neighbourRef, 0);
+            if (existingNode && existingNode.flags & NODE_FLAG_CLOSED) continue;
 
             // get neighbour poly and tile
             const neighbourTileAndPoly = getTileAndPolyByRef(neighbourRef, navMesh);
@@ -151,13 +155,14 @@ export const findLocalNeighbourhood = (
             const neighbourNode: SearchNode = {
                 cost: 0,
                 total: 0,
-                parent: `${curRef}:0` as SearchNodeRef,
+                parentNodeRef: curRef,
+                parentState: 0,
                 nodeRef: neighbourRef,
                 state: 0,
                 flags: NODE_FLAG_CLOSED,
                 position: [centerPos[0], centerPos[1], centerPos[2]],
             };
-            nodes[neighbourRef] = neighbourNode;
+            addSearchNode(nodes, neighbourNode);
 
             // check that the polygon does not collide with existing polygons
             // collect vertices of the neighbour poly
@@ -175,8 +180,9 @@ export const findLocalNeighbourhood = (
 
                 // connected polys do not overlap
                 let connected = false;
-                for (const pastLinkIndex of navMesh.nodes[curRef].links) {
-                    if (navMesh.links[pastLinkIndex]?.neighbourRef === pastRef) {
+                const curNode = getNodeByRef(navMesh, curRef);
+                for (const pastLinkIndex of curNode.links) {
+                    if (navMesh.links[pastLinkIndex]?.toNodeRef === pastRef) {
                         connected = true;
                         break;
                     }
@@ -263,16 +269,17 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
         // check if this edge has external links (tile boundary)
         if (poly.neis[j] & POLY_NEIS_FLAG_EXT_LINK) {
             // tile border - find all links for this edge
-            const node = navMesh.nodes[polyRef] || [];
+            const node = getNodeByRef(navMesh, polyRef);
+
             for (const linkIndex of node.links) {
                 const link = navMesh.links[linkIndex];
                 if (!link || link.edge !== j) continue;
 
-                if (link.neighbourRef) {
-                    const neighbourTileAndPoly = getTileAndPolyByRef(link.neighbourRef, navMesh);
+                if (link.toNodeRef) {
+                    const neighbourTileAndPoly = getTileAndPolyByRef(link.toNodeRef, navMesh);
                     if (neighbourTileAndPoly.success) {
-                        if (filter.passFilter(link.neighbourRef, navMesh)) {
-                            insertInterval(intervals, link.bmin, link.bmax, link.neighbourRef);
+                        if (filter.passFilter(link.toNodeRef, navMesh)) {
+                            insertInterval(intervals, link.bmin, link.bmax, link.toNodeRef);
                         }
                     }
                 }
@@ -282,7 +289,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
             let neiRef: NodeRef | null = null;
             if (poly.neis[j]) {
                 const idx = poly.neis[j] - 1;
-                neiRef = serPolyNodeRef(tile.id, tile.salt, idx);
+                neiRef = getNodeByTileAndPoly(navMesh, tile, idx).ref;
 
                 // check if neighbor passes filter
                 const neighbourTileAndPoly = getTileAndPolyByRef(neiRef, navMesh);

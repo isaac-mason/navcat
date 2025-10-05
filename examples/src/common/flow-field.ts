@@ -1,4 +1,4 @@
-import type { NavMesh, NodeRef, QueryFilter } from 'navcat';
+import { getNodeByRef, type NavMesh, type NodeRef, type QueryFilter } from 'navcat';
 
 export type FlowField = {
     cost: Map<NodeRef, number>;
@@ -32,14 +32,13 @@ export function computeUniformCostFlowField(
         const { ref: currentRef, c: currentCost } = queue.shift()!;
         iterations++;
 
-        // Get links for this polygon using navMesh.nodes
-        const node = navMesh.nodes[currentRef];
-        if (!node) continue;
+        // get links for this node
+        const node = getNodeByRef(navMesh, currentRef);
 
         for (const linkIndex of node.links) {
             const link = navMesh.links[linkIndex];
 
-            const neighborRef = link.neighbourRef;
+            const neighborRef = link.toNodeRef;
 
             if (visited.has(neighborRef)) continue;
 
