@@ -83,5 +83,10 @@
         "title": "Find Random Point Around Circle",
         "description": "Example of finding a random point around a circle on the navmesh",
         "tags": ["random"]
+    },
+    "example-upload-model": {
+        "title": "Upload Model",
+        "description": "Example of uploading a model and generating a navmesh from it",
+        "tags": ["upload", "custom"]
     }
 }

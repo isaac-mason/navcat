@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NavMesh Generation Tool - Upload Model</title>
+  <link rel="stylesheet" href="./src/example.css">
+  <style>
+    /* Limit lil-gui height */
+    .lil-gui {
+      max-height: calc(100vh - 6em) !important;
+      overflow-y: auto !important;
+    }
+
+    /* Drop zone overlay */
+    #drop-zone {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60%;
+      max-width: 600px;
+      padding: 60px 40px;
+      border: 3px dashed #666;
+      border-radius: 12px;
+      background: rgba(40, 40, 40, 0.95);
+      text-align: center;
+      pointer-events: none;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+
+    #drop-zone.active {
+      border-color: #4CAF50;
+      background: rgba(50, 50, 50, 0.98);
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    #drop-zone.hidden {
+      display: none;
+    }
+
+    #drop-zone h2 {
+      color: #fff;
+      margin: 0 0 20px 0;
+      font-size: 24px;
+    }
+
+    #drop-zone p {
+      color: #aaa;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+
+    #drop-zone .icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+
+    /* Loading spinner */
+    #loading-spinner {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 30px;
+      background: rgba(40, 40, 40, 0.95);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      gap: 15px;
+    }
+
+    #loading-spinner.visible {
+      display: flex;
+    }
+
+    #loading-spinner .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid #444;
+      border-top-color: #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Info panels */
+    .info-panel {
+      position: absolute;
+      left: 20px;
+      width: 280px;
+      padding: 15px;
+      background: rgba(40, 40, 40, 0.95);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-family: monospace;
+      z-index: 50;
+      display: none;
+    }
+
+    .info-panel.visible {
+      display: block;
+    }
+
+    #pathfinding-info {
+      top: 20px;
+    }
+
+    #query-info {
+      top: 220px;
+    }
+
+    .info-panel h3 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      color: #4CAF50;
+      border-bottom: 1px solid #555;
+      padding-bottom: 8px;
+    }
+
+    .info-panel .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+      padding: 4px 0;
+    }
+
+    .info-panel .info-label {
+      color: #aaa;
+    }
+
+    .info-panel .info-value {
+      color: #fff;
+      font-weight: bold;
+    }
+
+    /* Status message */
+    #status-message {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      background: rgba(40, 40, 40, 0.95);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      z-index: 200;
+      display: none;
+      max-width: 80%;
+    }
+
+    #status-message.visible {
+      display: block;
+    }
+
+    #status-message.success {
+      background: rgba(76, 175, 80, 0.95);
+    }
+
+    #status-message.error {
+      background: rgba(244, 67, 54, 0.95);
+    }
+
+    /* Drag overlay for file drop */
+    #drag-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(76, 175, 80, 0.1);
+      border: 4px dashed #4CAF50;
+      z-index: 150;
+      display: none;
+      pointer-events: none;
+    }
+
+    #drag-overlay.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- Drop zone overlay -->
+  <div id="drop-zone">
+    <div class="icon">📦</div>
+    <h2>Drop Your Model Here</h2>
+    <p>Drag and drop a GLB or GLTF file to get started</p>
+    <p style="font-size: 14px; color: #777;">Supports .glb and .gltf formats</p>
+  </div>
+
+  <!-- Drag overlay -->
+  <div id="drag-overlay"></div>
+
+  <!-- Loading spinner -->
+  <div id="loading-spinner">
+    <div class="spinner"></div>
+    <span id="loading-text">Loading...</span>
+  </div>
+
+  <!-- Status message -->
+  <div id="status-message"></div>
+
+  <!-- Pathfinding info panel -->
+  <div id="pathfinding-info" class="info-panel">
+    <h3>🎯 Pathfinding</h3>
+    <div class="info-row">
+      <span class="info-label">Start:</span>
+      <span class="info-value" id="path-start">Not set</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">End:</span>
+      <span class="info-value" id="path-end">Not set</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Waypoints:</span>
+      <span class="info-value" id="path-waypoints">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Length:</span>
+      <span class="info-value" id="path-length">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Partial:</span>
+      <span class="info-value" id="path-partial">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Time:</span>
+      <span class="info-value" id="path-time">-</span>
+    </div>
+  </div>
+
+  <!-- Query info panel -->
+  <div id="query-info" class="info-panel">
+    <h3>🔍 Nearest Poly</h3>
+    <div class="info-row">
+      <span class="info-label">Query:</span>
+      <span class="info-value" id="query-point">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Nearest:</span>
+      <span class="info-value" id="query-nearest">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Distance:</span>
+      <span class="info-value" id="query-distance">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Poly Ref:</span>
+      <span class="info-value" id="query-ref">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Status:</span>
+      <span class="info-value" id="query-status">-</span>
+    </div>
+  </div>
+
+  <!-- Performance metrics panel -->
+  <div id="performance-info" class="info-panel" style="top: 10px;">
+    <h3>📊 NavMesh Stats</h3>
+    <div class="info-row">
+      <span class="info-label">Type:</span>
+      <span class="info-value" id="perf-type">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Time:</span>
+      <span class="info-value" id="perf-time">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Triangles:</span>
+      <span class="info-value" id="perf-triangles">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Vertices:</span>
+      <span class="info-value" id="perf-vertices">-</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Polys:</span>
+      <span class="info-value" id="perf-polys">-</span>
+    </div>
+    <div class="info-row" id="perf-tiles-row" style="display: none;">
+      <span class="info-label">Tiles:</span>
+      <span class="info-value" id="perf-tiles">-</span>
+    </div>
+  </div>
+
+  <!-- Help overlay -->
+  <!-- <div id="help-panel" class="info-panel visible" style="bottom: 20px; top: auto; right: 20px;">
+    <h3>⌨️ Keyboard Shortcuts</h3>
+    <div class="info-row">
+      <span class="info-label">G:</span>
+      <span class="info-value">Generate NavMesh</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">R:</span>
+      <span class="info-value">Reset Camera</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">C:</span>
+      <span class="info-value">Clear Path</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Esc:</span>
+      <span class="info-value">Disable Active Tool</span>
+    </div>
+  </div> -->
+
+  <script type="module" src="./src/example-upload-model.ts"></script>
+</body>
+</html>
