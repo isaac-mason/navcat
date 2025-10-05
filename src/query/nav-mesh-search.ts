@@ -12,7 +12,6 @@ import {
 import {
     type NavMesh,
     type NavMeshLink,
-    type NavMeshNode,
     type NavMeshPoly,
     type NavMeshTile,
     OffMeshConnectionSide,
@@ -23,19 +22,16 @@ import {
     createGetPolyHeightResult,
     DEFAULT_QUERY_FILTER,
     getClosestPointOnPoly,
+    getNodeByRef,
+    getNodeByTileAndPoly,
     getPolyHeight,
     getTileAndPolyByRef,
     isValidNodeRef,
 } from './nav-mesh-api';
 import {
-    createOffMeshNodeRef,
-    createPolyNodeRef,
-    desOffMeshNodeRef,
-    desPolyNodeRef,
     getNodeRefType,
     type NodeRef,
     NodeType,
-    serPolyNodeRef,
 } from './node';
 
 export const NODE_FLAG_OPEN = 0x01;
@@ -62,8 +58,10 @@ export type SearchNode = {
     cost: number;
     /** the cost up to this node */
     total: number;
-    /** the index to the parent node */
-    parent: SearchNodeRef | null;
+    /** the parent node ref */
+    parentNodeRef: NodeRef | null;
+    /** the parent node state */
+    parentState: number | null;
     /** node state */
     state: number;
     /** node flags */
@@ -72,9 +70,29 @@ export type SearchNode = {
     nodeRef: NodeRef;
 };
 
-export type SearchNodePool = { [nodeRefAndState: SearchNodeRef]: SearchNode };
+export type SearchNodePool = { [nodeRef: NodeRef]: SearchNode[] };
 
 export type SearchNodeQueue = SearchNode[];
+
+export const getSearchNode = (pool: SearchNodePool, nodeRef: NodeRef, state: number): SearchNode | undefined => {
+    const nodes = pool[nodeRef];
+    if (!nodes) return undefined;
+    
+    for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].state === state) {
+            return nodes[i];
+        }
+    }
+    
+    return undefined;
+};
+
+export const addSearchNode = (pool: SearchNodePool, node: SearchNode): void => {
+    if (!pool[node.nodeRef]) {
+        pool[node.nodeRef] = [];
+    }
+    pool[node.nodeRef].push(node);
+};
 
 export const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
     // note: (index > 0) means there is a parent
@@ -146,8 +164,6 @@ export const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): vo
 
 const _getPortalPoints_start = vec3.create();
 const _getPortalPoints_end = vec3.create();
-const _getPortalPoints_polyNodeRef = createPolyNodeRef();
-const _getPortalPoints_offMeshNodeRef = createOffMeshNodeRef();
 
 /**
  * Retrieves the left and right points of the portal edge between two adjacent polygons.
@@ -163,11 +179,11 @@ export const getPortalPoints = (
     // find the link that points to the 'to' polygon.
     let toLink: NavMeshLink | undefined;
 
-    const fromNode = navMesh.nodes[fromNodeRef];
+    const fromNode = getNodeByRef(navMesh, fromNodeRef);
 
     for (const linkIndex of fromNode.links) {
         const link = navMesh.links[linkIndex];
-        if (link?.neighbourRef === toNodeRef) {
+        if (link?.toNodeRef === toNodeRef) {
             // found the link to the target polygon.
             toLink = link;
             break;
@@ -190,7 +206,7 @@ export const getPortalPoints = (
 
     // handle from offmesh connection to poly
     if (fromNodeType === NodeType.OFFMESH) {
-        const [offMeshConnectionId, offMeshConnectionSide] = desOffMeshNodeRef(_getPortalPoints_offMeshNodeRef, fromNodeRef);
+        const { offMeshConnectionId, offMeshConnectionSide } = getNodeByRef(navMesh, fromNodeRef);
         const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
         if (!offMeshConnection) return false;
 
@@ -203,7 +219,7 @@ export const getPortalPoints = (
 
     // handle from poly to offmesh connection
     if (toNodeType === NodeType.OFFMESH) {
-        const [offMeshConnectionId, offMeshConnectionSide] = desOffMeshNodeRef(_getPortalPoints_offMeshNodeRef, toNodeRef);
+        const { offMeshConnectionId, offMeshConnectionSide } = getNodeByRef(navMesh, toNodeRef);
         const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
         if (!offMeshConnection) return false;
 
@@ -217,7 +233,7 @@ export const getPortalPoints = (
     // handle from poly to poly
 
     // get the 'from' and 'to' tiles
-    const [fromTileId, fromPolyIndex] = desPolyNodeRef(_getPortalPoints_polyNodeRef, fromNodeRef);
+    const { tileId: fromTileId, polyIndex: fromPolyIndex } = getNodeByRef(navMesh, fromNodeRef);
     const fromTile = navMesh.tiles[fromTileId];
     const fromPoly = fromTile.polys[fromPolyIndex];
 
@@ -348,13 +364,15 @@ export const findNodePath = (
     const startNode: SearchNode = {
         cost: 0,
         total: vec3.distance(startPos, endPos) * HEURISTIC_SCALE,
-        parent: null,
+        parentNodeRef: null,
+        parentState: null,
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
         position: [startPos[0], startPos[1], startPos[2]],
     };
-    nodes[`${startRef}:0`] = startNode;
+    
+    addSearchNode(nodes, startNode);
     pushNodeToQueue(openList, startNode);
 
     let lastBestNode: SearchNode = startNode;
@@ -374,22 +392,18 @@ export const findNodePath = (
         }
 
         // get current node
-        const currentNode = navMesh.nodes[currentNodeRef];
+        const currentNode = getNodeByRef(navMesh, currentNodeRef);
 
         // get parent node ref
-        let parentNodeRef: NodeRef | undefined;
-        if (currentSearchNode.parent) {
-            const [nodeRef, _state] = currentSearchNode.parent.split(':');
-            parentNodeRef = parseInt(nodeRef, 10);
-        }
+        const parentNodeRef = currentSearchNode.parentNodeRef ?? undefined;
 
         // expand the search with node links
         for (const linkIndex of currentNode.links) {
             const link = navMesh.links[linkIndex];
-            const neighbourNodeRef = link.neighbourRef;
+            const neighbourNodeRef = link.toNodeRef;
 
-            // skip invalid ids and do not expand back to where we came from
-            if (!neighbourNodeRef || neighbourNodeRef === parentNodeRef) {
+            // do not expand back to where we came from
+            if (neighbourNodeRef === parentNodeRef) {
                 continue;
             }
 
@@ -405,19 +419,19 @@ export const findNodePath = (
             }
 
             // get the neighbour node
-            const neighbourSearchNodeRef: SearchNodeRef = `${neighbourNodeRef}:${crossSide}`;
-            let neighbourNode = nodes[neighbourSearchNodeRef];
+            let neighbourNode = getSearchNode(nodes, neighbourNodeRef, crossSide);
             if (!neighbourNode) {
                 neighbourNode = {
                     cost: 0,
                     total: 0,
-                    parent: null,
+                    parentNodeRef: null,
+                    parentState: null,
                     nodeRef: neighbourNodeRef,
                     state: crossSide,
                     flags: 0,
                     position: [endPos[0], endPos[1], endPos[2]],
                 };
-                nodes[neighbourSearchNodeRef] = neighbourNode;
+                addSearchNode(nodes, neighbourNode);
             }
 
             // if this node is being visited for the first time, calculate the node position
@@ -470,7 +484,8 @@ export const findNodePath = (
             }
 
             // add or update the node
-            neighbourNode.parent = `${currentSearchNode.nodeRef}:${currentSearchNode.state}`;
+            neighbourNode.parentNodeRef = currentSearchNode.nodeRef;
+            neighbourNode.parentState = currentSearchNode.state;
             neighbourNode.nodeRef = neighbourNodeRef;
             neighbourNode.flags = neighbourNode.flags & ~NODE_FLAG_CLOSED;
             neighbourNode.cost = cost;
@@ -500,8 +515,8 @@ export const findNodePath = (
     while (currentNode) {
         path.push(currentNode.nodeRef);
 
-        if (currentNode.parent) {
-            currentNode = nodes[currentNode.parent];
+        if (currentNode.parentNodeRef !== null && currentNode.parentState !== null) {
+            currentNode = getSearchNode(nodes, currentNode.parentNodeRef, currentNode.parentState) ?? null;
         } else {
             currentNode = null;
         }
@@ -650,14 +665,15 @@ export const initSlicedFindNodePath = (
     const startNode: SearchNode = {
         cost: 0,
         total: vec3.distance(startPos, endPos) * HEURISTIC_SCALE,
-        parent: null,
+        parentNodeRef: null,
+        parentState: null,
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
         position: [startPos[0], startPos[1], startPos[2]],
     };
 
-    query.nodes[`${startRef}:0`] = startNode;
+    addSearchNode(query.nodes, startNode);
     query.lastBestNode = startNode;
     query.lastBestNodeCost = startNode.total;
 
@@ -714,22 +730,18 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 
         // get current node
         const currentNodeRef = bestNode.nodeRef;
-        const currentNode = navMesh.nodes[currentNodeRef];
+        const currentNode = getNodeByRef(navMesh, currentNodeRef);
 
         // get parent for backtracking prevention
-        let parentNodeRef: NodeRef | undefined;
-        if (bestNode.parent) {
-            const [nodeRef] = bestNode.parent.split(':');
-            parentNodeRef = parseInt(nodeRef, 10);
-        }
+        const parentNodeRef = bestNode.parentNodeRef ?? undefined;
 
         // expand to neighbors
         for (const linkIndex of currentNode.links) {
             const link = navMesh.links[linkIndex];
-            const neighbourNodeRef = link.neighbourRef;
+            const neighbourNodeRef = link.toNodeRef;
 
-            // skip invalid or parent nodes
-            if (!neighbourNodeRef || neighbourNodeRef === parentNodeRef) {
+            // skip parent nodes
+            if (neighbourNodeRef === parentNodeRef) {
                 continue;
             }
 
@@ -745,20 +757,20 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
             }
 
             // get or create neighbor node
-            const neighbourSearchNodeRef: SearchNodeRef = `${neighbourNodeRef}:${crossSide}`;
-            let neighbourNode = query.nodes[neighbourSearchNodeRef];
+            let neighbourNode = getSearchNode(query.nodes, neighbourNodeRef, crossSide);
 
             if (!neighbourNode) {
                 neighbourNode = {
                     cost: 0,
                     total: 0,
-                    parent: null,
+                    parentNodeRef: null,
+                    parentState: null,
                     nodeRef: neighbourNodeRef,
                     state: crossSide,
                     flags: 0,
                     position: [query.endPos[0], query.endPos[1], query.endPos[2]],
                 };
-                query.nodes[neighbourSearchNodeRef] = neighbourNode;
+                addSearchNode(query.nodes, neighbourNode);
             }
 
             // set position on first visit
@@ -772,10 +784,9 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 
             // check for raycast shortcut (if enabled)
             let foundShortcut = false;
-            if (query.raycastLimitSqr && bestNode.parent) {
+            if (query.raycastLimitSqr && bestNode.parentNodeRef !== null && bestNode.parentState !== null) {
                 // get grandparent node for potential raycast shortcut
-                const grandparentSearchNodeRef = bestNode.parent;
-                const grandparentNode = query.nodes[grandparentSearchNodeRef];
+                const grandparentNode = getSearchNode(query.nodes, bestNode.parentNodeRef, bestNode.parentState);
 
                 if (grandparentNode) {
                     const rayLength = vec3.distance(grandparentNode.position, neighbourNode.position);
@@ -868,7 +879,13 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
             }
 
             // update node
-            neighbourNode.parent = foundShortcut ? bestNode.parent : `${bestNode.nodeRef}:${bestNode.state}`;
+            if (foundShortcut) {
+                neighbourNode.parentNodeRef = bestNode.parentNodeRef;
+                neighbourNode.parentState = bestNode.parentState;
+            } else {
+                neighbourNode.parentNodeRef = bestNode.nodeRef;
+                neighbourNode.parentState = bestNode.state;
+            }
             neighbourNode.cost = cost;
             neighbourNode.total = total;
             neighbourNode.flags &= ~NODE_FLAG_CLOSED;
@@ -945,8 +962,8 @@ export const finalizeSlicedFindNodePath = (
     while (currentNode) {
         tempPath.push(currentNode.nodeRef);
 
-        if (currentNode.parent) {
-            currentNode = query.nodes[currentNode.parent];
+        if (currentNode.parentNodeRef !== null && currentNode.parentState !== null) {
+            currentNode = getSearchNode(query.nodes, currentNode.parentNodeRef, currentNode.parentState) ?? null;
         } else {
             currentNode = null;
         }
@@ -988,11 +1005,14 @@ export const finalizeSlicedFindNodePathPartial = (
         const targetNodeRef = existingPath[i];
 
         // search through all nodes to find one with matching nodeRef (regardless of state)
-        for (const searchNodeRef in query.nodes) {
-            const node = query.nodes[searchNodeRef as SearchNodeRef];
-            if (node.nodeRef === targetNodeRef) {
-                furthestNode = node;
-                break;
+        const nodes = query.nodes[targetNodeRef];
+        if (nodes) {
+            for (let j = 0; j < nodes.length; j++) {
+                const node = nodes[j];
+                if (node.nodeRef === targetNodeRef) {
+                    furthestNode = node;
+                    break;
+                }
             }
         }
 
@@ -1031,8 +1051,8 @@ export const finalizeSlicedFindNodePathPartial = (
     while (currentNode) {
         tempPath.push(currentNode.nodeRef);
 
-        if (currentNode.parent) {
-            currentNode = query.nodes[currentNode.parent];
+        if (currentNode.parentNodeRef !== null && currentNode.parentState !== null) {
+            currentNode = getSearchNode(query.nodes, currentNode.parentNodeRef, currentNode.parentState) ?? null;
         } else {
             currentNode = null;
         }
@@ -1109,13 +1129,15 @@ export const moveAlongSurface = (
     const startNode: SearchNode = {
         cost: 0,
         total: 0,
-        parent: null,
+        parentNodeRef: null,
+        parentState: null,
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_CLOSED,
         position: [startPosition[0], startPosition[1], startPosition[2]],
     };
-    nodes[`${startRef}:0`] = startNode;
+    
+    addSearchNode(nodes, startNode);
 
     const bestPos = vec3.clone(startPosition);
     let bestDist = Infinity;
@@ -1162,13 +1184,13 @@ export const moveAlongSurface = (
         for (let i = 0, j = nv - 1; i < nv; j = i++) {
             // find links to neighbours
             const neis: NodeRef[] = [];
-            const node = navMesh.nodes[curRef];
+            const node = getNodeByRef(navMesh, curRef);
 
             for (const linkIndex of node.links) {
                 const link = navMesh.links[linkIndex];
                 if (!link) continue;
 
-                const neighbourRef = link.neighbourRef;
+                const neighbourRef = link.toNodeRef;
 
                 // check if this link corresponds to edge j
                 if (link.edge === j) {
@@ -1196,20 +1218,20 @@ export const moveAlongSurface = (
                 }
             } else {
                 for (const neighbourRef of neis) {
-                    const neighbourSearchNodeRef: SearchNodeRef = `${neighbourRef}:0`;
-                    let neighbourNode = nodes[neighbourSearchNodeRef];
+                    let neighbourNode = getSearchNode(nodes, neighbourRef, 0);
 
                     if (!neighbourNode) {
                         neighbourNode = {
                             cost: 0,
                             total: 0,
-                            parent: null,
+                            parentNodeRef: null,
+                            parentState: null,
                             nodeRef: neighbourRef,
                             state: 0,
                             flags: 0,
                             position: [endPosition[0], endPosition[1], endPosition[2]],
                         };
-                        nodes[neighbourSearchNodeRef] = neighbourNode;
+                        addSearchNode(nodes, neighbourNode);
                     }
 
                     // skip if already visited
@@ -1224,7 +1246,8 @@ export const moveAlongSurface = (
                     if (distSqr > searchRadSqr) continue;
 
                     // mark as visited and add to queue
-                    neighbourNode.parent = `${curNode.nodeRef}:${curNode.state}`;
+                    neighbourNode.parentNodeRef = curNode.nodeRef;
+                    neighbourNode.parentState = curNode.state;
                     neighbourNode.flags |= NODE_FLAG_CLOSED;
                     queue.push(neighbourNode);
                 }
@@ -1237,8 +1260,8 @@ export const moveAlongSurface = (
         while (currentNode) {
             result.visited.push(currentNode.nodeRef);
 
-            if (currentNode.parent) {
-                currentNode = nodes[currentNode.parent];
+            if (currentNode.parentNodeRef !== null) {
+                currentNode = getSearchNode(nodes, currentNode.parentNodeRef, 0) ?? null;
             } else {
                 currentNode = null;
             }
@@ -1362,7 +1385,7 @@ export const raycast = (
         // follow neighbors
         let nextRef: NodeRef | null = null;
 
-        const curNode: NavMeshNode = navMesh.nodes[curRef];
+        const curNode = getNodeByRef(navMesh, curRef);
 
         for (const linkIndex of curNode.links) {
             const link = navMesh.links[linkIndex];
@@ -1371,24 +1394,24 @@ export const raycast = (
             if (link.edge !== intersectSegmentPoly2DResult.segMax) continue;
 
             // skip off-mesh connections
-            if (getNodeRefType(link.neighbourRef) === NodeType.OFFMESH) continue;
+            if (getNodeRefType(link.toNodeRef) === NodeType.OFFMESH) continue;
 
             // get pointer to the next polygon
-            const nextTileAndPolyResult = getTileAndPolyByRef(link.neighbourRef, navMesh);
+            const nextTileAndPolyResult = getTileAndPolyByRef(link.toNodeRef, navMesh);
             if (!nextTileAndPolyResult.success) continue;
 
             // skip links based on filter
-            if (!filter.passFilter(link.neighbourRef, navMesh)) continue;
+            if (!filter.passFilter(link.toNodeRef, navMesh)) continue;
 
             // if the link is internal, just return the ref
             if (link.side === 0xff) {
-                nextRef = link.neighbourRef;
+                nextRef = link.toNodeRef;
                 break;
             }
 
             // if the link is at tile boundary, check if the link spans the whole edge
             if (link.bmin === 0 && link.bmax === 255) {
-                nextRef = link.neighbourRef;
+                nextRef = link.toNodeRef;
                 break;
             }
 
@@ -1409,7 +1432,7 @@ export const raycast = (
                 // find Z intersection
                 const z = startPosition[2] + (endPosition[2] - startPosition[2]) * intersectSegmentPoly2DResult.tmax;
                 if (z >= lmin && z <= lmax) {
-                    nextRef = link.neighbourRef;
+                    nextRef = link.toNodeRef;
                     break;
                 }
             } else if (link.side === 2 || link.side === 6) {
@@ -1422,7 +1445,7 @@ export const raycast = (
                 // find X intersection
                 const x = startPosition[0] + (endPosition[0] - startPosition[0]) * intersectSegmentPoly2DResult.tmax;
                 if (x >= lmin && x <= lmax) {
-                    nextRef = link.neighbourRef;
+                    nextRef = link.toNodeRef;
                     break;
                 }
             }
@@ -1508,11 +1531,10 @@ export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () 
     for (let i = 0; i < selectedTile.polys.length; i++) {
         const poly = selectedTile.polys[i];
 
-        // construct the polygon reference
-        const polyRef = serPolyNodeRef(selectedTile.id, selectedTile.salt, i);
+        const node = getNodeByTileAndPoly(navMesh, selectedTile, i);
 
         // must pass filter
-        if (!filter.passFilter(polyRef, navMesh)) {
+        if (!filter.passFilter(node.ref, navMesh)) {
             continue;
         }
 
@@ -1533,7 +1555,7 @@ export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () 
         const u = rand();
         if (u * areaSum <= polyArea) {
             selectedPoly = poly;
-            selectedPolyRef = polyRef;
+            selectedPolyRef = node.ref;
         }
     }
 
@@ -1635,13 +1657,15 @@ export const findRandomPointAroundCircle = (
     const startNode: SearchNode = {
         cost: 0,
         total: 0,
-        parent: null,
+        parentNodeRef: null,
+        parentState: null,
         nodeRef: startRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
         position: [centerPosition[0], centerPosition[1], centerPosition[2]],
     };
-    nodes[`${startRef}:0`] = startNode;
+    
+    addSearchNode(nodes, startNode);
     pushNodeToQueue(openList, startNode);
 
     const radiusSqr = maxRadius * maxRadius;
@@ -1691,19 +1715,16 @@ export const findRandomPointAroundCircle = (
         }
 
         // get parent reference for preventing backtracking
-        let parentRef: NodeRef | null = null;
-        if (bestNode.parent) {
-            const [nodeRef, _state] = bestNode.parent.split(':');
-            parentRef = parseInt(nodeRef, 10);
-        }
+        const parentRef = bestNode.parentNodeRef;
 
         // iterate through all links from the current polygon
-        const node = navMesh.nodes[bestRef];
+        const node = getNodeByRef(navMesh, bestRef);
+
         for (const linkIndex of node.links) {
             const link = navMesh.links[linkIndex];
             if (!link) continue;
 
-            const neighbourRef = link.neighbourRef;
+            const neighbourRef = link.toNodeRef;
 
             // skip invalid neighbours and do not follow back to parent
             if (!neighbourRef || neighbourRef === parentRef) {
@@ -1731,20 +1752,20 @@ export const findRandomPointAroundCircle = (
             }
 
             // get or create neighbour node
-            const neighbourNodeKey: SearchNodeRef = `${neighbourRef}:0`;
-            let neighbourNode = nodes[neighbourNodeKey];
+            let neighbourNode = getSearchNode(nodes, neighbourRef, 0);
 
             if (!neighbourNode) {
                 neighbourNode = {
                     cost: 0,
                     total: 0,
-                    parent: null,
+                    parentNodeRef: null,
+                    parentState: null,
                     nodeRef: neighbourRef,
                     state: 0,
                     flags: 0,
                     position: [0, 0, 0],
                 };
-                nodes[neighbourNodeKey] = neighbourNode;
+                addSearchNode(nodes, neighbourNode);
             }
 
             if (neighbourNode.flags & NODE_FLAG_CLOSED) {
@@ -1763,7 +1784,8 @@ export const findRandomPointAroundCircle = (
                 continue;
             }
 
-            neighbourNode.parent = `${bestRef}:0` as SearchNodeRef;
+            neighbourNode.parentNodeRef = bestRef;
+            neighbourNode.parentState = 0;
             neighbourNode.flags = neighbourNode.flags & ~NODE_FLAG_CLOSED;
             neighbourNode.total = total;
 

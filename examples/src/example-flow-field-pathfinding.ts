@@ -2,11 +2,10 @@ import type { Vec3 } from 'maaths';
 import type { NavMesh, NodeRef } from 'navcat';
 import {
     createFindNearestPolyResult,
-    createPolyNodeRef,
     DEFAULT_QUERY_FILTER,
-    desPolyNodeRef,
     findNearestPoly,
     findStraightPath,
+    getNodeByRef,
     getNodeRefType,
     NodeType,
 } from 'navcat';
@@ -214,13 +213,11 @@ const flowFieldHelpers: DebugObject[] = [];
 const arrowHelpers: THREE.ArrowHelper[] = [];
 const pathHelpers: DebugObject[] = [];
 
-const _getPolyCenter_polyNodeRef = createPolyNodeRef();
-
 function getPolyCenter(navMesh: NavMesh, nodeRef: NodeRef): [number, number, number] | null {
     const type = getNodeRefType(nodeRef);
     if (type !== NodeType.POLY) return null;
 
-    const [tileId, polyIndex] = desPolyNodeRef(_getPolyCenter_polyNodeRef, nodeRef);
+    const { tileId, polyIndex } = getNodeByRef(navMesh, nodeRef);
 
     const tile = navMesh.tiles[tileId];
     if (!tile) return null;

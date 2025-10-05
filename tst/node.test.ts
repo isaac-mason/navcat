@@ -1,108 +1,99 @@
-import { describe, test, expect } from "vitest";
+import { describe, expect, test } from 'vitest';
 import {
-    NodeType,
-    serPolyNodeRef,
-    desPolyNodeRef,
-    serOffMeshNodeRef,
-    desOffMeshNodeRef,
+    getNodeRefIndex,
+    getNodeRefSequence,
     getNodeRefType,
-    createPolyNodeRef,
-    createOffMeshNodeRef,
-} from "../src/query/node";
+    MAX_NODE_INDEX,
+    MAX_SEQUENCE,
+    NodeType,
+    serNodeRef,
+} from '../src';
 
-describe("node ref", () => {
-    test("serdes poly node ref", () => {
-        // Test with basic values
-        const tileId = 100;
-        const polyIndex = 200;
-        const salt = 42;
+describe('node ref', () => {
+    test('serdes node ref with basic values', () => {
+        const type = NodeType.POLY;
+        const nodeIndex = 100;
+        const sequence = 42;
 
-        const nodeRef = serPolyNodeRef(tileId, salt, polyIndex);
-        const out = createPolyNodeRef();
-        desPolyNodeRef(out, nodeRef);
+        const nodeRef = serNodeRef(type, nodeIndex, sequence);
 
-        // DesPolyNodeRef = [tileId, polyIndex, salt]
-        expect(out[0]).toBe(tileId);
-        expect(out[1]).toBe(polyIndex);
-        expect(out[2]).toBe(salt);
-
-        // Verify type detection
-        expect(getNodeRefType(nodeRef)).toBe(NodeType.POLY);
+        expect(getNodeRefType(nodeRef)).toBe(type);
+        expect(getNodeRefIndex(nodeRef)).toBe(nodeIndex);
+        expect(getNodeRefSequence(nodeRef)).toBe(sequence);
     });
 
-    test("serdes poly node ref with max values", () => {
-        // Test with maximum 22-bit values
-        const tileId = 0x3FFFFF; // Max 22 bits
-        const polyIndex = 0x3FFFFF; // Max 22 bits
-        const salt = 0x7F; // Max 7 bits (changed from 8 to 7)
+    test('serdes node ref with max values', () => {
+        const type = NodeType.OFFMESH;
+        const nodeIndex = MAX_NODE_INDEX; // Max 31 bits
+        const sequence = MAX_SEQUENCE; // Max 20 bits
 
-        const nodeRef = serPolyNodeRef(tileId, salt, polyIndex);
-        const out = createPolyNodeRef();
-        desPolyNodeRef(out, nodeRef);
+        const nodeRef = serNodeRef(type, nodeIndex, sequence);
 
-        // DesPolyNodeRef = [tileId, polyIndex, salt]
-        expect(out[0]).toBe(tileId);
-        expect(out[1]).toBe(polyIndex);
-        expect(out[2]).toBe(salt);
+        expect(getNodeRefType(nodeRef)).toBe(type);
+        expect(getNodeRefIndex(nodeRef)).toBe(nodeIndex);
+        expect(getNodeRefSequence(nodeRef)).toBe(sequence);
     });
 
-    test("serdes offmesh connection node ref", () => {
-        // Test with basic values
-        const offMeshConnectionId = 1000;
-        const side = 1;
-        const salt = 42;
+    test('roundtrip various values with POLY type', () => {
+        const testCases = [
+            { nodeIndex: 0, sequence: 0 },
+            { nodeIndex: 1, sequence: 1 },
+            { nodeIndex: 12345, sequence: 50 },
+            { nodeIndex: 1000000, sequence: 100000 },
+            { nodeIndex: MAX_NODE_INDEX, sequence: MAX_SEQUENCE },
+            { nodeIndex: MAX_NODE_INDEX >> 1, sequence: MAX_SEQUENCE >> 1 },
+        ];
 
-        const nodeRef = serOffMeshNodeRef(offMeshConnectionId, salt, side);
-        const out = createOffMeshNodeRef();
-        desOffMeshNodeRef(out, nodeRef);
+        for (const { nodeIndex, sequence } of testCases) {
+            const nodeRef = serNodeRef(NodeType.POLY, nodeIndex, sequence);
 
-        // DesOffMeshNodeRef = [offMeshConnectionIndex, side, salt]
-        expect(out[0]).toBe(offMeshConnectionId);
-        expect(out[1]).toBe(side);
-        expect(out[2]).toBe(salt);
-
-        // Verify type detection
-        expect(getNodeRefType(nodeRef)).toBe(NodeType.OFFMESH);
+            expect(getNodeRefType(nodeRef)).toBe(NodeType.POLY);
+            expect(getNodeRefIndex(nodeRef)).toBe(nodeIndex);
+            expect(getNodeRefSequence(nodeRef)).toBe(sequence);
+        }
     });
 
-    test("serdes offmesh connection node ref with max values", () => {
-        // Test with maximum values - offmesh uses same 22 bits as tileId
-        const offMeshConnectionId = 0x3FFFFF; // Max 22 bits (same as TILE_BITS)
-        const side = 1; // Max 1 bit
-        const salt = 0x7F; // Max 7 bits (changed from 8 to 7)
+    test('roundtrip various values with OFFMESH type', () => {
+        const testCases = [
+            { nodeIndex: 0, sequence: 0 },
+            { nodeIndex: 1, sequence: 1 },
+            { nodeIndex: 12345, sequence: 50 },
+            { nodeIndex: 1000000, sequence: 100000 },
+        ];
 
-        const nodeRef = serOffMeshNodeRef(offMeshConnectionId, salt, side);
-        const out = createOffMeshNodeRef();
-        desOffMeshNodeRef(out, nodeRef);
+        for (const { nodeIndex, sequence } of testCases) {
+            const nodeRef = serNodeRef(NodeType.OFFMESH, nodeIndex, sequence);
 
-        // DesOffMeshNodeRef = [offMeshConnectionIndex, side, salt]
-        expect(out[0]).toBe(offMeshConnectionId);
-        expect(out[1]).toBe(side);
-        expect(out[2]).toBe(salt);
+            expect(getNodeRefType(nodeRef)).toBe(NodeType.OFFMESH);
+            expect(getNodeRefIndex(nodeRef)).toBe(nodeIndex);
+            expect(getNodeRefSequence(nodeRef)).toBe(sequence);
+        }
     });
 
-    test("serdes offmesh connection node ref with both sides", () => {
-        const offMeshConnectionId = 5000;
-        const salt = 10;
+    test('type bit is correctly isolated', () => {
+        // Verify type bit doesn't interfere with other fields
+        const nodeRef1 = serNodeRef(NodeType.POLY, 12345, 678);
+        const nodeRef2 = serNodeRef(NodeType.OFFMESH, 12345, 678);
 
-        // Test side 0
-        const nodeRef0 = serOffMeshNodeRef(offMeshConnectionId, salt, 0);
-        const out0 = createOffMeshNodeRef();
-        desOffMeshNodeRef(out0, nodeRef0);
-
-        // DesOffMeshNodeRef = [offMeshConnectionIndex, side, salt]
-        expect(out0[0]).toBe(offMeshConnectionId);
-        expect(out0[1]).toBe(0);
-        expect(out0[2]).toBe(salt);
-
-        // Test side 1
-        const nodeRef1 = serOffMeshNodeRef(offMeshConnectionId, salt, 1);
-        const out1 = createOffMeshNodeRef();
-        desOffMeshNodeRef(out1, nodeRef1);
-
-        // DesOffMeshNodeRef = [offMeshConnectionIndex, side, salt]
-        expect(out1[0]).toBe(offMeshConnectionId);
-        expect(out1[1]).toBe(1);
-        expect(out1[2]).toBe(salt);
+        expect(getNodeRefIndex(nodeRef1)).toBe(12345);
+        expect(getNodeRefIndex(nodeRef2)).toBe(12345);
+        expect(getNodeRefSequence(nodeRef1)).toBe(678);
+        expect(getNodeRefSequence(nodeRef2)).toBe(678);
+        expect(getNodeRefType(nodeRef1)).toBe(NodeType.POLY);
+        expect(getNodeRefType(nodeRef2)).toBe(NodeType.OFFMESH);
     });
-})
+
+    test('32-bit boundary operations', () => {
+        // Test values that cross the 32-bit boundary
+        const type = NodeType.POLY;
+        const nodeIndex = 0x7fffffff; // Max 31-bit value
+        const sequence = 0xfffff; // Max 20-bit value
+
+        const nodeRef = serNodeRef(type, nodeIndex, sequence);
+
+        // All fields should be preserved correctly
+        expect(getNodeRefType(nodeRef)).toBe(type);
+        expect(getNodeRefIndex(nodeRef)).toBe(nodeIndex);
+        expect(getNodeRefSequence(nodeRef)).toBe(sequence);
+    });
+});

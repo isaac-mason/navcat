@@ -1,5 +1,5 @@
 import type { NavMesh, NodeRef } from 'navcat';
-import { getNodeRefType, NodeType, serPolyNodeRef } from 'navcat';
+import { getNodeByTileAndPoly, getNodeRefIndex } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { createNavMeshPolyHelper, type DebugObject } from './common/debug';
@@ -60,17 +60,17 @@ const createPolyHelpers = (navMesh: NavMesh): void => {
     for (const tileId in navMesh.tiles) {
         const tile = navMesh.tiles[tileId];
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-            const polyRef = serPolyNodeRef(tile.id, tile.salt, polyIndex);
+            const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
 
-            const helper = createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.8, 0.3]);
+            const helper = createNavMeshPolyHelper(navMesh, node.ref, [0.3, 0.8, 0.3]);
 
             // initially visible with normal appearance
             helper.object.position.y += 0.1; // adjust height for visibility
             scene.add(helper.object);
 
-            polyHelpers.set(polyRef, {
+            polyHelpers.set(node.ref, {
                 helper,
-                polyRef,
+                polyRef: node.ref,
             });
         }
     }
@@ -119,7 +119,7 @@ function updateNavMeshVisualization() {
         for (const tileId in navMesh.tiles) {
             const tile = navMesh.tiles[tileId];
             for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-                const polyRef = serPolyNodeRef(tile.id, tile.salt, polyIndex);
+                const polyRef = getNodeByTileAndPoly(navMesh, tile, polyIndex).ref;
                 const poly = tile.polys[polyIndex];
 
                 if (poly.flags === 0) {
@@ -151,34 +151,27 @@ function applyFloodFillPruning(startRef?: NodeRef) {
 }
 
 function floodFillPruneNavMesh(navMesh: NavMesh, startRef: NodeRef) {
-    const visited = new Set<NodeRef>();
-    const queue: NodeRef[] = [startRef];
-    const reachablePolys = new Set<NodeRef>();
+    const visited = new Set<number>();
+    const queue: number[] = [getNodeRefIndex(startRef)];
 
     // bfs from starting polygon to find all reachable polygons
     while (queue.length > 0) {
-        const currentRef = queue.shift()!;
+        const currentNodeIndex = queue.shift()!;
 
-        if (visited.has(currentRef)) continue;
-        visited.add(currentRef);
-        reachablePolys.add(currentRef);
+        if (visited.has(currentNodeIndex)) continue;
+        visited.add(currentNodeIndex);
 
         // get links for this polygon using navMesh.nodes
-        const node = navMesh.nodes[currentRef];
-        if (!node) continue;
+        const node = navMesh.nodes[currentNodeIndex];
 
         // follow all links to neighboring polygons
         for (const linkIndex of node.links) {
             const link = navMesh.links[linkIndex];
 
-            const neighborRef = link.neighbourRef;
-            if (!neighborRef || visited.has(neighborRef)) continue;
+            const toNodeIndex = link.toNodeIndex;
+            if (visited.has(toNodeIndex)) continue;
 
-            // only consider ground polygons (not off-mesh connections)
-            const nodeType = getNodeRefType(neighborRef);
-            if (nodeType === NodeType.POLY) {
-                queue.push(neighborRef);
-            }
+            queue.push(toNodeIndex);
         }
     }
 
@@ -188,9 +181,9 @@ function floodFillPruneNavMesh(navMesh: NavMesh, startRef: NodeRef) {
     for (const tileId in navMesh.tiles) {
         const tile = navMesh.tiles[tileId];
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-            const polyRef = serPolyNodeRef(tile.id, tile.salt, polyIndex, )
+            const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
 
-            if (!reachablePolys.has(polyRef)) {
+            if (!visited.has(node.index)) {
                 // this polygon is not reachable from the start, disable it by setting flags to 0
                 tile.polys[polyIndex].flags = 0;
                 disabledCount++;
@@ -339,7 +332,7 @@ function findClickedPolygon(raycaster: THREE.Raycaster): NodeRef | null {
 
             if (intersects.length > 0 && intersects[0].distance < closestDistance) {
                 closestDistance = intersects[0].distance;
-                closestPolyRef = serPolyNodeRef(tile.id, tile.salt, polyIndex);
+                closestPolyRef = getNodeByTileAndPoly(navMesh, tile, polyIndex).ref;
             }
 
             // Clean up

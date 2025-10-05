@@ -1,17 +1,16 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
-import { StraightPathPointFlags, findStraightPath } from './find-straight-path';
+import { findStraightPath, StraightPathPointFlags } from './find-straight-path';
 import { type NavMesh, OffMeshConnectionSide } from './nav-mesh';
-import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
-import { type NodeRef, NodeType, createOffMeshNodeRef, desOffMeshNodeRef } from './node';
 import type { QueryFilter } from './nav-mesh-api';
+import { createFindNearestPolyResult, findNearestPoly, getNodeByRef } from './nav-mesh-api';
+import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
+import { type NodeRef, NodeType } from './node';
 
 const _findSmoothPath_delta = vec3.create();
 const _findSmoothPath_moveTarget = vec3.create();
 const _findSmoothPath_startNearestPolyResult = createFindNearestPolyResult();
 const _findSmoothPath_endNearestPolyResult = createFindNearestPolyResult();
-const _findSmoothPath_offMeshNodeRef = createOffMeshNodeRef();
 
 export enum FindSmoothPathResultFlags {
     NONE = 0,
@@ -234,7 +233,7 @@ export const findSmoothPath = (
             polys.splice(0, npos);
 
             // handle the off-mesh connection
-            const [offMeshConnectionId, offMeshConnectionSide] = desOffMeshNodeRef(_findSmoothPath_offMeshNodeRef, offMeshConRef);
+            const { offMeshConnectionId, offMeshConnectionSide } = getNodeByRef(navMesh, offMeshConRef);
             const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
 
             if (offMeshConnection) {
@@ -422,13 +421,12 @@ const fixupShortcuts = (pathPolys: NodeRef[], navMesh: NavMesh): void => {
     let nneis = 0;
     const neis: NodeRef[] = [];
 
-    const firstNode = navMesh.nodes[pathPolys[0]];
-    if (!firstNode) return;
+    const firstNode = getNodeByRef(navMesh, pathPolys[0]);
 
     for (const linkIndex of firstNode.links) {
         const link = navMesh.links[linkIndex];
-        if (link?.neighbourRef && nneis < maxNeis) {
-            neis.push(link.neighbourRef);
+        if (link?.toNodeRef && nneis < maxNeis) {
+            neis.push(link.toNodeRef);
             nneis++;
         }
     }

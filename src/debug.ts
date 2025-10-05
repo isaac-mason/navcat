@@ -1,7 +1,8 @@
+import { type Vec3, vec3 } from 'maaths';
 import type { ArrayLike, CompactHeightfield, ContourSet, Heightfield, PolyMesh, PolyMeshDetail } from './generate';
 import { MESH_NULL_IDX, NULL_AREA, POLY_NEIS_FLAG_EXT_LINK, WALKABLE_AREA } from './generate';
-import type { NavMesh, NavMeshTile, NodeRef, SearchNodePool, SearchNodeRef } from './query';
-import { desPolyNodeRef, OffMeshConnectionDirection, createPolyNodeRef } from './query';
+import type { NavMesh, NavMeshTile, NodeRef, SearchNode, SearchNodePool } from './query';
+import { getNodeByRef, OffMeshConnectionDirection } from './query';
 
 // debug primitive types
 export enum DebugPrimitiveType {
@@ -1167,8 +1168,6 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
     return primitives;
 }
 
-const _createNavMeshPolyHelper_polyNodeRef = createPolyNodeRef();
-
 export function createNavMeshPolyHelper(
     navMesh: NavMesh,
     polyRef: NodeRef,
@@ -1177,18 +1176,18 @@ export function createNavMeshPolyHelper(
     const primitives: DebugPrimitive[] = [];
 
     // Get tile and polygon from reference
-    const [tileId, polyId] = desPolyNodeRef(_createNavMeshPolyHelper_polyNodeRef, polyRef);
+    const { tileId, polyIndex } = getNodeByRef(navMesh, polyRef);
 
     const tile = navMesh.tiles[tileId];
-    if (!tile || !tile.polys[polyId]) {
+    if (!tile || !tile.polys[polyIndex]) {
         // Return empty array if polygon not found
         return primitives;
     }
 
-    const poly = tile.polys[polyId];
+    const poly = tile.polys[polyIndex];
 
     // Get the detail mesh for this polygon
-    const detailMesh = tile.detailMeshes?.[polyId];
+    const detailMesh = tile.detailMeshes?.[polyIndex];
     if (!detailMesh) {
         // Fallback: draw basic polygon without detail mesh
         const triPositions: number[] = [];
@@ -1374,7 +1373,13 @@ export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
     return primitives;
 }
 
-const _createNavMeshLinksHelper_polyNodeRef = createPolyNodeRef();
+const _createNavMeshLinksHelper_sourceCenter = vec3.create();
+const _createNavMeshLinksHelper_targetCenter = vec3.create();
+const _createNavMeshLinksHelper_edgeStart = vec3.create();
+const _createNavMeshLinksHelper_edgeEnd = vec3.create();
+const _createNavMeshLinksHelper_edgeMidpoint = vec3.create();
+const _createNavMeshLinksHelper_sourcePoint = vec3.create();
+const _createNavMeshLinksHelper_targetPoint = vec3.create();
 
 export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     const primitives: DebugPrimitive[] = [];
@@ -1390,7 +1395,7 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     const lerp = (start: number, end: number, t: number): number => start + (end - start) * t;
 
     // Helper function to calculate polygon center
-    const getPolyCenter = (tile: NavMeshTile, poly: any): [number, number, number] => {
+    const getPolyCenter = (out: Vec3, tile: NavMeshTile, poly: any): Vec3 => {
         let centerX = 0;
         let centerY = 0;
         let centerZ = 0;
@@ -1403,20 +1408,24 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
             centerZ += tile.vertices[vertIndex + 2];
         }
 
-        return [centerX / nv, centerY / nv, centerZ / nv];
+        out[0] = centerX / nv;
+        out[1] = centerY / nv;
+        out[2] = centerZ / nv;
+
+        return out;
     };
 
     // Process each link
     for (const link of navMesh.links) {
-        if (!link || !link.allocated) continue;
+        if (!link.allocated) continue;
 
         // Get source polygon info
-        const [sourceTileId, sourcePolyId] = desPolyNodeRef(_createNavMeshLinksHelper_polyNodeRef, link.ref);
+        const { tileId: sourceTileId, polyIndex: sourcePolyId } = navMesh.nodes[link.fromNodeIndex];
         const sourceTile = navMesh.tiles[sourceTileId];
         const sourcePoly = sourceTile?.polys[sourcePolyId];
 
         // Get target polygon info
-        const [targetTileId, targetPolyId] = desPolyNodeRef(_createNavMeshLinksHelper_polyNodeRef, link.neighbourRef);
+        const { tileId: targetTileId, polyIndex: targetPolyId } = navMesh.nodes[link.toNodeIndex];
         const targetTile = navMesh.tiles[targetTileId];
         const targetPoly = targetTile?.polys[targetPolyId];
 
@@ -1425,8 +1434,8 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
         }
 
         // Calculate polygon centers
-        const sourceCenter = getPolyCenter(sourceTile, sourcePoly);
-        const targetCenter = getPolyCenter(targetTile, targetPoly);
+        const sourceCenter = getPolyCenter(_createNavMeshLinksHelper_sourceCenter, sourceTile, sourcePoly);
+        const targetCenter = getPolyCenter(_createNavMeshLinksHelper_targetCenter, targetTile, targetPoly);
 
         // Get the edge vertices for this link
         const edgeIndex = link.edge;
@@ -1435,22 +1444,21 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
         const v0Index = sourcePoly.vertices[edgeIndex] * 3;
         const v1Index = sourcePoly.vertices[nextEdgeIndex] * 3;
 
-        const edgeStart = [sourceTile.vertices[v0Index], sourceTile.vertices[v0Index + 1], sourceTile.vertices[v0Index + 2]];
-        const edgeEnd = [sourceTile.vertices[v1Index], sourceTile.vertices[v1Index + 1], sourceTile.vertices[v1Index + 2]];
+        const edgeStart = vec3.fromBuffer(_createNavMeshLinksHelper_edgeStart, sourceTile.vertices, v0Index);
+        const edgeEnd = vec3.fromBuffer(_createNavMeshLinksHelper_edgeEnd, sourceTile.vertices, v1Index);
 
         // Calculate edge midpoint
-        const edgeMidpoint = [(edgeStart[0] + edgeEnd[0]) / 2, (edgeStart[1] + edgeEnd[1]) / 2, (edgeStart[2] + edgeEnd[2]) / 2];
+        const edgeMidpoint = vec3.add(_createNavMeshLinksHelper_edgeMidpoint, edgeStart, edgeEnd);
+        vec3.scale(edgeMidpoint, edgeMidpoint, 0.5);
 
         // Move the edge midpoint slightly towards the polygon center (10% of the way)
         const inwardFactor = 0.1;
-        const sourcePoint = [
-            lerp(edgeMidpoint[0], sourceCenter[0], inwardFactor),
-            lerp(edgeMidpoint[1], sourceCenter[1], inwardFactor) + 0.05, // slight y offset
-            lerp(edgeMidpoint[2], sourceCenter[2], inwardFactor),
-        ];
+        const sourcePoint = vec3.lerp(_createNavMeshLinksHelper_sourcePoint, edgeMidpoint, sourceCenter, inwardFactor);
+        sourcePoint[1] += 0.05; // slight y offset
 
         // For the target, use the target polygon center
-        const targetPoint = [targetCenter[0], targetCenter[1] + 0.05, targetCenter[2]];
+        const targetPoint = vec3.copy(_createNavMeshLinksHelper_targetPoint, targetCenter);
+        targetPoint[1] += 0.05; // slight y offset
 
         // Create arced line with multiple segments
         const numSegments = 12;
@@ -1653,23 +1661,43 @@ export function createSearchNodesHelper(nodePool: SearchNodePool): DebugPrimitiv
     const pointColor = [1.0, 192 / 255, 0.0];
     const lineColor = [1.0, 192 / 255, 0.0];
 
-    for (const key in nodePool) {
-        const node = nodePool[key as SearchNodeRef];
-        const [x, y, z] = node.position;
-        pointPositions.push(x, y + yOffset, z);
-        pointColors.push(pointColor[0], pointColor[1], pointColor[2]);
+    // Collect all nodes from the pool (each nodeRef can have multiple states)
+    for (const nodeRef in nodePool) {
+        const nodes = nodePool[nodeRef];
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            const [x, y, z] = node.position;
+            pointPositions.push(x, y + yOffset, z);
+            pointColors.push(pointColor[0], pointColor[1], pointColor[2]);
+        }
     }
 
     // Lines to parents
-    for (const key in nodePool) {
-        const node = nodePool[key as SearchNodeRef];
-        if (!node.parent) continue;
-        const parent = nodePool[node.parent];
-        if (!parent) continue;
-        const [cx, cy, cz] = node.position;
-        const [px, py, pz] = parent.position;
-        linePositions.push(cx, cy + yOffset, cz, px, py + yOffset, pz);
-        lineColors.push(lineColor[0], lineColor[1], lineColor[2], lineColor[0], lineColor[1], lineColor[2]);
+    for (const nodeRef in nodePool) {
+        const nodes = nodePool[nodeRef];
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            if (node.parentNodeRef === null || node.parentState === null) continue;
+
+            // Find parent node
+            const parentNodes = nodePool[node.parentNodeRef];
+            if (!parentNodes) continue;
+
+            let parent: SearchNode | undefined;
+            for (let j = 0; j < parentNodes.length; j++) {
+                if (parentNodes[j].state === node.parentState) {
+                    parent = parentNodes[j];
+                    break;
+                }
+            }
+
+            if (!parent) continue;
+
+            const [cx, cy, cz] = node.position;
+            const [px, py, pz] = parent.position;
+            linePositions.push(cx, cy + yOffset, cz, px, py + yOffset, pz);
+            lineColors.push(lineColor[0], lineColor[1], lineColor[2], lineColor[0], lineColor[1], lineColor[2]);
+        }
     }
 
     if (pointPositions.length > 0) {

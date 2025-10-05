@@ -46,7 +46,9 @@ In navcat, a navigation mesh can contain multiple "tiles", where each tile conta
 
 As tiles are added and removed from a navmesh, a global graph of `nodes` and `links` is maintained to represent the entire navigation mesh, which is used for pathfinding and navigation queries.
 
-Each `node` represents either a polygon in the navigation mesh or an off-mesh connection.
+Each `node` represents either a polygon in the navigation mesh or an off-mesh connection. Many APIs will accept a `NodeRef` to identify a specific polygon or off-mesh connection in the navigation mesh.
+
+The `NodeRef` is a packed number that encodes the node type (polygon or off-mesh connection), the node index (index in the `navMesh.nodes` array), and a sequence number which handles invalidation of node references when tiles or off mesh connections are removed and re-added.
 
 Each `link` represents a connection between two nodes, either between two polygons if they share an edge, or between a polygon and an off-mesh connection.
 
@@ -421,11 +423,7 @@ To see an example of creating a tiled navigation mesh, see the "Tiled NavMesh Ex
 
 How you want to manage tiles is up to you. You can create all the tiles at once, or create and add/remove tiles dynamically at runtime.
 
-If you remove and re-add tiles at given coordinates, note that the node references for polygons will become invalidated.
-
-The structure of a navigation mesh node in navcat is `0,tileId,polyIndex`, where `0` is the node type, `tileId` is the incrementing index id of the tile, and `polyIndex` is the index of the polygon within that tile.
-
-When you add a tile to a navigation mesh, a new unique `tileId` is assigned to the tile to force any existing node references to become invalid, so you don't accidentally start referencing polygons incorrectly.
+If you remove and re-add tiles at given coordinates, note that the node references for polygons will become invalidated. Any custom pathfinding logic you write that references polygons will need to call `isValidNodeRef` to check if a node reference is still valid before using it.
 
 ## BYO Navigation Meshes
 
