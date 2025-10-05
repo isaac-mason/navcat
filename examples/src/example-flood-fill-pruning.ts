@@ -60,17 +60,17 @@ const createPolyHelpers = (navMesh: NavMesh): void => {
     for (const tileId in navMesh.tiles) {
         const tile = navMesh.tiles[tileId];
         for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-            const polyRef = getNodeByTileAndPoly(navMesh, tile, polyIndex).ref;
+            const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
 
-            const helper = createNavMeshPolyHelper(navMesh, polyRef, [0.3, 0.8, 0.3]);
+            const helper = createNavMeshPolyHelper(navMesh, node.ref, [0.3, 0.8, 0.3]);
 
             // initially visible with normal appearance
             helper.object.position.y += 0.1; // adjust height for visibility
             scene.add(helper.object);
 
-            polyHelpers.set(polyRef, {
+            polyHelpers.set(node.ref, {
                 helper,
-                polyRef,
+                polyRef: node.ref,
             });
         }
     }
@@ -170,6 +170,8 @@ function floodFillPruneNavMesh(navMesh: NavMesh, startRef: NodeRef) {
 
             const toNodeIndex = link.toNodeIndex;
             if (visited.has(toNodeIndex)) continue;
+
+            queue.push(toNodeIndex);
         }
     }
 
