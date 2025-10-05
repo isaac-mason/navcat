@@ -12,6 +12,8 @@
 - feat: change NodeRef to store a node type, a node index, and a node sequence number for invalidation
 - fix: remove existing tiles in positio
 n in addTile before adding new tile
+- fix: contour set simplifyContour shif
+ting bug
 
 ## 0.0.3
 
