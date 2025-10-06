@@ -192,59 +192,19 @@ export const worldToTilePosition = (outTilePosition: Vec2, navMesh: NavMesh, wor
     return outTilePosition;
 };
 
-export type GetNodeAreaAndFlagsResult = {
-    success: boolean;
-    area: number;
-    flags: number;
-};
-
-export const createGetNodeAreaAndFlagsResult = (): GetNodeAreaAndFlagsResult => ({
-    success: false,
-    area: 0,
-    flags: 0,
-});
-
-export const getNodeAreaAndFlags = (
-    out: GetNodeAreaAndFlagsResult,
-    navMesh: NavMesh,
-    nodeRef: NodeRef,
-): GetNodeAreaAndFlagsResult => {
-    out.success = false;
-    out.area = 0;
-    out.flags = 0;
-
-    const nodeType = getNodeRefType(nodeRef);
-
-    if (nodeType === NodeType.POLY) {
-        const { tileId, polyIndex } = getNodeByRef(navMesh, nodeRef);
-        const poly = navMesh.tiles[tileId].polys[polyIndex];
-        out.flags = poly.flags;
-        out.area = poly.area;
-        out.success = true;
-    } else if (nodeType === NodeType.OFFMESH) {
-        const { offMeshConnectionId } = getNodeByRef(navMesh, nodeRef);
-        const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
-        out.flags = offMeshConnection.flags;
-        out.area = offMeshConnection.area;
-        out.success = true;
-    }
-
-    return out;
-};
-
 export type GetTileAndPolyByRefResult =
     | {
-          success: false;
-          tile: NavMeshTile | null;
-          poly: NavMeshPoly | null;
-          polyIndex: number;
-      }
+        success: false;
+        tile: NavMeshTile | null;
+        poly: NavMeshPoly | null;
+        polyIndex: number;
+    }
     | {
-          success: true;
-          tile: NavMeshTile;
-          poly: NavMeshPoly;
-          polyIndex: number;
-      };
+        success: true;
+        tile: NavMeshTile;
+        poly: NavMeshPoly;
+        polyIndex: number;
+    };
 
 /**
  * Gets the tile and polygon from a polygon reference
@@ -846,6 +806,8 @@ const allocateNode = (navMesh: NavMesh) => {
             allocated: true,
             index: nodeIndex,
             ref: 0,
+            area: 0,
+            flags: 0,
             links: [],
             type: 0,
             tileId: -1,
@@ -864,6 +826,8 @@ const releaseNode = (navMesh: NavMesh, index: number) => {
     node.links.length = 0;
     node.ref = 0;
     node.type = 0;
+    node.area = -1;
+    node.flags = -1;
     node.tileId = -1;
     node.polyIndex = -1;
     node.offMeshConnectionId = -1;
@@ -1293,8 +1257,10 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
     // create a node for the off mesh connection start
     const offMeshStartNode = allocateNode(navMesh);
     const offMeshStartNodeRef = serNodeRef(NodeType.OFFMESH, offMeshStartNode.index, offMeshConnection.sequence);
-    offMeshStartNode.ref = offMeshStartNodeRef;
     offMeshStartNode.type = NodeType.OFFMESH;
+    offMeshStartNode.ref = offMeshStartNodeRef;
+    offMeshStartNode.area = offMeshConnection.area;
+    offMeshStartNode.flags = offMeshConnection.flags;
     offMeshStartNode.offMeshConnectionId = offMeshConnection.id;
     offMeshStartNode.offMeshConnectionSide = OffMeshConnectionSide.START;
 
@@ -1330,8 +1296,10 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
         // create a node for the off mesh connection end
         const offMeshEndNode = allocateNode(navMesh);
         const offMeshEndNodeRef = serNodeRef(NodeType.OFFMESH, offMeshEndNode.index, offMeshConnection.sequence);
-        offMeshEndNode.ref = offMeshEndNodeRef;
         offMeshEndNode.type = NodeType.OFFMESH;
+        offMeshEndNode.ref = offMeshEndNodeRef;
+        offMeshEndNode.area = offMeshConnection.area;
+        offMeshEndNode.flags = offMeshConnection.flags;
         offMeshEndNode.offMeshConnectionId = offMeshConnection.id;
         offMeshEndNode.offMeshConnectionSide = OffMeshConnectionSide.END;
 
@@ -1439,6 +1407,8 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMes
 
         node.ref = serNodeRef(NodeType.POLY, node.index, tile.sequence);
         node.type = NodeType.POLY;
+        node.area = tile.polys[i].area;
+        node.flags = tile.polys[i].flags;
         node.tileId = tile.id;
         node.polyIndex = i;
         node.links.length = 0;
@@ -1641,35 +1611,32 @@ export type QueryFilter = {
     ): number;
 };
 
+export const ANY_QUERY_FILTER = {
+    getCost(pa, pb, _navMesh, _prevRef, _curRef, _nextRef) {
+        // use the distance between the two points as the cost
+        return vec3.distance(pa, pb);
+    },
+    passFilter(_nodeRef: NodeRef, _navMesh: NavMesh): boolean {
+        return true;
+    },
+} satisfies QueryFilter;
+
 export type DefaultQueryFilter = QueryFilter & {
     includeFlags: number;
     excludeFlags: number;
 };
 
-export const DEFAULT_QUERY_FILTER = (() => {
-    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
+export const DEFAULT_QUERY_FILTER = {
+    includeFlags: 0xffffffff,
+    excludeFlags: 0,
+    getCost(pa, pb, _navMesh, _prevRef, _curRef, _nextRef) {
+        // use the distance between the two points as the cost
+        return vec3.distance(pa, pb);
+    },
+    passFilter(nodeRef, navMesh) {
+        // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
+        const { flags } = getNodeByRef(navMesh, nodeRef);
 
-    return {
-        includeFlags: 0xffffffff,
-        excludeFlags: 0,
-        getCost(pa, pb, navMesh, _prevRef, _curRef, nextRef) {
-            // handle offmesh connection 'cost' override
-            if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH) {
-                const node = getNodeByRef(navMesh, nextRef);
-                const offMeshConnection = navMesh.offMeshConnections[node.offMeshConnectionId];
-                if (offMeshConnection.cost !== undefined) {
-                    return offMeshConnection.cost;
-                }
-            }
-
-            // use the distance between the two points as the cost
-            return vec3.distance(pa, pb);
-        },
-        passFilter(nodeRef, navMesh) {
-            // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
-            const { flags } = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
-
-            return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
-        },
-    } satisfies DefaultQueryFilter;
-})();
+        return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
+    },
+} satisfies DefaultQueryFilter;

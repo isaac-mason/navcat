@@ -3,31 +3,30 @@ import type { Box3, Vec3 } from 'maaths';
 import { box3, vec2, vec3 } from 'maaths';
 import {
     addTile,
-    buildCompactHeightfield,
     BuildContext,
     type BuildContextState,
+    buildCompactHeightfield,
     buildContours,
     buildDistanceField,
     buildNavMeshBvTree,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
-    calculateGridSize,
-    calculateMeshBounds,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
-    createGetNodeAreaAndFlagsResult,
+    calculateGridSize,
+    calculateMeshBounds,
     createHeightfield,
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     erodeWalkableArea,
+    FindStraightPathResultFlags,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
     filterWalkableLowHeightSpans,
     findPath,
-    FindStraightPathResultFlags,
-    getNodeAreaAndFlags,
+    getNodeByRef,
     getNodeRefType,
     type Heightfield,
     markBoxArea,
@@ -47,7 +46,13 @@ import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { createCompactHeightfieldSolidHelper, createHeightfieldHelper, createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
+import {
+    createCompactHeightfieldSolidHelper,
+    createHeightfieldHelper,
+    createNavMeshHelper,
+    createNavMeshPolyHelper,
+    createSearchNodesHelper,
+} from './common/debug';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
@@ -58,29 +63,21 @@ enum NavMeshAreaType {
 }
 
 /* custom query filters */
-const WATER_ONLY_QUERY_FILTER: QueryFilter = (() => {
-    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
+const WATER_ONLY_QUERY_FILTER: QueryFilter = {
+    ...DEFAULT_QUERY_FILTER,
+    passFilter(nodeRef, navMesh) {
+        const node = getNodeByRef(navMesh, nodeRef);
+        return node.area === NavMeshAreaType.WATER;
+    },
+};
 
-    return {
-        ...DEFAULT_QUERY_FILTER,
-        passFilter(nodeRef, navMesh) {
-            const areaAndFlags = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
-            return areaAndFlags.area === NavMeshAreaType.WATER;
-        },
-    };
-})();
-
-const GROUND_ONLY_QUERY_FILTER: QueryFilter = (() => {
-    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
-
-    return {
-        ...DEFAULT_QUERY_FILTER,
-        passFilter(nodeRef, navMesh) {
-            const areaAndFlags = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
-            return areaAndFlags.area === NavMeshAreaType.GROUND;
-        },
-    };
-})();
+const GROUND_ONLY_QUERY_FILTER: QueryFilter = {
+    ...DEFAULT_QUERY_FILTER,
+    passFilter(nodeRef, navMesh) {
+        const node = getNodeByRef(navMesh, nodeRef);
+        return node.area === NavMeshAreaType.GROUND;
+    },
+};
 
 /* navmesh generator for water and ground custom areas */
 type NavMeshInput = {

@@ -103,6 +103,12 @@ export type NavMeshNode = {
     /** links for this nav mesh node */
     links: number[];
 
+    /** the user defined flags for this node */
+    flags: number;
+
+    /** the user defined area id for this node */
+    area: number;
+
     /** the type of the nav mesh node */
     type: NodeType;
 
@@ -178,11 +184,6 @@ export type OffMeshConnection = {
     flags: number;
     /** the area id for the off mesh connection */
     area: number;
-    /**
-     * optional override cost for this connection.
-     * if this is provided, the default query filter getCost() will return this value instead of using the distance of the start to end.
-     */
-    cost?: number;
 };
 
 export type OffMeshConnectionParams = Omit<OffMeshConnection, 'id' | 'sequence'>;

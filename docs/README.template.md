@@ -267,6 +267,24 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <Example id="example-find-path" />
 
+### isValidNodeRef
+
+<Snippet source="./snippets/solo-navmesh.ts" select="isValidNodeRef" />
+
+<RenderType type="import('navcat').isValidNodeRef" />
+
+### getNodeByRef
+
+<Snippet source="./snippets/solo-navmesh.ts" select="getNodeByRef" />
+
+<RenderType type="import('navcat').getNodeByRef" />
+
+### getNodeByTileAndPoly
+
+<Snippet source="./snippets/solo-navmesh.ts" select="getNodeByTileAndPoly" />
+
+<RenderType type="import('navcat').getNodeByTileAndPoly" />
+
 ### findNearestPoly
 
 <Snippet source="./snippets/solo-navmesh.ts" select="findNearestPoly" />
@@ -344,18 +362,6 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 <Snippet source="./snippets/solo-navmesh.ts" select="getPortalPoints" />
 
 <RenderType type="import('navcat').getPortalPoints" />
-
-### isValidNodeRef
-
-<Snippet source="./snippets/solo-navmesh.ts" select="isValidNodeRef" />
-
-<RenderType type="import('navcat').isValidNodeRef" />
-
-### getNodeAreaAndFlags
-
-<Snippet source="./snippets/solo-navmesh.ts" select="getNodeAreaAndFlags" />
-
-<RenderType type="import('navcat').getNodeAreaAndFlags" />
 
 ### queryPolygons
 

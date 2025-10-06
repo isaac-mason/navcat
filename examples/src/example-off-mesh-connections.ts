@@ -107,7 +107,6 @@ const offMeshConnections: OffMeshConnectionParams[] = [
         end: [-2.735661224133032, 2.3264200687408447, 0.9084349415865054],
         direction: OffMeshConnectionDirection.START_TO_END,
         radius: 0.5,
-        cost: 0,
         area: 0,
         flags: 0xffffff,
     },

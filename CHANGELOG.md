@@ -14,6 +14,8 @@
 n in addTile before adding new tile
 - fix: contour set simplifyContour shif
 ting bug
+- feat: remove OffMeshConnections 'cost' override property, it is easily and more flexibly implementable with a custom query filter
+- feat: remove 'getNodeAreaAndFlags', replace by adding 'areas' and 'flags' to navmesh.nodes
 
 ## 0.0.3
 

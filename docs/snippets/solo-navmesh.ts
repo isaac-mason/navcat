@@ -454,17 +454,6 @@ const tile = Nav.addTile(navMesh, tileParams);
 }
 
 {
-    /* SNIPPET_START: getNodeAreaAndFlags */
-    const nodeRef: Nav.NodeRef = 0;
-
-    const areaAndFlags = Nav.getNodeAreaAndFlags(Nav.createGetNodeAreaAndFlagsResult(), navMesh, nodeRef);
-    console.log(areaAndFlags.success);
-    console.log(areaAndFlags.area);
-    console.log(areaAndFlags.flags);
-    /* SNIPPET_END: getNodeAreaAndFlags */
-}
-
-{
     /* SNIPPET_START: queryPolygons */
     
     // find all polys within a box area
@@ -533,9 +522,6 @@ const tile = Nav.addTile(navMesh, tileParams);
         direction: Nav.OffMeshConnectionDirection.START_TO_END,
         flags: 1,
         area: 0,
-        // optional cost override, if not provided the cost will be the distance from start to end
-        // making the cost 0 means the teleporter will be more preferred over normal walkable paths
-        cost: 0,
     };
 
     // add the off-mesh connection to the nav mesh, returns the off-mesh connection id

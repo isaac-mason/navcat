@@ -207,11 +207,10 @@ export const getPortalPoints = (
 
     // handle from offmesh connection to poly
     if (fromNodeType === NodeType.OFFMESH) {
-        const { offMeshConnectionId, offMeshConnectionSide } = getNodeByRef(navMesh, fromNodeRef);
-        const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+        const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
         if (!offMeshConnection) return false;
 
-        const position = offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
+        const position = fromNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
 
         vec3.copy(outLeft, position);
         vec3.copy(outRight, position);

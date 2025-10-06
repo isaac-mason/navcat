@@ -19,6 +19,11 @@
         "description": "Example of using custom area types in a navmesh",
         "tags": ["navmesh", "areas"]
     },
+    "example-doors-and-keys": {
+        "title": "Doors and Keys",
+        "description": "Example of using query filters to create conditional areas in a navmesh",
+        "tags": ["navmesh", "areas", "query", "door", "key"]
+    },
     "example-custom-gltf-navmesh": {
         "title": "Custom GLTF NavMesh",
         "description": "Example of loading a level model and navmesh from a GLTF file",

@@ -55,19 +55,25 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
+      <a href="https://navcat.dev#example-doors-and-keys">
+        <img src="./examples/public/screenshots/example-doors-and-keys.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Doors and Keys
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom GLTF NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-navmesh-generation">
         <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom NavMesh Generation
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -80,14 +86,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Tiled NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flood Fill Pruning
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-path">
         <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -100,14 +106,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Smooth Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Off-Mesh Connections
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -120,14 +126,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Move Along Surface
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Nearest Poly
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -140,6 +146,8 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Random Point Around Circle
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-upload-model">
         <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -169,6 +177,9 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   - [8. Assemble the navigation mesh](#8-assemble-the-navigation-mesh)
 - [Navigation Mesh Querying](#navigation-mesh-querying)
   - [findPath](#findpath)
+  - [isValidNodeRef](#isvalidnoderef)
+  - [getNodeByRef](#getnodebyref)
+  - [getNodeByTileAndPoly](#getnodebytileandpoly)
   - [findNearestPoly](#findnearestpoly)
   - [findNodePath](#findnodepath)
   - [findStraightPath](#findstraightpath)
@@ -180,8 +191,6 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   - [getClosestPointOnPoly](#getclosestpointonpoly)
   - [getClosestPointOnDetailEdges](#getclosestpointondetailedges)
   - [getPortalPoints](#getportalpoints)
-  - [isValidNodeRef](#isvalidnoderef)
-  - [getNodeAreaAndFlags](#getnodeareaandflags)
   - [queryPolygons](#querypolygons)
   - [queryPolygonsInTile](#querypolygonsintile)
 - [Custom Query Filters and Custom Area Types](#custom-query-filters-and-custom-area-types)
@@ -1090,6 +1099,36 @@ export function findPath(navMesh: NavMesh, start: Vec3, end: Vec3, halfExtents: 
 </div>
 
 
+### isValidNodeRef
+
+```ts
+const nodeRef: Nav.NodeRef = 0;
+
+// true if the node ref is valid, useful to call after updating tiles to validate the reference is still valid
+const isValid = Nav.isValidNodeRef(navMesh, nodeRef);
+console.log(isValid);
+```
+
+```ts
+export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
+```
+
+### getNodeByRef
+
+<Snippet source="./snippets/solo-navmesh.ts" select="getNodeByRef" />
+
+```ts
+export function getNodeByRef(navMesh: NavMesh, ref: NodeRef);
+```
+
+### getNodeByTileAndPoly
+
+<Snippet source="./snippets/solo-navmesh.ts" select="getNodeByTileAndPoly" />
+
+```ts
+export function getNodeByTileAndPoly(navMesh: NavMesh, tile: NavMeshTile, polyIndex: number);
+```
+
 ### findNearestPoly
 
 ```ts
@@ -1549,35 +1588,6 @@ console.log('right:', right);
 export function getPortalPoints(navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: NodeRef, outLeft: Vec3, outRight: Vec3): boolean;
 ```
 
-### isValidNodeRef
-
-```ts
-const nodeRef: Nav.NodeRef = 0;
-
-// true if the node ref is valid, useful to call after updating tiles to validate the reference is still valid
-const isValid = Nav.isValidNodeRef(navMesh, nodeRef);
-console.log(isValid);
-```
-
-```ts
-export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
-```
-
-### getNodeAreaAndFlags
-
-```ts
-const nodeRef: Nav.NodeRef = 0;
-
-const areaAndFlags = Nav.getNodeAreaAndFlags(Nav.createGetNodeAreaAndFlagsResult(), navMesh, nodeRef);
-console.log(areaAndFlags.success);
-console.log(areaAndFlags.area);
-console.log(areaAndFlags.flags);
-```
-
-```ts
-export function getNodeAreaAndFlags(out: GetNodeAreaAndFlagsResult, navMesh: NavMesh, nodeRef: NodeRef): GetNodeAreaAndFlagsResult;
-```
-
 ### queryPolygons
 
 ```ts
@@ -1649,33 +1659,20 @@ export type QueryFilter = {
 ```
 
 ```ts
-export const DEFAULT_QUERY_FILTER = (() => {
-    const getNodeAreaAndFlagsResult = createGetNodeAreaAndFlagsResult();
+export const DEFAULT_QUERY_FILTER = {
+    includeFlags: 0xffffffff,
+    excludeFlags: 0,
+    getCost(pa, pb, _navMesh, _prevRef, _curRef, _nextRef) {
+        // use the distance between the two points as the cost
+        return vec3.distance(pa, pb);
+    },
+    passFilter(nodeRef, navMesh) {
+        // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
+        const { flags } = getNodeByRef(navMesh, nodeRef);
 
-    return {
-        includeFlags: 0xffffffff,
-        excludeFlags: 0,
-        getCost(pa, pb, navMesh, _prevRef, _curRef, nextRef) {
-            // handle offmesh connection 'cost' override
-            if (nextRef && getNodeRefType(nextRef) === NodeType.OFFMESH) {
-                const node = getNodeByRef(navMesh, nextRef);
-                const offMeshConnection = navMesh.offMeshConnections[node.offMeshConnectionId];
-                if (offMeshConnection.cost !== undefined) {
-                    return offMeshConnection.cost;
-                }
-            }
-
-            // use the distance between the two points as the cost
-            return vec3.distance(pa, pb);
-        },
-        passFilter(nodeRef, navMesh) {
-            // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
-            const { flags } = getNodeAreaAndFlags(getNodeAreaAndFlagsResult, navMesh, nodeRef);
-
-            return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
-        },
-    } satisfies DefaultQueryFilter;
-})();
+        return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
+    },
+} satisfies DefaultQueryFilter;
 ```
 
 Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
@@ -1756,9 +1753,6 @@ const oneWayTeleporterOffMeshConnection: Nav.OffMeshConnectionParams = {
     direction: Nav.OffMeshConnectionDirection.START_TO_END,
     flags: 1,
     area: 0,
-    // optional cost override, if not provided the cost will be the distance from start to end
-    // making the cost 0 means the teleporter will be more preferred over normal walkable paths
-    cost: 0,
 };
 
 // add the off-mesh connection to the nav mesh, returns the off-mesh connection id
