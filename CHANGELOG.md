@@ -17,6 +17,9 @@ ting bug
 - feat: remove OffMeshConnections 'cost' override property, it is easily and more flexibly implementable with a custom query filter
 - feat: remove 'getNodeAreaAndFlags', replace by adding 'areas' and 'flags' to navmesh.nodes
 - fix: bv tree bounds logic should consider both poly mesh vertices and poly mesh detail vertices
+- feat: require building bv trees for tiles, remove non bv tree codepaths
+- feat: introduce 'buildTile' api for building a tile's bv tree and initializing runtime properties
+- feat: change 'addTile' to take a built tile instead of building internally
 
 ## 0.0.3
 

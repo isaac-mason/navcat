@@ -6,10 +6,10 @@ import {
     buildCompactHeightfield,
     buildContours,
     buildDistanceField,
-    buildNavMeshBvTree,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
+    buildTile,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
@@ -77,7 +77,7 @@ export type TiledNavMeshResult = {
     intermediates: TiledNavMeshIntermediates;
 };
 
-const buildTile = (
+const buildNavMeshTile = (
     ctx: BuildContextState,
     positions: ArrayLike<number>,
     indices: ArrayLike<number>,
@@ -299,7 +299,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
                 ],
             ];
 
-            const { triAreaIds, polyMesh, polyMeshDetail, heightfield, compactHeightfield, contourSet } = buildTile(
+            const { triAreaIds, polyMesh, polyMeshDetail, heightfield, compactHeightfield, contourSet } = buildNavMeshTile(
                 ctx,
                 positions,
                 indices,
@@ -334,7 +334,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
 
             const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 
-            const tile: NavMeshTileParams = {
+            const tileParams: NavMeshTileParams = {
                 bounds: polyMesh.bounds,
                 vertices: tilePolys.vertices,
                 polys: tilePolys.polys,
@@ -344,7 +344,6 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
                 tileX,
                 tileY,
                 tileLayer: 0,
-                bvTree: null,
                 cellSize,
                 cellHeight,
                 walkableHeight: walkableHeightWorld,
@@ -352,7 +351,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
                 walkableClimb: walkableClimbWorld,
             };
 
-            buildNavMeshBvTree(tile);
+            const tile = buildTile(tileParams);
 
             addTile(nav, tile);
         }

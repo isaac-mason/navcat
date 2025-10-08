@@ -6,10 +6,10 @@ import {
     buildCompactHeightfield,
     buildContours,
     buildDistanceField,
-    buildNavMeshBvTree,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
+    buildTile,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
@@ -272,7 +272,7 @@ export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMes
 
     const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 
-    const tile: NavMeshTileParams = {
+    const tileParams: NavMeshTileParams = {
         bounds: polyMesh.bounds,
         vertices: tilePolys.vertices,
         polys: tilePolys.polys,
@@ -282,7 +282,6 @@ export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMes
         tileX: 0,
         tileY: 0,
         tileLayer: 0,
-        bvTree: null,
         cellSize,
         cellHeight,
         walkableHeight: walkableHeightWorld,
@@ -290,7 +289,7 @@ export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMes
         walkableClimb: walkableClimbWorld,
     };
 
-    buildNavMeshBvTree(tile);
+    const tile = buildTile(tileParams);
 
     addTile(nav, tile);
 

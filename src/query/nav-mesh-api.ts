@@ -3,6 +3,7 @@ import { box3, vec2, vec3 } from 'maaths';
 import { DETAIL_EDGE_BOUNDARY, POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
 import { closestHeightPointTriangle, createDistancePtSegSqr2dResult, distancePtSegSqr2d, pointInPoly } from '../geometry';
 import { createIndexPool, releaseIndex, requestIndex } from '../index-pool';
+import { buildNavMeshBvTree } from './bv-tree';
 import {
     type NavMesh,
     type NavMeshPoly,
@@ -194,17 +195,17 @@ export const worldToTilePosition = (outTilePosition: Vec2, navMesh: NavMesh, wor
 
 export type GetTileAndPolyByRefResult =
     | {
-        success: false;
-        tile: NavMeshTile | null;
-        poly: NavMeshPoly | null;
-        polyIndex: number;
-    }
+          success: false;
+          tile: NavMeshTile | null;
+          poly: NavMeshPoly | null;
+          polyIndex: number;
+      }
     | {
-        success: true;
-        tile: NavMeshTile;
-        poly: NavMeshPoly;
-        polyIndex: number;
-    };
+          success: true;
+          tile: NavMeshTile;
+          poly: NavMeshPoly;
+          polyIndex: number;
+      };
 
 /**
  * Gets the tile and polygon from a polygon reference
@@ -661,7 +662,6 @@ export const findNearestPoly = (
 
 const _queryPolygonsInTileBmax = vec3.create();
 const _queryPolygonsInTileBmin = vec3.create();
-const _queryPolygonsInTileVertex = vec3.create();
 
 export const queryPolygonsInTile = (
     out: NodeRef[],
@@ -670,100 +670,60 @@ export const queryPolygonsInTile = (
     bounds: Box3,
     filter: QueryFilter,
 ): void => {
-    if (tile.bvTree) {
-        const qmin = bounds[0];
-        const qmax = bounds[1];
+    const qmin = bounds[0];
+    const qmax = bounds[1];
 
-        let nodeIndex = 0;
-        const endIndex = tile.bvTree.nodes.length;
-        const tbmin = tile.bounds[0];
-        const tbmax = tile.bounds[1];
-        const qfac = tile.bvTree.quantFactor;
+    let nodeIndex = 0;
+    const endIndex = tile.bvTree.nodes.length;
+    const tbmin = tile.bounds[0];
+    const tbmax = tile.bounds[1];
+    const qfac = tile.bvTree.quantFactor;
 
-        // clamp query box to world box.
-        const minx = Math.max(Math.min(qmin[0], tbmax[0]), tbmin[0]) - tbmin[0];
-        const miny = Math.max(Math.min(qmin[1], tbmax[1]), tbmin[1]) - tbmin[1];
-        const minz = Math.max(Math.min(qmin[2], tbmax[2]), tbmin[2]) - tbmin[2];
-        const maxx = Math.max(Math.min(qmax[0], tbmax[0]), tbmin[0]) - tbmin[0];
-        const maxy = Math.max(Math.min(qmax[1], tbmax[1]), tbmin[1]) - tbmin[1];
-        const maxz = Math.max(Math.min(qmax[2], tbmax[2]), tbmin[2]) - tbmin[2];
+    // clamp query box to world box.
+    const minx = Math.max(Math.min(qmin[0], tbmax[0]), tbmin[0]) - tbmin[0];
+    const miny = Math.max(Math.min(qmin[1], tbmax[1]), tbmin[1]) - tbmin[1];
+    const minz = Math.max(Math.min(qmin[2], tbmax[2]), tbmin[2]) - tbmin[2];
+    const maxx = Math.max(Math.min(qmax[0], tbmax[0]), tbmin[0]) - tbmin[0];
+    const maxy = Math.max(Math.min(qmax[1], tbmax[1]), tbmin[1]) - tbmin[1];
+    const maxz = Math.max(Math.min(qmax[2], tbmax[2]), tbmin[2]) - tbmin[2];
 
-        // quantize
-        _queryPolygonsInTileBmin[0] = Math.floor(qfac * minx) & 0xfffe;
-        _queryPolygonsInTileBmin[1] = Math.floor(qfac * miny) & 0xfffe;
-        _queryPolygonsInTileBmin[2] = Math.floor(qfac * minz) & 0xfffe;
-        _queryPolygonsInTileBmax[0] = Math.floor(qfac * maxx + 1) | 1;
-        _queryPolygonsInTileBmax[1] = Math.floor(qfac * maxy + 1) | 1;
-        _queryPolygonsInTileBmax[2] = Math.floor(qfac * maxz + 1) | 1;
+    // quantize
+    _queryPolygonsInTileBmin[0] = Math.floor(qfac * minx) & 0xfffe;
+    _queryPolygonsInTileBmin[1] = Math.floor(qfac * miny) & 0xfffe;
+    _queryPolygonsInTileBmin[2] = Math.floor(qfac * minz) & 0xfffe;
+    _queryPolygonsInTileBmax[0] = Math.floor(qfac * maxx + 1) | 1;
+    _queryPolygonsInTileBmax[1] = Math.floor(qfac * maxy + 1) | 1;
+    _queryPolygonsInTileBmax[2] = Math.floor(qfac * maxz + 1) | 1;
 
-        // traverse tree
-        while (nodeIndex < endIndex) {
-            const bvNode = tile.bvTree.nodes[nodeIndex];
+    // traverse tree
+    while (nodeIndex < endIndex) {
+        const bvNode = tile.bvTree.nodes[nodeIndex];
 
-            const nodeBounds = bvNode.bounds;
-            const overlap =
-                _queryPolygonsInTileBmin[0] <= nodeBounds[1][0] &&
-                _queryPolygonsInTileBmax[0] >= nodeBounds[0][0] &&
-                _queryPolygonsInTileBmin[1] <= nodeBounds[1][1] &&
-                _queryPolygonsInTileBmax[1] >= nodeBounds[0][1] &&
-                _queryPolygonsInTileBmin[2] <= nodeBounds[1][2] &&
-                _queryPolygonsInTileBmax[2] >= nodeBounds[0][2];
+        const nodeBounds = bvNode.bounds;
+        const overlap =
+            _queryPolygonsInTileBmin[0] <= nodeBounds[1][0] &&
+            _queryPolygonsInTileBmax[0] >= nodeBounds[0][0] &&
+            _queryPolygonsInTileBmin[1] <= nodeBounds[1][1] &&
+            _queryPolygonsInTileBmax[1] >= nodeBounds[0][1] &&
+            _queryPolygonsInTileBmin[2] <= nodeBounds[1][2] &&
+            _queryPolygonsInTileBmax[2] >= nodeBounds[0][2];
 
-            const isLeafNode = bvNode.i >= 0;
+        const isLeafNode = bvNode.i >= 0;
 
-            if (isLeafNode && overlap) {
-                const polyIndex = bvNode.i;
-                const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
+        if (isLeafNode && overlap) {
+            const polyIndex = bvNode.i;
+            const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
 
-                if (filter.passFilter(node.ref, navMesh)) {
-                    out.push(node.ref);
-                }
-            }
-
-            if (overlap || isLeafNode) {
-                nodeIndex++;
-            } else {
-                const escapeIndex = -bvNode.i;
-                nodeIndex += escapeIndex;
+            if (filter.passFilter(node.ref, navMesh)) {
+                out.push(node.ref);
             }
         }
-    } else {
-        const qmin = bounds[0];
-        const qmax = bounds[1];
 
-        for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-            const poly = tile.polys[polyIndex];
-            const polyRef = getNodeByTileAndPoly(navMesh, tile, polyIndex).ref;
-
-            // must pass filter
-            if (!filter.passFilter(polyRef, navMesh)) {
-                continue;
-            }
-
-            // calc polygon bounds
-            const firstVertexIndex = poly.vertices[0];
-            vec3.fromBuffer(_queryPolygonsInTileVertex, tile.vertices, firstVertexIndex * 3);
-            vec3.copy(_queryPolygonsInTileBmax, _queryPolygonsInTileVertex);
-            vec3.copy(_queryPolygonsInTileBmin, _queryPolygonsInTileVertex);
-
-            for (let j = 1; j < poly.vertices.length; j++) {
-                const vertexIndex = poly.vertices[j];
-                vec3.fromBuffer(_queryPolygonsInTileVertex, tile.vertices, vertexIndex * 3);
-                vec3.min(_queryPolygonsInTileBmin, _queryPolygonsInTileBmin, _queryPolygonsInTileVertex);
-                vec3.max(_queryPolygonsInTileBmax, _queryPolygonsInTileBmax, _queryPolygonsInTileVertex);
-            }
-
-            // check overlap with query bounds
-            if (
-                qmin[0] <= _queryPolygonsInTileBmax[0] &&
-                qmax[0] >= _queryPolygonsInTileBmin[0] &&
-                qmin[1] <= _queryPolygonsInTileBmax[1] &&
-                qmax[1] >= _queryPolygonsInTileBmin[1] &&
-                qmin[2] <= _queryPolygonsInTileBmax[2] &&
-                qmax[2] >= _queryPolygonsInTileBmin[2]
-            ) {
-                out.push(polyRef);
-            }
+        if (overlap || isLeafNode) {
+            nodeIndex++;
+        } else {
+            const escapeIndex = -bvNode.i;
+            nodeIndex += escapeIndex;
         }
     }
 };
@@ -1359,12 +1319,38 @@ const updateOffMeshConnections = (navMesh: NavMesh) => {
     }
 };
 
-export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMeshTile => {
-    const tilePositionHash = getTilePositionHash(tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
+/**
+ * Builds a navmesh tile from the given parameters
+ * This builds a BV-tree for the tile, and initializes runtime tile properties
+ * @param params the parameters to build the tile from
+ * @returns the built navmesh tile
+ */
+export const buildTile = (params: NavMeshTileParams): NavMeshTile => {
+    const bvTree = buildNavMeshBvTree(params);
+
+    const tile: NavMeshTile = {
+        ...params,
+        id: -1,
+        sequence: -1,
+        bvTree,
+        polyNodes: [],
+    };
+
+    return tile;
+};
+
+/**
+ * Adds a tile to the navmesh.
+ * If a tile already exists at the same position, it will be removed first.
+ * @param navMesh the navmesh to add the tile to
+ * @param tile the tile to add
+ */
+export const addTile = (navMesh: NavMesh, tile: NavMeshTile): void => {
+    const tilePositionHash = getTilePositionHash(tile.tileX, tile.tileY, tile.tileLayer);
 
     // remove any existing tile at the same position
     if (navMesh.tilePositionToTileId[tilePositionHash] !== undefined) {
-        removeTile(navMesh, tileParams.tileX, tileParams.tileY, tileParams.tileLayer);
+        removeTile(navMesh, tile.tileX, tile.tileY, tile.tileLayer);
     }
 
     // tile sequence
@@ -1380,13 +1366,9 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMes
     // get tile id
     const id = requestIndex(navMesh.tileIndexPool);
 
-    // create tile
-    const tile: NavMeshTile = {
-        ...tileParams,
-        id,
-        sequence,
-        polyNodes: [],
-    };
+    // set tile id and sequence
+    tile.id = id;
+    tile.sequence = sequence;
 
     // store tile in navmesh
     navMesh.tiles[tile.id] = tile;
@@ -1395,7 +1377,7 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMes
     navMesh.tilePositionToTileId[tilePositionHash] = tile.id;
 
     // store column lookup
-    const tileColumnHash = getTileColumnHash(tileParams.tileX, tileParams.tileY);
+    const tileColumnHash = getTileColumnHash(tile.tileX, tile.tileY);
     if (!navMesh.tileColumnToTileIds[tileColumnHash]) {
         navMesh.tileColumnToTileIds[tileColumnHash] = [];
     }
@@ -1441,8 +1423,6 @@ export const addTile = (navMesh: NavMesh, tileParams: NavMeshTileParams): NavMes
 
     // update off mesh connections
     updateOffMeshConnections(navMesh);
-
-    return tile;
 };
 
 /**

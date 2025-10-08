@@ -1289,7 +1289,7 @@ export function createNavMeshPolyHelper(
 export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugPrimitive[] {
     const primitives: DebugPrimitive[] = [];
 
-    if (!navMeshTile.bvTree || navMeshTile.bvTree.nodes.length === 0) {
+    if (navMeshTile.bvTree.nodes.length === 0) {
         return primitives;
     }
 

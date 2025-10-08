@@ -2,7 +2,7 @@ import GUI from 'lil-gui';
 import { box3, type Vec3 } from 'maaths';
 import {
     addTile,
-    buildNavMeshBvTree,
+    buildTile,
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     type ExternalPolygon,
@@ -111,7 +111,7 @@ const tilePolys = polygonsToNavMeshTilePolys(polys, navMeshPositions, 0, bounds)
 const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
 
 /* create nav mesh tile */
-const tile: NavMeshTileParams = {
+const tileParams: NavMeshTileParams = {
     bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -121,7 +121,6 @@ const tile: NavMeshTileParams = {
     tileX: 0,
     tileY: 0,
     tileLayer: 0,
-    bvTree: null,
     // values chosen to match approximate level of detail to match terrain generation
     cellSize: 0.2,
     cellHeight: 0.2,
@@ -130,7 +129,7 @@ const tile: NavMeshTileParams = {
     walkableClimb: 0.5,
 };
 
-buildNavMeshBvTree(tile);
+const tile = buildTile(tileParams);
 
 /* assemble navmesh */
 const navMesh = createNavMesh();

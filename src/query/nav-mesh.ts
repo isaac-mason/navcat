@@ -255,7 +255,7 @@ export type NavMeshTile = {
     polyNodes: number[]
 
     /** the tile's bounding volume tree */
-    bvTree: NavMeshTileBvTree | null;
+    bvTree: NavMeshTileBvTree;
 
     /**
      * The xz-plane cell size of the polygon mesh.
@@ -281,4 +281,4 @@ export type NavMeshTile = {
     walkableClimb: number;
 };
 
-export type NavMeshTileParams = Omit<NavMeshTile, 'id' | 'sequence' | 'polyNodes'>;
+export type NavMeshTileParams = Omit<NavMeshTile, 'id' | 'sequence' | 'polyNodes' | 'bvTree'>;

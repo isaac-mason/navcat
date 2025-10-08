@@ -8,7 +8,6 @@ import {
     buildCompactHeightfield,
     buildContours,
     buildDistanceField,
-    buildNavMeshBvTree,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
@@ -41,6 +40,7 @@ import {
     type QueryFilter,
     rasterizeTriangles,
     WALKABLE_AREA,
+    buildTile,
 } from 'navcat';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
@@ -285,7 +285,7 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
 
-    const tile: NavMeshTileParams = {
+    const tileParams: NavMeshTileParams = {
         bounds: polyMesh.bounds,
         vertices: tilePolys.vertices,
         polys: tilePolys.polys,
@@ -295,7 +295,6 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
         tileX: 0,
         tileY: 0,
         tileLayer: 0,
-        bvTree: null,
         cellSize,
         cellHeight,
         walkableHeight: walkableHeightWorld,
@@ -303,7 +302,7 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
         walkableClimb: walkableClimbWorld,
     };
 
-    buildNavMeshBvTree(tile);
+    const tile = buildTile(tileParams);
 
     addTile(nav, tile);
 
@@ -435,7 +434,7 @@ const maxVerticesPerPoly = 5;
 const detailSampleDistanceVoxels = 6;
 const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
 
-const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxErrorVoxels = 4;
 const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
 
 const navMeshConfig: NavMeshOptions = {

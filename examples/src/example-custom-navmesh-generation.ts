@@ -2,7 +2,7 @@ import GUI from 'lil-gui';
 import { type Box3, box3, createMulberry32Generator, createSimplex2D, type Vec3 } from 'maaths';
 import {
     addTile,
-    buildNavMeshBvTree,
+    buildTile,
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     type ExternalPolygon,
@@ -22,9 +22,7 @@ import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-
 import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
 
 /* setup three-mesh-bvh for faster raycasting */
-// @ts-expect-error monkeypatch
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
-// @ts-expect-error monkeypatch
 THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
 THREE.Mesh.prototype.raycast = acceleratedRaycast;
 
@@ -143,9 +141,7 @@ for (let i = 0; i < 30; i++) {
 }
 
 /* compute three-mesh-bvh bounds trees for faster raycasting */
-// @ts-expect-error monkeypatch
 terrainGeometry.computeBoundsTree();
-// @ts-expect-error monkeypatch
 houseGeometry.computeBoundsTree();
 
 /* generate navmesh */
@@ -292,7 +288,7 @@ const tilePolys = polygonsToNavMeshTilePolys(polys, externalPolygonVertices, 0, 
 const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
 
 /* create nav mesh tile */
-const tile: NavMeshTileParams = {
+const tileParams: NavMeshTileParams = {
     bounds,
     vertices: tilePolys.vertices,
     polys: tilePolys.polys,
@@ -302,7 +298,6 @@ const tile: NavMeshTileParams = {
     tileX: 0,
     tileY: 0,
     tileLayer: 0,
-    bvTree: null,
     // values chosen to match approximate level of detail to match terrain generation
     cellSize: 0.2,
     cellHeight: 0.2,
@@ -311,7 +306,7 @@ const tile: NavMeshTileParams = {
     walkableClimb: 0.5,
 };
 
-buildNavMeshBvTree(tile);
+const tile = buildTile(tileParams);
 
 /* assemble navmesh */
 const navMesh = createNavMesh();

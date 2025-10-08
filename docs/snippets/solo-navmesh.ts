@@ -168,7 +168,6 @@ const tileParams: Nav.NavMeshTileParams = {
     tileX: 0,
     tileY: 0,
     tileLayer: 0,
-    bvTree: null,
     cellSize,
     cellHeight,
     walkableHeight: walkableHeightWorld,
@@ -176,11 +175,11 @@ const tileParams: Nav.NavMeshTileParams = {
     walkableClimb: walkableClimbWorld,
 };
 
-// OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tileParams);
+// build the nav mesh tile - this creates a BV tree, and initialises runtime tile properties
+const tile = Nav.buildTile(tileParams);
 
 // add the tile to the navmesh
-const tile = Nav.addTile(navMesh, tileParams);
+Nav.addTile(navMesh, tile);
 /* SNIPPET_END: navMesh */
 
 /* SNIPPET_END: generationFull */
