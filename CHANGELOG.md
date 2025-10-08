@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.0.4 (Unreleased)
+## 0.0.4
 
 - feat: add NavMeshTileParams, don't require providing dummy NavMeshTile 'id' and 'salt'
 - feat: return NavMeshTile from addTile
