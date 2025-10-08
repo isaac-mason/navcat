@@ -61,13 +61,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
+      <a href="https://navcat.dev#example-mark-compact-heightfield-areas">
+        <img src="./examples/public/screenshots/example-mark-compact-heightfield-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Mark Compact Heightfield Areas
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <a href="https://navcat.dev#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom GLTF NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-navmesh-generation">
         <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -80,14 +86,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Solo NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -100,14 +106,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -120,14 +126,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Raycast
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Move Along Surface
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -140,14 +146,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Random Point
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point Around Circle
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-upload-model">
         <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -410,7 +416,6 @@ const tileParams: Nav.NavMeshTileParams = {
     tileX: 0,
     tileY: 0,
     tileLayer: 0,
-    bvTree: null,
     cellSize,
     cellHeight,
     walkableHeight: walkableHeightWorld,
@@ -418,11 +423,11 @@ const tileParams: Nav.NavMeshTileParams = {
     walkableClimb: walkableClimbWorld,
 };
 
-// OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tileParams);
+// build the nav mesh tile - this creates a BV tree, and initialises runtime tile properties
+const tile = Nav.buildTile(tileParams);
 
 // add the tile to the navmesh
-const tile = Nav.addTile(navMesh, tileParams);
+Nav.addTile(navMesh, tile);
 ```
 
 ### 0. Input and setup
@@ -999,7 +1004,6 @@ const tileParams: Nav.NavMeshTileParams = {
     tileX: 0,
     tileY: 0,
     tileLayer: 0,
-    bvTree: null,
     cellSize,
     cellHeight,
     walkableHeight: walkableHeightWorld,
@@ -1007,11 +1011,11 @@ const tileParams: Nav.NavMeshTileParams = {
     walkableClimb: walkableClimbWorld,
 };
 
-// OPTIONAL: build a bounding volume tree to accelerate spatial queries for this tile
-Nav.buildNavMeshBvTree(tileParams);
+// build the nav mesh tile - this creates a BV tree, and initialises runtime tile properties
+const tile = Nav.buildTile(tileParams);
 
 // add the tile to the navmesh
-const tile = Nav.addTile(navMesh, tileParams);
+Nav.addTile(navMesh, tile);
 ```
 
 ![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
@@ -1026,11 +1030,17 @@ export function createNavMesh(): NavMesh;
  * @param navMeshTile the nav mesh tile to build the BV tree for
  * @returns
  */
-export function buildNavMeshBvTree(navMeshTile: NavMeshTileParams): boolean;
+export function buildNavMeshBvTree(params: NavMeshTileParams): NavMeshTileBvTree;
 ```
 
 ```ts
-export function addTile(navMesh: NavMesh, tileParams: NavMeshTileParams): NavMeshTile;
+/**
+ * Adds a tile to the navmesh.
+ * If a tile already exists at the same position, it will be removed first.
+ * @param navMesh the navmesh to add the tile to
+ * @param tile the tile to add
+ */
+export function addTile(navMesh: NavMesh, tile: NavMeshTile): void;
 ```
 
 ```ts
@@ -1115,7 +1125,10 @@ export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
 
 ### getNodeByRef
 
-<Snippet source="./snippets/solo-navmesh.ts" select="getNodeByRef" />
+```ts
+const node = Nav.getNodeByRef(navMesh, nodeRef);
+console.log(node);
+```
 
 ```ts
 export function getNodeByRef(navMesh: NavMesh, ref: NodeRef);
@@ -1123,7 +1136,10 @@ export function getNodeByRef(navMesh: NavMesh, ref: NodeRef);
 
 ### getNodeByTileAndPoly
 
-<Snippet source="./snippets/solo-navmesh.ts" select="getNodeByTileAndPoly" />
+```ts
+const node = Nav.getNodeByTileAndPoly(navMesh, tile, polyIndex);
+console.log(node);
+```
 
 ```ts
 export function getNodeByTileAndPoly(navMesh: NavMesh, tile: NavMeshTile, polyIndex: number);

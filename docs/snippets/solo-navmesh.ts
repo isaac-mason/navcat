@@ -443,6 +443,25 @@ Nav.addTile(navMesh, tile);
 }
 
 {
+    const nodeRef: Nav.NodeRef = 0;
+
+    /* SNIPPET_START: getNodeByRef */
+    const node = Nav.getNodeByRef(navMesh, nodeRef);
+    console.log(node);
+    /* SNIPPET_END: getNodeByRef */
+}
+
+{
+    const tile = {} as Nav.NavMeshTile;
+    const polyIndex = 0;
+
+    /* SNIPPET_START: getNodeByTileAndPoly */
+    const node = Nav.getNodeByTileAndPoly(navMesh, tile, polyIndex);
+    console.log(node);
+    /* SNIPPET_END: getNodeByTileAndPoly */
+}
+
+{
     /* SNIPPET_START: isValidNodeRef */
     const nodeRef: Nav.NodeRef = 0;
 
