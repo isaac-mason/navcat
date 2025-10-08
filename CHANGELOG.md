@@ -16,6 +16,7 @@ n in addTile before adding new tile
 ting bug
 - feat: remove OffMeshConnections 'cost' override property, it is easily and more flexibly implementable with a custom query filter
 - feat: remove 'getNodeAreaAndFlags', replace by adding 'areas' and 'flags' to navmesh.nodes
+- fix: bv tree bounds logic should consider both poly mesh vertices and poly mesh detail vertices
 
 ## 0.0.3
 
