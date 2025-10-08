@@ -24,6 +24,11 @@
         "description": "Example of using query filters to create conditional areas in a navmesh",
         "tags": ["navmesh", "areas", "query", "door", "key"]
     },
+    "example-mark-compact-heightfield-areas": {
+        "title": "Mark Compact Heightfield Areas",
+        "description": "Example showcasing marking areas in a compact heightfield",
+        "tags": ["navmesh", "areas", "heightfield", "generation"]
+    },
     "example-custom-gltf-navmesh": {
         "title": "Custom GLTF NavMesh",
         "description": "Example of loading a level model and navmesh from a GLTF file",
