@@ -110,9 +110,9 @@ const config = {
     // PolyMesh parameters
     maxVerticesPerPoly: 5,
     
-    // Detail parameters
-    detailSampleDistance: 6,
-    detailSampleMaxError: 1,
+    // Detail parameters (in voxels)
+    detailSampleDistanceVoxels: 6,
+    detailSampleMaxErrorVoxels: 1,
 };
 
 /* debug helpers configuration */
@@ -144,8 +144,6 @@ function buildGUI() {
     // Actions
     gui.add({ generate }, 'generate').name('Generate NavMesh');
     gui.add({ resetCamera }, 'resetCamera').name('Reset Camera');
-    gui.add({ exportConfig }, 'exportConfig').name('Export Config');
-    gui.add({ importConfig }, 'importConfig').name('Import Config');
     gui.add({ copyShareURL }, 'copyShareURL').name('Copy Share URL');
     
     gui.title(`${config.navmeshType === 'solo' ? 'Solo' : 'Tiled'} NavMesh Generation`);
@@ -199,8 +197,8 @@ function buildGUI() {
     
     // Detail parameters
     const detailFolder = gui.addFolder('Detail');
-    detailFolder.add(config, 'detailSampleDistance', 0, 16, 0.1);
-    detailFolder.add(config, 'detailSampleMaxError', 0, 16, 0.1);
+    detailFolder.add(config, 'detailSampleDistanceVoxels', 0, 16, 0.1).name('Sample Distance (voxels)');
+    detailFolder.add(config, 'detailSampleMaxErrorVoxels', 0, 16, 0.1).name('Max Error (voxels)');
     
     // Debug Helpers
     const debugFolder = gui.addFolder('Debug Helpers');
@@ -755,6 +753,10 @@ function generate() {
         const walkableRadiusVoxels = Math.ceil(config.walkableRadiusWorld / config.cellSize);
         const walkableClimbVoxels = Math.ceil(config.walkableClimbWorld / config.cellHeight);
         const walkableHeightVoxels = Math.ceil(config.walkableHeightWorld / config.cellHeight);
+        
+        // Detail mesh parameters: convert voxel units to world units
+        const detailSampleDistance = config.detailSampleDistanceVoxels < 0.9 ? 0 : config.cellSize * config.detailSampleDistanceVoxels;
+        const detailSampleMaxError = config.cellHeight * config.detailSampleMaxErrorVoxels;
 
         const startTime = performance.now();
 
@@ -781,8 +783,8 @@ function generate() {
                 maxSimplificationError: config.maxSimplificationError,
                 maxEdgeLength: config.maxEdgeLength,
                 maxVerticesPerPoly: config.maxVerticesPerPoly,
-                detailSampleDistance: config.detailSampleDistance,
-                detailSampleMaxError: config.detailSampleMaxError,
+                detailSampleDistance,
+                detailSampleMaxError,
             };
 
             currentResult = generateSoloNavMesh(navMeshInput, navMeshConfig);
@@ -813,12 +815,14 @@ function generate() {
                 maxSimplificationError: config.maxSimplificationError,
                 maxEdgeLength: config.maxEdgeLength,
                 maxVerticesPerPoly: config.maxVerticesPerPoly,
-                detailSampleDistance: config.detailSampleDistance,
-                detailSampleMaxError: config.detailSampleMaxError,
+                detailSampleDistance,
+                detailSampleMaxError,
             };
 
             currentResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
         }
+
+        console.log(currentResult);
 
         const endTime = performance.now();
         const generationTime = endTime - startTime;
@@ -1051,69 +1055,6 @@ function resetCamera() {
     }
 }
 
-/* export/import configuration */
-function exportConfig() {
-    const exportData = {
-        version: 1,
-        config: config,
-        pathfindingConfig: pathfindingConfig,
-        queryConfig: queryConfig,
-        debugConfig: debugConfig,
-    };
-    
-    const json = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `navcat-config-${Date.now()}.json`;
-    a.click();
-    
-    URL.revokeObjectURL(url);
-    showStatus('Configuration exported', 'success');
-}
-
-function importConfig() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    
-    input.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (!file) return;
-        
-        try {
-            const text = await file.text();
-            const data = JSON.parse(text);
-            
-            // Apply configuration
-            if (data.config) {
-                Object.assign(config, data.config);
-            }
-            if (data.pathfindingConfig) {
-                Object.assign(pathfindingConfig, data.pathfindingConfig);
-            }
-            if (data.queryConfig) {
-                Object.assign(queryConfig, data.queryConfig);
-            }
-            if (data.debugConfig) {
-                Object.assign(debugConfig, data.debugConfig);
-            }
-            
-            // Rebuild GUI to reflect changes
-            buildGUI();
-            
-            showStatus('Configuration imported', 'success');
-        } catch (error) {
-            console.error('Error importing config:', error);
-            showStatus('Failed to import configuration', 'error');
-        }
-    };
-    
-    input.click();
-}
-
 function copyShareURL() {
     const params = new URLSearchParams();
     
@@ -1130,8 +1071,9 @@ function copyShareURL() {
     params.set('minRegionArea', config.minRegionArea.toString());
     params.set('mergeRegionArea', config.mergeRegionArea.toString());
     params.set('maxVerticesPerPoly', config.maxVerticesPerPoly.toString());
-    params.set('detailSampleDistance', config.detailSampleDistance.toString());
-    params.set('detailSampleMaxError', config.detailSampleMaxError.toString());
+    params.set('detailSampleDistanceVoxels', config.detailSampleDistanceVoxels.toString());
+    params.set('detailSampleMaxErrorVoxels', config.detailSampleMaxErrorVoxels.toString());
+    params.set('borderSize', config.borderSize.toString());
     
     if (config.navmeshType === 'tiled') {
         params.set('tileSizeVoxels', config.tileSizeVoxels.toString());
@@ -1147,7 +1089,6 @@ function copyShareURL() {
     });
 }
 
-// Load config from URL params on init
 function loadConfigFromURL() {
     const params = new URLSearchParams(window.location.search);
     
@@ -1187,11 +1128,14 @@ function loadConfigFromURL() {
     if (params.has('maxVerticesPerPoly')) {
         config.maxVerticesPerPoly = parseInt(params.get('maxVerticesPerPoly')!);
     }
-    if (params.has('detailSampleDistance')) {
-        config.detailSampleDistance = parseFloat(params.get('detailSampleDistance')!);
+    if (params.has('detailSampleDistanceVoxels')) {
+        config.detailSampleDistanceVoxels = parseFloat(params.get('detailSampleDistanceVoxels')!);
     }
-    if (params.has('detailSampleMaxError')) {
-        config.detailSampleMaxError = parseFloat(params.get('detailSampleMaxError')!);
+    if (params.has('detailSampleMaxErrorVoxels')) {
+        config.detailSampleMaxErrorVoxels = parseFloat(params.get('detailSampleMaxErrorVoxels')!);
+    }
+    if (params.has('borderSize')) {
+        config.borderSize = parseInt(params.get('borderSize')!, 10);
     }
     if (params.has('tileSizeVoxels')) {
         config.tileSizeVoxels = parseInt(params.get('tileSizeVoxels')!);

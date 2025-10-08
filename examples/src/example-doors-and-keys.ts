@@ -412,10 +412,10 @@ const navMeshInput: NavMeshInput = {
     doors,
 };
 
-const cellSize = 0.2;
-const cellHeight = 0.15;
+const cellSize = 0.3;
+const cellHeight = 0.3;
 
-const walkableRadiusWorld = 0.1;
+const walkableRadiusWorld = 0.3;
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 const walkableClimbWorld = 0.5;
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
@@ -431,8 +431,12 @@ const maxSimplificationError = 1.3;
 const maxEdgeLength = 12;
 
 const maxVerticesPerPoly = 5;
-const detailSampleDistance = 6;
-const detailSampleMaxError = 1;
+
+const detailSampleDistanceVoxels = 6;
+const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
+
+const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
 
 const navMeshConfig: NavMeshOptions = {
     cellSize,

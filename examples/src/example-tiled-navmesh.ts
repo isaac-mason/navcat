@@ -307,6 +307,9 @@ function generate() {
     const walkableClimbVoxels = Math.ceil(config.walkableClimbWorld / config.cellHeight);
     const walkableHeightVoxels = Math.ceil(config.walkableHeightWorld / config.cellHeight);
 
+    const detailSampleDistance = config.detailSampleDistance < 0.9 ? 0 : config.cellSize * config.detailSampleDistance;
+    const detailSampleMaxError = config.cellHeight * config.detailSampleMaxError;
+
     const navMeshConfig: TiledNavMeshOptions = {
         cellSize: config.cellSize,
         cellHeight: config.cellHeight,
@@ -325,8 +328,8 @@ function generate() {
         maxSimplificationError: config.maxSimplificationError,
         maxEdgeLength: config.maxEdgeLength,
         maxVerticesPerPoly: config.maxVerticesPerPoly,
-        detailSampleDistance: config.detailSampleDistance,
-        detailSampleMaxError: config.detailSampleMaxError,
+        detailSampleDistance,
+        detailSampleMaxError,
     };
 
     currentResult = generateTiledNavMesh(navMeshInput, navMeshConfig);

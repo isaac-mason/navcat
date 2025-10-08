@@ -21,22 +21,56 @@ const navTestModel = await loadGLTF('/models/nav-test.glb');
 scene.add(navTestModel.scene);
 
 /* navmesh generation parameters */
-const config = {
-    cellSize: 0.15,
-    cellHeight: 0.15,
-    tileSizeVoxels: 32,
-    walkableRadiusWorld: 0.1,
-    walkableClimbWorld: 0.5,
-    walkableHeightWorld: 0.25,
-    walkableSlopeAngleDegrees: 45,
-    borderSize: 4,
-    minRegionArea: 8,
-    mergeRegionArea: 20,
-    maxSimplificationError: 1.3,
-    maxEdgeLength: 12,
-    maxVerticesPerPoly: 5,
-    detailSampleDistance: 6,
-    detailSampleMaxError: 1,
+
+const cellSize = 0.15;
+const cellHeight = 0.15;
+
+const tileSizeVoxels = 64;
+const tileSizeWorld = tileSizeVoxels * cellSize;
+
+const walkableRadiusWorld = 0.1;
+const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+const walkableClimbWorld = 0.5;
+const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
+const walkableHeightWorld = 0.25;
+const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
+const walkableSlopeAngleDegrees = 45;
+
+const borderSize = 4;
+const minRegionArea = 8;
+const mergeRegionArea = 20;
+
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+
+const maxVerticesPerPoly = 5;
+
+const detailSampleDistanceVoxels = 6;
+const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
+
+const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
+
+const navMeshConfig: TiledNavMeshOptions = {
+    cellSize,
+    cellHeight,
+    tileSizeVoxels,
+    tileSizeWorld,
+    walkableRadiusWorld,
+    walkableRadiusVoxels,
+    walkableClimbWorld,
+    walkableClimbVoxels,
+    walkableHeightWorld,
+    walkableHeightVoxels,
+    walkableSlopeAngleDegrees,
+    borderSize,
+    minRegionArea,
+    mergeRegionArea,
+    maxSimplificationError,
+    maxEdgeLength,
+    maxVerticesPerPoly,
+    detailSampleDistance,
+    detailSampleMaxError,
 };
 
 let currentResult: ReturnType<typeof generateTiledNavMesh> | null = null;
@@ -227,33 +261,6 @@ function generate() {
     const navMeshInput: TiledNavMeshInput = {
         positions,
         indices,
-    };
-
-    const tileSizeWorld = config.tileSizeVoxels * config.cellSize;
-    const walkableRadiusVoxels = Math.ceil(config.walkableRadiusWorld / config.cellSize);
-    const walkableClimbVoxels = Math.ceil(config.walkableClimbWorld / config.cellHeight);
-    const walkableHeightVoxels = Math.ceil(config.walkableHeightWorld / config.cellHeight);
-
-    const navMeshConfig: TiledNavMeshOptions = {
-        cellSize: config.cellSize,
-        cellHeight: config.cellHeight,
-        tileSizeVoxels: config.tileSizeVoxels,
-        tileSizeWorld,
-        walkableRadiusWorld: config.walkableRadiusWorld,
-        walkableRadiusVoxels,
-        walkableClimbWorld: config.walkableClimbWorld,
-        walkableClimbVoxels,
-        walkableHeightWorld: config.walkableHeightWorld,
-        walkableHeightVoxels,
-        walkableSlopeAngleDegrees: config.walkableSlopeAngleDegrees,
-        borderSize: config.borderSize,
-        minRegionArea: config.minRegionArea,
-        mergeRegionArea: config.mergeRegionArea,
-        maxSimplificationError: config.maxSimplificationError,
-        maxEdgeLength: config.maxEdgeLength,
-        maxVerticesPerPoly: config.maxVerticesPerPoly,
-        detailSampleDistance: config.detailSampleDistance,
-        detailSampleMaxError: config.detailSampleMaxError,
     };
 
     currentResult = generateTiledNavMesh(navMeshInput, navMeshConfig);

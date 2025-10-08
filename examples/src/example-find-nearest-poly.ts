@@ -65,8 +65,12 @@ const maxSimplificationError = 1.3;
 const maxEdgeLength = 12;
 
 const maxVerticesPerPoly = 5;
-const detailSampleDistance = 6;
-const detailSampleMaxError = 1;
+
+const detailSampleDistanceVoxels = 6;
+const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
+
+const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
 
 const navMeshConfig: TiledNavMeshOptions = {
     cellSize,
@@ -138,7 +142,7 @@ const updateNearestPoly = (point: Vec3) => {
     arrow.position.y += 1.5;
 
     const nearestPolyElement = document.getElementById('nearest-poly')!;
-    nearestPolyElement.textContent = nearestPoly.ref;
+    nearestPolyElement.textContent = String(nearestPoly.ref);
 };
 
 updateNearestPoly([-3.94, 0.26, 4.71]);
