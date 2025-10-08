@@ -61,6 +61,7 @@ export type TiledNavMeshOptions = {
 };
 
 export type TiledNavMeshIntermediates = {
+    buildContext: BuildContextState;
     input: TiledNavMeshInput;
     inputBounds: Box3;
     triAreaIds: Uint8Array[];
@@ -268,6 +269,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
     /* 2. initialize intermediates for debugging */
 
     const intermediates: TiledNavMeshIntermediates = {
+        buildContext: ctx,
         input: {
             positions,
             indices,
