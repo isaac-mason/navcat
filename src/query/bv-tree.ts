@@ -162,27 +162,43 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTileParams): boolean => {
             i,
         };
 
-        // use detail meshes if available, otherwise use polygon vertices
-        if (navMeshTile.detailMeshes.length > 0 && navMeshTile.detailVertices.length > 0) {
-            // use detail mesh vertices for more accurate bounds
-            const detailMesh = navMeshTile.detailMeshes[i];
-            const vb = detailMesh.verticesBase;
-            const ndv = detailMesh.verticesCount;
+        const poly = navMeshTile.polys[i];
+        const nvp = poly.vertices.length;
 
-            if (ndv > 0) {
-                // get first detail vertex
-                const firstVertIndex = vb * 3;
+        if (nvp > 0) {
+            // expand bounds with polygon vertices
+            const firstVertIndex = poly.vertices[0] * 3;
 
-                item.bounds[0][0] = navMeshTile.detailVertices[firstVertIndex];
-                item.bounds[0][1] = navMeshTile.detailVertices[firstVertIndex + 1];
-                item.bounds[0][2] = navMeshTile.detailVertices[firstVertIndex + 2];
+            item.bounds[0][0] = item.bounds[1][0] = navMeshTile.vertices[firstVertIndex];
+            item.bounds[0][1] = item.bounds[1][1] = navMeshTile.vertices[firstVertIndex + 1];
+            item.bounds[0][2] = item.bounds[1][2] = navMeshTile.vertices[firstVertIndex + 2];
 
-                item.bounds[1][0] = navMeshTile.detailVertices[firstVertIndex];
-                item.bounds[1][1] = navMeshTile.detailVertices[firstVertIndex + 1];
-                item.bounds[1][2] = navMeshTile.detailVertices[firstVertIndex + 2];
+            for (let j = 1; j < nvp; j++) {
+                const vertexIndex = poly.vertices[j];
+                if (vertexIndex === MESH_NULL_IDX) break;
 
-                // find min/max across all detail vertices
-                for (let j = 1; j < ndv; j++) {
+                const vertIndex = vertexIndex * 3;
+                const x = navMeshTile.vertices[vertIndex];
+                const y = navMeshTile.vertices[vertIndex + 1];
+                const z = navMeshTile.vertices[vertIndex + 2];
+
+                if (x < item.bounds[0][0]) item.bounds[0][0] = x;
+                if (y < item.bounds[0][1]) item.bounds[0][1] = y;
+                if (z < item.bounds[0][2]) item.bounds[0][2] = z;
+
+                if (x > item.bounds[1][0]) item.bounds[1][0] = x;
+                if (y > item.bounds[1][1]) item.bounds[1][1] = y;
+                if (z > item.bounds[1][2]) item.bounds[1][2] = z;
+            }
+
+            // expand bounds with additional detail vertices if available
+            if (navMeshTile.detailMeshes.length > 0 && navMeshTile.detailVertices.length > 0) {
+                const detailMesh = navMeshTile.detailMeshes[i];
+                const vb = detailMesh.verticesBase;
+                const ndv = detailMesh.verticesCount;
+
+                // iterate through additional detail vertices (not including poly vertices)
+                for (let j = 0; j < ndv; j++) {
                     const vertIndex = (vb + j) * 3;
                     const x = navMeshTile.detailVertices[vertIndex];
                     const y = navMeshTile.detailVertices[vertIndex + 1];
@@ -196,55 +212,16 @@ export const buildNavMeshBvTree = (navMeshTile: NavMeshTileParams): boolean => {
                     if (y > item.bounds[1][1]) item.bounds[1][1] = y;
                     if (z > item.bounds[1][2]) item.bounds[1][2] = z;
                 }
-
-                // bv tree uses cellSize for all dimensions, quantize relative to tile bounds
-                item.bounds[0][0] = (item.bounds[0][0] - navMeshTile.bounds[0][0]) * quantFactor;
-                item.bounds[0][1] = (item.bounds[0][1] - navMeshTile.bounds[0][1]) * quantFactor;
-                item.bounds[0][2] = (item.bounds[0][2] - navMeshTile.bounds[0][2]) * quantFactor;
-
-                item.bounds[1][0] = (item.bounds[1][0] - navMeshTile.bounds[0][0]) * quantFactor;
-                item.bounds[1][1] = (item.bounds[1][1] - navMeshTile.bounds[0][1]) * quantFactor;
-                item.bounds[1][2] = (item.bounds[1][2] - navMeshTile.bounds[0][2]) * quantFactor;
             }
-        } else {
-            // use polygon vertices
-            const poly = navMeshTile.polys[i];
-            const nvp = poly.vertices.length;
 
-            if (nvp > 0) {
-                const firstVertIndex = poly.vertices[0] * 3;
+            // bv tree uses cellSize for all dimensions, quantize relative to tile bounds
+            item.bounds[0][0] = (item.bounds[0][0] - navMeshTile.bounds[0][0]) * quantFactor;
+            item.bounds[0][1] = (item.bounds[0][1] - navMeshTile.bounds[0][1]) * quantFactor;
+            item.bounds[0][2] = (item.bounds[0][2] - navMeshTile.bounds[0][2]) * quantFactor;
 
-                item.bounds[0][0] = item.bounds[1][0] = navMeshTile.vertices[firstVertIndex];
-                item.bounds[0][1] = item.bounds[1][1] = navMeshTile.vertices[firstVertIndex + 1];
-                item.bounds[0][2] = item.bounds[1][2] = navMeshTile.vertices[firstVertIndex + 2];
-
-                for (let j = 1; j < nvp; j++) {
-                    const vertexIndex = poly.vertices[j];
-                    if (vertexIndex === MESH_NULL_IDX) break;
-
-                    const vertIndex = vertexIndex * 3;
-                    const x = navMeshTile.vertices[vertIndex];
-                    const y = navMeshTile.vertices[vertIndex + 1];
-                    const z = navMeshTile.vertices[vertIndex + 2];
-
-                    if (x < item.bounds[0][0]) item.bounds[0][0] = x;
-                    if (y < item.bounds[0][1]) item.bounds[0][1] = y;
-                    if (z < item.bounds[0][2]) item.bounds[0][2] = z;
-
-                    if (x > item.bounds[1][0]) item.bounds[1][0] = x;
-                    if (y > item.bounds[1][1]) item.bounds[1][1] = y;
-                    if (z > item.bounds[1][2]) item.bounds[1][2] = z;
-                }
-
-                // bv tree uses cellSize for all dimensions, quantize relative to tile bounds
-                item.bounds[0][0] = (item.bounds[0][0] - navMeshTile.bounds[0][0]) * quantFactor;
-                item.bounds[0][1] = (item.bounds[0][1] - navMeshTile.bounds[0][1]) * quantFactor;
-                item.bounds[0][2] = (item.bounds[0][2] - navMeshTile.bounds[0][2]) * quantFactor;
-
-                item.bounds[1][0] = (item.bounds[1][0] - navMeshTile.bounds[0][0]) * quantFactor;
-                item.bounds[1][1] = (item.bounds[1][1] - navMeshTile.bounds[0][1]) * quantFactor;
-                item.bounds[1][2] = (item.bounds[1][2] - navMeshTile.bounds[0][2]) * quantFactor;
-            }
+            item.bounds[1][0] = (item.bounds[1][0] - navMeshTile.bounds[0][0]) * quantFactor;
+            item.bounds[1][1] = (item.bounds[1][1] - navMeshTile.bounds[0][1]) * quantFactor;
+            item.bounds[1][2] = (item.bounds[1][2] - navMeshTile.bounds[0][2]) * quantFactor;
         }
 
         items[i] = item;
