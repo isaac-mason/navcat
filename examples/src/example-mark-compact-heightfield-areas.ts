@@ -346,7 +346,6 @@ scene.add(navTestModel.scene);
 /* generate navmesh */
 const walkableMeshes: THREE.Mesh[] = [];
 scene.traverse((object) => {
-    console.log(object.userData);
     if (object.userData?.walkable === false) return;
 
     if (object instanceof THREE.Mesh) {
