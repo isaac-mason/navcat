@@ -30,15 +30,15 @@ export const closestPtSeg2d = (out: Vec3, pt: Vec3, p: Vec3, q: Vec3): void => {
 /**
  * Tests if a point is inside a polygon in 2D (XZ plane)
  */
-export const pointInPoly = (numVerts: number, verts: number[], point: number[]): boolean => {
+export const pointInPoly = (point: Vec3, vertices: number[], nVertices: number): boolean => {
     let inside = false;
-    let j = numVerts - 1;
+    let j = nVertices - 1;
 
-    for (let i = 0; i < numVerts; j = i++) {
-        const xi = verts[i * 3]; // x coordinate of vertex i
-        const zi = verts[i * 3 + 2]; // z coordinate of vertex i
-        const xj = verts[j * 3]; // x coordinate of vertex j
-        const zj = verts[j * 3 + 2]; // z coordinate of vertex j
+    for (let i = 0; i < nVertices; j = i++) {
+        const xi = vertices[i * 3]; // x coordinate of vertex i
+        const zi = vertices[i * 3 + 2]; // z coordinate of vertex i
+        const xj = vertices[j * 3]; // x coordinate of vertex j
+        const zj = vertices[j * 3 + 2]; // z coordinate of vertex j
 
         if (zi > point[2] !== zj > point[2] && point[0] < ((xj - xi) * (point[2] - zi)) / (zj - zi) + xi) {
             inside = !inside;
@@ -47,7 +47,6 @@ export const pointInPoly = (numVerts: number, verts: number[], point: number[]):
 
     return inside;
 };
-
 
 const _distPtTriV0: Vec3 = vec3.create();
 const _distPtTriV1: Vec3 = vec3.create();
@@ -274,7 +273,7 @@ export const closestHeightPointTriangle = (p: Vec3, a: Vec3, b: Vec3, c: Vec3): 
         return a[1] + (v0y * u + v1y * v) / denom;
     }
 
-    return Number.NaN;
+    return NaN;
 };
 
 const _overlapSegAB: Vec2 = vec2.create();

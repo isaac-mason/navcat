@@ -292,7 +292,7 @@ export const getPolyHeight = (
     }
 
     // check if point is inside polygon
-    if (!pointInPoly(nv, vertices, pos)) {
+    if (!pointInPoly(pos, vertices, nv)) {
         return result;
     }
 
@@ -531,7 +531,7 @@ export const getClosestPointOnPolyBoundary = (
     }
 
     // if inside polygon, return the point as-is
-    if (pointInPoly(verticesCount, vertices, point)) {
+    if (pointInPoly(point, vertices, verticesCount)) {
         vec3.copy(outClosestPoint, point);
         return true;
     }

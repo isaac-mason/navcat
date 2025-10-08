@@ -1164,7 +1164,6 @@ export const moveAlongSurface = (
         const { tile, poly } = tileAndPoly;
 
         // collect vertices
-        // TODO: temporary allocate max vertices per polygon and reuse
         const nv = poly.vertices.length;
         const vertices = _moveAlongSurfaceVertices;
         for (let i = 0; i < nv; ++i) {
@@ -1175,7 +1174,7 @@ export const moveAlongSurface = (
         }
 
         // if target is inside the poly, stop search
-        if (pointInPoly(nv, vertices, endPosition)) {
+        if (pointInPoly(endPosition, vertices, nv)) {
             bestNode = curNode;
             vec3.copy(bestPos, endPosition);
             break;

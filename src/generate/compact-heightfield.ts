@@ -1,4 +1,4 @@
-import type { Box3, Vec3 } from 'maaths';
+import { type Box3, type Vec3, vec3 } from 'maaths';
 import { pointInPoly } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common';
@@ -102,7 +102,6 @@ export const buildCompactHeightfield = (
     const zSize = heightfield.height;
     const spanCount = getHeightFieldSpanCount(heightfield);
 
-    // fill in header
     const compactHeightfield: CompactHeightfield = {
         width: xSize,
         height: zSize,
@@ -409,11 +408,7 @@ export const erodeWalkableArea = (walkableRadiusVoxels: number, compactHeightfie
 /**
  * Marks spans in the heightfield that intersect the specified box area with the given area ID.
  */
-export const markBoxArea = (
-    bounds: Box3,
-    areaId: number,
-    compactHeightfield: CompactHeightfield,
-) => {
+export const markBoxArea = (bounds: Box3, areaId: number, compactHeightfield: CompactHeightfield) => {
     const [boxMinBounds, boxMaxBounds] = bounds;
 
     const xSize = compactHeightfield.width;
@@ -465,6 +460,8 @@ export const markBoxArea = (
         }
     }
 };
+
+const _markConvexPolyArea_point = vec3.create();
 
 /**
  * Marks spans in the heightfield that intersect the specified convex polygon area with the given area ID.
@@ -532,13 +529,14 @@ export const markConvexPolyArea = (
                     continue;
                 }
 
-                const point = [
+                const point = vec3.set(
+                    _markConvexPolyArea_point,
                     compactHeightfield.bounds[0][0] + (x + 0.5) * compactHeightfield.cellSize,
                     0,
                     compactHeightfield.bounds[0][2] + (z + 0.5) * compactHeightfield.cellSize,
-                ];
+                );
 
-                if (pointInPoly(numVerts, verts, point)) {
+                if (pointInPoly(point, verts, numVerts)) {
                     compactHeightfield.areas[spanIndex] = areaId;
                 }
             }
@@ -554,23 +552,15 @@ export const markCylinderArea = (
     radius: number,
     height: number,
     areaId: number,
-    compactHeightfield: CompactHeightfield
+    compactHeightfield: CompactHeightfield,
 ) => {
     const xSize = compactHeightfield.width;
     const zSize = compactHeightfield.height;
     const zStride = xSize; // for readability
 
     // compute the bounding box of the cylinder
-    const cylinderBBMin = [
-        position[0] - radius,
-        position[1],
-        position[2] - radius,
-    ];
-    const cylinderBBMax = [
-        position[0] + radius,
-        position[1] + height,
-        position[2] + radius,
-    ];
+    const cylinderBBMin = [position[0] - radius, position[1], position[2] - radius];
+    const cylinderBBMax = [position[0] + radius, position[1] + height, position[2] + radius];
 
     // compute the grid footprint of the cylinder
     let minx = Math.floor((cylinderBBMin[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
