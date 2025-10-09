@@ -82,8 +82,8 @@ export type FindSmoothPathResult = {
  * @param end The ending position in world space.
  * @param halfExtents The half extents for nearest polygon queries.
  * @param queryFilter The query filter.
- * @param stepSize The step size for movement along the surface (default: 0.5).
- * @param slop The distance tolerance for reaching waypoints (default: 0.01).
+ * @param stepSize The step size for movement along the surface
+ * @param slop The distance tolerance for reaching waypoints
  * @returns The result of the smooth pathfinding operation, with path points containing position, type, and nodeRef information.
  */
 
