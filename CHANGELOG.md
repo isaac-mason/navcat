@@ -3,6 +3,7 @@
 ## 0.0.5 (Unreleased)
 
 - feat: avoid using structuredClone in compact heightfield mergeRegions logic for better perf 
+- feat: remove array allocations in heightfield.ts hot paths
 
 ## 0.0.4
 

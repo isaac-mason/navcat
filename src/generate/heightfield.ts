@@ -142,13 +142,14 @@ export const addHeightfieldSpan = (
  * across a separating axis.
  */
 const dividePoly = (
+    out: { nv1: number; nv2: number },
     inVerts: number[],
     inVertsCount: number,
     outVerts1: number[],
     outVerts2: number[],
     axisOffset: number,
     axis: number,
-): [number, number] => {
+): void => {
     // How far positive or negative away from the separating axis is each vertex
     const inVertAxisDelta = _inVertAxisDelta;
     for (let inVert = 0; inVert < inVertsCount; ++inVert) {
@@ -207,7 +208,8 @@ const dividePoly = (
         }
     }
 
-    return [poly1Vert, poly2Vert];
+    out.nv1 = poly1Vert;
+    out.nv2 = poly2Vert;
 };
 
 const _triangleBounds = box3.create();
@@ -218,6 +220,7 @@ const _p1 = new Array(7 * 3);
 const _p2 = new Array(7 * 3);
 
 const _inVertAxisDelta = new Array(12);
+const _dividePolyResult = { nv1: 0, nv2: 0 };
 
 const _v0 = vec3.create();
 const _v1 = vec3.create();
@@ -293,10 +296,14 @@ const rasterizeTriangle = (
     for (let z = z0; z <= z1; ++z) {
         // Clip polygon to row. Store the remaining polygon as well
         const cellZ = heightfieldBoundsMin[2] + z * cellSize;
-        const [nvRow, nvIn2] = dividePoly(inVerts, nvIn, inRow, p1, cellZ + cellSize, AXIS_Z);
+        dividePoly(_dividePolyResult, inVerts, nvIn, inRow, p1, cellZ + cellSize, AXIS_Z);
+        const nvRow = _dividePolyResult.nv1;
+        const nvIn2 = _dividePolyResult.nv2;
 
         // Swap arrays
-        [inVerts, p1] = [p1, inVerts];
+        const temp = inVerts;
+        inVerts = p1;
+        p1 = temp;
         nvIn = nvIn2;
 
         if (nvRow < 3) {
@@ -331,10 +338,14 @@ const rasterizeTriangle = (
         for (let x = x0; x <= x1; ++x) {
             // Clip polygon to column. Store the remaining polygon as well
             const cx = heightfieldBoundsMin[0] + x * cellSize;
-            const [nv, nv2New] = dividePoly(inRow, nv2, p1, p2, cx + cellSize, AXIS_X);
+            dividePoly(_dividePolyResult, inRow, nv2, p1, p2, cx + cellSize, AXIS_X);
+            const nv = _dividePolyResult.nv1;
+            const nv2New = _dividePolyResult.nv2;
 
             // Swap arrays
-            [inRow, p2] = [p2, inRow];
+            const temp = inRow;
+            inRow = p2;
+            p2 = temp;
             nv2 = nv2New;
 
             if (nv < 3) {
