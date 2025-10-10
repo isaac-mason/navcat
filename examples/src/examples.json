@@ -24,20 +24,15 @@
         "description": "Example of using query filters to create conditional areas in a navmesh",
         "tags": ["navmesh", "areas", "query", "door", "key"]
     },
-    "example-mark-compact-heightfield-areas": {
-        "title": "Mark Compact Heightfield Areas",
-        "description": "Example showcasing marking areas in a compact heightfield",
-        "tags": ["navmesh", "areas", "heightfield", "generation"]
+    "example-upload-model": {
+        "title": "Upload Model",
+        "description": "Example of uploading a model and generating a navmesh from it",
+        "tags": ["upload", "custom"]
     },
     "example-custom-gltf-navmesh": {
         "title": "Custom GLTF NavMesh",
         "description": "Example of loading a level model and navmesh from a GLTF file",
         "tags": ["navmesh", "custom", "gltf"]
-    },
-    "example-custom-navmesh-generation": {
-        "title": "Custom NavMesh Generation",
-        "description": "Example of generating a navmesh with a custom approach",
-        "tags": ["navmesh", "custom"]
     },
     "example-solo-navmesh": {
         "title": "Solo NavMesh",
@@ -94,9 +89,14 @@
         "description": "Example of finding a random point around a circle on the navmesh",
         "tags": ["random"]
     },
-    "example-upload-model": {
-        "title": "Upload Model",
-        "description": "Example of uploading a model and generating a navmesh from it",
-        "tags": ["upload", "custom"]
+    "example-mark-compact-heightfield-areas": {
+        "title": "Mark Compact Heightfield Areas",
+        "description": "Example showcasing marking areas in a compact heightfield",
+        "tags": ["navmesh", "areas", "heightfield", "generation"]
+    },
+    "example-custom-navmesh-generation": {
+        "title": "Custom NavMesh Generation",
+        "description": "Example of generating a navmesh with a custom approach",
+        "tags": ["navmesh", "custom"]
     }
 }
