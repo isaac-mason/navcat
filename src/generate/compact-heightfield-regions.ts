@@ -898,7 +898,7 @@ const mergeRegions = (rega: Region, regb: Region): boolean => {
     const bid = regb.id;
 
     // duplicate current neighborhood
-    const acon = structuredClone(rega.connections);
+    const acon = Array.from(rega.connections);
     const bcon = regb.connections;
 
     // find insertion point on A

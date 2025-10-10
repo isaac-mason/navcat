@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.0.5 (Unreleased)
+
+- feat: avoid using structuredClone in compact heightfield mergeRegions logic for better perf 
+
 ## 0.0.4
 
 - feat: add NavMeshTileParams, don't require providing dummy NavMeshTile 'id' and 'salt'
