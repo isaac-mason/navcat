@@ -118,23 +118,22 @@ const queryFilter: QueryFilter = {
         return true;
     },
     getCost: (pa, pb, navMesh, prevRef, curRef, _nextRef) => {
+        // define the costs for traversing an off mesh connection
         if (
             prevRef !== undefined &&
-            curRef !== undefined &&
             getNodeRefType(prevRef) === NodeType.OFFMESH &&
             getNodeRefType(curRef) === NodeType.OFFMESH
         ) {
-            const { area } = getNodeByRef(navMesh, curRef);
+            const { area } = getNodeByRef(navMesh, prevRef);
 
-            // offmesh traversal cost
             if (area === OffMeshConnectionAreaType.JUMP) {
                 // regular distance
                 return vec3.distance(pa, pb);
             } else if (area === OffMeshConnectionAreaType.CLIMB) {
-                // 4x distance, big penalty for climbing
+                // distance * 4, big penalty
                 return vec3.distance(pa, pb) * 4;
             } else if (area === OffMeshConnectionAreaType.TELEPORTER) {
-                // teleporting has a low flat cost
+                // low flat cost
                 return 1;
             }
         }
