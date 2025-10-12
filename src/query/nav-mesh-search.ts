@@ -233,18 +233,6 @@ export const getPortalPoints = (
         return true;
     }
 
-    // handle from offmesh connection to offmesh connection
-    if (fromNodeType === NodeType.OFFMESH && toNodeType === NodeType.OFFMESH) {
-        const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
-        if (!offMeshConnection) return false;
-
-        const position = fromNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
-
-        vec3.copy(outLeft, position);
-        vec3.copy(outRight, position);
-        return true;
-    }
-
     // handle from offmesh connection to any
     if (fromNodeType === NodeType.OFFMESH) {
         const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
@@ -1386,7 +1374,7 @@ export const raycast = (
         }
 
         // follow neighbors
-        let nextRef: NodeRef | null = null;
+        let nextRef: NodeRef | undefined = undefined;
 
         const curNode = getNodeByRef(navMesh, curRef);
 
@@ -1454,7 +1442,7 @@ export const raycast = (
             }
         }
 
-        if (!nextRef) {
+        if (nextRef === undefined) {
             // no neighbor, we hit a wall
 
             // calculate hit normal
