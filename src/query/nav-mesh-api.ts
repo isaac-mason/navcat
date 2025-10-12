@@ -6,6 +6,7 @@ import { createIndexPool, releaseIndex, requestIndex } from '../index-pool';
 import { buildNavMeshBvTree } from './bv-tree';
 import {
     type NavMesh,
+    type NavMeshNode,
     type NavMeshPoly,
     type NavMeshTile,
     type NavMeshTileParams,
@@ -809,7 +810,7 @@ const allocateLink = (navMesh: NavMesh) => {
     if (!link) {
         link = navMesh.links[linkIndex] = {
             allocated: true,
-            id: 0,
+            index: linkIndex,
             fromNodeIndex: 0,
             fromNodeRef: 0,
             toNodeIndex: 0,
@@ -822,7 +823,6 @@ const allocateLink = (navMesh: NavMesh) => {
     }
 
     link.allocated = true;
-    link.id = linkIndex;
 
     return linkIndex;
 };
@@ -1120,7 +1120,7 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMes
     const startPolyNode = offMeshConnectionState.startPolyNode;
     const endPolyNode = offMeshConnectionState.endPolyNode;
 
-    // release any links in the start and end polys that reference off mesh connection nodes
+    // release links in the start and end polys that reference off mesh connection nodes
     const startNode = getNodeByRef(navMesh, startPolyNode);
 
     if (startNode) {
@@ -1147,7 +1147,7 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMes
         }
     }
 
-    // release the off mesh connection start node and links
+    // release the off mesh start node and links
     const offMeshStartNode = getNodeByRef(navMesh, offMeshConnectionStartNodeRef);
 
     if (offMeshStartNode) {
@@ -1159,25 +1159,37 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMes
 
     releaseNode(navMesh, getNodeRefIndex(offMeshConnectionStartNodeRef));
 
-    // release the off mesh connection end node and links if the connection is bidirectional
-    if (offMeshConnection.direction === OffMeshConnectionDirection.BIDIRECTIONAL) {
-        const offMeshEndNode = getNodeByRef(navMesh, offMeshConnectionEndNodeRef);
+    // release the off mesh end node and links
+    const offMeshEndNode = getNodeByRef(navMesh, offMeshConnectionEndNodeRef);
 
-        if (offMeshEndNode) {
-            for (let i = offMeshEndNode.links.length - 1; i >= 0; i--) {
-                const linkId = offMeshEndNode.links[i];
-                releaseLink(navMesh, linkId);
-            }
+    if (offMeshEndNode) {
+        for (let i = offMeshEndNode.links.length - 1; i >= 0; i--) {
+            const linkId = offMeshEndNode.links[i];
+            releaseLink(navMesh, linkId);
         }
-
-        releaseNode(navMesh, getNodeRefIndex(offMeshConnectionEndNodeRef));
     }
+
+    releaseNode(navMesh, getNodeRefIndex(offMeshConnectionEndNodeRef));
 
     // remove the off mesh connection state
     delete navMesh.offMeshConnectionAttachments[offMeshConnection.id];
 
     // the off mesh connection was disconnected, return true
     return true;
+};
+
+const createOffMeshLink = (navMesh: NavMesh, from: NavMeshNode, to: NavMeshNode) => {
+    const linkIndex = allocateLink(navMesh);
+    const link = navMesh.links[linkIndex];
+    link.fromNodeIndex = from.index;
+    link.fromNodeRef = from.ref;
+    link.toNodeIndex = to.index;
+    link.toNodeRef = to.ref;
+    link.bmin = 0; // not used for offmesh links
+    link.bmax = 0; // not used for offmesh links
+    link.side = 0; // not used for offmesh links
+    link.edge = 0; // not used for offmesh links
+    from.links.push(linkIndex);
 };
 
 const _connectOffMeshConnectionNearestPolyStart = createFindNearestPolyResult();
@@ -1232,70 +1244,28 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
 
     offMeshConnectionState.startOffMeshNode = offMeshStartNodeRef;
 
-    // link the start poly to the off mesh node start
-    const startPolyToOffMeshStartLinkIndex = allocateLink(navMesh);
-    const startPolyToOffMeshStartLink = navMesh.links[startPolyToOffMeshStartLinkIndex];
-    startPolyToOffMeshStartLink.fromNodeRef = startNode.ref;
-    startPolyToOffMeshStartLink.fromNodeIndex = startNode.index;
-    startPolyToOffMeshStartLink.toNodeRef = offMeshStartNode.ref;
-    startPolyToOffMeshStartLink.toNodeIndex = offMeshStartNode.index;
-    startPolyToOffMeshStartLink.bmin = 0; // not used for offmesh links
-    startPolyToOffMeshStartLink.bmax = 0; // not used for offmesh links
-    startPolyToOffMeshStartLink.side = 0; // not used for offmesh links
-    startPolyToOffMeshStartLink.edge = 0; // not used for offmesh links
-    startNode.links.push(startPolyToOffMeshStartLinkIndex);
+    // create a node for the off mesh connection end
+    const offMeshEndNode = allocateNode(navMesh);
+    const offMeshEndNodeRef = serNodeRef(NodeType.OFFMESH, offMeshEndNode.index, offMeshConnection.sequence);
+    offMeshEndNode.type = NodeType.OFFMESH;
+    offMeshEndNode.ref = offMeshEndNodeRef;
+    offMeshEndNode.area = offMeshConnection.area;
+    offMeshEndNode.flags = offMeshConnection.flags;
+    offMeshEndNode.offMeshConnectionId = offMeshConnection.id;
+    offMeshEndNode.offMeshConnectionSide = OffMeshConnectionSide.END;
 
-    // link the off mesh start node to the end poly
-    const offMeshStartToEndPolyLinkIndex = allocateLink(navMesh);
-    const offMeshStartToEndPolyLink = navMesh.links[offMeshStartToEndPolyLinkIndex];
-    offMeshStartToEndPolyLink.fromNodeIndex = offMeshStartNode.index;
-    offMeshStartToEndPolyLink.fromNodeRef = offMeshStartNode.ref;
-    offMeshStartToEndPolyLink.toNodeIndex = endNode.index;
-    offMeshStartToEndPolyLink.toNodeRef = endNode.ref;
-    offMeshStartToEndPolyLink.bmin = 0; // not used for offmesh links
-    offMeshStartToEndPolyLink.bmax = 0; // not used for offmesh links
-    offMeshStartToEndPolyLink.side = 0; // not used for offmesh links
-    offMeshStartToEndPolyLink.edge = 0; // not used for offmesh links
-    offMeshStartNode.links.push(offMeshStartToEndPolyLinkIndex);
+    offMeshConnectionState.endOffMeshNode = offMeshEndNodeRef;
+
+    // start poly -> off mesh start node -> off mesh end node -> end poly
+    createOffMeshLink(navMesh, startNode, offMeshStartNode);
+    createOffMeshLink(navMesh, offMeshStartNode, offMeshEndNode);
+    createOffMeshLink(navMesh, offMeshEndNode, endNode);
 
     if (offMeshConnection.direction === OffMeshConnectionDirection.BIDIRECTIONAL) {
-        // create a node for the off mesh connection end
-        const offMeshEndNode = allocateNode(navMesh);
-        const offMeshEndNodeRef = serNodeRef(NodeType.OFFMESH, offMeshEndNode.index, offMeshConnection.sequence);
-        offMeshEndNode.type = NodeType.OFFMESH;
-        offMeshEndNode.ref = offMeshEndNodeRef;
-        offMeshEndNode.area = offMeshConnection.area;
-        offMeshEndNode.flags = offMeshConnection.flags;
-        offMeshEndNode.offMeshConnectionId = offMeshConnection.id;
-        offMeshEndNode.offMeshConnectionSide = OffMeshConnectionSide.END;
-
-        offMeshConnectionState.endOffMeshNode = offMeshEndNodeRef;
-
-        // link the end poly node to the off mesh end node
-        const endPolyToOffMeshEndLinkIndex = allocateLink(navMesh);
-        const endPolyToOffMeshEndLink = navMesh.links[endPolyToOffMeshEndLinkIndex];
-        endPolyToOffMeshEndLink.fromNodeIndex = endNode.index;
-        endPolyToOffMeshEndLink.fromNodeRef = endNode.ref;
-        endPolyToOffMeshEndLink.toNodeIndex = offMeshEndNode.index;
-        endPolyToOffMeshEndLink.toNodeRef = offMeshEndNode.ref;
-        endPolyToOffMeshEndLink.bmin = 0; // not used for offmesh links
-        endPolyToOffMeshEndLink.bmax = 0; // not used for offmesh links
-        endPolyToOffMeshEndLink.side = 0; // not used for offmesh links
-        endPolyToOffMeshEndLink.edge = 0; // not used for offmesh links
-        endNode.links.push(endPolyToOffMeshEndLinkIndex);
-
-        // link the off mesh end node to the start poly node
-        const offMeshEndToStartPolyLinkIndex = allocateLink(navMesh);
-        const offMeshEndToStartPolyLink = navMesh.links[offMeshEndToStartPolyLinkIndex];
-        offMeshEndToStartPolyLink.fromNodeIndex = offMeshEndNode.index;
-        offMeshEndToStartPolyLink.fromNodeRef = offMeshEndNode.ref;
-        offMeshEndToStartPolyLink.toNodeIndex = startNode.index;
-        offMeshEndToStartPolyLink.toNodeRef = startNode.ref;
-        offMeshEndToStartPolyLink.bmin = 0; // not used for offmesh links
-        offMeshEndToStartPolyLink.bmax = 0; // not used for offmesh links
-        offMeshEndToStartPolyLink.side = 0; // not used for offmesh links
-        offMeshEndToStartPolyLink.edge = 0; // not used for offmesh links
-        offMeshEndNode.links.push(offMeshEndToStartPolyLinkIndex);
+        // end poly -> off mesh end node -> off mesh start node -> start poly
+        createOffMeshLink(navMesh, endNode, offMeshEndNode);
+        createOffMeshLink(navMesh, offMeshEndNode, offMeshStartNode);
+        createOffMeshLink(navMesh, offMeshStartNode, startNode);
     }
 
     // store off mesh connection state, for quick revalidation of connections when adding and removing tiles

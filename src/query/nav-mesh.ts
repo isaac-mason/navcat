@@ -129,8 +129,8 @@ export type NavMeshLink = {
     /** whether the nav mesh link is allocated */
     allocated: boolean;
 
-    /** the id of the link */
-    id: number;
+    /** the index of the link */
+    index: number;
 
     /** the node index that owns this link */
     fromNodeIndex: number;

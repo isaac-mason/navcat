@@ -1,12 +1,13 @@
-import type { Vec3 } from 'maaths';
+import { type Vec3, vec3 } from 'maaths';
 import {
     addOffMeshConnection,
-    DEFAULT_QUERY_FILTER,
     findPath,
+    getNodeByRef,
     getNodeRefType,
     NodeType,
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
+    type QueryFilter,
 } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
@@ -104,6 +105,44 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
+/* off mesh connection types */
+enum OffMeshConnectionAreaType {
+    TELEPORTER = 1,
+    JUMP = 2,
+    CLIMB = 3,
+}
+
+/* query filter */
+const queryFilter: QueryFilter = {
+    passFilter: (_nodeRef, _navMesh) => {
+        return true;
+    },
+    getCost: (pa, pb, navMesh, prevRef, curRef, _nextRef) => {
+        if (
+            prevRef !== undefined &&
+            curRef !== undefined &&
+            getNodeRefType(prevRef) === NodeType.OFFMESH &&
+            getNodeRefType(curRef) === NodeType.OFFMESH
+        ) {
+            const { area } = getNodeByRef(navMesh, curRef);
+
+            // offmesh traversal cost
+            if (area === OffMeshConnectionAreaType.JUMP) {
+                // regular distance
+                return vec3.distance(pa, pb);
+            } else if (area === OffMeshConnectionAreaType.CLIMB) {
+                // 4x distance, big penalty for climbing
+                return vec3.distance(pa, pb) * 4;
+            } else if (area === OffMeshConnectionAreaType.TELEPORTER) {
+                // teleporting has a low flat cost
+                return 1;
+            }
+        }
+
+        return vec3.distance(pa, pb);
+    },
+};
+
 /* add off mesh connections */
 const offMeshConnections: OffMeshConnectionParams[] = [
     {
@@ -111,7 +150,23 @@ const offMeshConnections: OffMeshConnectionParams[] = [
         end: [-2.735661224133032, 2.3264200687408447, 0.9084349415865054],
         direction: OffMeshConnectionDirection.START_TO_END,
         radius: 0.5,
-        area: 0,
+        area: OffMeshConnectionAreaType.TELEPORTER,
+        flags: 0xffffff,
+    },
+    {
+        start: [0.43153271761444056, 3.788429404449852, 2.549912418335899],
+        end: [1.6203363597139502, 2.7055995008052136, 3.3892644209191634],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        area: OffMeshConnectionAreaType.JUMP,
+        flags: 0xffffff,
+    },
+    {
+        start: [0.5997826320925559, 0.2668087168256541, 4.967287730406272],
+        end: [1.580858144475107, 3.112976869830365, 4.670723413649996],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        area: OffMeshConnectionAreaType.CLIMB,
         flags: 0xffffff,
     },
 ];
@@ -129,61 +184,207 @@ const offMeshConnectionsHelper = createNavMeshOffMeshConnectionsHelper(navMesh);
 scene.add(offMeshConnectionsHelper.object);
 
 /* find path */
-const start: Vec3 = [-3.94, 0.26, 4.71];
-const end: Vec3 = [2.52, 2.39, -2.2];
+let start: Vec3 = [-2.94, 0.26, 4.71];
+let end: Vec3 = [3.4, 2.8, 3.6];
 const halfExtents: Vec3 = [1, 1, 1];
 
-const pathResult = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
+type Visual = { object: THREE.Object3D; dispose: () => void };
+let visuals: Visual[] = [];
 
-console.log(pathResult);
+function clearVisuals() {
+    for (const visual of visuals) {
+        scene.remove(visual.object);
+        visual.dispose();
+    }
+    visuals = [];
+}
 
-if (pathResult.success) {
-    const { path, nodePath } = pathResult;
+function addVisual(visual: Visual) {
+    visuals.push(visual);
+    scene.add(visual.object);
+}
 
-    if (nodePath) {
-        const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
-        scene.add(searchNodesHelper.object);
+function createFlag(color: number): THREE.Group {
+    const poleGeom = new THREE.BoxGeometry(0.12, 1.2, 0.12);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+    const pole = new THREE.Mesh(poleGeom, poleMat);
+    pole.position.set(0, 0.6, 0);
+    const flagGeom = new THREE.BoxGeometry(0.32, 0.22, 0.04);
+    const flagMat = new THREE.MeshStandardMaterial({ color });
+    const flag = new THREE.Mesh(flagGeom, flagMat);
+    flag.position.set(0.23, 1.0, 0);
+    const group = new THREE.Group();
+    group.add(pole);
+    group.add(flag);
+    return group;
+}
 
-        for (let i = 0; i < nodePath.path.length; i++) {
-            const node = nodePath.path[i];
+function updatePath() {
+    clearVisuals();
 
-            if (getNodeRefType(node) === NodeType.POLY) {
-                const polyHelper = createNavMeshPolyHelper(navMesh, node);
-                polyHelper.object.position.y += 0.15;
-                scene.add(polyHelper.object);
+    const startFlag = createFlag(0x2196f3);
+    startFlag.position.set(...start);
+    addVisual({
+        object: startFlag,
+        dispose: () => {
+            startFlag.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry?.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => {
+                            if (mat.dispose) {
+                                mat.dispose();
+                            }
+                        });
+                    } else {
+                        child.material?.dispose?.();
+                    }
+                }
+            });
+        },
+    });
+
+    const endFlag = createFlag(0x00ff00);
+    endFlag.position.set(...end);
+    addVisual({
+        object: endFlag,
+        dispose: () => {
+            endFlag.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry?.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach((mat) => {
+                            if (mat.dispose) {
+                                mat.dispose();
+                            }
+                        });
+                    } else {
+                        child.material?.dispose?.();
+                    }
+                }
+            });
+        },
+    });
+
+    console.time('findPath');
+    const pathResult = findPath(navMesh, start, end, halfExtents, queryFilter);
+    console.timeEnd('findPath');
+
+    console.log('pathResult', pathResult);
+
+    if (pathResult.success) {
+        const { path, nodePath } = pathResult;
+
+        if (nodePath) {
+            const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
+            addVisual({
+                object: searchNodesHelper.object,
+                dispose: () => {
+                    // searchNodesHelper has its own disposal handled elsewhere; remove only
+                },
+            });
+
+            for (let i = 0; i < nodePath.path.length; i++) {
+                const node = nodePath.path[i];
+
+                if (getNodeRefType(node) === NodeType.POLY) {
+                    const polyHelper = createNavMeshPolyHelper(navMesh, node);
+                    polyHelper.object.position.y += 0.15;
+                    addVisual({
+                        object: polyHelper.object,
+                        dispose: () => {
+                            polyHelper.object.traverse((child) => {
+                                if ((child as any).geometry) (child as any).geometry.dispose?.();
+                                if ((child as any).material) {
+                                    const mat = (child as any).material;
+                                    if (Array.isArray(mat)) {
+                                        mat.forEach((m: any) => {
+                                            m?.dispose?.();
+                                        });
+                                    } else {
+                                        mat.dispose?.();
+                                    }
+                                }
+                            });
+                        },
+                    });
+                }
             }
         }
-    }
 
-    if (path) {
-        for (let i = 0; i < path.length; i++) {
-            const point = path[i];
+        if (path) {
+            for (let i = 0; i < path.length; i++) {
+                const point = path[i];
 
-            // point
-            const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-            mesh.position.set(...point.position);
-            scene.add(mesh);
-
-            // line
-            if (i > 0) {
-                const prevPoint = path[i - 1];
-
-                const geometry = new LineGeometry();
-                geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
-
-                const material = new Line2NodeMaterial({
-                    color: 'yellow',
-                    linewidth: 0.1,
-                    worldUnits: true,
+                // point
+                const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+                mesh.position.set(...point.position);
+                addVisual({
+                    object: mesh,
+                    dispose: () => {
+                        mesh.geometry?.dispose();
+                        (mesh.material as any)?.dispose?.();
+                    },
                 });
 
-                const line = new Line2(geometry, material);
+                // line
+                if (i > 0) {
+                    const prevPoint = path[i - 1];
 
-                scene.add(line);
+                    const geometry = new LineGeometry();
+                    geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
+
+                    const material = new Line2NodeMaterial({
+                        color: 'yellow',
+                        linewidth: 0.1,
+                        worldUnits: true,
+                    });
+
+                    const line = new Line2(geometry, material);
+
+                    addVisual({
+                        object: line,
+                        dispose: () => {
+                            line.geometry?.dispose();
+                            line.material?.dispose?.();
+                        },
+                    });
+                }
             }
         }
     }
 }
+
+/* interaction */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+function getPointOnNavMesh(event: PointerEvent): Vec3 | null {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(walkableMeshes, true);
+    if (intersects.length > 0) {
+        const p = intersects[0].point;
+        return [p.x, p.y, p.z];
+    }
+    return null;
+}
+
+renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
+    event.preventDefault();
+    const point = getPointOnNavMesh(event);
+    if (!point) return;
+    if (event.button === 0) {
+        start = point;
+    } else if (event.button === 2) {
+        end = point;
+    }
+    updatePath();
+});
+
+/* initial update */
+updatePath();
 
 /* start loop */
 function update() {

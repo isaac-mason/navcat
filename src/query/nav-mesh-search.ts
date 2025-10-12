@@ -199,13 +199,53 @@ export const getPortalPoints = (
     const fromNodeType = getNodeRefType(fromNodeRef);
     const toNodeType = getNodeRefType(toNodeRef);
 
-    // assume either:
-    // - poly to poly
-    // - offmesh to poly
-    // - poly to offmesh
-    // offmesh to offmesh is not supported
+    // handle from poly to poly
+    if (fromNodeType === NodeType.POLY && toNodeType === NodeType.POLY) {
 
-    // handle from offmesh connection to poly
+        // get the 'from' and 'to' tiles
+        const { tileId: fromTileId, polyIndex: fromPolyIndex } = getNodeByRef(navMesh, fromNodeRef);
+        const fromTile = navMesh.tiles[fromTileId];
+        const fromPoly = fromTile.polys[fromPolyIndex];
+    
+        // find portal vertices
+        const v0Index = fromPoly.vertices[toLink.edge];
+        const v1Index = fromPoly.vertices[(toLink.edge + 1) % fromPoly.vertices.length];
+        const v0Offset = v0Index * 3;
+        const v1Offset = v1Index * 3;
+    
+        // if the link is at tile boundary, clamp the vertices to the link width.
+        if (toLink.side !== 0xff && (toLink.bmin !== 0 || toLink.bmax !== 255)) {
+            // unpack portal limits and lerp
+            const s = 1.0 / 255.0;
+            const tmin = toLink.bmin * s;
+            const tmax = toLink.bmax * s;
+    
+            vec3.fromBuffer(_getPortalPoints_start, fromTile.vertices, v0Offset);
+            vec3.fromBuffer(_getPortalPoints_end, fromTile.vertices, v1Offset);
+            vec3.lerp(outLeft, _getPortalPoints_start, _getPortalPoints_end, tmin);
+            vec3.lerp(outRight, _getPortalPoints_start, _getPortalPoints_end, tmax);
+        } else {
+            // no clamping needed - direct copy
+            vec3.fromBuffer(outLeft, fromTile.vertices, v0Offset);
+            vec3.fromBuffer(outRight, fromTile.vertices, v1Offset);
+        }
+    
+        return true;
+    }
+
+    // handle from offmesh connection to offmesh connection
+    if (fromNodeType === NodeType.OFFMESH && toNodeType === NodeType.OFFMESH) {
+        const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
+        if (!offMeshConnection) return false;
+
+        const position = fromNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
+
+        vec3.copy(outLeft, position);
+        vec3.copy(outRight, position);
+        return true;
+    }
+
+    // handle from offmesh connection to any
     if (fromNodeType === NodeType.OFFMESH) {
         const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
         if (!offMeshConnection) return false;
@@ -218,7 +258,7 @@ export const getPortalPoints = (
     }
 
     // handle from poly to offmesh connection
-    if (toNodeType === NodeType.OFFMESH) {
+    if (fromNodeType === NodeType.POLY && toNodeType === NodeType.OFFMESH) {
         const { offMeshConnectionId, offMeshConnectionSide } = getNodeByRef(navMesh, toNodeRef);
         const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
         if (!offMeshConnection) return false;
@@ -230,37 +270,8 @@ export const getPortalPoints = (
         return true;
     }
 
-    // handle from poly to poly
+    return false;
 
-    // get the 'from' and 'to' tiles
-    const { tileId: fromTileId, polyIndex: fromPolyIndex } = getNodeByRef(navMesh, fromNodeRef);
-    const fromTile = navMesh.tiles[fromTileId];
-    const fromPoly = fromTile.polys[fromPolyIndex];
-
-    // find portal vertices
-    const v0Index = fromPoly.vertices[toLink.edge];
-    const v1Index = fromPoly.vertices[(toLink.edge + 1) % fromPoly.vertices.length];
-    const v0Offset = v0Index * 3;
-    const v1Offset = v1Index * 3;
-
-    // if the link is at tile boundary, clamp the vertices to the link width.
-    if (toLink.side !== 0xff && (toLink.bmin !== 0 || toLink.bmax !== 255)) {
-        // unpack portal limits and lerp
-        const s = 1.0 / 255.0;
-        const tmin = toLink.bmin * s;
-        const tmax = toLink.bmax * s;
-
-        vec3.fromBuffer(_getPortalPoints_start, fromTile.vertices, v0Offset);
-        vec3.fromBuffer(_getPortalPoints_end, fromTile.vertices, v1Offset);
-        vec3.lerp(outLeft, _getPortalPoints_start, _getPortalPoints_end, tmin);
-        vec3.lerp(outRight, _getPortalPoints_start, _getPortalPoints_end, tmax);
-    } else {
-        // no clamping needed - direct copy
-        vec3.fromBuffer(outLeft, fromTile.vertices, v0Offset);
-        vec3.fromBuffer(outRight, fromTile.vertices, v1Offset);
-    }
-
-    return true;
 };
 
 const _edgeMidPointPortalLeft = vec3.create();
@@ -420,9 +431,9 @@ export const findNodePath = (
             }
 
             // get the neighbour node
-            let neighbourNode = getSearchNode(nodes, neighbourNodeRef, crossSide);
-            if (!neighbourNode) {
-                neighbourNode = {
+            let neighbourSearchNode = getSearchNode(nodes, neighbourNodeRef, crossSide);
+            if (!neighbourSearchNode) {
+                neighbourSearchNode = {
                     cost: 0,
                     total: 0,
                     parentNodeRef: null,
@@ -432,12 +443,12 @@ export const findNodePath = (
                     flags: 0,
                     position: [endPos[0], endPos[1], endPos[2]],
                 };
-                addSearchNode(nodes, neighbourNode);
+                addSearchNode(nodes, neighbourSearchNode);
             }
 
             // if this node is being visited for the first time, calculate the node position
-            if (neighbourNode.flags === 0) {
-                getEdgeMidPoint(navMesh, currentNodeRef, neighbourNodeRef, neighbourNode.position);
+            if (neighbourSearchNode.flags === 0) {
+                getEdgeMidPoint(navMesh, currentNodeRef, neighbourNodeRef, neighbourSearchNode.position);
             }
 
             // calculate cost and heuristic
@@ -448,62 +459,62 @@ export const findNodePath = (
             if (neighbourNodeRef === endRef) {
                 const curCost = getCost(
                     currentSearchNode.position,
-                    neighbourNode.position,
+                    neighbourSearchNode.position,
                     navMesh,
                     parentNodeRef,
                     currentNodeRef,
                     neighbourNodeRef,
                 );
 
-                const endCost = getCost(neighbourNode.position, endPos, navMesh, currentNodeRef, neighbourNodeRef, undefined);
+                const endCost = getCost(neighbourSearchNode.position, endPos, navMesh, currentNodeRef, neighbourNodeRef, undefined);
 
                 cost = currentSearchNode.cost + curCost + endCost;
                 heuristic = 0;
             } else {
                 const curCost = getCost(
                     currentSearchNode.position,
-                    neighbourNode.position,
+                    neighbourSearchNode.position,
                     navMesh,
                     parentNodeRef,
                     currentNodeRef,
                     neighbourNodeRef,
                 );
                 cost = currentSearchNode.cost + curCost;
-                heuristic = vec3.distance(neighbourNode.position, endPos) * HEURISTIC_SCALE;
+                heuristic = vec3.distance(neighbourSearchNode.position, endPos) * HEURISTIC_SCALE;
             }
 
             const total = cost + heuristic;
 
             // if the node is already in the open list, and the new result is worse, skip
-            if (neighbourNode.flags & NODE_FLAG_OPEN && total >= neighbourNode.total) {
+            if (neighbourSearchNode.flags & NODE_FLAG_OPEN && total >= neighbourSearchNode.total) {
                 continue;
             }
 
             // if the node is already visited and in the closed list, and the new result is worse, skip
-            if (neighbourNode.flags & NODE_FLAG_CLOSED && total >= neighbourNode.total) {
+            if (neighbourSearchNode.flags & NODE_FLAG_CLOSED && total >= neighbourSearchNode.total) {
                 continue;
             }
 
             // add or update the node
-            neighbourNode.parentNodeRef = currentSearchNode.nodeRef;
-            neighbourNode.parentState = currentSearchNode.state;
-            neighbourNode.nodeRef = neighbourNodeRef;
-            neighbourNode.flags = neighbourNode.flags & ~NODE_FLAG_CLOSED;
-            neighbourNode.cost = cost;
-            neighbourNode.total = total;
+            neighbourSearchNode.parentNodeRef = currentSearchNode.nodeRef;
+            neighbourSearchNode.parentState = currentSearchNode.state;
+            neighbourSearchNode.nodeRef = neighbourNodeRef;
+            neighbourSearchNode.flags = neighbourSearchNode.flags & ~NODE_FLAG_CLOSED;
+            neighbourSearchNode.cost = cost;
+            neighbourSearchNode.total = total;
 
-            if (neighbourNode.flags & NODE_FLAG_OPEN) {
+            if (neighbourSearchNode.flags & NODE_FLAG_OPEN) {
                 // already in open list, update node location
-                reindexNodeInQueue(openList, neighbourNode);
+                reindexNodeInQueue(openList, neighbourSearchNode);
             } else {
                 // put the node in the open list
-                neighbourNode.flags |= NODE_FLAG_OPEN;
-                pushNodeToQueue(openList, neighbourNode);
+                neighbourSearchNode.flags |= NODE_FLAG_OPEN;
+                pushNodeToQueue(openList, neighbourSearchNode);
             }
 
             // update nearest node to target so far
             if (heuristic < lastBestNodeCost) {
-                lastBestNode = neighbourNode;
+                lastBestNode = neighbourSearchNode;
                 lastBestNodeCost = heuristic;
             }
         }
