@@ -124,9 +124,6 @@ const queryFilter: QueryFilter = {
             getNodeRefType(curRef) === NodeType.OFFMESH &&
             getNodeRefType(nextRef) === NodeType.OFFMESH
         ) {
-
-            console.log('pa, pb', pa, pb);
-            
             const { area } = getNodeByRef(navMesh, curRef);
 
             if (area === OffMeshConnectionAreaType.JUMP) {
