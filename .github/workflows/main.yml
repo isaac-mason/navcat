@@ -41,6 +41,9 @@ jobs:
         with:
           path: ./examples/dist
 
+      - name: Run tests
+        run: pnpm test
+
   deploy:
     environment:
       name: github-pages
