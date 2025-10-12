@@ -5,6 +5,7 @@
 - feat: avoid using structuredClone in compact heightfield mergeRegions logic for better perf 
 - feat: remove array allocations in heightfield.ts hot paths
 - fix: getTileAt
+- fix: findNodePath, updateSlicedFindNodePath getCost calls
 
 ## 0.0.4
 
