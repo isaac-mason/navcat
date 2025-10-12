@@ -380,25 +380,25 @@ export const findNodePath = (
 
     while (openList.length > 0) {
         // remove node from the open list and put it in the closed list
-        const currentSearchNode = popNodeFromQueue(openList)!;
-        currentSearchNode.flags &= ~NODE_FLAG_OPEN;
-        currentSearchNode.flags |= NODE_FLAG_CLOSED;
+        const bestSearchNode = popNodeFromQueue(openList)!;
+        bestSearchNode.flags &= ~NODE_FLAG_OPEN;
+        bestSearchNode.flags |= NODE_FLAG_CLOSED;
 
         // if we have reached the goal, stop searching
-        const currentNodeRef = currentSearchNode.nodeRef;
-        if (currentNodeRef === endRef) {
-            lastBestNode = currentSearchNode;
+        const bestNodeRef = bestSearchNode.nodeRef;
+        if (bestNodeRef === endRef) {
+            lastBestNode = bestSearchNode;
             break;
         }
 
         // get current node
-        const currentNode = getNodeByRef(navMesh, currentNodeRef);
+        const bestNode = getNodeByRef(navMesh, bestNodeRef);
 
         // get parent node ref
-        const parentNodeRef = currentSearchNode.parentNodeRef ?? undefined;
+        const parentNodeRef = bestSearchNode.parentNodeRef ?? undefined;
 
         // expand the search with node links
-        for (const linkIndex of currentNode.links) {
+        for (const linkIndex of bestNode.links) {
             const link = navMesh.links[linkIndex];
             const neighbourNodeRef = link.toNodeRef;
 
@@ -436,38 +436,37 @@ export const findNodePath = (
 
             // if this node is being visited for the first time, calculate the node position
             if (neighbourSearchNode.flags === 0) {
-                getEdgeMidPoint(navMesh, currentNodeRef, neighbourNodeRef, neighbourSearchNode.position);
+                getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
             }
 
             // calculate cost and heuristic
             let cost = 0;
             let heuristic = 0;
 
-            // special case for last node
+            // normal cost calculation
+            const curCost = getCost(
+                bestSearchNode.position,
+                neighbourSearchNode.position,
+                navMesh,
+                parentNodeRef,
+                bestNodeRef,
+                neighbourNodeRef,
+            );
+            cost = bestSearchNode.cost + curCost;
+
+            // special case for last node - add cost to reach end position
             if (neighbourNodeRef === endRef) {
-                const curCost = getCost(
-                    currentSearchNode.position,
+                const endCost = getCost(
                     neighbourSearchNode.position,
+                    endPos,
                     navMesh,
-                    parentNodeRef,
-                    currentNodeRef,
+                    bestNodeRef,
                     neighbourNodeRef,
+                    undefined,
                 );
-
-                const endCost = getCost(neighbourSearchNode.position, endPos, navMesh, currentNodeRef, neighbourNodeRef, undefined);
-
-                cost = currentSearchNode.cost + curCost + endCost;
+                cost = cost + endCost;
                 heuristic = 0;
             } else {
-                const curCost = getCost(
-                    currentSearchNode.position,
-                    neighbourSearchNode.position,
-                    navMesh,
-                    parentNodeRef,
-                    currentNodeRef,
-                    neighbourNodeRef,
-                );
-                cost = currentSearchNode.cost + curCost;
                 heuristic = vec3.distance(neighbourSearchNode.position, endPos) * HEURISTIC_SCALE;
             }
 
@@ -484,8 +483,8 @@ export const findNodePath = (
             }
 
             // add or update the node
-            neighbourSearchNode.parentNodeRef = currentSearchNode.nodeRef;
-            neighbourSearchNode.parentState = currentSearchNode.state;
+            neighbourSearchNode.parentNodeRef = bestSearchNode.nodeRef;
+            neighbourSearchNode.parentState = bestSearchNode.state;
             neighbourSearchNode.nodeRef = neighbourNodeRef;
             neighbourSearchNode.flags = neighbourSearchNode.flags & ~NODE_FLAG_CLOSED;
             neighbourSearchNode.cost = cost;
