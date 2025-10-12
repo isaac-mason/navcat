@@ -132,7 +132,7 @@ function performRaycast() {
 
     if (!raycastStartNearestPoly.success) return;
 
-    const raycastResult = raycast(navMesh, raycastStartNearestPoly.ref, raycastStart, raycastEnd, DEFAULT_QUERY_FILTER);
+    const raycastResult = raycast(navMesh, raycastStartNearestPoly.ref, raycastStart, raycastEnd, DEFAULT_QUERY_FILTER, false);
 
     const reachedEnd = raycastResult.t > 0.99;
 

@@ -800,20 +800,13 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                             grandparentNode.position,
                             neighbourNode.position,
                             query.filter,
+                            true,
                         );
 
                         // if the raycast didn't hit anything, we can take the shortcut
                         if (rayResult.t >= 1.0) {
                             foundShortcut = true;
-                            const shortcutCost = getCost(
-                                grandparentNode.position,
-                                neighbourNode.position,
-                                navMesh,
-                                undefined,
-                                grandparentNode.nodeRef,
-                                neighbourNodeRef,
-                            );
-                            cost = grandparentNode.cost + shortcutCost;
+                            cost = grandparentNode.cost + rayResult.pathCost;
                         }
                     }
                 }
@@ -1273,6 +1266,15 @@ export const moveAlongSurface = (
 };
 
 const _raycastVertices: number[] = [];
+const _raycast_dir = vec3.create();
+const _raycast_curPos = vec3.create();
+const _raycast_lastPos = vec3.create();
+const _raycast_e1Vec = vec3.create();
+const _raycast_e0Vec = vec3.create();
+const _raycast_eDir = vec3.create();
+const _raycast_diff = vec3.create();
+const _raycast_hitNormal_va = vec3.create();
+const _raycast_hitNormal_vb = vec3.create();
 
 export type RaycastResult = {
     /** The hit parameter along the segment. A value of Number.MAX_VALUE indicates no wall hit. */
@@ -1283,6 +1285,8 @@ export type RaycastResult = {
     hitEdgeIndex: number;
     /** Visited polygon references. */
     path: NodeRef[];
+    /** Accumulated path cost from start to hit position. Only calculated when calculateCosts is true. */
+    pathCost: number;
 };
 
 /**
@@ -1297,6 +1301,7 @@ export type RaycastResult = {
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
+ * @param calculateCosts Whether to calculate and accumulate path costs across polygons.
  */
 export const raycast = (
     navMesh: NavMesh,
@@ -1304,12 +1309,14 @@ export const raycast = (
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
+    calculateCosts: boolean,
 ): RaycastResult => {
     const result: RaycastResult = {
         t: 0,
         hitNormal: vec3.create(),
         hitEdgeIndex: -1,
         path: [],
+        pathCost: 0,
     };
 
     // validate input
@@ -1318,8 +1325,14 @@ export const raycast = (
     }
 
     let curRef: NodeRef | null = startRef;
+    let prevRef: NodeRef = 0;
 
     const intersectSegmentPoly2DResult = createIntersectSegmentPoly2DResult();
+
+    if (calculateCosts) {
+        vec3.sub(_raycast_dir, endPosition, startPosition);
+        vec3.copy(_raycast_curPos, startPosition);
+    }
 
     while (curRef) {
         // get current tile and poly
@@ -1438,10 +1451,10 @@ export const raycast = (
                 const a = intersectSegmentPoly2DResult.segMax;
                 const b =
                     intersectSegmentPoly2DResult.segMax + 1 < poly.vertices.length ? intersectSegmentPoly2DResult.segMax + 1 : 0;
-                const va = vec3.fromBuffer(vec3.create(), vertices, a * 3);
-                const vb = vec3.fromBuffer(vec3.create(), vertices, b * 3);
-                const dx = vb[0] - va[0];
-                const dz = vb[2] - va[2];
+                vec3.fromBuffer(_raycast_hitNormal_va, vertices, a * 3);
+                vec3.fromBuffer(_raycast_hitNormal_vb, vertices, b * 3);
+                const dx = _raycast_hitNormal_vb[0] - _raycast_hitNormal_va[0];
+                const dz = _raycast_hitNormal_vb[2] - _raycast_hitNormal_va[2];
                 result.hitNormal[0] = dz;
                 result.hitNormal[1] = 0;
                 result.hitNormal[2] = -dx;
@@ -1451,7 +1464,39 @@ export const raycast = (
             return result;
         }
 
+        // calculate cost along the path
+        if (calculateCosts) {
+            // update curPos to the hit point on this polygon's edge
+            vec3.copy(_raycast_lastPos, _raycast_curPos);
+            vec3.scaleAndAdd(_raycast_curPos, startPosition, _raycast_dir, result.t);
+
+            // calculate height at the hit point by lerping vertices of the hit edge
+            const e0 = poly.vertices[intersectSegmentPoly2DResult.segMax];
+            const e1 = poly.vertices[(intersectSegmentPoly2DResult.segMax + 1) % poly.vertices.length];
+
+            const e1Offset = e1 * 3;
+            const e0Offset = e0 * 3;
+
+            vec3.fromBuffer(_raycast_e1Vec, tile.vertices, e1Offset);
+            vec3.fromBuffer(_raycast_e0Vec, tile.vertices, e0Offset);
+
+            vec3.sub(_raycast_eDir, _raycast_e1Vec, _raycast_e0Vec);
+
+            vec3.sub(_raycast_diff, _raycast_curPos, _raycast_e0Vec);
+
+            // use squared comparison to determine which component to use
+            const s = _raycast_eDir[0] * _raycast_eDir[0] > _raycast_eDir[2] * _raycast_eDir[2] 
+                ? _raycast_diff[0] / _raycast_eDir[0] 
+                : _raycast_diff[2] / _raycast_eDir[2];
+
+            _raycast_curPos[1] = _raycast_e0Vec[1] + _raycast_eDir[1] * s;
+
+            // accumulate cost
+            result.pathCost += filter.getCost(_raycast_lastPos, _raycast_curPos, navMesh, prevRef, curRef, nextRef);
+        }
+
         // no hit, advance to neighbor polygon
+        prevRef = curRef;
         curRef = nextRef;
     }
 

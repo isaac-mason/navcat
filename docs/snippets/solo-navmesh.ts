@@ -349,12 +349,13 @@ Nav.addTile(navMesh, tile);
         Nav.DEFAULT_QUERY_FILTER,
     );
 
-    const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
+    const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, false);
 
     console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
     console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
     console.log(raycastResult.hitEdgeIndex); // the index of the edge of the poly that was hit, or -1 if none
     console.log(raycastResult.path); // array of node refs that were visited during the raycast
+    console.log(raycastResult.pathCost); // accumulated cost along the path (only calculated when calculateCosts is true)
     /* SNIPPET_END: raycast */
 }
 

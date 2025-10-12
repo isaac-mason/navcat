@@ -61,9 +61,9 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-mark-compact-heightfield-areas">
-        <img src="./examples/public/screenshots/example-mark-compact-heightfield-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Mark Compact Heightfield Areas
+      <a href="https://navcat.dev#example-upload-model">
+        <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Upload Model
       </a>
     </td>
   </tr>
@@ -75,25 +75,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-custom-navmesh-generation">
-        <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Custom NavMesh Generation
-      </a>
-    </td>
-    <td align="center">
       <a href="https://navcat.dev#example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Solo NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -106,14 +100,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -126,14 +120,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Raycast
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Move Along Surface
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -146,18 +140,24 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Random Point
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point Around Circle
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
-      <a href="https://navcat.dev#example-upload-model">
-        <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Upload Model
+      <a href="https://navcat.dev#example-mark-compact-heightfield-areas">
+        <img src="./examples/public/screenshots/example-mark-compact-heightfield-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Mark Compact Heightfield Areas
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-custom-navmesh-generation">
+        <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Custom NavMesh Generation
       </a>
     </td>
   </tr>
@@ -1348,12 +1348,13 @@ const startNode = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
+const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, false);
 
 console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
 console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
 console.log(raycastResult.hitEdgeIndex); // the index of the edge of the poly that was hit, or -1 if none
 console.log(raycastResult.path); // array of node refs that were visited during the raycast
+console.log(raycastResult.pathCost); // accumulated cost along the path (only calculated when calculateCosts is true)
 ```
 
 ```ts
@@ -1369,8 +1370,9 @@ console.log(raycastResult.path); // array of node refs that were visited during 
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
+ * @param calculateCosts Whether to calculate and accumulate path costs across polygons.
  */
-export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): RaycastResult;
+export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter, calculateCosts: boolean): RaycastResult;
 ```
 
 
