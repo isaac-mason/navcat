@@ -117,7 +117,8 @@ export const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
 
 export const getTileAt = (navMesh: NavMesh, x: number, y: number, layer: number): NavMeshTile | undefined => {
     const tileHash = getTilePositionHash(x, y, layer);
-    return navMesh.tiles[tileHash];
+    const tileId = navMesh.tilePositionToTileId[tileHash];
+    return navMesh.tiles[tileId];
 };
 
 export const getTilesAt = (navMesh: NavMesh, x: number, y: number): NavMeshTile[] => {
