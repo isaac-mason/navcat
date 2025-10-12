@@ -117,21 +117,17 @@ const queryFilter: QueryFilter = {
     passFilter: (_nodeRef, _navMesh) => {
         return true;
     },
-    getCost: (pa, pb, navMesh, _prevRef, _curRef, nextRef) => {
+    getCost: (pa, pb, navMesh, _prevRef, curRef, _nextRef) => {
         // define the costs for traversing an off mesh connection
-        if (
-            nextRef !== undefined &&
-            getNodeRefType(nextRef) === NodeType.OFFMESH
-        ) {
-            const { area, offMeshConnectionId } = getNodeByRef(navMesh, nextRef);
-            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+        if (curRef !== undefined && getNodeRefType(curRef) === NodeType.OFFMESH) {
+            const { area } = getNodeByRef(navMesh, curRef);
 
             if (area === OffMeshConnectionAreaType.JUMP) {
                 // regular distance
-                return vec3.distance(offMeshConnection.start, offMeshConnection.end);
+                return vec3.distance(pa, pb);
             } else if (area === OffMeshConnectionAreaType.CLIMB) {
                 // distance * 4, big penalty
-                return vec3.distance(offMeshConnection.start, offMeshConnection.end) * 4;
+                return vec3.distance(pa, pb) * 4;
             } else if (area === OffMeshConnectionAreaType.TELEPORTER) {
                 // low flat cost
                 return 1;
@@ -183,7 +179,7 @@ const offMeshConnectionsHelper = createNavMeshOffMeshConnectionsHelper(navMesh);
 scene.add(offMeshConnectionsHelper.object);
 
 /* find path */
-let start: Vec3 = [-2.94, 0.26, 4.71];
+let start: Vec3 = [-2.2, 0.26, 4.71];
 let end: Vec3 = [3.4, 2.8, 3.6];
 const halfExtents: Vec3 = [1, 1, 1];
 
@@ -373,6 +369,7 @@ function getPointOnNavMesh(event: PointerEvent): Vec3 | null {
 renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
     event.preventDefault();
     const point = getPointOnNavMesh(event);
+    console.log('clicked on navmesh', point);
     if (!point) return;
     if (event.button === 0) {
         start = point;
