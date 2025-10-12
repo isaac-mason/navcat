@@ -450,12 +450,12 @@ export const findNodePath = (
                     currentSearchNode.position,
                     neighbourNode.position,
                     navMesh,
-                    neighbourNodeRef,
+                    parentNodeRef,
                     currentNodeRef,
-                    undefined,
+                    neighbourNodeRef,
                 );
 
-                const endCost = getCost(neighbourNode.position, endPos, navMesh, neighbourNodeRef, currentNodeRef, undefined);
+                const endCost = getCost(neighbourNode.position, endPos, navMesh, currentNodeRef, neighbourNodeRef, undefined);
 
                 cost = currentSearchNode.cost + curCost + endCost;
                 heuristic = 0;
@@ -814,21 +814,6 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                                 neighbourNodeRef,
                             );
                             cost = grandparentNode.cost + shortcutCost;
-
-                            if (neighbourNodeRef === query.endRef) {
-                                const endCost = getCost(
-                                    neighbourNode.position,
-                                    query.endPos,
-                                    navMesh,
-                                    neighbourNodeRef,
-                                    grandparentNode.nodeRef,
-                                    undefined,
-                                );
-                                cost += endCost;
-                                heuristic = 0;
-                            } else {
-                                heuristic = vec3.distance(neighbourNode.position, query.endPos) * HEURISTIC_SCALE;
-                            }
                         }
                     }
                 }
@@ -836,37 +821,31 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 
             // normal cost calculation (if no shortcut found)
             if (!foundShortcut) {
-                if (neighbourNodeRef === query.endRef) {
-                    const curCost = getCost(
-                        bestNode.position,
-                        neighbourNode.position,
-                        navMesh,
-                        neighbourNodeRef,
-                        currentNodeRef,
-                        undefined,
-                    );
-                    const endCost = getCost(
-                        neighbourNode.position,
-                        query.endPos,
-                        navMesh,
-                        neighbourNodeRef,
-                        currentNodeRef,
-                        undefined,
-                    );
-                    cost = bestNode.cost + curCost + endCost;
-                    heuristic = 0;
-                } else {
-                    const curCost = getCost(
-                        bestNode.position,
-                        neighbourNode.position,
-                        navMesh,
-                        parentNodeRef,
-                        currentNodeRef,
-                        neighbourNodeRef,
-                    );
-                    cost = bestNode.cost + curCost;
-                    heuristic = vec3.distance(neighbourNode.position, query.endPos) * HEURISTIC_SCALE;
-                }
+                const curCost = getCost(
+                    bestNode.position,
+                    neighbourNode.position,
+                    navMesh,
+                    parentNodeRef,
+                    currentNodeRef,
+                    neighbourNodeRef,
+                );
+                cost = bestNode.cost + curCost;
+            }
+
+            // special case for last node - add cost to reach end position
+            if (neighbourNodeRef === query.endRef) {
+                const endCost = getCost(
+                    neighbourNode.position,
+                    query.endPos,
+                    navMesh,
+                    currentNodeRef,
+                    neighbourNodeRef,
+                    undefined,
+                );
+                cost = cost + endCost;
+                heuristic = 0;
+            } else {
+                heuristic = vec3.distance(neighbourNode.position, query.endPos) * HEURISTIC_SCALE;
             }
 
             const total = cost + heuristic;
