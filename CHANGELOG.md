@@ -10,6 +10,7 @@
 - fix: offmesh connection node allocation and deallocation
 - feat: add 'calculateCosts' argument to raycast
 - fix: use raycast with calculateCosts in updateSlicedFindNodePath for correct cost calculation when shortcuts span multiple polygons
+- feat: represent off mesh connections with a start offmesh node and an end offmesh node, with links between start poly -> start offmesh -> end offmesh -> end poly
 
 ## 0.0.4
 
