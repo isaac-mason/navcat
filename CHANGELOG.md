@@ -11,6 +11,7 @@
 - feat: add 'calculateCosts' argument to raycast
 - fix: use raycast with calculateCosts in updateSlicedFindNodePath for correct cost calculation when shortcuts span multiple polygons
 - feat: represent off mesh connections with a start offmesh node and an end offmesh node, with links between start poly -> start offmesh -> end offmesh -> end poly
+- feat: stop using 'getEdgeMidPoint' for offmesh connections in node pathfinding, use the exact offmesh connection start and end points directly instead
 
 ## 0.0.4
 

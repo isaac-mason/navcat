@@ -201,7 +201,6 @@ export const getPortalPoints = (
 
     // handle from poly to poly
     if (fromNodeType === NodeType.POLY && toNodeType === NodeType.POLY) {
-
         // get the 'from' and 'to' tiles
         const { tileId: fromTileId, polyIndex: fromPolyIndex } = getNodeByRef(navMesh, fromNodeRef);
         const fromTile = navMesh.tiles[fromTileId];
@@ -233,6 +232,19 @@ export const getPortalPoints = (
         return true;
     }
 
+    // handle from any to offmesh connection
+    if (toNodeType === NodeType.OFFMESH) {
+        const toNode = getNodeByRef(navMesh, toNodeRef);
+        const offMeshConnection = navMesh.offMeshConnections[toNode.offMeshConnectionId];
+        if (!offMeshConnection) return false;
+
+        const position = toNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
+
+        vec3.copy(outLeft, position);
+        vec3.copy(outRight, position);
+        return true;
+    }
+
     // handle from offmesh connection to any
     if (fromNodeType === NodeType.OFFMESH) {
         const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
@@ -245,21 +257,7 @@ export const getPortalPoints = (
         return true;
     }
 
-    // handle from poly to offmesh connection
-    if (fromNodeType === NodeType.POLY && toNodeType === NodeType.OFFMESH) {
-        const { offMeshConnectionId, offMeshConnectionSide } = getNodeByRef(navMesh, toNodeRef);
-        const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
-        if (!offMeshConnection) return false;
-
-        const position = offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
-
-        vec3.copy(outLeft, position);
-        vec3.copy(outRight, position);
-        return true;
-    }
-
     return false;
-
 };
 
 const _edgeMidPointPortalLeft = vec3.create();
@@ -391,7 +389,7 @@ export const findNodePath = (
             break;
         }
 
-        // get current node
+        // get best node
         const bestNode = getNodeByRef(navMesh, bestNodeRef);
 
         // get parent node ref
@@ -429,14 +427,23 @@ export const findNodePath = (
                     nodeRef: neighbourNodeRef,
                     state: crossSide,
                     flags: 0,
-                    position: [endPos[0], endPos[1], endPos[2]],
+                    position: [0, 0, 0],
                 };
-                addSearchNode(nodes, neighbourSearchNode);
-            }
 
-            // if this node is being visited for the first time, calculate the node position
-            if (neighbourSearchNode.flags === 0) {
-                getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
+                addSearchNode(nodes, neighbourSearchNode);
+                
+                // this node is being visited for the first time, calculate the node position
+                // If the neighbour is an OFFMESH node, use its explicit endpoint
+                // (respecting the node's offMeshConnectionSide). Otherwise, use
+                // the edge midpoint between polygons.
+                if (getNodeRefType(neighbourNodeRef) === NodeType.OFFMESH) {
+                    const nbNode = getNodeByRef(navMesh, neighbourNodeRef);
+                    const offMeshConnection = navMesh.offMeshConnections[nbNode.offMeshConnectionId];
+                    const position = nbNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
+                    vec3.copy(neighbourSearchNode.position, position);
+                } else {
+                    getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
+                }
             }
 
             // calculate cost and heuristic
@@ -716,26 +723,26 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
         itersDone++;
 
         // remove best node from open list and close it
-        const bestNode = popNodeFromQueue(query.openList)!;
-        bestNode.flags &= ~NODE_FLAG_OPEN;
-        bestNode.flags |= NODE_FLAG_CLOSED;
+        const bestSearchNode = popNodeFromQueue(query.openList)!;
+        bestSearchNode.flags &= ~NODE_FLAG_OPEN;
+        bestSearchNode.flags |= NODE_FLAG_CLOSED;
 
         // check if we've reached the goal
-        if (bestNode.nodeRef === query.endRef) {
-            query.lastBestNode = bestNode;
+        if (bestSearchNode.nodeRef === query.endRef) {
+            query.lastBestNode = bestSearchNode;
             query.status = SlicedFindNodePathStatusFlags.SUCCESS;
             return itersDone;
         }
 
-        // get current node
-        const currentNodeRef = bestNode.nodeRef;
-        const currentNode = getNodeByRef(navMesh, currentNodeRef);
+        // get best node
+        const bestNodeRef = bestSearchNode.nodeRef;
+        const bestNode = getNodeByRef(navMesh, bestNodeRef);
 
         // get parent for backtracking prevention
-        const parentNodeRef = bestNode.parentNodeRef ?? undefined;
+        const parentNodeRef = bestSearchNode.parentNodeRef ?? undefined;
 
         // expand to neighbors
-        for (const linkIndex of currentNode.links) {
+        for (const linkIndex of bestNode.links) {
             const link = navMesh.links[linkIndex];
             const neighbourNodeRef = link.toNodeRef;
 
@@ -756,10 +763,10 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
             }
 
             // get or create neighbor node
-            let neighbourNode = getSearchNode(query.nodes, neighbourNodeRef, crossSide);
+            let neighbourSearchNode = getSearchNode(query.nodes, neighbourNodeRef, crossSide);
 
-            if (!neighbourNode) {
-                neighbourNode = {
+            if (!neighbourSearchNode) {
+                neighbourSearchNode = {
                     cost: 0,
                     total: 0,
                     parentNodeRef: null,
@@ -767,14 +774,23 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                     nodeRef: neighbourNodeRef,
                     state: crossSide,
                     flags: 0,
-                    position: [query.endPos[0], query.endPos[1], query.endPos[2]],
+                    position: [0, 0, 0],
                 };
-                addSearchNode(query.nodes, neighbourNode);
-            }
 
-            // set position on first visit
-            if (neighbourNode.flags === 0) {
-                getEdgeMidPoint(navMesh, currentNodeRef, neighbourNodeRef, neighbourNode.position);
+                addSearchNode(query.nodes, neighbourSearchNode);
+
+                // this node is being visited for the first time, calculate the node position
+                // If the neighbour is an OFFMESH node, use its explicit endpoint
+                // (respecting the node's offMeshConnectionSide). Otherwise, use
+                // the edge midpoint between polygons.
+                if (getNodeRefType(neighbourNodeRef) === NodeType.OFFMESH) {
+                    const neighbourNode = getNodeByRef(navMesh, neighbourNodeRef);
+                    const offMeshConnection = navMesh.offMeshConnections[neighbourNode.offMeshConnectionId];
+                    const position = neighbourNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
+                    vec3.copy(neighbourSearchNode.position, position);
+                } else {
+                    getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
+                }
             }
 
             // calculate costs
@@ -783,12 +799,12 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 
             // check for raycast shortcut (if enabled)
             let foundShortcut = false;
-            if (query.raycastLimitSqr && bestNode.parentNodeRef !== null && bestNode.parentState !== null) {
+            if (query.raycastLimitSqr && bestSearchNode.parentNodeRef !== null && bestSearchNode.parentState !== null) {
                 // get grandparent node for potential raycast shortcut
-                const grandparentNode = getSearchNode(query.nodes, bestNode.parentNodeRef, bestNode.parentState);
+                const grandparentNode = getSearchNode(query.nodes, bestSearchNode.parentNodeRef, bestSearchNode.parentState);
 
                 if (grandparentNode) {
-                    const rayLength = vec3.distance(grandparentNode.position, neighbourNode.position);
+                    const rayLength = vec3.distance(grandparentNode.position, neighbourSearchNode.position);
 
                     if (rayLength < Math.sqrt(query.raycastLimitSqr)) {
                         // attempt raycast from grandparent to current neighbor
@@ -796,7 +812,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                             navMesh,
                             grandparentNode.nodeRef,
                             grandparentNode.position,
-                            neighbourNode.position,
+                            neighbourSearchNode.position,
                             query.filter,
                             true,
                         );
@@ -813,72 +829,72 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
             // normal cost calculation (if no shortcut found)
             if (!foundShortcut) {
                 const curCost = getCost(
-                    bestNode.position,
-                    neighbourNode.position,
+                    bestSearchNode.position,
+                    neighbourSearchNode.position,
                     navMesh,
                     parentNodeRef,
-                    currentNodeRef,
+                    bestNodeRef,
                     neighbourNodeRef,
                 );
-                cost = bestNode.cost + curCost;
+                cost = bestSearchNode.cost + curCost;
             }
 
             // special case for last node - add cost to reach end position
             if (neighbourNodeRef === query.endRef) {
                 const endCost = getCost(
-                    neighbourNode.position,
+                    neighbourSearchNode.position,
                     query.endPos,
                     navMesh,
-                    currentNodeRef,
+                    bestNodeRef,
                     neighbourNodeRef,
                     undefined,
                 );
                 cost = cost + endCost;
                 heuristic = 0;
             } else {
-                heuristic = vec3.distance(neighbourNode.position, query.endPos) * HEURISTIC_SCALE;
+                heuristic = vec3.distance(neighbourSearchNode.position, query.endPos) * HEURISTIC_SCALE;
             }
 
             const total = cost + heuristic;
 
             // skip if worse than existing
             if (
-                (neighbourNode.flags & NODE_FLAG_OPEN && total >= neighbourNode.total) ||
-                (neighbourNode.flags & NODE_FLAG_CLOSED && total >= neighbourNode.total)
+                (neighbourSearchNode.flags & NODE_FLAG_OPEN && total >= neighbourSearchNode.total) ||
+                (neighbourSearchNode.flags & NODE_FLAG_CLOSED && total >= neighbourSearchNode.total)
             ) {
                 continue;
             }
 
             // update node
             if (foundShortcut) {
-                neighbourNode.parentNodeRef = bestNode.parentNodeRef;
-                neighbourNode.parentState = bestNode.parentState;
+                neighbourSearchNode.parentNodeRef = bestSearchNode.parentNodeRef;
+                neighbourSearchNode.parentState = bestSearchNode.parentState;
             } else {
-                neighbourNode.parentNodeRef = bestNode.nodeRef;
-                neighbourNode.parentState = bestNode.state;
+                neighbourSearchNode.parentNodeRef = bestSearchNode.nodeRef;
+                neighbourSearchNode.parentState = bestSearchNode.state;
             }
-            neighbourNode.cost = cost;
-            neighbourNode.total = total;
-            neighbourNode.flags &= ~NODE_FLAG_CLOSED;
+            neighbourSearchNode.cost = cost;
+            neighbourSearchNode.total = total;
+            neighbourSearchNode.flags &= ~NODE_FLAG_CLOSED;
 
             // mark as detached parent if raycast shortcut was used
             if (foundShortcut) {
-                neighbourNode.flags |= NODE_FLAG_PARENT_DETACHED;
+                neighbourSearchNode.flags |= NODE_FLAG_PARENT_DETACHED;
             } else {
-                neighbourNode.flags &= ~NODE_FLAG_PARENT_DETACHED;
+                neighbourSearchNode.flags &= ~NODE_FLAG_PARENT_DETACHED;
             }
 
-            if (neighbourNode.flags & NODE_FLAG_OPEN) {
-                reindexNodeInQueue(query.openList, neighbourNode);
+            if (neighbourSearchNode.flags & NODE_FLAG_OPEN) {
+                reindexNodeInQueue(query.openList, neighbourSearchNode);
             } else {
-                neighbourNode.flags |= NODE_FLAG_OPEN;
-                pushNodeToQueue(query.openList, neighbourNode);
+                neighbourSearchNode.flags |= NODE_FLAG_OPEN;
+                pushNodeToQueue(query.openList, neighbourSearchNode);
             }
 
             // update best node tracking
             if (heuristic < query.lastBestNodeCost) {
                 query.lastBestNodeCost = heuristic;
-                query.lastBestNode = neighbourNode;
+                query.lastBestNode = neighbourSearchNode;
             }
         }
     }
