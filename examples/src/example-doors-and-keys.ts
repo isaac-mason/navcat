@@ -411,14 +411,14 @@ const navMeshInput: NavMeshInput = {
     doors,
 };
 
-const cellSize = 0.3;
-const cellHeight = 0.3;
+const cellSize = 0.5;
+const cellHeight = 0.5;
 
 const walkableRadiusWorld = 0.3;
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 const walkableClimbWorld = 0.5;
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-const walkableHeightWorld = 0.1;
+const walkableHeightWorld = 2;
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 const walkableSlopeAngleDegrees = 45;
 
