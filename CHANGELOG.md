@@ -6,6 +6,7 @@
 - feat: remove array allocations in heightfield.ts hot paths
 - fix: getTileAt
 - fix: findNodePath, updateSlicedFindNodePath getCost calls
+- fix: allocateNode should set node.allocated = true
 
 ## 0.0.4
 
