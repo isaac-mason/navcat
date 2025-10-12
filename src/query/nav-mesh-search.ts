@@ -9,13 +9,7 @@ import {
     randomPointInConvexPoly,
     triArea2D,
 } from '../geometry';
-import {
-    type NavMesh,
-    type NavMeshLink,
-    type NavMeshPoly,
-    type NavMeshTile,
-    OffMeshConnectionSide,
-} from './nav-mesh';
+import type { NavMesh, NavMeshLink, NavMeshPoly, NavMeshTile } from './nav-mesh';
 import type { QueryFilter } from './nav-mesh-api';
 import {
     createGetClosestPointOnPolyResult,
@@ -28,11 +22,7 @@ import {
     getTileAndPolyByRef,
     isValidNodeRef,
 } from './nav-mesh-api';
-import {
-    getNodeRefType,
-    type NodeRef,
-    NodeType,
-} from './node';
+import { getNodeRefType, type NodeRef, NodeType } from './node';
 
 export const NODE_FLAG_OPEN = 0x01;
 export const NODE_FLAG_CLOSED = 0x02;
@@ -77,13 +67,13 @@ export type SearchNodeQueue = SearchNode[];
 export const getSearchNode = (pool: SearchNodePool, nodeRef: NodeRef, state: number): SearchNode | undefined => {
     const nodes = pool[nodeRef];
     if (!nodes) return undefined;
-    
+
     for (let i = 0; i < nodes.length; i++) {
         if (nodes[i].state === state) {
             return nodes[i];
         }
     }
-    
+
     return undefined;
 };
 
@@ -205,20 +195,20 @@ export const getPortalPoints = (
         const { tileId: fromTileId, polyIndex: fromPolyIndex } = getNodeByRef(navMesh, fromNodeRef);
         const fromTile = navMesh.tiles[fromTileId];
         const fromPoly = fromTile.polys[fromPolyIndex];
-    
+
         // find portal vertices
         const v0Index = fromPoly.vertices[toLink.edge];
         const v1Index = fromPoly.vertices[(toLink.edge + 1) % fromPoly.vertices.length];
         const v0Offset = v0Index * 3;
         const v1Offset = v1Index * 3;
-    
+
         // if the link is at tile boundary, clamp the vertices to the link width.
         if (toLink.side !== 0xff && (toLink.bmin !== 0 || toLink.bmax !== 255)) {
             // unpack portal limits and lerp
             const s = 1.0 / 255.0;
             const tmin = toLink.bmin * s;
             const tmax = toLink.bmax * s;
-    
+
             vec3.fromBuffer(_getPortalPoints_start, fromTile.vertices, v0Offset);
             vec3.fromBuffer(_getPortalPoints_end, fromTile.vertices, v1Offset);
             vec3.lerp(outLeft, _getPortalPoints_start, _getPortalPoints_end, tmin);
@@ -228,32 +218,34 @@ export const getPortalPoints = (
             vec3.fromBuffer(outLeft, fromTile.vertices, v0Offset);
             vec3.fromBuffer(outRight, fromTile.vertices, v1Offset);
         }
-    
+
         return true;
     }
 
-    // handle from any to offmesh connection
-    if (toNodeType === NodeType.OFFMESH) {
+    // handle from poly to offmesh connection
+    if (fromNodeType === NodeType.POLY && toNodeType === NodeType.OFFMESH) {
         const toNode = getNodeByRef(navMesh, toNodeRef);
         const offMeshConnection = navMesh.offMeshConnections[toNode.offMeshConnectionId];
         if (!offMeshConnection) return false;
 
-        const position = toNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
+        const position = toLink && toLink.edge === 0 ? offMeshConnection.start : offMeshConnection.end;
 
         vec3.copy(outLeft, position);
         vec3.copy(outRight, position);
+
         return true;
     }
 
-    // handle from offmesh connection to any
-    if (fromNodeType === NodeType.OFFMESH) {
+    // handle from offmesh connection to poly
+    if (fromNodeType === NodeType.OFFMESH && toNodeType === NodeType.POLY) {
         const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
         if (!offMeshConnection) return false;
 
-        const position = fromNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
+        const position = toLink && toLink.edge === 0 ? offMeshConnection.start : offMeshConnection.end;
 
         vec3.copy(outLeft, position);
         vec3.copy(outRight, position);
+
         return true;
     }
 
@@ -369,7 +361,7 @@ export const findNodePath = (
         flags: NODE_FLAG_OPEN,
         position: [startPos[0], startPos[1], startPos[2]],
     };
-    
+
     addSearchNode(nodes, startNode);
     pushNodeToQueue(openList, startNode);
 
@@ -431,19 +423,8 @@ export const findNodePath = (
                 };
 
                 addSearchNode(nodes, neighbourSearchNode);
-                
-                // this node is being visited for the first time, calculate the node position
-                // If the neighbour is an OFFMESH node, use its explicit endpoint
-                // (respecting the node's offMeshConnectionSide). Otherwise, use
-                // the edge midpoint between polygons.
-                if (getNodeRefType(neighbourNodeRef) === NodeType.OFFMESH) {
-                    const nbNode = getNodeByRef(navMesh, neighbourNodeRef);
-                    const offMeshConnection = navMesh.offMeshConnections[nbNode.offMeshConnectionId];
-                    const position = nbNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
-                    vec3.copy(neighbourSearchNode.position, position);
-                } else {
-                    getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
-                }
+
+                getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
             }
 
             // calculate cost and heuristic
@@ -463,14 +444,7 @@ export const findNodePath = (
 
             // special case for last node - add cost to reach end position
             if (neighbourNodeRef === endRef) {
-                const endCost = getCost(
-                    neighbourSearchNode.position,
-                    endPos,
-                    navMesh,
-                    bestNodeRef,
-                    neighbourNodeRef,
-                    undefined,
-                );
+                const endCost = getCost(neighbourSearchNode.position, endPos, navMesh, bestNodeRef, neighbourNodeRef, undefined);
                 cost = cost + endCost;
                 heuristic = 0;
             } else {
@@ -779,18 +753,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 
                 addSearchNode(query.nodes, neighbourSearchNode);
 
-                // this node is being visited for the first time, calculate the node position
-                // If the neighbour is an OFFMESH node, use its explicit endpoint
-                // (respecting the node's offMeshConnectionSide). Otherwise, use
-                // the edge midpoint between polygons.
-                if (getNodeRefType(neighbourNodeRef) === NodeType.OFFMESH) {
-                    const neighbourNode = getNodeByRef(navMesh, neighbourNodeRef);
-                    const offMeshConnection = navMesh.offMeshConnections[neighbourNode.offMeshConnectionId];
-                    const position = neighbourNode.offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.start : offMeshConnection.end;
-                    vec3.copy(neighbourSearchNode.position, position);
-                } else {
-                    getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
-                }
+                getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
             }
 
             // calculate costs
@@ -1123,7 +1086,7 @@ export const moveAlongSurface = (
         flags: NODE_FLAG_CLOSED,
         position: [startPosition[0], startPosition[1], startPosition[2]],
     };
-    
+
     addSearchNode(nodes, startNode);
 
     const bestPos = vec3.clone(startPosition);
@@ -1389,7 +1352,7 @@ export const raycast = (
         }
 
         // follow neighbors
-        let nextRef: NodeRef | undefined = undefined;
+        let nextRef: NodeRef | undefined;
 
         const curNode = getNodeByRef(navMesh, curRef);
 
@@ -1499,9 +1462,10 @@ export const raycast = (
             vec3.sub(_raycast_diff, _raycast_curPos, _raycast_e0Vec);
 
             // use squared comparison to determine which component to use
-            const s = _raycast_eDir[0] * _raycast_eDir[0] > _raycast_eDir[2] * _raycast_eDir[2] 
-                ? _raycast_diff[0] / _raycast_eDir[0] 
-                : _raycast_diff[2] / _raycast_eDir[2];
+            const s =
+                _raycast_eDir[0] * _raycast_eDir[0] > _raycast_eDir[2] * _raycast_eDir[2]
+                    ? _raycast_diff[0] / _raycast_eDir[0]
+                    : _raycast_diff[2] / _raycast_eDir[2];
 
             _raycast_curPos[1] = _raycast_e0Vec[1] + _raycast_eDir[1] * s;
 
@@ -1702,7 +1666,7 @@ export const findRandomPointAroundCircle = (
         flags: NODE_FLAG_OPEN,
         position: [centerPosition[0], centerPosition[1], centerPosition[2]],
     };
-    
+
     addSearchNode(nodes, startNode);
     pushNodeToQueue(openList, startNode);
 

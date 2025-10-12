@@ -117,21 +117,21 @@ const queryFilter: QueryFilter = {
     passFilter: (_nodeRef, _navMesh) => {
         return true;
     },
-    getCost: (pa, pb, navMesh, _prevRef, curRef, nextRef) => {
+    getCost: (pa, pb, navMesh, _prevRef, _curRef, nextRef) => {
         // define the costs for traversing an off mesh connection
         if (
             nextRef !== undefined &&
-            getNodeRefType(curRef) === NodeType.OFFMESH &&
             getNodeRefType(nextRef) === NodeType.OFFMESH
         ) {
-            const { area } = getNodeByRef(navMesh, curRef);
+            const { area, offMeshConnectionId } = getNodeByRef(navMesh, nextRef);
+            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
 
             if (area === OffMeshConnectionAreaType.JUMP) {
                 // regular distance
-                return vec3.distance(pa, pb);
+                return vec3.distance(offMeshConnection.start, offMeshConnection.end);
             } else if (area === OffMeshConnectionAreaType.CLIMB) {
                 // distance * 4, big penalty
-                return vec3.distance(pa, pb) * 4;
+                return vec3.distance(offMeshConnection.start, offMeshConnection.end) * 4;
             } else if (area === OffMeshConnectionAreaType.TELEPORTER) {
                 // low flat cost
                 return 1;

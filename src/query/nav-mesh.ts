@@ -189,11 +189,8 @@ export type OffMeshConnection = {
 export type OffMeshConnectionParams = Omit<OffMeshConnection, 'id' | 'sequence'>;
 
 export type OffMeshConnectionAttachment = {
-    /** the start offmesh node */
-    startOffMeshNode: NodeRef;
-
-    /** the end offmesh node */
-    endOffMeshNode: NodeRef;
+    /** the offmesh node */
+    offMeshNode: NodeRef;
 
     /** the start polygon that the off mesh connection has linked to */
     startPolyNode: NodeRef;

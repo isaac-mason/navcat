@@ -73,7 +73,6 @@ const _findPathEndNearestPolyResult = createFindNearestPolyResult();
  * @param queryFilter The query filter.
  * @returns The result of the pathfinding operation.
  */
-
 export const findPath = (
     navMesh: NavMesh,
     start: Vec3,

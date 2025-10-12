@@ -891,9 +891,8 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
         anim.t += deltaTime;
 
         if (anim.t >= anim.duration) {
-            // remove start and end off-mesh connection nodes from corridor
-            agent.corridor.path.shift(); // start node
-            agent.corridor.path.shift(); // end node
+            // remove off-mesh connection node from corridor
+            agent.corridor.path.shift();
 
             // finish animation
             agent.offMeshAnimation = null;
