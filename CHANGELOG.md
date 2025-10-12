@@ -7,6 +7,9 @@
 - fix: getTileAt
 - fix: findNodePath, updateSlicedFindNodePath getCost calls
 - fix: allocateNode should set node.allocated = true
+- fix: offmesh connection node allocation and deallocation
+- feat: add 'calculateCosts' argument to raycast
+- fix: use raycast with calculateCosts in updateSlicedFindNodePath for correct cost calculation when shortcuts span multiple polygons
 
 ## 0.0.4
 
