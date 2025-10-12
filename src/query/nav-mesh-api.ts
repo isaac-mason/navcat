@@ -778,6 +778,8 @@ const allocateNode = (navMesh: NavMesh) => {
         };
     }
 
+    node.allocated = true;
+
     return node;
 };
 
