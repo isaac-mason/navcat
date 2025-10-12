@@ -158,4 +158,79 @@ describe('offmesh connections', () => {
         const offMeshNodesAfterRemove = nodesAfterRemove.filter((node) => node.type === 1);
         expect(offMeshNodesAfterRemove.length).toBe(0);
     });
+
+    test('one-way offmesh connection only creates one offmesh node', () => {
+        const navMesh = createTestNavMesh();
+
+        // initially, there should be 4 poly nodes
+        const initialPolyNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
+        expect(initialPolyNodes.length).toBe(4);
+
+        const startPos: [number, number, number] = [1, 0, 1]; // Center of first quad
+        const endPos: [number, number, number] = [8, 0, 1]; // Center of second quad
+
+        // add a one-way offmesh connection (START_TO_END)
+        const offMeshConnectionId = addOffMeshConnection(navMesh, {
+            start: startPos,
+            end: endPos,
+            radius: 0.5,
+            direction: OffMeshConnectionDirection.START_TO_END,
+            area: 0,
+            flags: 1,
+        });
+
+        // check offmesh connection exists
+        expect(navMesh.offMeshConnections[offMeshConnectionId]).toBeDefined();
+
+        // check offmesh connection attachment exists
+        const attachment = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
+        expect(attachment).toBeDefined();
+
+        // for one-way connections, only 1 offmesh node should be created (at the start)
+        const nodesAfterAdd = Object.values(navMesh.nodes).filter((node) => node.allocated);
+        expect(nodesAfterAdd.length).toBe(5); // 4 poly nodes + 1 offmesh node
+
+        const offMeshNodes = nodesAfterAdd.filter((node) => node.type === 1); // NodeType.OFFMESH = 1
+        expect(offMeshNodes.length).toBe(1);
+
+        // check the offmesh node is the start node (side = 0)
+        expect(offMeshNodes[0].offMeshConnectionId).toBe(offMeshConnectionId);
+        expect(offMeshNodes[0].offMeshConnectionSide).toBe(0); // OffMeshConnectionSide.START
+
+        // the start offmesh node should link to the end poly
+        expect(offMeshNodes[0].links.length).toBe(1);
+        
+        // the start poly should link to the start offmesh node
+        const startPolyNode = Object.values(navMesh.nodes).find(
+            (node) => node.allocated && node.ref === attachment.startPolyNode
+        );
+        expect(startPolyNode).toBeDefined();
+        expect(startPolyNode!.links.length).toBeGreaterThan(0);
+
+        // the end poly should NOT link to any offmesh node (one-way only)
+        const endPolyNode = Object.values(navMesh.nodes).find(
+            (node) => node.allocated && node.ref === attachment.endPolyNode
+        );
+        expect(endPolyNode).toBeDefined();
+
+        // the end poly should only have links to its adjacent polys, not to offmesh
+        const endPolyOffMeshLinks = endPolyNode!.links.filter((linkIdx) => {
+            const link = navMesh.links[linkIdx];
+            const toNode = Object.values(navMesh.nodes).find((n) => n.ref === link.toNodeRef);
+            return toNode?.type === 1; // NodeType.OFFMESH
+        });
+        expect(endPolyOffMeshLinks.length).toBe(0);
+
+        // remove the offmesh connection
+        removeOffMeshConnection(navMesh, offMeshConnectionId);
+
+        // check offmesh connection was removed
+        expect(navMesh.offMeshConnections[offMeshConnectionId]).toBeUndefined();
+
+        // check offmesh node is deallocated
+        const nodesAfterRemove = Object.values(navMesh.nodes).filter((node) => node.allocated);
+        expect(nodesAfterRemove.length).toBe(4);
+        const offMeshNodesAfterRemove = nodesAfterRemove.filter((node) => node.type === 1);
+        expect(offMeshNodesAfterRemove.length).toBe(0);
+    });
 });
