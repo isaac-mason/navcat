@@ -15,96 +15,6 @@ import {
     removeTile,
 } from '../dist';
 
-const createTestNavMesh = (): NavMesh => {
-    // Create two disconnected quads (platforms)
-    // First quad: bottom-left platform at y=0
-    // Second quad: top-right platform at y=0 (separated by gap in x)
-
-    // biome-ignore format: readability
-    const navMeshPositions = [
-        // First quad vertices (indices 0-3)
-        0, 0, 0,      // 0: bottom-left
-        2, 0, 0,      // 1: bottom-right
-        2, 0, 2,      // 2: top-right
-        0, 0, 2,      // 3: top-left
-        
-        // Second quad vertices (indices 4-7) - 5 units away on x-axis
-        7, 0, 0,      // 4: bottom-left
-        9, 0, 0,      // 5: bottom-right
-        9, 0, 2,      // 6: top-right
-        7, 0, 2,      // 7: top-left
-    ];
-
-    // biome-ignore format: readability
-    const navMeshIndices = [
-        // First quad triangles
-        0, 1, 2,
-        0, 2, 3,
-        
-        // Second quad triangles
-        4, 5, 6,
-        4, 6, 7,
-    ];
-
-    // Calculate bounds
-    const bounds: Box3 = box3.create();
-    const point = [0, 0, 0] as [number, number, number];
-    for (let i = 0; i < navMeshPositions.length; i += 3) {
-        point[0] = navMeshPositions[i];
-        point[1] = navMeshPositions[i + 1];
-        point[2] = navMeshPositions[i + 2];
-        box3.expandByPoint(bounds, bounds, point);
-    }
-
-    // Create polygons
-    const polys: ExternalPolygon[] = [];
-
-    for (let i = 0; i < navMeshIndices.length; i += 3) {
-        const a = navMeshIndices[i];
-        const b = navMeshIndices[i + 1];
-        const c = navMeshIndices[i + 2];
-
-        polys.push({
-            vertices: [a, b, c],
-            area: 0,
-            flags: 1,
-        });
-    }
-
-    const tilePolys = polygonsToNavMeshTilePolys(polys, navMeshPositions, 0, bounds);
-
-    const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
-
-    // Create nav mesh tile
-    const tileParams: NavMeshTileParams = {
-        bounds,
-        vertices: tilePolys.vertices,
-        polys: tilePolys.polys,
-        detailMeshes: tileDetailMesh.detailMeshes,
-        detailVertices: tileDetailMesh.detailVertices,
-        detailTriangles: tileDetailMesh.detailTriangles,
-        tileX: 0,
-        tileY: 0,
-        tileLayer: 0,
-        cellSize: 0.2,
-        cellHeight: 0.2,
-        walkableHeight: 0.5,
-        walkableRadius: 0.5,
-        walkableClimb: 0.5,
-    };
-
-    const tile = buildTile(tileParams);
-
-    const navMesh = createNavMesh();
-    navMesh.origin = bounds[0];
-    navMesh.tileWidth = bounds[1][0] - bounds[0][0];
-    navMesh.tileHeight = bounds[1][2] - bounds[0][2];
-
-    addTile(navMesh, tile);
-
-    return navMesh;
-};
-
 describe('node graph', () => {
     test('tile polys', () => {
         // prepare a simple nav mesh tile of one quad
@@ -202,7 +112,7 @@ describe('node graph', () => {
         // assert: no allocated nodes
         const allocatedNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
         expect(allocatedNodes.length).toBe(0);
-        
+
         // assert: nodes are pooled
         expect(navMesh.nodes.length).toBe(2);
 
@@ -215,7 +125,7 @@ describe('node graph', () => {
     });
 
     test('bidirectional offmesh connection', () => {
-        const navMesh = createTestNavMesh();
+        const navMesh = createOffMeshTestNavMesh();
 
         // initially, there should be 4 poly nodes
         const initialPolyNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
@@ -257,7 +167,7 @@ describe('node graph', () => {
 
         // Start poly should link to offmesh node
         const startPolyNode = Object.values(navMesh.nodes).find(
-            (node) => node.allocated && node.ref === attachment.startPolyNode
+            (node) => node.allocated && node.ref === attachment.startPolyNode,
         );
         expect(startPolyNode).toBeDefined();
         const startPolyOffMeshLinks = startPolyNode!.links.filter((linkIdx) => {
@@ -273,9 +183,7 @@ describe('node graph', () => {
         expect(offMeshLinks.some((link) => link.toNodeRef === attachment.startPolyNode)).toBe(true);
 
         // End poly should link to offmesh node
-        const endPolyNode = Object.values(navMesh.nodes).find(
-            (node) => node.allocated && node.ref === attachment.endPolyNode
-        );
+        const endPolyNode = Object.values(navMesh.nodes).find((node) => node.allocated && node.ref === attachment.endPolyNode);
         expect(endPolyNode).toBeDefined();
         const endPolyOffMeshLinks = endPolyNode!.links.filter((linkIdx) => {
             const link = navMesh.links[linkIdx];
@@ -297,7 +205,7 @@ describe('node graph', () => {
     });
 
     test('one way offmesh connection', () => {
-        const navMesh = createTestNavMesh();
+        const navMesh = createOffMeshTestNavMesh();
 
         // initially, there should be 4 poly nodes
         const initialPolyNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
@@ -334,7 +242,7 @@ describe('node graph', () => {
 
         // the start poly should link to the offmesh node
         const startPolyNode = Object.values(navMesh.nodes).find(
-            (node) => node.allocated && node.ref === attachment.startPolyNode
+            (node) => node.allocated && node.ref === attachment.startPolyNode,
         );
         expect(startPolyNode).toBeDefined();
         const startPolyOffMeshLinks = startPolyNode!.links.filter((linkIdx) => {
@@ -349,9 +257,7 @@ describe('node graph', () => {
         expect(startOffMeshLink.toNodeRef).toBe(attachment.endPolyNode);
 
         // the end poly should NOT link to any offmesh node (one-way only)
-        const endPolyNode = Object.values(navMesh.nodes).find(
-            (node) => node.allocated && node.ref === attachment.endPolyNode
-        );
+        const endPolyNode = Object.values(navMesh.nodes).find((node) => node.allocated && node.ref === attachment.endPolyNode);
         expect(endPolyNode).toBeDefined();
 
         // the end poly should only have links to its adjacent polys, not to offmesh
@@ -375,3 +281,93 @@ describe('node graph', () => {
         expect(offMeshNodesAfterRemove.length).toBe(0);
     });
 });
+
+function createOffMeshTestNavMesh(): NavMesh {
+    // Create two disconnected quads (platforms)
+    // First quad: bottom-left platform at y=0
+    // Second quad: top-right platform at y=0 (separated by gap in x)
+
+    // biome-ignore format: readability
+    const navMeshPositions = [
+        // First quad vertices (indices 0-3)
+        0, 0, 0,      // 0: bottom-left
+        2, 0, 0,      // 1: bottom-right
+        2, 0, 2,      // 2: top-right
+        0, 0, 2,      // 3: top-left
+        
+        // Second quad vertices (indices 4-7) - 5 units away on x-axis
+        7, 0, 0,      // 4: bottom-left
+        9, 0, 0,      // 5: bottom-right
+        9, 0, 2,      // 6: top-right
+        7, 0, 2,      // 7: top-left
+    ];
+
+    // biome-ignore format: readability
+    const navMeshIndices = [
+        // First quad triangles
+        0, 1, 2,
+        0, 2, 3,
+        
+        // Second quad triangles
+        4, 5, 6,
+        4, 6, 7,
+    ];
+
+    // Calculate bounds
+    const bounds: Box3 = box3.create();
+    const point = [0, 0, 0] as [number, number, number];
+    for (let i = 0; i < navMeshPositions.length; i += 3) {
+        point[0] = navMeshPositions[i];
+        point[1] = navMeshPositions[i + 1];
+        point[2] = navMeshPositions[i + 2];
+        box3.expandByPoint(bounds, bounds, point);
+    }
+
+    // Create polygons
+    const polys: ExternalPolygon[] = [];
+
+    for (let i = 0; i < navMeshIndices.length; i += 3) {
+        const a = navMeshIndices[i];
+        const b = navMeshIndices[i + 1];
+        const c = navMeshIndices[i + 2];
+
+        polys.push({
+            vertices: [a, b, c],
+            area: 0,
+            flags: 1,
+        });
+    }
+
+    const tilePolys = polygonsToNavMeshTilePolys(polys, navMeshPositions, 0, bounds);
+
+    const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
+
+    // Create nav mesh tile
+    const tileParams: NavMeshTileParams = {
+        bounds,
+        vertices: tilePolys.vertices,
+        polys: tilePolys.polys,
+        detailMeshes: tileDetailMesh.detailMeshes,
+        detailVertices: tileDetailMesh.detailVertices,
+        detailTriangles: tileDetailMesh.detailTriangles,
+        tileX: 0,
+        tileY: 0,
+        tileLayer: 0,
+        cellSize: 0.2,
+        cellHeight: 0.2,
+        walkableHeight: 0.5,
+        walkableRadius: 0.5,
+        walkableClimb: 0.5,
+    };
+
+    const tile = buildTile(tileParams);
+
+    const navMesh = createNavMesh();
+    navMesh.origin = bounds[0];
+    navMesh.tileWidth = bounds[1][0] - bounds[0][0];
+    navMesh.tileHeight = bounds[1][2] - bounds[0][2];
+
+    addTile(navMesh, tile);
+
+    return navMesh;
+}
