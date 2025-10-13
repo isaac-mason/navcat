@@ -1168,6 +1168,176 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
     return primitives;
 }
 
+export function createNavMeshTileHelper(tile: NavMeshTile): DebugPrimitive[] {
+    const primitives: DebugPrimitive[] = [];
+
+    const triPositions: number[] = [];
+    const triColors: number[] = [];
+    const triIndices: number[] = [];
+    let triVertexIndex = 0;
+
+    const interPolyLinePositions: number[] = [];
+    const interPolyLineColors: number[] = [];
+    const outerPolyLinePositions: number[] = [];
+    const outerPolyLineColors: number[] = [];
+
+    const vertexPositions: number[] = [];
+    const vertexColors: number[] = [];
+
+    // Draw detail triangles for each polygon
+    for (const polyId in tile.polys) {
+        const poly = tile.polys[polyId];
+        const polyDetail = tile.detailMeshes[polyId];
+        if (!polyDetail) continue;
+
+        // Get polygon color based on area
+        const col = areaToColor(poly.area, 0.4);
+
+        // Draw detail triangles for this polygon
+        for (let j = 0; j < polyDetail.trianglesCount; j++) {
+            const triBase = (polyDetail.trianglesBase + j) * 4;
+            const t0 = tile.detailTriangles[triBase];
+            const t1 = tile.detailTriangles[triBase + 1];
+            const t2 = tile.detailTriangles[triBase + 2];
+
+            // Get triangle vertices
+            for (let k = 0; k < 3; k++) {
+                const vertIndex = k === 0 ? t0 : k === 1 ? t1 : t2;
+                let vx: number;
+                let vy: number;
+                let vz: number;
+
+                if (vertIndex < poly.vertices.length) {
+                    // Vertex from main polygon
+                    const polyVertIndex = poly.vertices[vertIndex];
+                    const vBase = polyVertIndex * 3;
+                    vx = tile.vertices[vBase];
+                    vy = tile.vertices[vBase + 1];
+                    vz = tile.vertices[vBase + 2];
+                } else {
+                    // Vertex from detail mesh
+                    const detailVertIndex = (polyDetail.verticesBase + vertIndex - poly.vertices.length) * 3;
+                    vx = tile.detailVertices[detailVertIndex];
+                    vy = tile.detailVertices[detailVertIndex + 1];
+                    vz = tile.detailVertices[detailVertIndex + 2];
+                }
+
+                triPositions.push(vx, vy, vz);
+                triColors.push(...col);
+            }
+
+            // Add triangle indices
+            triIndices.push(triVertexIndex, triVertexIndex + 1, triVertexIndex + 2);
+            triVertexIndex += 3;
+        }
+    }
+
+    // Draw polygon boundaries
+    const innerColor = [0.2, 0.2, 0.2];
+    const outerColor = [0.6, 0.6, 1];
+
+    for (const polyId in tile.polys) {
+        const poly = tile.polys[polyId];
+
+        for (let j = 0; j < poly.vertices.length; j++) {
+            const nj = (j + 1) % poly.vertices.length;
+            const nei = poly.neis[j];
+
+            // Check if this is a boundary edge
+            const isBoundary = (nei & POLY_NEIS_FLAG_EXT_LINK) !== 0;
+
+            // Get edge vertices
+            const polyVertIndex1 = poly.vertices[j];
+            const polyVertIndex2 = poly.vertices[nj];
+
+            const v1Base = polyVertIndex1 * 3;
+            const v2Base = polyVertIndex2 * 3;
+
+            const v1x = tile.vertices[v1Base];
+            const v1y = tile.vertices[v1Base + 1] + 0.01; // Slightly offset up
+            const v1z = tile.vertices[v1Base + 2];
+
+            const v2x = tile.vertices[v2Base];
+            const v2y = tile.vertices[v2Base + 1] + 0.01;
+            const v2z = tile.vertices[v2Base + 2];
+
+            if (isBoundary) {
+                // Outer boundary edge
+                outerPolyLinePositions.push(v1x, v1y, v1z);
+                outerPolyLineColors.push(outerColor[0], outerColor[1], outerColor[2]);
+                outerPolyLinePositions.push(v2x, v2y, v2z);
+                outerPolyLineColors.push(outerColor[0], outerColor[1], outerColor[2]);
+            } else {
+                // Inner polygon edge
+                interPolyLinePositions.push(v1x, v1y, v1z);
+                interPolyLineColors.push(innerColor[0], innerColor[1], innerColor[2]);
+                interPolyLinePositions.push(v2x, v2y, v2z);
+                interPolyLineColors.push(innerColor[0], innerColor[1], innerColor[2]);
+            }
+        }
+    }
+
+    // Draw vertices
+    const vertexColor = [1, 1, 1];
+    for (let i = 0; i < tile.vertices.length; i += 3) {
+        const worldX = tile.vertices[i];
+        const worldY = tile.vertices[i + 1];
+        const worldZ = tile.vertices[i + 2];
+
+        vertexPositions.push(worldX, worldY, worldZ);
+        vertexColors.push(vertexColor[0], vertexColor[1], vertexColor[2]);
+    }
+
+    // Add triangle mesh primitive
+    if (triPositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Triangles,
+            positions: triPositions,
+            colors: triColors,
+            indices: triIndices,
+            transparent: true,
+            opacity: 0.8,
+            doubleSided: true,
+        });
+    }
+
+    // Add inter-poly boundary lines
+    if (interPolyLinePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: interPolyLinePositions,
+            colors: interPolyLineColors,
+            transparent: true,
+            opacity: 0.3,
+            lineWidth: 1.5,
+        });
+    }
+
+    // Add outer poly boundary lines
+    if (outerPolyLinePositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Lines,
+            positions: outerPolyLinePositions,
+            colors: outerPolyLineColors,
+            transparent: true,
+            opacity: 0.9,
+            lineWidth: 2.5,
+        });
+    }
+
+    // Add vertex points
+    if (vertexPositions.length > 0) {
+        primitives.push({
+            type: DebugPrimitiveType.Points,
+            positions: vertexPositions,
+            colors: vertexColors,
+            size: 0.025,
+        });
+    }
+
+    return primitives;
+}
+
 export function createNavMeshPolyHelper(
     navMesh: NavMesh,
     polyRef: NodeRef,

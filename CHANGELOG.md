@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.0.6 (Unreleased)
+
+- feat: add 'createNavMeshTileHelper' helper, similar to 'createNavMeshHelper' for visualizing individual tiles
+
 ## 0.0.5
 
 - feat: avoid using structuredClone in compact heightfield mergeRegions logic for better perf 
