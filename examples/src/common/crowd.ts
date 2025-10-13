@@ -291,7 +291,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 const nearestPolyResult = findNearestPoly(
                     _checkPathValidityNearestPolyResult,
                     navMesh,
-                    agent.position,
+                    agent.targetPos,
                     crowd.agentPlacementHalfExtents,
                     agent.params.queryFilter,
                 );
