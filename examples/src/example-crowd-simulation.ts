@@ -6,14 +6,14 @@ import {
     DEFAULT_QUERY_FILTER,
     findNearestPoly,
     findRandomPoint,
+    getNodeByTileAndPoly,
     type NavMesh,
     type NodeRef,
-    type OffMeshConnectionParams,
     OffMeshConnectionDirection,
-    getNodeByTileAndPoly,
+    type OffMeshConnectionParams,
 } from 'navcat';
-import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import * as THREE from 'three/webgpu';
 import {
     type Agent,
     type AgentParams,
@@ -29,7 +29,6 @@ import {
     createNavMeshPolyHelper,
     type DebugObject,
 } from './common/debug';
-import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
@@ -55,16 +54,49 @@ gui.add(guiSettings, 'showCapsuleDebug').name('Show Capsule Debug');
 
 /* setup example scene */
 const container = document.getElementById('root')!;
-const { scene, camera, renderer } = await createExample(container);
 
+// scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202020);
+
+// camera
+const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
 camera.position.set(-2, 10, 10);
 
+// renderer
+const renderer = new THREE.WebGPURenderer({ antialias: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+
+container.appendChild(renderer.domElement);
+
+// lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(5, 5, 5);
+scene.add(directionalLight);
+
+// resize handling
+function onWindowResize() {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+}
+window.addEventListener('resize', onWindowResize);
+
+await renderer.init();
+
+// controls
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true;
 
+/* load level model */
 const levelModel = await loadGLTF('/models/nav-test.glb');
-// const levelModel = await loadGLTF('/models/dungeon.gltf');
-// const levelModel = await loadGLTF('/models/proto-level.glb');
 scene.add(levelModel.scene);
 
 /* load cat model for agents */
