@@ -12,6 +12,7 @@ import {
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
     removeOffMeshConnection,
+    removeTile,
 } from '../dist';
 
 const createTestNavMesh = (): NavMesh => {
@@ -104,7 +105,115 @@ const createTestNavMesh = (): NavMesh => {
     return navMesh;
 };
 
-describe('offmesh connections', () => {
+describe('node graph', () => {
+    test('tile polys', () => {
+        // prepare a simple nav mesh tile of one quad
+
+        // biome-ignore format: readability
+        const navMeshPositions = [
+            // quad vertices (indices 0-3)
+            0, 0, 0,      // 0: bottom-left
+            2, 0, 0,      // 1: bottom-right
+            2, 0, 2,      // 2: top-right
+            0, 0, 2,      // 3: top-left
+        ];
+
+        // biome-ignore format: readability
+        const navMeshIndices = [
+            // quad triangles
+            0, 1, 2,
+            0, 2, 3,
+        ];
+
+        const bounds: Box3 = box3.create();
+        const point = [0, 0, 0] as [number, number, number];
+        for (let i = 0; i < navMeshPositions.length; i += 3) {
+            point[0] = navMeshPositions[i];
+            point[1] = navMeshPositions[i + 1];
+            point[2] = navMeshPositions[i + 2];
+            box3.expandByPoint(bounds, bounds, point);
+        }
+
+        const polys: ExternalPolygon[] = [];
+
+        for (let i = 0; i < navMeshIndices.length; i += 3) {
+            const a = navMeshIndices[i];
+            const b = navMeshIndices[i + 1];
+            const c = navMeshIndices[i + 2];
+
+            polys.push({
+                vertices: [a, b, c],
+                area: 0,
+                flags: 1,
+            });
+        }
+
+        const tilePolys = polygonsToNavMeshTilePolys(polys, navMeshPositions, 0, bounds);
+
+        const tileDetailMesh = polysToTileDetailMesh(tilePolys.polys);
+
+        const tileParams: NavMeshTileParams = {
+            bounds,
+            vertices: tilePolys.vertices,
+            polys: tilePolys.polys,
+            detailMeshes: tileDetailMesh.detailMeshes,
+            detailVertices: tileDetailMesh.detailVertices,
+            detailTriangles: tileDetailMesh.detailTriangles,
+            tileX: 0,
+            tileY: 0,
+            tileLayer: 0,
+            cellSize: 0.2,
+            cellHeight: 0.2,
+            walkableHeight: 0.5,
+            walkableRadius: 0.5,
+            walkableClimb: 0.5,
+        };
+
+        const tile = buildTile(tileParams);
+
+        const navMesh = createNavMesh();
+        navMesh.origin = bounds[0];
+        navMesh.tileWidth = bounds[1][0] - bounds[0][0];
+        navMesh.tileHeight = bounds[1][2] - bounds[0][2];
+
+        // assert: no nodes or links yet
+        expect(navMesh.nodes.length).toBe(0);
+        expect(navMesh.links.length).toBe(0);
+
+        // add the tile
+        addTile(navMesh, tile);
+
+        // assert: should have 2 polys, each with a node
+        const allocatedPolyNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
+        expect(allocatedPolyNodes.length).toBe(2);
+
+        // assert: each node should have one link to the other poly
+        for (const node of allocatedPolyNodes) {
+            expect(node.links.length).toBe(1);
+            const link = navMesh.links[node.links[0]];
+            const toNode = Object.values(navMesh.nodes).find((n) => n.ref === link.toNodeRef);
+            expect(toNode).toBeDefined();
+            expect(toNode?.type).toBe(0); // NodeType.POLY = 0
+        }
+
+        // remove the tile
+        removeTile(navMesh, tile.tileX, tile.tileY, tile.tileLayer);
+
+        // assert: no allocated nodes
+        const allocatedNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
+        expect(allocatedNodes.length).toBe(0);
+        
+        // assert: nodes are pooled
+        expect(navMesh.nodes.length).toBe(2);
+
+        // assert: no allocated links
+        const allocatedLinks = navMesh.links.filter((link) => link.allocated);
+        expect(allocatedLinks.length).toBe(0);
+
+        // assert: links are pooled
+        expect(navMesh.links.length).toBe(2);
+    });
+
     test('bidirectional offmesh connection', () => {
         const navMesh = createTestNavMesh();
 
