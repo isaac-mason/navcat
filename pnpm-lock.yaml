@@ -48,6 +48,9 @@ importers:
 
   examples:
     dependencies:
+      '@dimforge/rapier3d-compat':
+        specifier: ^0.19.1
+        version: 0.19.1
       lil-gui:
         specifier: ^0.20.0
         version: 0.20.0
@@ -168,6 +171,10 @@ packages:
   /@dimforge/rapier3d-compat@0.12.0:
     resolution: {integrity: sha512-uekIGetywIgopfD97oDL5PfeezkFpNhwlzlaEYNOA0N6ghdsOvh/HYjSMek5Q2O1PYvRSDFcqFVJl4r4ZBwOow==}
     dev: true
+
+  /@dimforge/rapier3d-compat@0.19.1:
+    resolution: {integrity: sha512-xvFNtb/9xILxfvdFOa7NCnYUEF6cfn51R44C1xnKXtk5DpyAARqsC4sxZwiJAHRSzYT5FFe889t36iFnzb3vxg==}
+    dev: false
 
   /@esbuild/aix-ppc64@0.25.9:
     resolution: {integrity: sha512-OaGtL73Jck6pBKjNIe24BnFE6agGl+6KxDtTfHhy1HmhthfKouEcOhqpSL64K4/0WCtbKFLOdzD/44cJ4k9opA==}

@@ -35,19 +35,25 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
+      <a href="https://navcat.dev#example-dynamic-obstacles">
+        <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Dynamic Obstacles
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev#example-navmesh-constrained-character-controller">
         <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Navmesh Constrained Character Controller
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-flow-field-pathfinding">
         <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flow Field Pathfinding
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-areas">
         <img src="./examples/public/screenshots/example-custom-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -60,14 +66,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Doors and Keys
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-upload-model">
         <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Upload Model
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -80,14 +86,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Solo NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -100,14 +106,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -120,14 +126,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Raycast
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Move Along Surface
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -140,14 +146,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Random Point
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point Around Circle
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-mark-compact-heightfield-areas">
         <img src="./examples/public/screenshots/example-mark-compact-heightfield-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -1881,6 +1887,8 @@ const polyMeshHelper = Nav.createPolyMeshHelper(polyMesh);
 const polyMeshDetailHelper = Nav.createPolyMeshDetailHelper(polyMeshDetail);
 
 const navMeshHelper = Nav.createNavMeshHelper(navMesh);
+
+const navMeshTileHelper = Nav.createNavMeshTileHelper(Object.values(navMesh.tiles)[0]);
 
 const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, 0);
 

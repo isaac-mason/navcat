@@ -573,6 +573,8 @@ Nav.addTile(navMesh, tile);
 
     const navMeshHelper = Nav.createNavMeshHelper(navMesh);
 
+    const navMeshTileHelper = Nav.createNavMeshTileHelper(Object.values(navMesh.tiles)[0]);
+
     const navMeshPolyHelper = Nav.createNavMeshPolyHelper(navMesh, 0);
 
     const navMeshTileBvTreeHelper = Nav.createNavMeshTileBvTreeHelper(tile);

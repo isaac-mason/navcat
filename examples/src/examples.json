@@ -24,6 +24,11 @@
         "description": "Example of using query filters to create conditional areas in a navmesh",
         "tags": ["navmesh", "areas", "query", "door", "key"]
     },
+    "example-dynamic-obstacles": {
+        "title": "Dynamic Obstacles",
+        "description": "Example of navmesh generation with moving physics objects as obstacles",
+        "tags": ["dynamic", "obstacles", "physics", "fps"]
+    },
     "example-upload-model": {
         "title": "Upload Model",
         "description": "Example of uploading a model and generating a navmesh from it",

@@ -479,7 +479,7 @@ const updateCorners = (crowd: Crowd, navMesh: NavMesh): void => {
 
         if (agent.state !== AgentState.WALKING || agent.targetState !== AgentTargetState.VALID) {
             vec3.set(agent.desiredVelocity, 0, 0, 0);
-            return;
+            continue;
         }
 
         // get corridor corners for steering
@@ -487,7 +487,7 @@ const updateCorners = (crowd: Crowd, navMesh: NavMesh): void => {
 
         if (!corners) {
             vec3.set(agent.desiredVelocity, 0, 0, 0);
-            return;
+            continue;
         }
 
         agent.corners = corners;
