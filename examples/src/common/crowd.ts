@@ -115,6 +115,7 @@ export type Agent = {
         t: number;
         startPos: Vec3;
         endPos: Vec3;
+        nodeRef: NodeRef;
         duration: number;
     } | null;
 };
@@ -330,8 +331,8 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
     }
 };
 
-const GLOBAL_MAX_ITERATIONS = 500;
-const AGENT_MAX_ITERATIONS = 100;
+const GLOBAL_MAX_ITERATIONS = 600;
+const AGENT_MAX_ITERATIONS = 200;
 const QUICK_SEARCH_ITERATIONS = 20;
 
 const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
@@ -544,6 +545,7 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
                 duration: 0.5,
                 startPos: vec3.clone(agent.position),
                 endPos: vec3.clone(result.endPosition),
+                nodeRef: result.offMeshNodeRef,
             };
         }
     }
@@ -891,9 +893,6 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
         anim.t += deltaTime;
 
         if (anim.t >= anim.duration) {
-            // remove off-mesh connection node from corridor
-            agent.corridor.path.shift();
-
             // finish animation
             agent.offMeshAnimation = null;
 

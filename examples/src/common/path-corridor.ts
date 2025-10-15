@@ -178,7 +178,7 @@ export const fixPathStart = (corridor: PathCorridor, safeRef: NodeRef, safePos: 
     return true;
 };
 
-export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef: NodeRef, navMesh: NavMesh) => {
+export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshNodeRef: NodeRef, navMesh: NavMesh) => {
     if (corridor.path.length === 0) return false;
 
     // advance the path up to and over the off-mesh connection.
@@ -186,7 +186,7 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef:
     let nodeRef = corridor.path[0];
     let i = 0;
     
-    while (i < corridor.path.length && nodeRef !== offMeshConRef) {
+    while (i < corridor.path.length && nodeRef !== offMeshNodeRef) {
         prevNodeRef = nodeRef;
         i++;
         if (i < corridor.path.length) {
@@ -199,15 +199,15 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef:
         return false;
     }
 
-    // prune path - remove the elements from 0 to i-1
-    corridor.path = corridor.path.slice(i);
+    // prune path - remove the elements from 0 up to and including the off-mesh connection
+    corridor.path = corridor.path.slice(i + 1);
 
     if (!prevNodeRef) {
         return false;
     }
 
     // get the off-mesh connection
-    const { offMeshConnectionId } = getNodeByRef(navMesh, offMeshConRef);
+    const { offMeshConnectionId } = getNodeByRef(navMesh, offMeshNodeRef);
     const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
     const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
@@ -226,6 +226,6 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshConRef:
         endPosition, 
         endNodeRef, 
         prevNodeRef, 
-        offMeshConRef, 
+        offMeshNodeRef, 
     };
 };
