@@ -336,8 +336,12 @@ for (let tx = 0; tx < tileWidth; tx++) {
     }
 }
 
-const processRebuildQueue = (maxPerFrame = 3) => {
-    for (let i = 0; i < maxPerFrame; i++) {
+const processRebuildQueue = (maxPerFrame: number) => {
+    let processed = 0;
+    
+    for (let i = 0; i < rebuildQueue.length; i++) {
+        if (processed >= maxPerFrame) break;
+        
         const tile = rebuildQueue.shift();
         if (!tile) return;
         const [tx, ty] = tile;
@@ -350,6 +354,7 @@ const processRebuildQueue = (maxPerFrame = 3) => {
         if (now - last < TILE_REBUILD_THROTTLE_MS) {
             // push to end of queue for retry later
             rebuildQueue.push([tx, ty]);
+            dirtyTiles.add(key); // re-add to dirty set since we're re-enqueueing
             continue;
         }
 
@@ -361,6 +366,7 @@ const processRebuildQueue = (maxPerFrame = 3) => {
 
             if (!precomputedCompactHeightfield) {
                 console.warn('No precomputed compact heightfield for tile', key);
+                processed++; // count this to prevent infinite loop
                 continue;
             }
 
@@ -496,10 +502,16 @@ const processRebuildQueue = (maxPerFrame = 3) => {
 
             // record rebuild time
             tileLastRebuilt.set(key, performance.now());
+            
+            // count this as a processed tile
+            processed++;
         } catch (err) {
             // log and continue
             // eslint-disable-next-line no-console
             console.error('Tile build failed', err);
+            
+            // count failed tiles too (to prevent infinite loops on bad tiles)
+            processed++;
         }
     }
 };
@@ -1123,8 +1135,10 @@ function update() {
         obj.lastPosition = curPos;
     }
 
-    // process at most 3 tile rebuilds per frame
-    processRebuildQueue(3);
+    // process at most 1 tile rebuild per frame
+    console.time("tick processRebuildQueue");
+    processRebuildQueue(1);
+    console.timeEnd("tick processRebuildQueue");
 
     // update tile flash effects
     const now = performance.now();
