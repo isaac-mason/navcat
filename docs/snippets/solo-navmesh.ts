@@ -349,14 +349,39 @@ Nav.addTile(navMesh, tile);
         Nav.DEFAULT_QUERY_FILTER,
     );
 
-    const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, false);
+    const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
     console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
     console.log(raycastResult.hitEdgeIndex); // the index of the edge of the poly that was hit, or -1 if none
     console.log(raycastResult.path); // array of node refs that were visited during the raycast
-    console.log(raycastResult.pathCost); // accumulated cost along the path (only calculated when calculateCosts is true)
     /* SNIPPET_END: raycast */
+}
+
+{
+    /* SNIPPET_START: raycastWithCosts */
+    const start: Vec3 = [1, 0, 1];
+    const end: Vec3 = [8, 0, 8];
+    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+    const startNode = Nav.findNearestPoly(
+        Nav.createFindNearestPolyResult(),
+        navMesh,
+        start,
+        halfExtents,
+        Nav.DEFAULT_QUERY_FILTER,
+    );
+
+    // raycastWithCosts calculates path costs and requires the previous polygon reference
+    const prevRef = 0; // 0 if no previous polygon
+    const raycastResult = Nav.raycastWithCosts(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, prevRef);
+
+    console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
+    console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
+    console.log(raycastResult.hitEdgeIndex); // the index of the edge of the poly that was hit, or -1 if none
+    console.log(raycastResult.path); // array of node refs that were visited during the raycast
+    console.log(raycastResult.pathCost); // accumulated cost along the raycast path
+    /* SNIPPET_END: raycastWithCosts */
 }
 
 {

@@ -403,13 +403,13 @@ export const findNodePath = (
             }
 
             // deal explicitly with crossing tile boundaries by partitioning the search node refs by crossing side
-            let crossSide = 0;
+            let state = 0;
             if (link.side !== 0xff) {
-                crossSide = link.side >> 1;
+                state = link.side >> 1;
             }
 
             // get the neighbour node
-            let neighbourSearchNode = getSearchNode(nodes, neighbourNodeRef, crossSide);
+            let neighbourSearchNode = getSearchNode(nodes, neighbourNodeRef, state);
             if (!neighbourSearchNode) {
                 neighbourSearchNode = {
                     cost: 0,
@@ -417,7 +417,7 @@ export const findNodePath = (
                     parentNodeRef: null,
                     parentState: null,
                     nodeRef: neighbourNodeRef,
-                    state: crossSide,
+                    state,
                     flags: 0,
                     position: [0, 0, 0],
                 };
@@ -731,13 +731,13 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
             }
 
             // handle tile boundary crossing
-            let crossSide = 0;
+            let state = 0;
             if (link.side !== 0xff) {
-                crossSide = link.side >> 1;
+                state = link.side >> 1;
             }
 
             // get or create neighbor node
-            let neighbourSearchNode = getSearchNode(query.nodes, neighbourNodeRef, crossSide);
+            let neighbourSearchNode = getSearchNode(query.nodes, neighbourNodeRef, state);
 
             if (!neighbourSearchNode) {
                 neighbourSearchNode = {
@@ -746,7 +746,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                     parentNodeRef: null,
                     parentState: null,
                     nodeRef: neighbourNodeRef,
-                    state: crossSide,
+                    state,
                     flags: 0,
                     position: [0, 0, 0],
                 };
@@ -771,13 +771,13 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 
                     if (rayLength < Math.sqrt(query.raycastLimitSqr)) {
                         // attempt raycast from grandparent to current neighbor
-                        const rayResult = raycast(
+                        const rayResult = raycastWithCosts(
                             navMesh,
                             grandparentNode.nodeRef,
                             grandparentNode.position,
                             neighbourSearchNode.position,
                             query.filter,
-                            true,
+                            grandparentNode.parentNodeRef ?? 0, // pass the great-grandparent for accurate cost calculations
                         );
 
                         // if the raycast didn't hit anything, we can take the shortcut
@@ -873,10 +873,12 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 /**
  * Finalizes and returns the results of a sliced path query.
  *
+ * @param navMesh The navigation mesh
  * @param query The sliced path query to finalize
  * @returns Object containing the status, path, and path count
  */
 export const finalizeSlicedFindNodePath = (
+    navMesh: NavMesh,
     query: SlicedNodePathQuery,
 ): { status: SlicedFindNodePathStatusFlags; path: NodeRef[]; pathCount: number } => {
     const result = {
@@ -905,12 +907,14 @@ export const finalizeSlicedFindNodePath = (
         query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
     }
 
-    // reconstruct path
-    const tempPath: NodeRef[] = [];
+    // reverse the path by traversing parent chain and flipping detached parent flags
+    type PathNode = { node: SearchNode; wasDetached: boolean };
+    const reversedPath: PathNode[] = [];
     let currentNode: SearchNode | null = query.lastBestNode;
 
     while (currentNode) {
-        tempPath.push(currentNode.nodeRef);
+        const wasDetached = (currentNode.flags & NODE_FLAG_PARENT_DETACHED) !== 0;
+        reversedPath.push({ node: currentNode, wasDetached });
 
         if (currentNode.parentNodeRef !== null && currentNode.parentState !== null) {
             currentNode = getSearchNode(query.nodes, currentNode.parentNodeRef, currentNode.parentState) ?? null;
@@ -919,8 +923,52 @@ export const finalizeSlicedFindNodePath = (
         }
     }
 
-    // reverse to get correct order
-    result.path = tempPath.reverse();
+    // reverse to get forward order
+    reversedPath.reverse();
+
+    // build final path, filling in raycast shortcuts if any-angle pathfinding was enabled
+    const finalPath: NodeRef[] = [];
+
+    if (query.raycastLimitSqr !== null) {
+        // any-angle pathfinding was enabled, need to fill in raycast shortcuts
+        for (let i = 0; i < reversedPath.length; i++) {
+            const current = reversedPath[i];
+            const next = i + 1 < reversedPath.length ? reversedPath[i + 1] : null;
+
+            // if this node has a detached parent, we need to raycast to fill the gap
+            if (next && current.wasDetached) {
+                // raycast from current position to next position to get intermediate polygons
+                const rayResult = raycast(
+                    navMesh,
+                    current.node.nodeRef,
+                    current.node.position,
+                    next.node.position,
+                    query.filter,
+                );
+
+                // add all polygons from the raycast
+                for (const polyRef of rayResult.path) {
+                    finalPath.push(polyRef);
+                }
+
+                // the raycast ends on a poly boundary and might include the next poly
+                // remove duplicate if the last poly in raycast matches the next node
+                if (finalPath.length > 0 && finalPath[finalPath.length - 1] === next.node.nodeRef) {
+                    finalPath.pop();
+                }
+            } else {
+                // normal adjacent connection, just add the node
+                finalPath.push(current.node.nodeRef);
+            }
+        }
+    } else {
+        // no any-angle pathfinding, just extract the node refs
+        for (let i = 0; i < reversedPath.length; i++) {
+            finalPath.push(reversedPath[i].node.nodeRef);
+        }
+    }
+
+    result.path = finalPath;
     result.pathCount = result.path.length;
     result.status = SlicedFindNodePathStatusFlags.SUCCESS | (query.status & SlicedFindNodePathStatusFlags.PARTIAL_RESULT);
 
@@ -934,11 +982,13 @@ export const finalizeSlicedFindNodePath = (
  * Finalizes and returns the results of an incomplete sliced path query,
  * returning the path to the furthest polygon on the existing path that was visited during the search.
  *
+ * @param navMesh The navigation mesh
  * @param query The sliced path query to finalize
  * @param existingPath An array of polygon references for the existing path
  * @returns Object containing the status, path, and path count
  */
 export const finalizeSlicedFindNodePathPartial = (
+    navMesh: NavMesh,
     query: SlicedNodePathQuery,
     existingPath: NodeRef[],
 ): { status: SlicedFindNodePathStatusFlags; path: NodeRef[]; pathCount: number } => {
@@ -948,7 +998,7 @@ export const finalizeSlicedFindNodePathPartial = (
         pathCount: 0,
     };
 
-    // Ffind furthest visited node from existing path
+    // find furthest visited node from existing path
     let furthestNode: SearchNode | null = null;
 
     for (let i = existingPath.length - 1; i >= 0; i--) {
@@ -994,12 +1044,14 @@ export const finalizeSlicedFindNodePathPartial = (
     // mark as partial result since we're working with an incomplete search
     query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
 
-    // reconstruct path from furthest node
-    const tempPath: NodeRef[] = [];
+    // reverse the path by traversing parent chain and flipping detached parent flags
+    type PathNode = { node: SearchNode; wasDetached: boolean };
+    const reversedPath: PathNode[] = [];
     let currentNode: SearchNode | null = furthestNode;
 
     while (currentNode) {
-        tempPath.push(currentNode.nodeRef);
+        const wasDetached = (currentNode.flags & NODE_FLAG_PARENT_DETACHED) !== 0;
+        reversedPath.push({ node: currentNode, wasDetached });
 
         if (currentNode.parentNodeRef !== null && currentNode.parentState !== null) {
             currentNode = getSearchNode(query.nodes, currentNode.parentNodeRef, currentNode.parentState) ?? null;
@@ -1008,8 +1060,52 @@ export const finalizeSlicedFindNodePathPartial = (
         }
     }
 
-    // reverse to get correct order
-    result.path = tempPath.reverse();
+    // reverse to get forward order
+    reversedPath.reverse();
+
+    // build final path, filling in raycast shortcuts if any-angle pathfinding was enabled
+    const finalPath: NodeRef[] = [];
+
+    if (query.raycastLimitSqr !== null) {
+        // any-angle pathfinding was enabled, need to fill in raycast shortcuts
+        for (let i = 0; i < reversedPath.length; i++) {
+            const current = reversedPath[i];
+            const next = i + 1 < reversedPath.length ? reversedPath[i + 1] : null;
+
+            // if this node has a detached parent, we need to raycast to fill the gap
+            if (next && current.wasDetached) {
+                // raycast from current position to next position to get intermediate polygons
+                const rayResult = raycast(
+                    navMesh,
+                    current.node.nodeRef,
+                    current.node.position,
+                    next.node.position,
+                    query.filter,
+                );
+
+                // add all polygons from the raycast
+                for (const polyRef of rayResult.path) {
+                    finalPath.push(polyRef);
+                }
+
+                // the raycast ends on a poly boundary and might include the next poly
+                // remove duplicate if the last poly in raycast matches the next node
+                if (finalPath.length > 0 && finalPath[finalPath.length - 1] === next.node.nodeRef) {
+                    finalPath.pop();
+                }
+            } else {
+                // normal adjacent connection, just add the node
+                finalPath.push(current.node.nodeRef);
+            }
+        }
+    } else {
+        // no any-angle pathfinding, just extract the node refs
+        for (let i = 0; i < reversedPath.length; i++) {
+            finalPath.push(reversedPath[i].node.nodeRef);
+        }
+    }
+
+    result.path = finalPath;
     result.pathCount = result.path.length;
     result.status = SlicedFindNodePathStatusFlags.SUCCESS | SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
 
@@ -1019,12 +1115,12 @@ export const finalizeSlicedFindNodePathPartial = (
     return result;
 };
 
-const _moveAlongSurfaceVertices: number[] = [];
-const _moveAlongSurfacePolyHeightResult = createGetPolyHeightResult();
-const _moveAlongSurfaceWallEdgeVj = vec3.create();
-const _moveAlongSurfaceWallEdgeVi = vec3.create();
-const _moveAlongSurfaceLinkVj = vec3.create();
-const _moveAlongSurfaceLinkVi = vec3.create();
+const _moveAlongSurface_vertices: number[] = [];
+const _moveAlongSurface_polyHeightResult = createGetPolyHeightResult();
+const _moveAlongSurface_wallEdgeVj = vec3.create();
+const _moveAlongSurface_wallEdgeVi = vec3.create();
+const _moveAlongSurface_linkVj = vec3.create();
+const _moveAlongSurface_linkVi = vec3.create();
 const _moveAlongSurface_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 export type MoveAlongSurfaceResult = {
@@ -1114,7 +1210,7 @@ export const moveAlongSurface = (
 
         // collect vertices
         const nv = poly.vertices.length;
-        const vertices = _moveAlongSurfaceVertices;
+        const vertices = _moveAlongSurface_vertices;
         for (let i = 0; i < nv; ++i) {
             const start = poly.vertices[i] * 3;
             vertices[i * 3] = tile.vertices[start];
@@ -1154,8 +1250,8 @@ export const moveAlongSurface = (
 
             if (neis.length === 0) {
                 // wall edge, calc distance
-                const vj = vec3.fromBuffer(_moveAlongSurfaceWallEdgeVj, vertices, j * 3);
-                const vi = vec3.fromBuffer(_moveAlongSurfaceWallEdgeVi, vertices, i * 3);
+                const vj = vec3.fromBuffer(_moveAlongSurface_wallEdgeVj, vertices, j * 3);
+                const vi = vec3.fromBuffer(_moveAlongSurface_wallEdgeVi, vertices, i * 3);
 
                 const { distSqr, t: tSeg } = distancePtSegSqr2d(_moveAlongSurface_distancePtSegSqr2dResult, endPosition, vj, vi);
 
@@ -1187,8 +1283,8 @@ export const moveAlongSurface = (
                     if (neighbourNode.flags & NODE_FLAG_CLOSED) continue;
 
                     // skip the link if it is too far from search constraint
-                    const vj = vec3.fromBuffer(_moveAlongSurfaceLinkVj, vertices, j * 3);
-                    const vi = vec3.fromBuffer(_moveAlongSurfaceLinkVi, vertices, i * 3);
+                    const vj = vec3.fromBuffer(_moveAlongSurface_linkVj, vertices, j * 3);
+                    const vi = vec3.fromBuffer(_moveAlongSurface_linkVi, vertices, i * 3);
 
                     const distSqr = distancePtSegSqr2d(_moveAlongSurface_distancePtSegSqr2dResult, searchPos, vj, vi).distSqr;
 
@@ -1226,7 +1322,7 @@ export const moveAlongSurface = (
 
         if (tileAndPoly.success) {
             const polyHeightResult = getPolyHeight(
-                _moveAlongSurfacePolyHeightResult,
+                _moveAlongSurface_polyHeightResult,
                 tileAndPoly.tile,
                 tileAndPoly.poly,
                 tileAndPoly.polyIndex,
@@ -1267,6 +1363,8 @@ export type RaycastResult = {
 };
 
 /**
+ * Internal base implementation of raycast that handles both cost calculation modes.
+ * 
  * Casts a 'walkability' ray along the surface of the navigation mesh from
  * the start position toward the end position.
  *
@@ -1279,14 +1377,16 @@ export type RaycastResult = {
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
  * @param calculateCosts Whether to calculate and accumulate path costs across polygons.
+ * @param prevRef The reference to the polygon we came from (for accurate cost calculations).
  */
-export const raycast = (
+const raycastBase = (
     navMesh: NavMesh,
     startRef: NodeRef,
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
     calculateCosts: boolean,
+    prevRef: NodeRef,
 ): RaycastResult => {
     const result: RaycastResult = {
         t: 0,
@@ -1302,7 +1402,7 @@ export const raycast = (
     }
 
     let curRef: NodeRef | null = startRef;
-    let prevRef: NodeRef = 0;
+    let prevRefTracking: NodeRef = prevRef;
 
     const intersectSegmentPoly2DResult = createIntersectSegmentPoly2DResult();
 
@@ -1470,15 +1570,65 @@ export const raycast = (
             _raycast_curPos[1] = _raycast_e0Vec[1] + _raycast_eDir[1] * s;
 
             // accumulate cost
-            result.pathCost += filter.getCost(_raycast_lastPos, _raycast_curPos, navMesh, prevRef, curRef, nextRef);
+            result.pathCost += filter.getCost(_raycast_lastPos, _raycast_curPos, navMesh, prevRefTracking, curRef, nextRef);
         }
 
         // no hit, advance to neighbor polygon
-        prevRef = curRef;
+        prevRefTracking = curRef;
         curRef = nextRef;
     }
 
     return result;
+};
+
+/**
+ * Casts a 'walkability' ray along the surface of the navigation mesh from
+ * the start position toward the end position.
+ *
+ * This method is meant to be used for quick, short distance checks.
+ * The raycast ignores the y-value of the end position (2D check).
+ *
+ * @param navMesh The navigation mesh to use for the raycast.
+ * @param startRef The NodeRef for the start polygon
+ * @param startPosition The starting position in world space.
+ * @param endPosition The ending position in world space.
+ * @param filter The query filter to apply.
+ * @returns The raycast result with hit information and visited polygons (without cost calculation).
+ */
+export const raycast = (
+    navMesh: NavMesh,
+    startRef: NodeRef,
+    startPosition: Vec3,
+    endPosition: Vec3,
+    filter: QueryFilter,
+): RaycastResult => {
+    return raycastBase(navMesh, startRef, startPosition, endPosition, filter, false, 0);
+};
+
+/**
+ * Casts a 'walkability' ray along the surface of the navigation mesh from
+ * the start position toward the end position, calculating accumulated path costs.
+ *
+ * This method is meant to be used for quick, short distance checks.
+ * The raycast ignores the y-value of the end position (2D check).
+ *
+ * @param navMesh The navigation mesh to use for the raycast.
+ * @param startRef The NodeRef for the start polygon
+ * @param startPosition The starting position in world space.
+ * @param endPosition The ending position in world space.
+ * @param filter The query filter to apply.
+ * @param prevRef The reference to the polygon we came from (for accurate cost calculations).
+ * @returns The raycast result with hit information, visited polygons, and accumulated path costs.
+ */
+export const raycastWithCosts = (
+    navMesh: NavMesh,
+    startRef: NodeRef,
+    startPosition: Vec3,
+    endPosition: Vec3,
+    filter: QueryFilter,
+    prevRef: NodeRef,
+): RaycastResult => {
+    return raycastBase(navMesh, startRef, startPosition, endPosition, filter, true, prevRef);
 };
 
 const _findRandomPointVertices: number[] = [];

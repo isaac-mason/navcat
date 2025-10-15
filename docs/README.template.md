@@ -17,7 +17,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Single and multi-tile navigation mesh support
 - Pure javascript - no wasm
 - Fully JSON serializable data structures
-- Tiny - 40.32 kB minified + gzipped
+- Tiny - ~40 kB minified + gzipped, and highly tree-shakeable
 
 **Used in**
 
@@ -322,6 +322,12 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 <RenderType type="import('navcat').raycast" />
 
 <Example id="example-raycast" />
+
+### raycastWithCosts
+
+<Snippet source="./snippets/solo-navmesh.ts" select="raycastWithCosts" />
+
+<RenderType type="import('navcat').raycastWithCosts" />
 
 ### getPolyHeight
 

@@ -1,5 +1,5 @@
 import { type Vec3, vec3 } from 'maaths';
-import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, raycast } from 'navcat';
+import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, raycast, raycastWithCosts } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
@@ -99,8 +99,50 @@ scene.add(navMeshHelper.object);
 // state for raycast start/end (with defaults)
 let raycastStart: Vec3 | null = [-0.8, 0.27, 5.1];
 let raycastEnd: Vec3 | null = [0.53, 0.26, 3.59];
+let calculateCosts = false;
 type Visual = { object: THREE.Object3D; dispose: () => void };
 let visuals: Visual[] = [];
+
+// UI for cost toggle
+const controlsDiv = document.createElement('div');
+controlsDiv.style.position = 'absolute';
+controlsDiv.style.top = '10px';
+controlsDiv.style.left = '10px';
+controlsDiv.style.padding = '10px';
+controlsDiv.style.background = 'rgba(0, 0, 0, 0.7)';
+controlsDiv.style.color = 'white';
+controlsDiv.style.fontFamily = 'monospace';
+controlsDiv.style.fontSize = '14px';
+controlsDiv.style.borderRadius = '4px';
+controlsDiv.style.pointerEvents = 'auto';
+
+const checkboxLabel = document.createElement('label');
+checkboxLabel.style.display = 'flex';
+checkboxLabel.style.alignItems = 'center';
+checkboxLabel.style.cursor = 'pointer';
+checkboxLabel.style.userSelect = 'none';
+
+const checkbox = document.createElement('input');
+checkbox.type = 'checkbox';
+checkbox.checked = calculateCosts;
+checkbox.style.marginRight = '8px';
+checkbox.style.cursor = 'pointer';
+checkbox.addEventListener('change', () => {
+    calculateCosts = checkbox.checked;
+    performRaycast();
+});
+
+checkboxLabel.appendChild(checkbox);
+checkboxLabel.appendChild(document.createTextNode('Calculate Costs'));
+controlsDiv.appendChild(checkboxLabel);
+
+const costInfoDiv = document.createElement('div');
+costInfoDiv.style.marginTop = '8px';
+costInfoDiv.style.fontSize = '12px';
+costInfoDiv.style.opacity = '0.8';
+controlsDiv.appendChild(costInfoDiv);
+
+container.appendChild(controlsDiv);
 
 // initial raycast with defaults
 performRaycast();
@@ -132,9 +174,19 @@ function performRaycast() {
 
     if (!raycastStartNearestPoly.success) return;
 
-    const raycastResult = raycast(navMesh, raycastStartNearestPoly.ref, raycastStart, raycastEnd, DEFAULT_QUERY_FILTER, false);
+    const raycastResult = calculateCosts
+        ? raycastWithCosts(navMesh, raycastStartNearestPoly.ref, raycastStart, raycastEnd, DEFAULT_QUERY_FILTER, 0)
+        : raycast(navMesh, raycastStartNearestPoly.ref, raycastStart, raycastEnd, DEFAULT_QUERY_FILTER);
 
     const reachedEnd = raycastResult.t > 0.99;
+
+    // Update cost info display
+    if (calculateCosts) {
+        costInfoDiv.textContent = `Path Cost: ${raycastResult.pathCost.toFixed(3)}`;
+        costInfoDiv.style.display = 'block';
+    } else {
+        costInfoDiv.style.display = 'none';
+    }
 
     // visualize the raycast start position (green, larger)
     const rayStartMesh = new THREE.Mesh(

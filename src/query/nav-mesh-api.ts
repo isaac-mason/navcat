@@ -1131,9 +1131,9 @@ const createOffMeshLink = (navMesh: NavMesh, from: NavMeshNode, to: NavMeshNode,
     link.toNodeIndex = to.index;
     link.toNodeRef = to.ref;
     link.edge = edge;
+    link.side = 0; // not used for offmesh links
     link.bmin = 0; // not used for offmesh links
     link.bmax = 0; // not used for offmesh links
-    link.side = 0; // not used for offmesh links
 
     from.links.push(linkIndex);
 };

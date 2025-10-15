@@ -409,7 +409,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             agent.targetState = AgentTargetState.VALID;
             agent.targetPathfindingTime = 0;
 
-            const result = finalizeSlicedFindNodePath(agent.slicedQuery);
+            const result = finalizeSlicedFindNodePath(navMesh, agent.slicedQuery);
             setCorridorPath(agent.corridor, agent.targetPos, result.path);
             resetLocalBoundary(agent.boundary);
         }

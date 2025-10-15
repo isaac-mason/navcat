@@ -17,7 +17,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Single and multi-tile navigation mesh support
 - Pure javascript - no wasm
 - Fully JSON serializable data structures
-- Tiny - 40.32 kB minified + gzipped
+- Tiny - ~40 kB minified + gzipped, and highly tree-shakeable
 
 **Used in**
 
@@ -35,25 +35,19 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-dynamic-obstacles">
-        <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Dynamic Obstacles
-      </a>
-    </td>
-    <td align="center">
       <a href="https://navcat.dev#example-navmesh-constrained-character-controller">
         <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Navmesh Constrained Character Controller
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-flow-field-pathfinding">
         <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flow Field Pathfinding
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-areas">
         <img src="./examples/public/screenshots/example-custom-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -64,6 +58,12 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       <a href="https://navcat.dev#example-doors-and-keys">
         <img src="./examples/public/screenshots/example-doors-and-keys.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Doors and Keys
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-dynamic-obstacles">
+        <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Dynamic Obstacles
       </a>
     </td>
   </tr>
@@ -197,6 +197,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
   - [findStraightPath](#findstraightpath)
   - [moveAlongSurface](#movealongsurface)
   - [raycast](#raycast)
+  - [raycastWithCosts](#raycastwithcosts)
   - [getPolyHeight](#getpolyheight)
   - [findRandomPoint](#findrandompoint)
   - [findRandomPointAroundCircle](#findrandompointaroundcircle)
@@ -1354,13 +1355,12 @@ const startNode = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, false);
+const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
 console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
 console.log(raycastResult.hitEdgeIndex); // the index of the edge of the poly that was hit, or -1 if none
 console.log(raycastResult.path); // array of node refs that were visited during the raycast
-console.log(raycastResult.pathCost); // accumulated cost along the path (only calculated when calculateCosts is true)
 ```
 
 ```ts
@@ -1376,9 +1376,9 @@ console.log(raycastResult.pathCost); // accumulated cost along the path (only ca
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
- * @param calculateCosts Whether to calculate and accumulate path costs across polygons.
+ * @returns The raycast result with hit information and visited polygons (without cost calculation).
  */
-export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter, calculateCosts: boolean): RaycastResult;
+export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): RaycastResult;
 ```
 
 
@@ -1390,6 +1390,51 @@ export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3
   <p>Example of a walkability raycast on a navmesh</p>
 </div>
 
+
+### raycastWithCosts
+
+```ts
+const start: Vec3 = [1, 0, 1];
+const end: Vec3 = [8, 0, 8];
+const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+const startNode = Nav.findNearestPoly(
+    Nav.createFindNearestPolyResult(),
+    navMesh,
+    start,
+    halfExtents,
+    Nav.DEFAULT_QUERY_FILTER,
+);
+
+// raycastWithCosts calculates path costs and requires the previous polygon reference
+const prevRef = 0; // 0 if no previous polygon
+const raycastResult = Nav.raycastWithCosts(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, prevRef);
+
+console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
+console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
+console.log(raycastResult.hitEdgeIndex); // the index of the edge of the poly that was hit, or -1 if none
+console.log(raycastResult.path); // array of node refs that were visited during the raycast
+console.log(raycastResult.pathCost); // accumulated cost along the raycast path
+```
+
+```ts
+/**
+ * Casts a 'walkability' ray along the surface of the navigation mesh from
+ * the start position toward the end position, calculating accumulated path costs.
+ *
+ * This method is meant to be used for quick, short distance checks.
+ * The raycast ignores the y-value of the end position (2D check).
+ *
+ * @param navMesh The navigation mesh to use for the raycast.
+ * @param startRef The NodeRef for the start polygon
+ * @param startPosition The starting position in world space.
+ * @param endPosition The ending position in world space.
+ * @param filter The query filter to apply.
+ * @param prevRef The reference to the polygon we came from (for accurate cost calculations).
+ * @returns The raycast result with hit information, visited polygons, and accumulated path costs.
+ */
+export function raycastWithCosts(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter, prevRef: NodeRef): RaycastResult;
+```
 
 ### getPolyHeight
 

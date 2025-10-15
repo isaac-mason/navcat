@@ -3,6 +3,11 @@
 ## 0.0.6 (Unreleased)
 
 - feat: add 'createNavMeshTileHelper' helper, similar to 'createNavMeshHelper' for visualizing individual tiles
+- fix: contour set removeDegenerateSegments skipping segments
+- feat: split 'raycast' into 'raycast' and 'raycastWithCosts'
+- feat: 'prevRef' parameter on 'raycastWithCosts' and prev ref tracking for accurate raycast cost calculations
+- feat: updated 'finalizeSlicedFindNodePath' signature to finalizeSlicedFindNodePath(navMesh, slicedQuery)
+- fix: add missing 'finalizeSlicedFindNodePathPartial' shortcut logic
 
 ## 0.0.5
 
