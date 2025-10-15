@@ -125,7 +125,6 @@ scene.traverse((object) => {
 
 const [levelPositions, levelIndices] = getPositionsAndIndices(walkableMeshes);
 
-
 /* navmesh generation config */
 const cellSize = 0.15;
 const cellHeight = 0.15;
@@ -338,43 +337,43 @@ for (let tx = 0; tx < tileWidth; tx++) {
 
 const processRebuildQueue = (maxPerFrame: number) => {
     let processed = 0;
-    
+
     for (let i = 0; i < rebuildQueue.length; i++) {
         if (processed >= maxPerFrame) break;
-        
+
         const tile = rebuildQueue.shift();
         if (!tile) return;
         const [tx, ty] = tile;
         const key = tileKey(tx, ty);
-        dirtyTiles.delete(key);
 
-        // throttle: if this tile was rebuilt recently, skip and re-enqueue
+        // if this tile was rebuilt recently, skip and re-enqueue
         const last = tileLastRebuilt.get(key) ?? 0;
         const now = performance.now();
         if (now - last < TILE_REBUILD_THROTTLE_MS) {
-            // push to end of queue for retry later
             rebuildQueue.push([tx, ty]);
-            dirtyTiles.add(key); // re-add to dirty set since we're re-enqueueing
             continue;
         }
+
+        // we are rebuilding this tile now, remove from dirty set
+        dirtyTiles.delete(key);
 
         const tileBounds = getTileBounds(tx, ty);
 
         try {
-            // If we have a precomputed compact heightfield for this tile, clone it and mark dynamic obstacles
+            // we precomputed compact heightfields for all tiles using static level geometry
             const precomputedCompactHeightfield = tileCompactHFs.get(key);
 
             if (!precomputedCompactHeightfield) {
-                console.warn('No precomputed compact heightfield for tile', key);
-                processed++; // count this to prevent infinite loop
+                console.error('No precomputed compact heightfield for tile', key);
                 continue;
             }
 
             // clone the compact heightfield (it's a regular JSON-serialisable object)
             const chf = structuredClone(precomputedCompactHeightfield);
 
-            // Use tileToObjects mapping to only mark objects that influence this tile.
+            // use tileToObjects mapping to only mark objects that influence this tile.
             const influencing = tileToObjects.get(key);
+
             if (influencing && influencing.size > 0) {
                 for (const objIndex of influencing) {
                     const obj = physicsObjects[objIndex];
@@ -400,7 +399,7 @@ const processRebuildQueue = (maxPerFrame: number) => {
                     markCylinderArea([pos.x, pos.y - worldRadius, pos.z], worldRadius, worldRadius, NULL_AREA, chf);
                 }
             } else {
-                // Fallback: if mapping empty, conservatively mark all dynamic objects overlapping the tile
+                // fallback: if mapping empty, conservatively mark all dynamic objects overlapping the tile
                 for (const obj of physicsObjects) {
                     const pos = obj.mesh.position;
                     const worldRadius = obj.radius ?? 0.5;
@@ -489,42 +488,32 @@ const processRebuildQueue = (maxPerFrame: number) => {
                     newTileHelper.object.position.y += 0.05;
                     scene.add(newTileHelper.object);
                     tileHelpers.set(tileKeyStr, newTileHelper);
-                    
-                    // trigger flash effect
+
                     tileFlashes.set(tileKeyStr, {
                         startTime: performance.now(),
-                        duration: 1500, // 1500ms flash duration
+                        duration: 1500,
                     });
-                    
+
                     break;
                 }
             }
 
             // record rebuild time
             tileLastRebuilt.set(key, performance.now());
-            
+
             // count this as a processed tile
             processed++;
         } catch (err) {
             // log and continue
-            // eslint-disable-next-line no-console
             console.error('Tile build failed', err);
-            
-            // count failed tiles too (to prevent infinite loops on bad tiles)
             processed++;
         }
     }
 };
 
-/**
- * Build all enqueued tiles synchronously. This will process the rebuild queue
- * until empty. It respects the same rebuild pipeline but is intended to be
- * used once at startup so agents can be created only after the navmesh exists.
- */
-const buildAllTilesSync = (batch = 64) => {
-    // keep processing until queue is empty
+const buildAllTiles = () => {
     while (rebuildQueue.length > 0) {
-        processRebuildQueue(batch);
+        processRebuildQueue(64);
     }
 };
 
@@ -544,7 +533,7 @@ const tilesForAABB = (min: Vec3, max: Vec3) => {
     return out;
 };
 
-// Helper: update tile registrations for a single physics object index based on newTiles
+// helper: update tile registrations for a single physics object index based on newTiles
 const updateObjectTiles = (objIndex: number, newTiles: Set<string>) => {
     const obj = physicsObjects[objIndex];
     if (!obj) return;
@@ -576,9 +565,8 @@ const updateObjectTiles = (objIndex: number, newTiles: Set<string>) => {
     obj.lastTiles = newTiles;
 };
 
-
-/* perform initial synchronous build of all tiles, then create helpers and agents */
-buildAllTilesSync();
+/* perform initial synchronous build of all tiles */
+buildAllTiles();
 
 /* create physics world */
 const physicsWorld = new Rapier.World(new Rapier.Vector3(0, -9.81, 0));
@@ -650,7 +638,7 @@ for (let i = 0; i < 20; i++) {
         lastPosition: [boxRigidBody.translation().x, boxRigidBody.translation().y, boxRigidBody.translation().z],
         lastTiles: tilesSet,
         radius: worldRadius,
-    }
+    };
 
     physicsObjects.push(physicsObject);
 }
@@ -738,27 +726,14 @@ const cloneCatModel = (color?: number): THREE.Group => {
     return clone;
 };
 
-const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
-    // Create capsule debug mesh (initially hidden)
-    const geometry = new THREE.CapsuleGeometry(radius, height, 4, 8);
-    const material = new THREE.MeshLambertMaterial({ color });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(position[0], position[1] + radius, position[2]);
-    mesh.visible = false; // initially hidden
-    scene.add(mesh);
-
-    // Create cat model instance by properly cloning the scene
+const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number): AgentVisuals => {
     const catGroup = cloneCatModel(color);
     catGroup.position.set(position[0], position[1], position[2]);
-    // Scale the cat to match agent size approximately (cat model is quite large)
-    const catScale = radius * 1.5; // larger scale to be more visible
-    catGroup.scale.setScalar(catScale);
+    catGroup.scale.setScalar(radius * 1.5);
     scene.add(catGroup);
 
-    // Set up animation mixer for this specific cat instance
     const mixer = new THREE.AnimationMixer(catGroup);
 
-    // Find and create animation actions using the original animations but for this mixer
     const idleClip = catAnimations.find((clip) => clip.name === 'Idle');
     const walkClip = catAnimations.find((clip) => clip.name === 'Walk');
     const runClip = catAnimations.find((clip) => clip.name === 'Run');
@@ -771,12 +746,10 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     const walkAction = mixer.clipAction(walkClip);
     const runAction = mixer.clipAction(runClip);
 
-    // Set up animation properties
     idleAction.loop = THREE.LoopRepeat;
     walkAction.loop = THREE.LoopRepeat;
     runAction.loop = THREE.LoopRepeat;
 
-    // Start with idle animation
     idleAction.play();
 
     const targetGeometry = new THREE.SphereGeometry(0.1);
@@ -806,13 +779,13 @@ const updateAgentVisuals = (
     deltaTime: number,
     options: AgentVisualsOptions = {},
 ): void => {
-    // Update animation mixer
+    // update animation mixer
     visuals.mixer.update(deltaTime);
 
-    // Update cat model position and rotation
+    // update cat model position and rotation
     visuals.group.position.fromArray(agent.position);
 
-    // Calculate velocity and determine animation
+    // calculate velocity and determine animation
     const velocity = vec3.length(agent.velocity);
     let targetAnimation: 'idle' | 'walk' | 'run' = 'idle';
 
@@ -822,7 +795,7 @@ const updateAgentVisuals = (
         targetAnimation = 'walk';
     }
 
-    // Handle animation transitions
+    // handle animation transitions
     if (visuals.currentAnimation !== targetAnimation) {
         const currentAction =
             visuals.currentAnimation === 'idle'
@@ -834,56 +807,53 @@ const updateAgentVisuals = (
         const targetAction =
             targetAnimation === 'idle' ? visuals.idleAction : targetAnimation === 'walk' ? visuals.walkAction : visuals.runAction;
 
-        // Cross-fade to new animation
+        // cross-fade to new animation
         currentAction.fadeOut(0.3);
         targetAction.reset().fadeIn(0.3).play();
 
         visuals.currentAnimation = targetAnimation;
     }
 
-    // Rotate cat to face movement direction with lerping
+    // rotate cat to face movement direction with lerping
     const minVelocityThreshold = 0.1; // minimum velocity to trigger rotation
     const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
 
     if (velocity > minVelocityThreshold) {
-        // Use velocity direction when moving normally
         const direction = vec3.normalize([0, 0, 0], agent.velocity);
         const targetAngle = Math.atan2(direction[0], direction[2]);
         visuals.targetRotation = targetAngle;
     } else {
-        // When velocity is low (like during off-mesh connections), face towards target
         const targetDirection = vec3.subtract([0, 0, 0], agent.targetPos, agent.position);
         const targetDistance = vec3.length(targetDirection);
 
         if (targetDistance > 0.1) {
-            // Only rotate if target is far enough away
             const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
             const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
             visuals.targetRotation = targetAngle;
         }
     }
 
-    // Lerp current rotation towards target rotation
+    // lerp current rotation towards target rotation
     let angleDiff = visuals.targetRotation - visuals.currentRotation;
 
-    // Handle angle wrapping (shortest path)
+    // handle angle wrapping (shortest path)
     if (angleDiff > Math.PI) {
         angleDiff -= 2 * Math.PI;
     } else if (angleDiff < -Math.PI) {
         angleDiff += 2 * Math.PI;
     }
 
-    // Apply lerp
+    // apply lerp
     visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
 
-    // Apply rotation to cat
+    // apply rotation to cat
     visuals.group.rotation.y = visuals.currentRotation;
 
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPos);
     visuals.targetMesh.position.y += 0.1;
 
-    // handle path line visualization
+    // path line visualization
     if (options.showPathLine) {
         const corners = findCorridorCorners(agent.corridor, navMesh, 3);
 
@@ -963,13 +933,13 @@ const agentParams: AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 10 }).map((_, i) => [-2 + i * -0.05, 0.5, 3]) as Vec3[];
+const agentPositions: Vec3[] = Array.from({ length: 2 }).map((_, i) => [-2 + i * -0.05, 0.5, 3]) as Vec3[];
 
-const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500, 0x800080, 0xffc0cb, 0x90ee90];
+const agentColors = [0x0000ff, 0x00ff00];
 
 const agentVisuals: Record<string, AgentVisuals> = {};
 
-for (let i = 0; i < 2; i++) {
+for (let i = 0; i < agentPositions.length; i++) {
     const position = agentPositions[i];
     const color = agentColors[i % agentColors.length];
 
@@ -978,7 +948,7 @@ for (let i = 0; i < 2; i++) {
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
-    agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius, agentParams.height);
+    agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius);
 }
 
 // mouse interaction for setting agent targets
@@ -1097,8 +1067,16 @@ function update() {
 
         // compute swept AABB between lastPosition and curPos expanded by radius
         const r = obj.radius;
-        const min: Vec3 = [Math.min(obj.lastPosition[0], curPos[0]) - r, Math.min(obj.lastPosition[1], curPos[1]) - r, Math.min(obj.lastPosition[2], curPos[2]) - r];
-        const max: Vec3 = [Math.max(obj.lastPosition[0], curPos[0]) + r, Math.max(obj.lastPosition[1], curPos[1]) + r, Math.max(obj.lastPosition[2], curPos[2]) + r];
+        const min: Vec3 = [
+            Math.min(obj.lastPosition[0], curPos[0]) - r,
+            Math.min(obj.lastPosition[1], curPos[1]) - r,
+            Math.min(obj.lastPosition[2], curPos[2]) - r,
+        ];
+        const max: Vec3 = [
+            Math.max(obj.lastPosition[0], curPos[0]) + r,
+            Math.max(obj.lastPosition[1], curPos[1]) + r,
+            Math.max(obj.lastPosition[2], curPos[2]) + r,
+        ];
 
         const tiles = tilesForAABB(min, max);
         const newTiles = new Set<string>();
@@ -1136,54 +1114,53 @@ function update() {
     }
 
     // process at most 1 tile rebuild per frame
-    console.time("tick processRebuildQueue");
+    console.time('tick processRebuildQueue');
     processRebuildQueue(1);
-    console.timeEnd("tick processRebuildQueue");
+    console.timeEnd('tick processRebuildQueue');
 
-    // update tile flash effects
+    // update tile visuals
     const now = performance.now();
     const flashesToRemove: string[] = [];
-    
+
     for (const [tileKey, flash] of tileFlashes) {
         const elapsed = now - flash.startTime;
         const t = Math.min(elapsed / flash.duration, 1.0); // normalized time [0, 1]
-        
+
         const tileHelper = tileHelpers.get(tileKey);
         if (tileHelper) {
             const fadeAmount = (1.0 - t) ** 3;
-            
+
             tileHelper.object.traverse((child) => {
                 if (child instanceof THREE.Mesh && child.material instanceof THREE.Material) {
                     const material = child.material as THREE.MeshBasicMaterial;
-                    
+
                     const baseColor = 0x222222;
                     const flashColor = 0x555555;
-                    
+
                     const baseR = (baseColor >> 16) & 0xff;
                     const baseG = (baseColor >> 8) & 0xff;
                     const baseB = baseColor & 0xff;
-                    
+
                     const flashR = (flashColor >> 16) & 0xff;
                     const flashG = (flashColor >> 8) & 0xff;
                     const flashB = flashColor & 0xff;
-                    
+
                     const r = Math.round(flashR * fadeAmount + baseR * (1 - fadeAmount));
                     const g = Math.round(flashG * fadeAmount + baseG * (1 - fadeAmount));
                     const b = Math.round(flashB * fadeAmount + baseB * (1 - fadeAmount));
-                    
+
                     const color = (r << 16) | (g << 8) | b;
                     material.color.setHex(color);
                     material.vertexColors = false;
                 }
             });
         }
-        
+
         if (t >= 1.0) {
             flashesToRemove.push(tileKey);
         }
     }
-    
-    // clean up finished flashes
+
     for (const key of flashesToRemove) {
         tileFlashes.delete(key);
     }
@@ -1194,7 +1171,7 @@ function update() {
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
         const agent = crowd.agents[agentId];
-        
+
         if (agentVisuals[agentId]) {
             updateAgentVisuals(agent, agentVisuals[agentId], scene, clampedDeltaTime, {
                 showPathLine: guiSettings.showPathLine,
