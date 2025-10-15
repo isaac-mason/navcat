@@ -114,70 +114,6 @@ scene.add(levelModel.scene);
 const catModel = await loadGLTF('/models/cat.gltf');
 const catAnimations = catModel.animations;
 
-// helper function to clone cat GLTF with material patches
-const cloneCatModel = (color?: number): THREE.Group => {
-    const clone = catModel.scene.clone(true);
-
-    const patchMaterial = (material: THREE.Material): THREE.Material => {
-        if (
-            color !== undefined &&
-            (material instanceof THREE.MeshLambertMaterial ||
-                material instanceof THREE.MeshStandardMaterial ||
-                material instanceof THREE.MeshPhongMaterial)
-        ) {
-            const clonedMat = material.clone();
-
-            clonedMat.color.setHex(color);
-            clonedMat.color.multiplyScalar(2);
-
-            if (clonedMat instanceof THREE.MeshStandardMaterial) {
-                clonedMat.emissive.setHex(color);
-                clonedMat.emissiveIntensity = 0.1;
-                clonedMat.roughness = 0.3;
-                clonedMat.metalness = 0.1;
-            }
-
-            return clonedMat;
-        }
-
-        return material;
-    };
-
-    // clone SkinnedMeshes
-    const skinnedMeshes: THREE.SkinnedMesh[] = [];
-
-    clone.traverse((child) => {
-        if (child instanceof THREE.SkinnedMesh) {
-            skinnedMeshes.push(child);
-        }
-
-        if (child instanceof THREE.Mesh) {
-            if (Array.isArray(child.material)) {
-                child.material = child.material.map(patchMaterial);
-            } else {
-                child.material = patchMaterial(child.material);
-            }
-        }
-    });
-
-    // fix skeleton references for SkinnedMesh
-    for (const skinnedMesh of skinnedMeshes) {
-        const skeleton = skinnedMesh.skeleton;
-        const bones: THREE.Bone[] = [];
-
-        for (const bone of skeleton.bones) {
-            const foundBone = clone.getObjectByName(bone.name);
-            if (foundBone instanceof THREE.Bone) {
-                bones.push(foundBone);
-            }
-        }
-
-        skinnedMesh.bind(new THREE.Skeleton(bones, skeleton.boneInverses));
-    }
-
-    return clone;
-};
-
 /* get walkable level geometry */
 const walkableMeshes: THREE.Mesh[] = [];
 
@@ -189,76 +125,6 @@ scene.traverse((object) => {
 
 const [levelPositions, levelIndices] = getPositionsAndIndices(walkableMeshes);
 
-/* create physics world */
-const physicsWorld = new Rapier.World(new Rapier.Vector3(0, -9.81, 0));
-
-/* create fixed trimesh collider for level */
-const levelColliderDesc = Rapier.ColliderDesc.trimesh(new Float32Array(levelPositions), new Uint32Array(levelIndices));
-levelColliderDesc.setMass(0);
-
-const levelRigidBodyDesc = Rapier.RigidBodyDesc.fixed();
-const levelRigidBody = physicsWorld.createRigidBody(levelRigidBodyDesc);
-
-physicsWorld.createCollider(levelColliderDesc, levelRigidBody);
-
-/* create a bunch of dynamic boxes */
-type PhysicsObj = {
-    rigidBody: Rapier.RigidBody;
-    mesh: THREE.Mesh;
-    lastRespawn: number;
-    // last known world position (used for swept AABB tracking)
-    lastPosition: Vec3;
-    // last set of tiles this object was registered with (as tileKey strings)
-    lastTiles: Set<string>;
-    // collision radius used to mark the compact heightfield
-    radius: number;
-    // last time (ms) we scheduled tiles for this object (throttle)
-    lastScheduleTime: number;
-};
-
-const physicsObjects: PhysicsObj[] = [];
-
-// Mapping from tileKey -> set of physics object indices (index into physicsObjects)
-const tileToObjects = new Map<string, Set<number>>();
-
-for (let i = 0; i < 20; i++) {
-    const boxSize = 0.5;
-    const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
-    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-    const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-
-    scene.add(boxMesh);
-
-    const boxColliderDesc = Rapier.ColliderDesc.cuboid(boxSize / 2, boxSize / 2, boxSize / 2);
-    boxColliderDesc.setRestitution(0.1);
-    boxColliderDesc.setFriction(0.5);
-    boxColliderDesc.setDensity(1.0);
-    const boxRigidBodyDesc = Rapier.RigidBodyDesc.dynamic().setTranslation(
-        (Math.random() - 0.5) * 8,
-        10 + i * 2,
-        (Math.random() - 0.5) * 8,
-    );
-
-    const boxRigidBody = physicsWorld.createRigidBody(boxRigidBodyDesc);
-
-    physicsWorld.createCollider(boxColliderDesc, boxRigidBody);
-
-    // compute approximate radius from geometry bounding sphere
-    const geom = (boxMesh as any).geometry as THREE.BufferGeometry;
-    if (!geom.boundingSphere) geom.computeBoundingSphere();
-    const bs = geom.boundingSphere!;
-    const worldRadius = bs.radius * (boxMesh.scale.x || 1) || 0.5;
-
-    physicsObjects.push({
-        rigidBody: boxRigidBody,
-        mesh: boxMesh,
-        lastRespawn: performance.now(),
-        lastPosition: [boxRigidBody.translation().x, boxRigidBody.translation().y, boxRigidBody.translation().z],
-        lastTiles: new Set<string>(),
-        radius: worldRadius,
-        lastScheduleTime: 0,
-    });
-}
 
 /* navmesh generation config */
 const cellSize = 0.15;
@@ -351,225 +217,21 @@ for (const offMeshConnection of offMeshConnections) {
 const offMeshConnectionsHelper = createNavMeshOffMeshConnectionsHelper(navMesh);
 scene.add(offMeshConnectionsHelper.object);
 
-/* Visuals */
-type AgentVisuals = {
-    group: THREE.Group; // cat model group
-    mixer: THREE.AnimationMixer; // animation mixer for cat
-    idleAction: THREE.AnimationAction;
-    walkAction: THREE.AnimationAction;
-    runAction: THREE.AnimationAction;
-    currentAnimation: 'idle' | 'walk' | 'run';
-    currentRotation: number; // current Y rotation for lerping
-    targetRotation: number; // target Y rotation
-    color: number;
-
-    targetMesh: THREE.Mesh;
-    pathLine: THREE.Line | null;
+/* dynamic obstacles */
+type PhysicsObj = {
+    rigidBody: Rapier.RigidBody;
+    mesh: THREE.Mesh;
+    lastRespawn: number;
+    // last known world position (used for swept AABB tracking)
+    lastPosition: Vec3;
+    // last set of tiles this object was registered with (as tileKey strings)
+    lastTiles: Set<string>;
+    // collision radius used to mark the compact heightfield
+    radius: number;
 };
 
-type AgentVisualsOptions = {
-    showPathLine?: boolean;
-};
-
-// per-tile debug helpers (so we can update visuals only for tiles that changed)
-const tileHelpers = new Map<string, DebugObject>();
-
-const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
-    // Create capsule debug mesh (initially hidden)
-    const geometry = new THREE.CapsuleGeometry(radius, height, 4, 8);
-    const material = new THREE.MeshLambertMaterial({ color });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(position[0], position[1] + radius, position[2]);
-    mesh.visible = false; // initially hidden
-    scene.add(mesh);
-
-    // Create cat model instance by properly cloning the scene
-    const catGroup = cloneCatModel(color);
-    catGroup.position.set(position[0], position[1], position[2]);
-    // Scale the cat to match agent size approximately (cat model is quite large)
-    const catScale = radius * 1.5; // larger scale to be more visible
-    catGroup.scale.setScalar(catScale);
-    scene.add(catGroup);
-
-    // Set up animation mixer for this specific cat instance
-    const mixer = new THREE.AnimationMixer(catGroup);
-
-    // Find and create animation actions using the original animations but for this mixer
-    const idleClip = catAnimations.find((clip) => clip.name === 'Idle');
-    const walkClip = catAnimations.find((clip) => clip.name === 'Walk');
-    const runClip = catAnimations.find((clip) => clip.name === 'Run');
-
-    if (!idleClip || !walkClip || !runClip) {
-        throw new Error('Missing required animations in cat model');
-    }
-
-    const idleAction = mixer.clipAction(idleClip);
-    const walkAction = mixer.clipAction(walkClip);
-    const runAction = mixer.clipAction(runClip);
-
-    // Set up animation properties
-    idleAction.loop = THREE.LoopRepeat;
-    walkAction.loop = THREE.LoopRepeat;
-    runAction.loop = THREE.LoopRepeat;
-
-    // Start with idle animation
-    idleAction.play();
-
-    const targetGeometry = new THREE.SphereGeometry(0.1);
-    const targetMaterial = new THREE.MeshBasicMaterial({ color });
-    const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
-    scene.add(targetMesh);
-
-    return {
-        group: catGroup,
-        mixer,
-        idleAction,
-        walkAction,
-        runAction,
-        currentAnimation: 'idle',
-        currentRotation: 0,
-        targetRotation: 0,
-        color,
-        targetMesh,
-        pathLine: null,
-    };
-};
-
-const updateAgentVisuals = (
-    _agentId: string,
-    agent: Agent,
-    visuals: AgentVisuals,
-    scene: THREE.Scene,
-    deltaTime: number,
-    options: AgentVisualsOptions = {},
-): void => {
-    // Update animation mixer
-    visuals.mixer.update(deltaTime);
-
-    // Update cat model position and rotation
-    visuals.group.position.fromArray(agent.position);
-
-    // Calculate velocity and determine animation
-    const velocity = vec3.length(agent.velocity);
-    let targetAnimation: 'idle' | 'walk' | 'run' = 'idle';
-
-    if (velocity > 2.5) {
-        targetAnimation = 'run';
-    } else if (velocity > 0.1) {
-        targetAnimation = 'walk';
-    }
-
-    // Handle animation transitions
-    if (visuals.currentAnimation !== targetAnimation) {
-        const currentAction =
-            visuals.currentAnimation === 'idle'
-                ? visuals.idleAction
-                : visuals.currentAnimation === 'walk'
-                  ? visuals.walkAction
-                  : visuals.runAction;
-
-        const targetAction =
-            targetAnimation === 'idle' ? visuals.idleAction : targetAnimation === 'walk' ? visuals.walkAction : visuals.runAction;
-
-        // Cross-fade to new animation
-        currentAction.fadeOut(0.3);
-        targetAction.reset().fadeIn(0.3).play();
-
-        visuals.currentAnimation = targetAnimation;
-    }
-
-    // Rotate cat to face movement direction with lerping
-    const minVelocityThreshold = 0.1; // minimum velocity to trigger rotation
-    const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
-
-    if (velocity > minVelocityThreshold) {
-        // Use velocity direction when moving normally
-        const direction = vec3.normalize([0, 0, 0], agent.velocity);
-        const targetAngle = Math.atan2(direction[0], direction[2]);
-        visuals.targetRotation = targetAngle;
-    } else {
-        // When velocity is low (like during off-mesh connections), face towards target
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPos, agent.position);
-        const targetDistance = vec3.length(targetDirection);
-
-        if (targetDistance > 0.1) {
-            // Only rotate if target is far enough away
-            const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
-            const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
-            visuals.targetRotation = targetAngle;
-        }
-    }
-
-    // Lerp current rotation towards target rotation
-    let angleDiff = visuals.targetRotation - visuals.currentRotation;
-
-    // Handle angle wrapping (shortest path)
-    if (angleDiff > Math.PI) {
-        angleDiff -= 2 * Math.PI;
-    } else if (angleDiff < -Math.PI) {
-        angleDiff += 2 * Math.PI;
-    }
-
-    // Apply lerp
-    visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
-
-    // Apply rotation to cat
-    visuals.group.rotation.y = visuals.currentRotation;
-
-    // update target mesh position
-    visuals.targetMesh.position.fromArray(agent.targetPos);
-    visuals.targetMesh.position.y += 0.1;
-
-    // handle path line visualization
-    if (options.showPathLine) {
-        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
-
-        if (corners && corners.length > 1) {
-            // validate coordinates
-            const validPoints: THREE.Vector3[] = [];
-
-            // add agent position
-            if (Number.isFinite(agent.position[0]) && Number.isFinite(agent.position[1]) && Number.isFinite(agent.position[2])) {
-                validPoints.push(new THREE.Vector3(agent.position[0], agent.position[1] + 0.2, agent.position[2]));
-            }
-
-            // add corners
-            for (const corner of corners) {
-                if (
-                    Number.isFinite(corner.position[0]) &&
-                    Number.isFinite(corner.position[1]) &&
-                    Number.isFinite(corner.position[2])
-                ) {
-                    validPoints.push(new THREE.Vector3(corner.position[0], corner.position[1] + 0.2, corner.position[2]));
-                }
-            }
-
-            if (validPoints.length > 1) {
-                if (!visuals.pathLine) {
-                    // create new path line
-                    const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
-                    const material = new THREE.LineBasicMaterial({ color: visuals.color, linewidth: 2 });
-                    visuals.pathLine = new THREE.Line(geometry, material);
-                    scene.add(visuals.pathLine);
-                } else {
-                    // update existing path line
-                    const geometry = visuals.pathLine.geometry as THREE.BufferGeometry;
-                    geometry.setFromPoints(validPoints);
-                    visuals.pathLine.visible = true;
-                }
-            } else if (visuals.pathLine) {
-                visuals.pathLine.visible = false;
-            }
-        } else if (visuals.pathLine) {
-            visuals.pathLine.visible = false;
-        }
-    } else {
-        // hide path line when disabled
-        if (visuals.pathLine) {
-            visuals.pathLine.visible = false;
-        }
-    }
-};
+const physicsObjects: PhysicsObj[] = [];
+const tileToObjects = new Map<string, Set<number>>();
 
 const tileWidth = Math.floor((gridSize[0] + tileSizeVoxels - 1) / tileSizeVoxels);
 const tileHeight = Math.floor((gridSize[1] + tileSizeVoxels - 1) / tileSizeVoxels);
@@ -579,11 +241,21 @@ const tileKey = (x: number, y: number) => `${x}_${y}`;
 const dirtyTiles = new Set<string>();
 const rebuildQueue: Array<[number, number]> = [];
 
+// per-tile debug helpers (so we can update visuals only for tiles that changed)
+const tileHelpers = new Map<string, DebugObject>();
+
 // per-tile last rebuild timestamp (ms)
 const tileLastRebuilt = new Map<string, number>();
 
+// per-tile flash effect tracking
+type TileFlash = {
+    startTime: number;
+    duration: number;
+};
+const tileFlashes = new Map<string, TileFlash>();
+
 // throttle in ms
-const TILE_REBUILD_THROTTLE_MS = 500;
+const TILE_REBUILD_THROTTLE_MS = 1000;
 
 const enqueueTile = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= tileWidth || y >= tileHeight) return;
@@ -811,6 +483,13 @@ const processRebuildQueue = (maxPerFrame = 3) => {
                     newTileHelper.object.position.y += 0.05;
                     scene.add(newTileHelper.object);
                     tileHelpers.set(tileKeyStr, newTileHelper);
+                    
+                    // trigger flash effect
+                    tileFlashes.set(tileKeyStr, {
+                        startTime: performance.now(),
+                        duration: 1500, // 1500ms flash duration
+                    });
+                    
                     break;
                 }
             }
@@ -833,24 +512,11 @@ const processRebuildQueue = (maxPerFrame = 3) => {
 const buildAllTilesSync = (batch = 64) => {
     // keep processing until queue is empty
     while (rebuildQueue.length > 0) {
-        // process in batches to avoid hogging the event loop for too long
         processRebuildQueue(batch);
     }
 };
 
-// schedule tiles around a world position (radius in tiles)
-const scheduleTilesForPosition = (pos: THREE.Vector3, radiusTiles = 1) => {
-    const localX = Math.floor((pos.x - meshBounds[0][0]) / tileSizeWorld);
-    const localY = Math.floor((pos.z - meshBounds[0][2]) / tileSizeWorld);
-
-    for (let oy = -radiusTiles; oy <= radiusTiles; oy++) {
-        for (let ox = -radiusTiles; ox <= radiusTiles; ox++) {
-            enqueueTile(localX + ox, localY + oy);
-        }
-    }
-};
-
-// Compute the list of tiles overlapping an AABB (min/max Vec3)
+// compute the list of tiles overlapping an AABB (min/max Vec3)
 const tilesForAABB = (min: Vec3, max: Vec3) => {
     const minX = Math.floor((min[0] - meshBounds[0][0]) / tileSizeWorld);
     const minY = Math.floor((min[2] - meshBounds[0][2]) / tileSizeWorld);
@@ -902,11 +568,52 @@ const updateObjectTiles = (objIndex: number, newTiles: Set<string>) => {
 /* perform initial synchronous build of all tiles, then create helpers and agents */
 buildAllTilesSync();
 
-// After the initial build, register all objects into tileToObjects based on their current bounds
-for (let i = 0; i < physicsObjects.length; i++) {
-    const obj = physicsObjects[i];
-    const pos = obj.mesh.position;
-    const r = obj.radius;
+/* create physics world */
+const physicsWorld = new Rapier.World(new Rapier.Vector3(0, -9.81, 0));
+
+/* create fixed trimesh collider for level */
+const levelColliderDesc = Rapier.ColliderDesc.trimesh(new Float32Array(levelPositions), new Uint32Array(levelIndices));
+levelColliderDesc.setMass(0);
+
+const levelRigidBodyDesc = Rapier.RigidBodyDesc.fixed();
+const levelRigidBody = physicsWorld.createRigidBody(levelRigidBodyDesc);
+
+physicsWorld.createCollider(levelColliderDesc, levelRigidBody);
+
+/* create a bunch of dynamic boxes */
+for (let i = 0; i < 20; i++) {
+    // visual
+    const boxSize = 0.5;
+    const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+    const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+
+    scene.add(boxMesh);
+
+    // physics
+    const boxColliderDesc = Rapier.ColliderDesc.cuboid(boxSize / 2, boxSize / 2, boxSize / 2);
+    boxColliderDesc.setRestitution(0.1);
+    boxColliderDesc.setFriction(0.5);
+    boxColliderDesc.setDensity(1.0);
+    const boxRigidBodyDesc = Rapier.RigidBodyDesc.dynamic().setTranslation(
+        (Math.random() - 0.5) * 8,
+        10 + i * 2,
+        (Math.random() - 0.5) * 8,
+    );
+
+    const boxRigidBody = physicsWorld.createRigidBody(boxRigidBodyDesc);
+
+    physicsWorld.createCollider(boxColliderDesc, boxRigidBody);
+
+    // compute approximate radius from geometry bounding sphere
+    const geom = (boxMesh as any).geometry as THREE.BufferGeometry;
+    if (!geom.boundingSphere) geom.computeBoundingSphere();
+    const bs = geom.boundingSphere!;
+    const worldRadius = bs.radius * (boxMesh.scale.x || 1) || 0.5;
+
+    // find current tiles overlapping the object's bounding box
+    const pos = boxMesh.position;
+    const r = worldRadius;
     const min: Vec3 = [pos.x - r, pos.y - r, pos.z - r];
     const max: Vec3 = [pos.x + r, pos.y + r, pos.z + r];
 
@@ -922,8 +629,298 @@ for (let i = 0; i < physicsObjects.length; i++) {
         }
         s.add(i);
     }
-    obj.lastTiles = tilesSet;
+
+    // add the physics object
+    const physicsObject: PhysicsObj = {
+        rigidBody: boxRigidBody,
+        mesh: boxMesh,
+        lastRespawn: performance.now(),
+        lastPosition: [boxRigidBody.translation().x, boxRigidBody.translation().y, boxRigidBody.translation().z],
+        lastTiles: tilesSet,
+        radius: worldRadius,
+    }
+
+    physicsObjects.push(physicsObject);
 }
+
+/* Agent visuals */
+type AgentVisuals = {
+    group: THREE.Group; // cat model group
+    mixer: THREE.AnimationMixer; // animation mixer for cat
+    idleAction: THREE.AnimationAction;
+    walkAction: THREE.AnimationAction;
+    runAction: THREE.AnimationAction;
+    currentAnimation: 'idle' | 'walk' | 'run';
+    currentRotation: number; // current Y rotation for lerping
+    targetRotation: number; // target Y rotation
+    color: number;
+
+    targetMesh: THREE.Mesh;
+    pathLine: THREE.Line | null;
+};
+
+type AgentVisualsOptions = {
+    showPathLine?: boolean;
+};
+
+const cloneCatModel = (color?: number): THREE.Group => {
+    const clone = catModel.scene.clone(true);
+
+    const patchMaterial = (material: THREE.Material): THREE.Material => {
+        if (
+            color !== undefined &&
+            (material instanceof THREE.MeshLambertMaterial ||
+                material instanceof THREE.MeshStandardMaterial ||
+                material instanceof THREE.MeshPhongMaterial)
+        ) {
+            const clonedMat = material.clone();
+
+            clonedMat.color.setHex(color);
+            clonedMat.color.multiplyScalar(2);
+
+            if (clonedMat instanceof THREE.MeshStandardMaterial) {
+                clonedMat.emissive.setHex(color);
+                clonedMat.emissiveIntensity = 0.1;
+                clonedMat.roughness = 0.3;
+                clonedMat.metalness = 0.1;
+            }
+
+            return clonedMat;
+        }
+
+        return material;
+    };
+
+    // clone SkinnedMeshes
+    const skinnedMeshes: THREE.SkinnedMesh[] = [];
+
+    clone.traverse((child) => {
+        if (child instanceof THREE.SkinnedMesh) {
+            skinnedMeshes.push(child);
+        }
+
+        if (child instanceof THREE.Mesh) {
+            if (Array.isArray(child.material)) {
+                child.material = child.material.map(patchMaterial);
+            } else {
+                child.material = patchMaterial(child.material);
+            }
+        }
+    });
+
+    // fix skeleton references for SkinnedMesh
+    for (const skinnedMesh of skinnedMeshes) {
+        const skeleton = skinnedMesh.skeleton;
+        const bones: THREE.Bone[] = [];
+
+        for (const bone of skeleton.bones) {
+            const foundBone = clone.getObjectByName(bone.name);
+            if (foundBone instanceof THREE.Bone) {
+                bones.push(foundBone);
+            }
+        }
+
+        skinnedMesh.bind(new THREE.Skeleton(bones, skeleton.boneInverses));
+    }
+
+    return clone;
+};
+
+const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
+    // Create capsule debug mesh (initially hidden)
+    const geometry = new THREE.CapsuleGeometry(radius, height, 4, 8);
+    const material = new THREE.MeshLambertMaterial({ color });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(position[0], position[1] + radius, position[2]);
+    mesh.visible = false; // initially hidden
+    scene.add(mesh);
+
+    // Create cat model instance by properly cloning the scene
+    const catGroup = cloneCatModel(color);
+    catGroup.position.set(position[0], position[1], position[2]);
+    // Scale the cat to match agent size approximately (cat model is quite large)
+    const catScale = radius * 1.5; // larger scale to be more visible
+    catGroup.scale.setScalar(catScale);
+    scene.add(catGroup);
+
+    // Set up animation mixer for this specific cat instance
+    const mixer = new THREE.AnimationMixer(catGroup);
+
+    // Find and create animation actions using the original animations but for this mixer
+    const idleClip = catAnimations.find((clip) => clip.name === 'Idle');
+    const walkClip = catAnimations.find((clip) => clip.name === 'Walk');
+    const runClip = catAnimations.find((clip) => clip.name === 'Run');
+
+    if (!idleClip || !walkClip || !runClip) {
+        throw new Error('Missing required animations in cat model');
+    }
+
+    const idleAction = mixer.clipAction(idleClip);
+    const walkAction = mixer.clipAction(walkClip);
+    const runAction = mixer.clipAction(runClip);
+
+    // Set up animation properties
+    idleAction.loop = THREE.LoopRepeat;
+    walkAction.loop = THREE.LoopRepeat;
+    runAction.loop = THREE.LoopRepeat;
+
+    // Start with idle animation
+    idleAction.play();
+
+    const targetGeometry = new THREE.SphereGeometry(0.1);
+    const targetMaterial = new THREE.MeshBasicMaterial({ color });
+    const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
+    scene.add(targetMesh);
+
+    return {
+        group: catGroup,
+        mixer,
+        idleAction,
+        walkAction,
+        runAction,
+        currentAnimation: 'idle',
+        currentRotation: 0,
+        targetRotation: 0,
+        color,
+        targetMesh,
+        pathLine: null,
+    };
+};
+
+const updateAgentVisuals = (
+    agent: Agent,
+    visuals: AgentVisuals,
+    scene: THREE.Scene,
+    deltaTime: number,
+    options: AgentVisualsOptions = {},
+): void => {
+    // Update animation mixer
+    visuals.mixer.update(deltaTime);
+
+    // Update cat model position and rotation
+    visuals.group.position.fromArray(agent.position);
+
+    // Calculate velocity and determine animation
+    const velocity = vec3.length(agent.velocity);
+    let targetAnimation: 'idle' | 'walk' | 'run' = 'idle';
+
+    if (velocity > 2.5) {
+        targetAnimation = 'run';
+    } else if (velocity > 0.1) {
+        targetAnimation = 'walk';
+    }
+
+    // Handle animation transitions
+    if (visuals.currentAnimation !== targetAnimation) {
+        const currentAction =
+            visuals.currentAnimation === 'idle'
+                ? visuals.idleAction
+                : visuals.currentAnimation === 'walk'
+                  ? visuals.walkAction
+                  : visuals.runAction;
+
+        const targetAction =
+            targetAnimation === 'idle' ? visuals.idleAction : targetAnimation === 'walk' ? visuals.walkAction : visuals.runAction;
+
+        // Cross-fade to new animation
+        currentAction.fadeOut(0.3);
+        targetAction.reset().fadeIn(0.3).play();
+
+        visuals.currentAnimation = targetAnimation;
+    }
+
+    // Rotate cat to face movement direction with lerping
+    const minVelocityThreshold = 0.1; // minimum velocity to trigger rotation
+    const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
+
+    if (velocity > minVelocityThreshold) {
+        // Use velocity direction when moving normally
+        const direction = vec3.normalize([0, 0, 0], agent.velocity);
+        const targetAngle = Math.atan2(direction[0], direction[2]);
+        visuals.targetRotation = targetAngle;
+    } else {
+        // When velocity is low (like during off-mesh connections), face towards target
+        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPos, agent.position);
+        const targetDistance = vec3.length(targetDirection);
+
+        if (targetDistance > 0.1) {
+            // Only rotate if target is far enough away
+            const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
+            const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
+            visuals.targetRotation = targetAngle;
+        }
+    }
+
+    // Lerp current rotation towards target rotation
+    let angleDiff = visuals.targetRotation - visuals.currentRotation;
+
+    // Handle angle wrapping (shortest path)
+    if (angleDiff > Math.PI) {
+        angleDiff -= 2 * Math.PI;
+    } else if (angleDiff < -Math.PI) {
+        angleDiff += 2 * Math.PI;
+    }
+
+    // Apply lerp
+    visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
+
+    // Apply rotation to cat
+    visuals.group.rotation.y = visuals.currentRotation;
+
+    // update target mesh position
+    visuals.targetMesh.position.fromArray(agent.targetPos);
+    visuals.targetMesh.position.y += 0.1;
+
+    // handle path line visualization
+    if (options.showPathLine) {
+        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+
+        if (corners && corners.length > 1) {
+            // validate coordinates
+            const validPoints: THREE.Vector3[] = [];
+
+            // add agent position
+            if (Number.isFinite(agent.position[0]) && Number.isFinite(agent.position[1]) && Number.isFinite(agent.position[2])) {
+                validPoints.push(new THREE.Vector3(agent.position[0], agent.position[1] + 0.2, agent.position[2]));
+            }
+
+            // add corners
+            for (const corner of corners) {
+                if (
+                    Number.isFinite(corner.position[0]) &&
+                    Number.isFinite(corner.position[1]) &&
+                    Number.isFinite(corner.position[2])
+                ) {
+                    validPoints.push(new THREE.Vector3(corner.position[0], corner.position[1] + 0.2, corner.position[2]));
+                }
+            }
+
+            if (validPoints.length > 1) {
+                if (!visuals.pathLine) {
+                    // create new path line
+                    const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
+                    const material = new THREE.LineBasicMaterial({ color: visuals.color, linewidth: 2 });
+                    visuals.pathLine = new THREE.Line(geometry, material);
+                    scene.add(visuals.pathLine);
+                } else {
+                    // update existing path line
+                    const geometry = visuals.pathLine.geometry as THREE.BufferGeometry;
+                    geometry.setFromPoints(validPoints);
+                    visuals.pathLine.visible = true;
+                }
+            } else if (visuals.pathLine) {
+                visuals.pathLine.visible = false;
+            }
+        } else if (visuals.pathLine) {
+            visuals.pathLine.visible = false;
+        }
+    } else {
+        // hide path line when disabled
+        if (visuals.pathLine) {
+            visuals.pathLine.visible = false;
+        }
+    }
+};
 
 /* create crowd and agents */
 const crowd = createCrowd(1);
@@ -1050,26 +1047,18 @@ function update() {
 
         if (fellOut || periodic) {
             const x = (Math.random() - 0.5) * 8;
+            const y = 10;
             const z = (Math.random() - 0.5) * 8;
 
-            // Mark origin and destination tiles and teleport the body, then update tracking state
-            const orig = obj.rigidBody.translation();
-            const origPos = new THREE.Vector3(orig.x, orig.y, orig.z);
-            const tgt = new THREE.Vector3(x, 10, z);
-
-            // schedule both origin and target tiles for rebuild
-            scheduleTilesForPosition(origPos, 1);
-            scheduleTilesForPosition(tgt, 1);
-
             // teleport and clear velocities
-            obj.rigidBody.setTranslation({ x: tgt.x, y: tgt.y, z: tgt.z }, true);
+            obj.rigidBody.setTranslation({ x, y, z }, true);
             obj.rigidBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
             obj.rigidBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
 
             // update per-object tracking (tiles and lastPosition)
             const r = obj.radius ?? 0.5;
-            const min: Vec3 = [tgt.x - r, tgt.y - r, tgt.z - r];
-            const max: Vec3 = [tgt.x + r, tgt.y + r, tgt.z + r];
+            const min: Vec3 = [x - r, y - r, z - r];
+            const max: Vec3 = [x + r, y + r, z + r];
             const tiles = tilesForAABB(min, max);
             const newTiles = new Set<string>();
             for (const [tx, ty] of tiles) {
@@ -1081,13 +1070,14 @@ function update() {
                 updateObjectTiles(idx, newTiles);
             }
 
-            obj.lastPosition = [tgt.x, tgt.y, tgt.z];
+            obj.lastPosition[0] = x;
+            obj.lastPosition[1] = y;
+            obj.lastPosition[2] = z;
             obj.lastRespawn = nowMs;
         }
     }
 
-    // swept-AABB per-object tile scheduling (throttled)
-    const nowMs = performance.now();
+    // schedule tiles based on movements of physics objects between tiles
     for (let i = 0; i < physicsObjects.length; i++) {
         const obj = physicsObjects[i];
         const posNow = obj.rigidBody.translation();
@@ -1104,19 +1094,26 @@ function update() {
             newTiles.add(tileKey(tx, ty));
         }
 
-        // union of old and new tiles to ensure both sets are rebuilt
-        const unionTiles = new Set<string>([...obj.lastTiles, ...newTiles]);
+        const isSleeping = obj.rigidBody.isSleeping();
 
-        // throttle scheduling per-object to avoid spamming
-        const SCHEDULE_THROTTLE_MS = 250;
-        if (nowMs - obj.lastScheduleTime >= SCHEDULE_THROTTLE_MS) {
-            for (const k of unionTiles) {
-                const parts = k.split('_');
+        // rebuild tiles we left (object no longer present, needs removal)
+        for (const oldKey of obj.lastTiles) {
+            if (!newTiles.has(oldKey)) {
+                const parts = oldKey.split('_');
                 const tx = parseInt(parts[0], 10);
                 const ty = parseInt(parts[1], 10);
                 enqueueTile(tx, ty);
             }
-            obj.lastScheduleTime = nowMs;
+        }
+
+        // rebuild current tiles only if object is awake (moving/settling)
+        if (!isSleeping) {
+            for (const newKey of newTiles) {
+                const parts = newKey.split('_');
+                const tx = parseInt(parts[0], 10);
+                const ty = parseInt(parts[1], 10);
+                enqueueTile(tx, ty);
+            }
         }
 
         // update object tile registrations
@@ -1129,6 +1126,54 @@ function update() {
     // process at most 3 tile rebuilds per frame
     processRebuildQueue(3);
 
+    // update tile flash effects
+    const now = performance.now();
+    const flashesToRemove: string[] = [];
+    
+    for (const [tileKey, flash] of tileFlashes) {
+        const elapsed = now - flash.startTime;
+        const t = Math.min(elapsed / flash.duration, 1.0); // normalized time [0, 1]
+        
+        const tileHelper = tileHelpers.get(tileKey);
+        if (tileHelper) {
+            const fadeAmount = (1.0 - t) ** 3;
+            
+            tileHelper.object.traverse((child) => {
+                if (child instanceof THREE.Mesh && child.material instanceof THREE.Material) {
+                    const material = child.material as THREE.MeshBasicMaterial;
+                    
+                    const baseColor = 0x222222;
+                    const flashColor = 0x555555;
+                    
+                    const baseR = (baseColor >> 16) & 0xff;
+                    const baseG = (baseColor >> 8) & 0xff;
+                    const baseB = baseColor & 0xff;
+                    
+                    const flashR = (flashColor >> 16) & 0xff;
+                    const flashG = (flashColor >> 8) & 0xff;
+                    const flashB = flashColor & 0xff;
+                    
+                    const r = Math.round(flashR * fadeAmount + baseR * (1 - fadeAmount));
+                    const g = Math.round(flashG * fadeAmount + baseG * (1 - fadeAmount));
+                    const b = Math.round(flashB * fadeAmount + baseB * (1 - fadeAmount));
+                    
+                    const color = (r << 16) | (g << 8) | b;
+                    material.color.setHex(color);
+                    material.vertexColors = false;
+                }
+            });
+        }
+        
+        if (t >= 1.0) {
+            flashesToRemove.push(tileKey);
+        }
+    }
+    
+    // clean up finished flashes
+    for (const key of flashesToRemove) {
+        tileFlashes.delete(key);
+    }
+
     // update agent visuals
     const agents = Object.keys(crowd.agents);
 
@@ -1137,7 +1182,7 @@ function update() {
         const agent = crowd.agents[agentId];
         
         if (agentVisuals[agentId]) {
-            updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, clampedDeltaTime, {
+            updateAgentVisuals(agent, agentVisuals[agentId], scene, clampedDeltaTime, {
                 showPathLine: guiSettings.showPathLine,
             });
         }
