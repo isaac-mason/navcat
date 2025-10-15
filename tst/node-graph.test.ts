@@ -5,6 +5,7 @@ import {
     addTile,
     buildTile,
     createNavMesh,
+    isValidNodeRef,
     type ExternalPolygon,
     type NavMesh,
     type NavMeshTileParams,
@@ -97,6 +98,14 @@ describe('node graph', () => {
         const allocatedPolyNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
         expect(allocatedPolyNodes.length).toBe(2);
 
+        // capture refs now (node objects will be pooled when deallocated)
+        const allocatedPolyRefs = allocatedPolyNodes.map((n) => n.ref);
+
+        // assert: their refs are valid according to isValidNodeRef
+        for (const ref of allocatedPolyRefs) {
+            expect(isValidNodeRef(navMesh, ref)).toBe(true);
+        }
+
         // assert: each node should have one link to the other poly
         for (const node of allocatedPolyNodes) {
             expect(node.links.length).toBe(1);
@@ -112,6 +121,11 @@ describe('node graph', () => {
         // assert: no allocated nodes
         const allocatedNodes = Object.values(navMesh.nodes).filter((node) => node.allocated);
         expect(allocatedNodes.length).toBe(0);
+
+        // assert: refs should now be invalid
+        for (const ref of allocatedPolyRefs) {
+            expect(isValidNodeRef(navMesh, ref)).toBe(false);
+        }
 
         // assert: nodes are pooled
         expect(navMesh.nodes.length).toBe(2);
@@ -165,6 +179,9 @@ describe('node graph', () => {
         const offMeshNode = offMeshNodes[0];
         expect(offMeshNode.offMeshConnectionId).toBe(offMeshConnectionId);
 
+        // capture the offmesh node ref now (node object will be pooled)
+        const offMeshNodeRef = offMeshNode.ref;
+
         // Start poly should link to offmesh node
         const startPolyNode = Object.values(navMesh.nodes).find(
             (node) => node.allocated && node.ref === attachment.startPolyNode,
@@ -202,6 +219,9 @@ describe('node graph', () => {
         expect(nodesAfterRemove.length).toBe(4);
         const offMeshNodesAfterRemove = nodesAfterRemove.filter((node) => node.type === 1);
         expect(offMeshNodesAfterRemove.length).toBe(0);
+
+        // offmesh node ref should now be invalid (use saved ref)
+        expect(isValidNodeRef(navMesh, offMeshNodeRef)).toBe(false);
     });
 
     test('one way offmesh connection', () => {
@@ -240,6 +260,9 @@ describe('node graph', () => {
 
         const startOffMeshNode = offMeshNodes[0];
 
+        // capture the offmesh node ref now
+        const startOffMeshNodeRef = startOffMeshNode.ref;
+
         // the start poly should link to the offmesh node
         const startPolyNode = Object.values(navMesh.nodes).find(
             (node) => node.allocated && node.ref === attachment.startPolyNode,
@@ -274,11 +297,14 @@ describe('node graph', () => {
         // check offmesh connection was removed
         expect(navMesh.offMeshConnections[offMeshConnectionId]).toBeUndefined();
 
-        // check offmesh node is deallocated
-        const nodesAfterRemove = Object.values(navMesh.nodes).filter((node) => node.allocated);
-        expect(nodesAfterRemove.length).toBe(4);
-        const offMeshNodesAfterRemove = nodesAfterRemove.filter((node) => node.type === 1);
-        expect(offMeshNodesAfterRemove.length).toBe(0);
+    // check offmesh node is deallocated
+    const nodesAfterRemove = Object.values(navMesh.nodes).filter((node) => node.allocated);
+    expect(nodesAfterRemove.length).toBe(4);
+    const offMeshNodesAfterRemove = nodesAfterRemove.filter((node) => node.type === 1);
+    expect(offMeshNodesAfterRemove.length).toBe(0);
+
+    // and the saved ref should now be invalid
+    expect(isValidNodeRef(navMesh, startOffMeshNodeRef)).toBe(false);
     });
 });
 
