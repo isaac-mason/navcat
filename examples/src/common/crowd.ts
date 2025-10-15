@@ -297,23 +297,27 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                     agent.params.queryFilter,
                 );
 
-                vec3.copy(agent.targetPos, nearestPolyResult.point);
-                replan = true;
-
                 if (!nearestPolyResult.success) {
                     // could not find location in navmesh, set agent state to invalid
                     agent.targetState = AgentTargetState.NONE;
+                    agent.targetRef = null;
                     resetCorridor(agent.corridor, 0, agent.position);
+                } else {
+                    // target poly became invalid, update to nearest valid poly
+                    agent.targetRef = nearestPolyResult.ref;
+                    vec3.copy(agent.targetPos, nearestPolyResult.point);
+                    replan = true;
                 }
             }
         }
 
         // if nearby corridor is not valid, replan
-        if (!corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.params.queryFilter)) {
+        const corridorValid = corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.params.queryFilter);
+        if (!corridorValid) {
             replan = true;
         }
 
-        // if the end of the apth is near and it is not the requested location, replan
+        // if the end of the path is near and it is not the requested location, replan
         if (agent.targetState === AgentTargetState.VALID) {
             if (
                 agent.targetPathfindingTime > TARGET_REPLAN_DELAY_SECONDS &&

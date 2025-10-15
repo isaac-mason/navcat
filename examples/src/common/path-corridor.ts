@@ -166,7 +166,8 @@ export const fixPathStart = (corridor: PathCorridor, safeRef: NodeRef, safePos: 
     vec3.copy(corridor.position, safePos);
 
     if (corridor.path.length < 3 && corridor.path.length > 0) {
-        corridor.path[2] = corridor.path[corridor.path.length - 1];
+        const lastPoly = corridor.path[corridor.path.length - 1];
+        corridor.path[2] = lastPoly;
         corridor.path[0] = safeRef;
         corridor.path[1] = 0;
         corridor.path.length = 3;

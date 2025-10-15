@@ -1135,6 +1135,7 @@ function update() {
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
         const agent = crowd.agents[agentId];
+        
         if (agentVisuals[agentId]) {
             updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, clampedDeltaTime, {
                 showPathLine: guiSettings.showPathLine,
