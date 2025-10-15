@@ -586,8 +586,9 @@ const vequal = (verticesA: number[], vertexAIdx: number, verticesB: number[], ve
 const removeDegenerateSegments = (simplified: number[]): void => {
     // Remove adjacent vertices which are equal on xz-plane,
     // or else the triangulator will get confused.
+    // Iterate backwards to avoid index shifting issues when removing elements.
     let npts = Math.floor(simplified.length / 4);
-    for (let i = 0; i < npts; ++i) {
+    for (let i = npts - 1; i >= 0; --i) {
         const ni = next(i, npts);
 
         if (vequal(simplified, i, simplified, ni)) {
