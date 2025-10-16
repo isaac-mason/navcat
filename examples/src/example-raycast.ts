@@ -1,5 +1,6 @@
+import GUI from 'lil-gui';
 import { type Vec3, vec3 } from 'maaths';
-import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, raycast, raycastWithCosts } from 'navcat';
+import { createFindNearestPolyResult, createGetPolyHeightResult, DEFAULT_QUERY_FILTER, findNearestPoly, getPolyHeight, getTileAndPolyByRef, raycast, raycastWithCosts } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
@@ -96,14 +97,37 @@ const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-// state for raycast start/end (with defaults)
-let raycastStart: Vec3 | null = [-0.8, 0.27, 5.1];
-let raycastEnd: Vec3 | null = [0.53, 0.26, 3.59];
-let calculateCosts = false;
+// state for raycast (with defaults)
+let clickedStart: Vec3 | null = [-0.8, 0.27, 5.1];
+let clickedEnd: Vec3 | null = [0.53, 0.26, 3.59];
+
+// resolved positions and polys from findNearestPoly
+let startPoly: number | null = null;
+let startPos: Vec3 | null = null;
+let endPoly: number | null = null;
+let endPos: Vec3 | null = null;
+
+// raycast results
+let raycastHitPos: Vec3 | null = null;
+let raycastHitPoly: number | null = null;
+let raycastReachedEnd = false;
+let raycastPathCost = 0;
+let raycastPathLength = 0;
+
+const params = {
+    calculateCosts: false,
+};
+
 type Visual = { object: THREE.Object3D; dispose: () => void };
 let visuals: Visual[] = [];
 
-// UI for cost toggle
+// GUI
+const gui = new GUI();
+gui.add(params, 'calculateCosts').name('Calculate Costs').onChange(() => {
+    performRaycast();
+});
+
+// Info panel
 const controlsDiv = document.createElement('div');
 controlsDiv.style.position = 'absolute';
 controlsDiv.style.top = '10px';
@@ -116,31 +140,16 @@ controlsDiv.style.fontSize = '14px';
 controlsDiv.style.borderRadius = '4px';
 controlsDiv.style.pointerEvents = 'auto';
 
-const checkboxLabel = document.createElement('label');
-checkboxLabel.style.display = 'flex';
-checkboxLabel.style.alignItems = 'center';
-checkboxLabel.style.cursor = 'pointer';
-checkboxLabel.style.userSelect = 'none';
 
-const checkbox = document.createElement('input');
-checkbox.type = 'checkbox';
-checkbox.checked = calculateCosts;
-checkbox.style.marginRight = '8px';
-checkbox.style.cursor = 'pointer';
-checkbox.addEventListener('change', () => {
-    calculateCosts = checkbox.checked;
-    performRaycast();
-});
+const infoPanelTitle = document.createElement('div');
+infoPanelTitle.textContent = 'RAYCAST\n2D in XZ plane\nfollows the navmesh surface)';
+infoPanelTitle.style.whiteSpace = 'pre';
+infoPanelTitle.style.opacity = '0.6';
+infoPanelTitle.style.marginBottom = '8px';
+controlsDiv.appendChild(infoPanelTitle);
 
-checkboxLabel.appendChild(checkbox);
-checkboxLabel.appendChild(document.createTextNode('Calculate Costs'));
-controlsDiv.appendChild(checkboxLabel);
-
-const costInfoDiv = document.createElement('div');
-costInfoDiv.style.marginTop = '8px';
-costInfoDiv.style.fontSize = '12px';
-costInfoDiv.style.opacity = '0.8';
-controlsDiv.appendChild(costInfoDiv);
+const infoPanelContent = document.createElement('div');
+controlsDiv.appendChild(infoPanelContent);
 
 container.appendChild(controlsDiv);
 
@@ -162,79 +171,182 @@ function addVisual(visual: Visual) {
 
 function performRaycast() {
     clearVisuals();
-    if (!raycastStart || !raycastEnd) return;
+    if (!clickedStart || !clickedEnd) return;
 
-    const raycastStartNearestPoly = findNearestPoly(
+    // find nearest poly for start position
+    const startNearestPolyResult = findNearestPoly(
         createFindNearestPolyResult(),
         navMesh,
-        raycastStart,
+        clickedStart,
         [1, 1, 1],
         DEFAULT_QUERY_FILTER,
     );
 
-    if (!raycastStartNearestPoly.success) return;
+    if (!startNearestPolyResult.success) return;
 
-    const raycastResult = calculateCosts
-        ? raycastWithCosts(navMesh, raycastStartNearestPoly.ref, raycastStart, raycastEnd, DEFAULT_QUERY_FILTER, 0)
-        : raycast(navMesh, raycastStartNearestPoly.ref, raycastStart, raycastEnd, DEFAULT_QUERY_FILTER);
+    startPoly = startNearestPolyResult.ref;
+    startPos = vec3.clone(startNearestPolyResult.point);
 
-    const reachedEnd = raycastResult.t > 0.99;
+    // find nearest poly for end position
+    const endNearestPolyResult = findNearestPoly(
+        createFindNearestPolyResult(),
+        navMesh,
+        clickedEnd,
+        [1, 1, 1],
+        DEFAULT_QUERY_FILTER,
+    );
 
-    // Update cost info display
-    if (calculateCosts) {
-        costInfoDiv.textContent = `Path Cost: ${raycastResult.pathCost.toFixed(3)}`;
-        costInfoDiv.style.display = 'block';
+    if (!endNearestPolyResult.success) return;
+
+    endPoly = endNearestPolyResult.ref;
+    endPos = vec3.clone(endNearestPolyResult.point);
+
+    // perform raycast from start to end
+    const raycastResult = params.calculateCosts
+        ? raycastWithCosts(navMesh, startPoly, startPos, endPos, DEFAULT_QUERY_FILTER, 0)
+        : raycast(navMesh, startPoly, startPos, endPos, DEFAULT_QUERY_FILTER);
+
+    // raycast reached end if t is MAX_VALUE (no wall hit)
+    raycastReachedEnd = raycastResult.t === Number.MAX_VALUE;
+    raycastPathCost = raycastResult.pathCost || 0;
+    raycastPathLength = raycastResult.path.length;
+
+    // calculate raycast hit position
+    if (raycastResult.t === Number.MAX_VALUE) {
+        // ray reached the end without hitting a wall
+        raycastHitPos = vec3.clone(endPos);
+        raycastHitPoly = raycastResult.path[raycastResult.path.length - 1] || endPoly;
     } else {
-        costInfoDiv.style.display = 'none';
+        // ray hit a wall at parameter t
+        raycastHitPos = vec3.create();
+        vec3.lerp(raycastHitPos, startPos, endPos, raycastResult.t);
+        raycastHitPoly = raycastResult.path[raycastResult.path.length - 1] || startPoly;
     }
 
-    // visualize the raycast start position (green, larger)
-    const rayStartMesh = new THREE.Mesh(
+    // if hit poly is different from end poly, get the actual height on the hit poly
+    let actualHitPosOnPoly: Vec3 | null = null;
+    if (raycastReachedEnd && raycastHitPoly !== endPoly && raycastHitPoly !== null) {
+        const tileAndPoly = getTileAndPolyByRef(raycastHitPoly, navMesh);
+        if (tileAndPoly.success) {
+            const heightResult = getPolyHeight(
+                createGetPolyHeightResult(),
+                tileAndPoly.tile,
+                tileAndPoly.poly,
+                tileAndPoly.polyIndex,
+                raycastHitPos,
+            );
+            if (heightResult.success) {
+                actualHitPosOnPoly = vec3.fromValues(raycastHitPos[0], heightResult.height, raycastHitPos[2]);
+            }
+        }
+    }
+
+    // Update info panel with comprehensive metadata
+    const formatVec = (v: Vec3) => `(${v[0].toFixed(2)}, ${v[1].toFixed(2)}, ${v[2].toFixed(2)})`;
+    
+    let infoHtml = '<div style="display: grid; gap: 4px;">';
+    
+    // Start position info
+    infoHtml += '<div style="color: #66ff66;">Start:</div>';
+    infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Poly: ${startPoly}</div>`;
+    infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(startPos)}</div>`;
+    
+    // End target info
+    infoHtml += '<div style="color: #6699ff; margin-top: 4px;">End Target:</div>';
+    infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Poly: ${endPoly}</div>`;
+    infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(endPos)}</div>`;
+    
+    // Raycast hit info - determine the status
+    let statusText: string;
+    let statusColor: string;
+    let hitColor: string;
+    
+    if (raycastReachedEnd && raycastHitPoly === endPoly) {
+        // truly reached the end target poly
+        statusText = 'REACHED END ✓';
+        statusColor = '#66ff66';
+        hitColor = '#66ff66';
+    } else if (raycastReachedEnd && raycastHitPoly !== endPoly) {
+        // reached XZ position but different poly (vertically separated)
+        statusText = 'REACHED XZ (Different Poly) ⚠';
+        statusColor = '#ffaa00';
+        hitColor = '#ffaa00';
+    } else {
+        // blocked by wall
+        statusText = 'BLOCKED ✗';
+        statusColor = '#ff6666';
+        hitColor = '#ff6666';
+    }
+    
+    infoHtml += `<div style="color: ${hitColor}; margin-top: 4px;">Raycast Hit:</div>`;
+    infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Poly: ${raycastHitPoly}</div>`;
+    infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(raycastHitPos)}</div>`;
+    
+    // show actual hit position on poly if different
+    if (actualHitPosOnPoly) {
+        infoHtml += '<div style="color: #ffff00; margin-top: 4px;">Actual Pos on Hit Poly:</div>';
+        infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(actualHitPosOnPoly)}</div>`;
+    }
+    
+    // status
+    infoHtml += `<div style="margin-top: 8px; color: ${statusColor};">${statusText}</div>`;
+    
+    // optional cost/metrics info
+    if (params.calculateCosts) {
+        infoHtml += '<div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">';
+        infoHtml += `<div>Path Cost: ${raycastPathCost.toFixed(3)}</div>`;
+        infoHtml += `<div>Polys Traversed: ${raycastPathLength}</div>`;
+        infoHtml += '</div>';
+    }
+    
+    infoHtml += '</div>';
+    infoPanelContent.innerHTML = infoHtml;
+
+    // visualize the start position (green sphere)
+    const startMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 20, 20),
         new THREE.MeshBasicMaterial({ color: new THREE.Color('green') }),
     );
-    rayStartMesh.position.fromArray(raycastStart);
-    rayStartMesh.position.y += 0.5;
+    startMesh.position.fromArray(startPos);
+    startMesh.position.y += 0.5;
     addVisual({
-        object: rayStartMesh,
+        object: startMesh,
         dispose: () => {
-            rayStartMesh.geometry?.dispose();
-            rayStartMesh.material?.dispose?.();
+            startMesh.geometry?.dispose();
+            startMesh.material?.dispose?.();
         },
     });
 
-    // visualize the raycast end position (blue, smaller)
-    const rayEndMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 16, 16),
+    // visualize the end target position (blue sphere)
+    const endMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 16, 16),
         new THREE.MeshBasicMaterial({ color: new THREE.Color('blue') }),
     );
-    rayEndMesh.position.fromArray(raycastEnd);
-    rayEndMesh.position.y += 0.5;
+    endMesh.position.fromArray(endPos);
+    endMesh.position.y += 0.5;
     addVisual({
-        object: rayEndMesh,
+        object: endMesh,
         dispose: () => {
-            rayEndMesh.geometry?.dispose();
-            rayEndMesh.material?.dispose?.();
+            endMesh.geometry?.dispose();
+            endMesh.material?.dispose?.();
         },
     });
 
-    // calculate hit position
-    let hitPos: Vec3;
-    if (raycastResult.t === Number.MAX_VALUE) {
-        // ray reached the end without hitting a wall
-        hitPos = raycastEnd;
+    // visualize the raycast hit position with appropriate color
+    let hitMeshColor: string;
+    if (raycastReachedEnd && raycastHitPoly === endPoly) {
+        hitMeshColor = 'green';
+    } else if (raycastReachedEnd && raycastHitPoly !== endPoly) {
+        hitMeshColor = 'orange';
     } else {
-        // ray hit a wall at parameter t
-        hitPos = vec3.create();
-        vec3.lerp(hitPos, raycastStart, raycastEnd, raycastResult.t);
+        hitMeshColor = 'red';
     }
-
-    // visualize the hit position
+    
     const hitMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 16, 16),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color(reachedEnd ? 'green' : 'red') }),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(hitMeshColor) }),
     );
-    hitMesh.position.fromArray(hitPos);
+    hitMesh.position.fromArray(raycastHitPos);
     hitMesh.position.y += 0.5;
     addVisual({
         object: hitMesh,
@@ -244,14 +356,36 @@ function performRaycast() {
         },
     });
 
-    // visualize the raycast as two arrows: green (start to hit), red (hit to end if hit occurs before end)
-    const startVec = new THREE.Vector3(...raycastStart);
-    const hitVec = new THREE.Vector3(...hitPos);
-    const endVec = new THREE.Vector3(...raycastEnd);
-    const toHit = new THREE.Vector3().subVectors(hitVec, startVec);
+    // visualize the actual hit position on the hit poly (if different from end poly)
+    if (actualHitPosOnPoly) {
+        const actualHitMesh = new THREE.Mesh(
+            new THREE.SphereGeometry(0.08, 16, 16),
+            new THREE.MeshBasicMaterial({ color: new THREE.Color('yellow') }),
+        );
+        actualHitMesh.position.fromArray(actualHitPosOnPoly);
+        actualHitMesh.position.y += 0.5;
+        addVisual({
+            object: actualHitMesh,
+            dispose: () => {
+                actualHitMesh.geometry?.dispose();
+                actualHitMesh.material?.dispose?.();
+            },
+        });
+    }
+
+    // visualize the raycast as two arrows: green (start to hit), red (hit to end if blocked)
+    const startVec = new THREE.Vector3(...startPos);
+    const hitVec = new THREE.Vector3(...raycastHitPos);
+    const endVec = new THREE.Vector3(...endPos);
+    
+    // use actual hit position on poly if available, otherwise use raycastHitPos
+    const actualHitVec = actualHitPosOnPoly ? new THREE.Vector3(...actualHitPosOnPoly) : hitVec;
+    
+    const toHit = new THREE.Vector3().subVectors(actualHitVec, startVec);
     const toEnd = new THREE.Vector3().subVectors(endVec, hitVec);
     const toHitLen = toHit.length();
     const toEndLen = toEnd.length();
+    
     if (toHitLen > 0.01) {
         const arrowGreen = new THREE.ArrowHelper(
             toHit.clone().normalize(),
@@ -269,8 +403,8 @@ function performRaycast() {
         });
     }
 
-    // only draw the red arrow if the hit is before the end
-    if (!reachedEnd && toEndLen > 0.01) {
+    // only draw the red arrow if the raycast didn't reach the end
+    if (!raycastReachedEnd && toEndLen > 0.01) {
         const arrowRed = new THREE.ArrowHelper(
             toEnd.clone().normalize(),
             hitVec.clone().setY(hitVec.y + 0.5),
@@ -290,10 +424,10 @@ function performRaycast() {
     // visualize hit normal if we hit a wall
     if (raycastResult.t < Number.MAX_VALUE && vec3.length(raycastResult.hitNormal) > 0) {
         const normalEnd = vec3.create();
-        vec3.scaleAndAdd(normalEnd, hitPos, raycastResult.hitNormal, 0.5);
+        vec3.scaleAndAdd(normalEnd, raycastHitPos, raycastResult.hitNormal, 0.5);
 
         const normalLineGeometry = new LineGeometry();
-        normalLineGeometry.setFromPoints([new THREE.Vector3(...hitPos), new THREE.Vector3(...normalEnd)]);
+        normalLineGeometry.setFromPoints([new THREE.Vector3(...raycastHitPos), new THREE.Vector3(...normalEnd)]);
         const normalLineMaterial = new Line2NodeMaterial({
             color: 'yellow',
             linewidth: 0.08,
@@ -310,7 +444,24 @@ function performRaycast() {
         });
     }
 
-    // visualize the visited polygons from raycast
+    // highlight start poly (green)
+    const startPolyHelper = createNavMeshPolyHelper(navMesh, startPoly, [0, 1, 0]);
+    startPolyHelper.object.position.y += 0.25;
+    addVisual(startPolyHelper);
+
+    // highlight end target poly (blue)
+    const endPolyHelper = createNavMeshPolyHelper(navMesh, endPoly, [0, 0, 1]);
+    endPolyHelper.object.position.y += 0.25;
+    addVisual(endPolyHelper);
+
+    // highlight raycast hit poly (yellow/orange) if different from end poly
+    if (raycastHitPoly && raycastHitPoly !== endPoly) {
+        const hitPolyHelper = createNavMeshPolyHelper(navMesh, raycastHitPoly, [1, 0.6, 0]);
+        hitPolyHelper.object.position.y += 0.25;
+        addVisual(hitPolyHelper);
+    }
+
+    // visualize the visited polygons from raycast (gradient)
     for (let i = 0; i < raycastResult.path.length; i++) {
         const poly = raycastResult.path[i];
         const hslColor = new THREE.Color().setHSL(0.8, 0.9, 0.4 + (i / raycastResult.path.length) * 0.3);
@@ -343,10 +494,10 @@ renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
     if (!point) return;
     if (event.button === 0) {
         // left click: set start
-        raycastStart = point;
+        clickedStart = point;
     } else if (event.button === 2) {
         // right click: set end
-        raycastEnd = point;
+        clickedEnd = point;
     }
     performRaycast();
 });
