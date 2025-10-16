@@ -1338,7 +1338,7 @@ export const moveAlongSurface = (
     return result;
 };
 
-const _raycastVertices: number[] = [];
+const _raycast_vertices: number[] = [];
 const _raycast_dir = vec3.create();
 const _raycast_curPos = vec3.create();
 const _raycast_lastPos = vec3.create();
@@ -1419,7 +1419,7 @@ const raycastBase = (
 
         // collect current poly vertices
         const nv = poly.vertices.length;
-        const vertices = _raycastVertices;
+        const vertices = _raycast_vertices;
         for (let i = 0; i < nv; i++) {
             const start = poly.vertices[i] * 3;
             vertices[i * 3] = tile.vertices[start];
