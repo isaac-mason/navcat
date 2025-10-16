@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.0.6 (Unreleased)
+## 0.0.6
 
 - feat: add 'createNavMeshTileHelper' helper, similar to 'createNavMeshHelper' for visualizing individual tiles
 - fix: contour set removeDegenerateSegments skipping segments
