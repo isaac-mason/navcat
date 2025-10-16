@@ -462,8 +462,15 @@ function performRaycast() {
     }
 
     // visualize the visited polygons from raycast (gradient)
+    // exclude start, end, and raycast hit polys as they're already highlighted
     for (let i = 0; i < raycastResult.path.length; i++) {
         const poly = raycastResult.path[i];
+        
+        // skip if this poly is already highlighted
+        if (poly === startPoly || poly === endPoly || poly === raycastHitPoly) {
+            continue;
+        }
+        
         const hslColor = new THREE.Color().setHSL(0.8, 0.9, 0.4 + (i / raycastResult.path.length) * 0.3);
         const polyHelper = createNavMeshPolyHelper(navMesh, poly, hslColor.toArray() as [number, number, number]);
         polyHelper.object.position.y += 0.35;
