@@ -9,6 +9,7 @@
 - feat: updated 'finalizeSlicedFindNodePath' signature to finalizeSlicedFindNodePath(navMesh, slicedQuery)
 - fix: add missing 'finalizeSlicedFindNodePathPartial' shortcut logic
 - feat: update maaths from v0.0.4 to v0.0.5
+- feat: add markRotatedBoxArea compact heightfield utility
 
 ## 0.0.5
 
