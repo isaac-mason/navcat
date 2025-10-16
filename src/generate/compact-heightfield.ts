@@ -484,31 +484,42 @@ export const markRotatedBoxArea = (
     const cosAngle = Math.cos(angleRadians);
     const sinAngle = Math.sin(angleRadians);
 
-    // compute the 4 corners of the rotated box in the XZ plane
+    // compute the 4 corners of the rotated box in the XZ plane and find AABB
     // the corners in local space are at (±halfExtents[0], ±halfExtents[2])
-    const corners: [number, number][] = [
-        [-halfExtents[0], -halfExtents[2]],
-        [halfExtents[0], -halfExtents[2]],
-        [halfExtents[0], halfExtents[2]],
-        [-halfExtents[0], halfExtents[2]],
-    ];
+    const hx = halfExtents[0];
+    const hz = halfExtents[2];
 
-    // transform corners to world space and find AABB
-    let minWorldX = Number.POSITIVE_INFINITY;
-    let maxWorldX = Number.NEGATIVE_INFINITY;
-    let minWorldZ = Number.POSITIVE_INFINITY;
-    let maxWorldZ = Number.NEGATIVE_INFINITY;
+    // corner 1: (-hx, -hz)
+    let worldX = center[0] + cosAngle * -hx - sinAngle * -hz;
+    let worldZ = center[2] + sinAngle * -hx + cosAngle * -hz;
+    let minWorldX = worldX;
+    let maxWorldX = worldX;
+    let minWorldZ = worldZ;
+    let maxWorldZ = worldZ;
 
-    for (const [localX, localZ] of corners) {
-        // rotate the corner and translate to center
-        const worldX = center[0] + cosAngle * localX - sinAngle * localZ;
-        const worldZ = center[2] + sinAngle * localX + cosAngle * localZ;
+    // corner 2: (hx, -hz)
+    worldX = center[0] + cosAngle * hx - sinAngle * -hz;
+    worldZ = center[2] + sinAngle * hx + cosAngle * -hz;
+    minWorldX = Math.min(minWorldX, worldX);
+    maxWorldX = Math.max(maxWorldX, worldX);
+    minWorldZ = Math.min(minWorldZ, worldZ);
+    maxWorldZ = Math.max(maxWorldZ, worldZ);
 
-        minWorldX = Math.min(minWorldX, worldX);
-        maxWorldX = Math.max(maxWorldX, worldX);
-        minWorldZ = Math.min(minWorldZ, worldZ);
-        maxWorldZ = Math.max(maxWorldZ, worldZ);
-    }
+    // corner 3: (hx, hz)
+    worldX = center[0] + cosAngle * hx - sinAngle * hz;
+    worldZ = center[2] + sinAngle * hx + cosAngle * hz;
+    minWorldX = Math.min(minWorldX, worldX);
+    maxWorldX = Math.max(maxWorldX, worldX);
+    minWorldZ = Math.min(minWorldZ, worldZ);
+    maxWorldZ = Math.max(maxWorldZ, worldZ);
+
+    // corner 4: (-hx, hz)
+    worldX = center[0] + cosAngle * -hx - sinAngle * hz;
+    worldZ = center[2] + sinAngle * -hx + cosAngle * hz;
+    minWorldX = Math.min(minWorldX, worldX);
+    maxWorldX = Math.max(maxWorldX, worldX);
+    minWorldZ = Math.min(minWorldZ, worldZ);
+    maxWorldZ = Math.max(maxWorldZ, worldZ);
 
     // compute Y extents in world space
     const minWorldY = center[1] - halfExtents[1];
