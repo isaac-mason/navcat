@@ -8,6 +8,7 @@
 - feat: 'prevRef' parameter on 'raycastWithCosts' and prev ref tracking for accurate raycast cost calculations
 - feat: updated 'finalizeSlicedFindNodePath' signature to finalizeSlicedFindNodePath(navMesh, slicedQuery)
 - fix: add missing 'finalizeSlicedFindNodePathPartial' shortcut logic
+- feat: update maaths from v0.0.4 to v0.0.5
 
 ## 0.0.5
 
