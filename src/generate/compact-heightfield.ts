@@ -461,6 +461,125 @@ export const markBoxArea = (bounds: Box3, areaId: number, compactHeightfield: Co
     }
 };
 
+/**
+ * Marks spans in the heightfield that intersect the specified rotated box area with the given area ID.
+ * @param center - The center point of the box in world space [x, y, z]
+ * @param halfExtents - Half extents of the box along each axis [x, y, z]
+ * @param angleRadians - Rotation angle in radians around the Y axis
+ * @param areaId - The area ID to assign to intersecting spans
+ * @param compactHeightfield - The compact heightfield to mark
+ */
+export const markRotatedBoxArea = (
+    center: Vec3,
+    halfExtents: Vec3,
+    angleRadians: number,
+    areaId: number,
+    compactHeightfield: CompactHeightfield,
+) => {
+    const xSize = compactHeightfield.width;
+    const zSize = compactHeightfield.height;
+    const zStride = xSize; // for readability
+
+    // precompute sin and cos for rotation
+    const cosAngle = Math.cos(angleRadians);
+    const sinAngle = Math.sin(angleRadians);
+
+    // compute the 4 corners of the rotated box in the XZ plane
+    // the corners in local space are at (±halfExtents[0], ±halfExtents[2])
+    const corners: [number, number][] = [
+        [-halfExtents[0], -halfExtents[2]],
+        [halfExtents[0], -halfExtents[2]],
+        [halfExtents[0], halfExtents[2]],
+        [-halfExtents[0], halfExtents[2]],
+    ];
+
+    // transform corners to world space and find AABB
+    let minWorldX = Number.POSITIVE_INFINITY;
+    let maxWorldX = Number.NEGATIVE_INFINITY;
+    let minWorldZ = Number.POSITIVE_INFINITY;
+    let maxWorldZ = Number.NEGATIVE_INFINITY;
+
+    for (const [localX, localZ] of corners) {
+        // rotate the corner and translate to center
+        const worldX = center[0] + cosAngle * localX - sinAngle * localZ;
+        const worldZ = center[2] + sinAngle * localX + cosAngle * localZ;
+
+        minWorldX = Math.min(minWorldX, worldX);
+        maxWorldX = Math.max(maxWorldX, worldX);
+        minWorldZ = Math.min(minWorldZ, worldZ);
+        maxWorldZ = Math.max(maxWorldZ, worldZ);
+    }
+
+    // compute Y extents in world space
+    const minWorldY = center[1] - halfExtents[1];
+    const maxWorldY = center[1] + halfExtents[1];
+
+    // convert AABB to grid coordinates
+    let minX = Math.floor((minWorldX - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
+    const minY = Math.floor((minWorldY - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
+    let minZ = Math.floor((minWorldZ - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+    let maxX = Math.floor((maxWorldX - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
+    const maxY = Math.floor((maxWorldY - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
+    let maxZ = Math.floor((maxWorldZ - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+
+    // early-out if the rotated box AABB is outside the grid bounds
+    if (maxX < 0) return;
+    if (minX >= xSize) return;
+    if (maxZ < 0) return;
+    if (minZ >= zSize) return;
+
+    // clamp to grid bounds
+    if (minX < 0) minX = 0;
+    if (maxX >= xSize) maxX = xSize - 1;
+    if (minZ < 0) minZ = 0;
+    if (maxZ >= zSize) maxZ = zSize - 1;
+
+    // iterate through cells in the AABB
+    for (let z = minZ; z <= maxZ; ++z) {
+        for (let x = minX; x <= maxX; ++x) {
+            // calculate cell center in world space
+            const cellWorldX = compactHeightfield.bounds[0][0] + (x + 0.5) * compactHeightfield.cellSize;
+            const cellWorldZ = compactHeightfield.bounds[0][2] + (z + 0.5) * compactHeightfield.cellSize;
+
+            // transform cell center to box's local coordinate system
+            // first translate to box origin
+            const dx = cellWorldX - center[0];
+            const dz = cellWorldZ - center[2];
+
+            // then apply inverse rotation (rotation by -angleRadians)
+            // inverse rotation matrix for Y-axis: [cos(θ), -sin(θ); sin(θ), cos(θ)]
+            const localX = cosAngle * dx - sinAngle * dz;
+            const localZ = sinAngle * dx + cosAngle * dz;
+
+            // check if the point is inside the box in local space
+            if (Math.abs(localX) > halfExtents[0] || Math.abs(localZ) > halfExtents[2]) {
+                continue;
+            }
+
+            // cell is inside the rotated box, mark its spans
+            const cell = compactHeightfield.cells[x + z * zStride];
+            const maxSpanIndex = cell.index + cell.count;
+
+            for (let spanIndex = cell.index; spanIndex < maxSpanIndex; ++spanIndex) {
+                const span = compactHeightfield.spans[spanIndex];
+
+                // skip if the span is outside the Y extents
+                if (span.y < minY || span.y > maxY) {
+                    continue;
+                }
+
+                // skip if the span has been removed
+                if (compactHeightfield.areas[spanIndex] === NULL_AREA) {
+                    continue;
+                }
+
+                // mark the span
+                compactHeightfield.areas[spanIndex] = areaId;
+            }
+        }
+    }
+};
+
 const _markConvexPolyArea_point = vec3.create();
 
 /**

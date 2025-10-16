@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
 import type { Vec3 } from 'maaths';
-import { box3, vec2, vec3 } from 'maaths';
+import { box3, degreesToRadians, vec2, vec3 } from 'maaths';
 import {
     addTile,
     buildCompactHeightfield,
@@ -27,6 +27,7 @@ import {
     markBoxArea,
     markConvexPolyArea,
     markCylinderArea,
+    markRotatedBoxArea,
     markWalkableTriangles,
     type NavMesh,
     type NavMeshTileParams,
@@ -50,6 +51,7 @@ enum NavMeshAreaType {
     B = 2,
     C = 3,
     D = 4,
+    E = 5,
 }
 
 /* navmesh generator showcasing multiple area marking APIs */
@@ -104,22 +106,20 @@ const grassCylinderCenter: Vec3 = [9, 1.5, 3.5];
 const grassCylinderRadius = 0.5;
 const grassCylinderHeight = 2;
 
+// biome-ignore format: readability
 const roadVerts = [
-    -2,
-    0,
-    8, // bottom-left
-    2,
-    0,
-    8, // bottom-right
-    3,
-    0,
-    -8, // top-right
-    -3,
-    0,
-    -8, // top-left
+    -2, 0, 5, // bottom-left
+    2, 0, 5, // bottom-right
+    3, 0, 3, // top-right
+    0, 0, 2, // mid
+    -3, 0, 3, // top-left
 ];
 const roadMinY = -0.5;
 const roadMaxY = 1.5;
+
+const iceRinkCenter: Vec3 = [-3, 0, -3];
+const iceRinkHalfExtentsParam: Vec3 = [1, 1, 4];
+const iceRinkRotation = degreesToRadians(40);
 
 function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshResult {
     const ctx = BuildContext.create();
@@ -195,6 +195,9 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     // Example 3: markConvexPolyArea - mark a trapezoidal road area
     markConvexPolyArea(roadVerts, roadMinY, roadMaxY, NavMeshAreaType.D, compactHeightfield);
+
+    // Example 4: markRotatedBoxArea - mark a rotated rectangular ice rink area
+    markRotatedBoxArea(iceRinkCenter, iceRinkHalfExtentsParam, iceRinkRotation, NavMeshAreaType.E, compactHeightfield);
 
     /* 6. erode the walkable area by the agent radius / walkable radius */
     BuildContext.start(ctx, 'erode walkable area');
@@ -478,6 +481,20 @@ function createAreaVisuals() {
         dispose: () => {
             roadLineGeom.dispose();
             roadLineMat.dispose();
+        },
+    });
+
+    // ice rink (rotated box)
+    const iceRinkGeom = new THREE.BoxGeometry(iceRinkHalfExtentsParam[0] * 2, iceRinkHalfExtentsParam[1] * 2, iceRinkHalfExtentsParam[2] * 2);
+    const iceRinkMat = new THREE.MeshStandardMaterial({ color: 0xff0099, opacity: 0.35, transparent: true });
+    const iceRinkMesh = new THREE.Mesh(iceRinkGeom, iceRinkMat);
+    iceRinkMesh.position.set(iceRinkCenter[0], iceRinkCenter[1], iceRinkCenter[2]);
+    iceRinkMesh.rotation.y = iceRinkRotation;
+    areaVisuals.push({
+        object: iceRinkMesh,
+        dispose: () => {
+            iceRinkGeom.dispose();
+            iceRinkMat.dispose();
         },
     });
 
