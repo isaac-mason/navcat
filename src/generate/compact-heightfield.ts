@@ -232,7 +232,12 @@ export const buildCompactHeightfield = (
 
 const MAX_DISTANCE = 255;
 
-export const erodeWalkableArea = (walkableRadiusVoxels: number, compactHeightfield: CompactHeightfield) => {
+/**
+ * Computes a distance field for the compact heightfield.
+ * Each span gets a distance value representing how far it is from any boundary or obstacle.
+ * @returns A Uint8Array containing distance values for each span
+ */
+const computeDistanceToBoundary = (compactHeightfield: CompactHeightfield): Uint8Array => {
     const xSize = compactHeightfield.width;
     const zSize = compactHeightfield.height;
     const zStride = xSize; // for readability
@@ -396,12 +401,70 @@ export const erodeWalkableArea = (walkableRadiusVoxels: number, compactHeightfie
         }
     }
 
+    return distanceToBoundary;
+};
+
+export const erodeWalkableArea = (walkableRadiusVoxels: number, compactHeightfield: CompactHeightfield) => {
+    const distanceToBoundary = computeDistanceToBoundary(compactHeightfield);
+
     // erode areas that are too close to boundaries
     const minBoundaryDistance = walkableRadiusVoxels * 2;
     for (let spanIndex = 0; spanIndex < compactHeightfield.spanCount; ++spanIndex) {
         if (distanceToBoundary[spanIndex] < minBoundaryDistance) {
             compactHeightfield.areas[spanIndex] = NULL_AREA;
         }
+    }
+};
+
+/**
+ * Erodes the walkable area for a base agent radius and marks restricted areas for larger agents based on given
+ * walkable radius thresholds.
+ *
+ * A typical workflow for using this utility to implement multi-agent support:
+ * 1. Call erodeAndMarkWalkableAreas with your smallest agent radius and list of restricted areas
+ * 2. Continue with buildDistanceField, buildRegions, etc.
+ * 3. Configure query filters so large agents exclude the narrow/restricted area IDs
+ *
+ * @param baseWalkableRadiusVoxels the smallest agent radius in voxels (used for erosion)
+ * @param thresholds array of area ids and their corresponding walkable radius in voxels.
+ * @param compactHeightfield the compact heightfield to process
+ */
+export const erodeAndMarkWalkableAreas = (
+    baseWalkableRadiusVoxels: number,
+    thresholds: Array<{ areaId: number; walkableRadiusVoxels: number }>,
+    compactHeightfield: CompactHeightfield,
+) => {
+    // compute distance field once for both operations
+    const distanceToBoundary = computeDistanceToBoundary(compactHeightfield);
+
+    // sort thresholds by radius (smallest first) - we want to mark narrowest corridors first
+    const sortedThresholds = [...thresholds].sort((a, b) => a.walkableRadiusVoxels - b.walkableRadiusVoxels);
+
+    const baseMinDistance = baseWalkableRadiusVoxels * 2;
+
+    // process each span
+    for (let spanIndex = 0; spanIndex < compactHeightfield.spanCount; ++spanIndex) {
+        const distance = distanceToBoundary[spanIndex];
+
+        // first, check if this span should be eroded (removed) based on base agent radius
+        if (distance < baseMinDistance) {
+            compactHeightfield.areas[spanIndex] = NULL_AREA;
+            continue;
+        }
+
+        // span survived base erosion, now check if it should be marked
+        for (const config of sortedThresholds) {
+            const minDistance = config.walkableRadiusVoxels * 2;
+
+            if (distance < minDistance) {
+                // this span is too narrow for this agent size
+                // mark it with the area id
+                compactHeightfield.areas[spanIndex] = config.areaId;
+                break; // once marked, we're done with this span
+            }
+        }
+
+        // if the span wasn't eroded or marked, it remains in its current area
     }
 };
 

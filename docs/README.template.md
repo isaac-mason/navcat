@@ -167,6 +167,8 @@ The compact heightfield is generally eroded by the agent radius to ensure that t
 
 <RenderType type="import('navcat').erodeWalkableArea" />
 
+<RenderType type="import('navcat').erodeAndMarkWalkableAreas" />
+
 ### 4. Build compact heightfield regions
 
 The compact heightfield is then analyzed to identify distinct walkable regions. These regions are used to create the final navigation mesh.
