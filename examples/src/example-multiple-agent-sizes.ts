@@ -11,7 +11,7 @@ import {
     buildDistanceField,
     buildPolyMesh,
     buildPolyMeshDetail,
-    buildRegions,
+    buildRegionsMonotone,
     buildTile,
     type CompactHeightfield,
     ContourBuildFlags,
@@ -46,19 +46,6 @@ import {
     rasterizeTriangles,
     WALKABLE_AREA,
 } from 'navcat';
-import {
-    createCompactHeightfieldDistancesHelper,
-    createCompactHeightfieldRegionsHelper,
-    createCompactHeightfieldSolidHelper,
-    createHeightfieldHelper,
-    createNavMeshBvTreeHelper,
-    createPolyMeshDetailHelper,
-    createPolyMeshHelper,
-    createRawContoursHelper,
-    createSimplifiedContoursHelper,
-    createTriangleAreaIdsHelper,
-    type DebugObject,
-} from './common/debug';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import {
@@ -71,9 +58,20 @@ import {
     updateCrowd,
 } from './common/crowd';
 import {
+    createCompactHeightfieldDistancesHelper,
+    createCompactHeightfieldRegionsHelper,
+    createCompactHeightfieldSolidHelper,
+    createHeightfieldHelper,
+    createNavMeshBvTreeHelper,
     createNavMeshHelper,
     createNavMeshOffMeshConnectionsHelper,
     createNavMeshPolyHelper,
+    createPolyMeshDetailHelper,
+    createPolyMeshHelper,
+    createRawContoursHelper,
+    createSimplifiedContoursHelper,
+    createTriangleAreaIdsHelper,
+    type DebugObject,
 } from './common/debug';
 import type { TiledNavMeshInput } from './common/generate-tiled-nav-mesh';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
@@ -213,7 +211,8 @@ function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMeshOption
     /* 8. partition the walkable surface into simple regions without holes */
     BuildContext.start(ctx, 'build compact heightfield regions');
 
-    buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
+    // NOTE: buildRegionsMonotone provides a better result than buildRegions for this use case, given we have marked lots of smaller areas
+    buildRegionsMonotone(compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
 
     BuildContext.end(ctx, 'build compact heightfield regions');
 
