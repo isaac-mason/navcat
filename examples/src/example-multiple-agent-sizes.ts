@@ -1,5 +1,5 @@
 import { GUI } from 'lil-gui';
-import { box3, type Vec3, vec2, vec3 } from 'maaths';
+import { box3, type Vec3, vec2, vec3, createMulberry32Generator } from 'maaths';
 import {
     ANY_QUERY_FILTER,
     addOffMeshConnection,
@@ -77,6 +77,8 @@ import type { TiledNavMeshInput } from './common/generate-tiled-nav-mesh';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
+
+const random = createMulberry32Generator(42);
 
 enum AreaId {
     WALKABLE = 1,
@@ -895,18 +897,10 @@ const LARGE_AGENT_QUERY_FILTER: QueryFilter = {
 };
 
 // create agents
-const agentPositions: Vec3[] = [
-    [-3, 0.2, 4],
-    [-3.1, 0.2, 4],
-    [-3.2, 0.2, 4],
-    [-3.3, 0.2, 4],
-    [-3.4, 0.2, 4],
-    [-3, 0.2, 4.1],
-    [-3, 0.2, 4.2],
-    [-3, 0.2, 4.3],
-    [-3, 0.2, 4.4],
-    [-3, 0.2, 4.5],
-];
+const agentPositions = Array.from({ length: 10 }, () => {
+    return findRandomPoint(navMesh, LARGE_AGENT_QUERY_FILTER, random).position;
+});
+
 const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500, 0x800080, 0xffc0cb, 0x90ee90];
 const agentSizes = ['s', 's', 's', 's', 's', 's', 'l', 'l', 'l', 'l'];
 const agentVisuals: Record<string, AgentVisuals> = {};
@@ -952,7 +946,7 @@ for (let i = 0; i < agentPositions.length; i++) {
 
 const scatterCats = () => {
     for (const agentId in crowd.agents) {
-        const randomPointResult = findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, Math.random);
+        const randomPointResult = findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, random);
 
         if (!randomPointResult.success) continue;
 
