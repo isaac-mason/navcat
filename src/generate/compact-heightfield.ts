@@ -422,10 +422,11 @@ export const erodeWalkableArea = (walkableRadiusVoxels: number, compactHeightfie
  * Note that this function requires careful tuning of the build parameters to get a good result:
  * - The cellSize needs to be small enough to accurately represent narrow passages. Generally you need to use smaller cellSizes than you otherwise would for single agent navmesh builds.
  * - The thresholds should not be so small that the resulting regions are too small to successfully build good navmesh polygons for. Values like 1-2 voxels will likely lead to poor results.
+ * - You may get a better result using "buildRegionsMonotone" over "buildRegions" as this will better handle the many small clusters of areas that may be created from smaller thresholds.
  *
  * A typical workflow for using this utility to implement multi-agent support:
  * 1. Call erodeAndMarkWalkableAreas with your smallest agent radius and list of restricted areas
- * 2. Continue with buildDistanceField, buildRegions, etc.
+ * 2. Continue with buildDistanceField, buildRegionsMonotone, etc.
  * 3. Configure query filters so large agents exclude the narrow/restricted area IDs
  *
  * @param baseWalkableRadiusVoxels the smallest agent radius in voxels (used for erosion)
