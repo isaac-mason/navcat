@@ -42,6 +42,8 @@ const guiSettings = {
     showObstacleSegments: false,
     showPathLine: false,
     showCapsuleDebug: false,
+    showObstacleAvoidanceDebug: false,
+    debugAgentIndex: 0,
 };
 
 const gui = new GUI();
@@ -51,6 +53,8 @@ gui.add(guiSettings, 'showLocalBoundary').name('Show Local Boundary');
 gui.add(guiSettings, 'showObstacleSegments').name('Show Obstacle Segments');
 gui.add(guiSettings, 'showPathLine').name('Show Path Line');
 gui.add(guiSettings, 'showCapsuleDebug').name('Show Capsule Debug');
+gui.add(guiSettings, 'showObstacleAvoidanceDebug').name('Show Obstacle Avoidance Debug');
+gui.add(guiSettings, 'debugAgentIndex', 0, 9, 1).name('Debug Agent Index');
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -309,6 +313,10 @@ type AgentVisuals = {
     localBoundaryLines: THREE.Line[];
     velocityArrow: THREE.ArrowHelper;
     desiredVelocityArrow: THREE.ArrowHelper;
+    
+    // obstacle avoidance debug
+    velocitySampleMeshes: THREE.Mesh[];
+    maxSpeedCircle: THREE.Line | null;
 };
 
 type AgentVisualsOptions = {
@@ -317,7 +325,8 @@ type AgentVisualsOptions = {
     showVelocityVectors?: boolean;
     showPathLine?: boolean;
     showPolyHelpers?: boolean;
-    showCapsuleDebug?: boolean; // new option
+    showCapsuleDebug?: boolean;
+    showObstacleAvoidanceDebug?: boolean;
 };
 
 // poly visuals
@@ -504,6 +513,8 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
         localBoundaryLines: [],
         velocityArrow,
         desiredVelocityArrow,
+        velocitySampleMeshes: [],
+        maxSpeedCircle: null,
     };
 };
 
@@ -740,6 +751,112 @@ const updateAgentVisuals = (
         visuals.velocityArrow.visible = false;
         visuals.desiredVelocityArrow.visible = false;
     }
+
+    // handle obstacle avoidance debug visualization
+    if (options.showObstacleAvoidanceDebug && agent.obstacleAvoidanceDebugData) {
+        const debugData = agent.obstacleAvoidanceDebugData;
+
+        // clean up old meshes
+        for (const mesh of visuals.velocitySampleMeshes) {
+            scene.remove(mesh);
+            mesh.geometry.dispose();
+            if (mesh.material instanceof THREE.Material) {
+                mesh.material.dispose();
+            }
+        }
+        visuals.velocitySampleMeshes = [];
+
+        // create max speed circle if not exists
+        if (!visuals.maxSpeedCircle) {
+            const circleGeometry = new THREE.BufferGeometry();
+            const circlePoints: THREE.Vector3[] = [];
+            const segments = 32;
+            const maxSpeed = agent.params.maxSpeed;
+
+            for (let i = 0; i <= segments; i++) {
+                const theta = (i / segments) * Math.PI * 2;
+                const x = Math.cos(theta) * maxSpeed;
+                const z = Math.sin(theta) * maxSpeed;
+                circlePoints.push(new THREE.Vector3(x, 0, z));
+            }
+
+            circleGeometry.setFromPoints(circlePoints);
+            const circleMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true });
+            visuals.maxSpeedCircle = new THREE.Line(circleGeometry, circleMaterial);
+            scene.add(visuals.maxSpeedCircle);
+        }
+
+        // update max speed circle position
+        visuals.maxSpeedCircle.position.set(agent.position[0], agent.position[1] + 0.05, agent.position[2]);
+        visuals.maxSpeedCircle.visible = true;
+
+        // render velocity samples as colored quads
+        for (let i = 0; i < debugData.samples.length; i++) {
+            const sample = debugData.samples[i];
+
+            // calculate quad position: agent position + sampled velocity
+            const quadPos: Vec3 = [
+                agent.position[0] + sample.vel[0],
+                agent.position[1] + 0.05,
+                agent.position[2] + sample.vel[2],
+            ];
+
+            // determine color based on penalties
+            // Following Detour demo logic: white (low penalty) -> orange -> red (high penalty)
+            let color: THREE.Color;
+
+            if (sample.pen < 0.01) {
+                // very low penalty - white
+                color = new THREE.Color(1, 1, 1);
+            } else {
+                // interpolate between white -> orange -> red based on penalty
+                // Normalize penalty (Detour uses values typically in 0-10 range)
+                const normalizedPen = Math.min(sample.pen / 10.0, 1.0);
+
+                if (normalizedPen < 0.5) {
+                    // white to orange
+                    const t = normalizedPen * 2;
+                    color = new THREE.Color(1, 1 - t * 0.5, 1 - t);
+                } else {
+                    // orange to red
+                    const t = (normalizedPen - 0.5) * 2;
+                    color = new THREE.Color(1, 0.5 - t * 0.5, 0);
+                }
+            }
+
+            // create small quad at sampled velocity position
+            const quadSize = sample.ssize * 0.5; // scale down for better visibility
+            const quadGeometry = new THREE.PlaneGeometry(quadSize, quadSize);
+            quadGeometry.rotateX(-Math.PI / 2); // make it horizontal
+
+            const quadMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.7,
+            });
+
+            const quadMesh = new THREE.Mesh(quadGeometry, quadMaterial);
+            quadMesh.position.set(quadPos[0], quadPos[1], quadPos[2]);
+
+            scene.add(quadMesh);
+            visuals.velocitySampleMeshes.push(quadMesh);
+        }
+    } else {
+        // hide obstacle avoidance debug visualization
+        for (const mesh of visuals.velocitySampleMeshes) {
+            scene.remove(mesh);
+            mesh.geometry.dispose();
+            if (mesh.material instanceof THREE.Material) {
+                mesh.material.dispose();
+            }
+        }
+        visuals.velocitySampleMeshes = [];
+
+        if (visuals.maxSpeedCircle) {
+            visuals.maxSpeedCircle.visible = false;
+        }
+    }
 };
 
 /* create all polygon helpers for the navmesh */
@@ -761,16 +878,16 @@ const agentParams: AgentParams = {
     updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS | CrowdUpdateFlags.SEPARATION | CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
     obstacleAvoidance: {
-        velBias: 0.5,
+        velBias: 0.4,
         weightDesVel: 2.0,
-        weightCurVel: 0.5,
-        weightSide: 0.5,
-        weightToi: 2.0,
-        horizTime: 2.0,
+        weightCurVel: 0.75,
+        weightSide: 0.75,
+        weightToi: 2.5,
+        horizTime: 2.5,
         gridSize: 33,
         adaptiveDivs: 7,
         adaptiveRings: 2,
-        adaptiveDepth: 3,
+        adaptiveDepth: 5,
     },
 };
 
@@ -905,6 +1022,7 @@ function update() {
                 showObstacleSegments: guiSettings.showObstacleSegments,
                 showPathLine: guiSettings.showPathLine,
                 showCapsuleDebug: guiSettings.showCapsuleDebug,
+                showObstacleAvoidanceDebug: guiSettings.showObstacleAvoidanceDebug && i === guiSettings.debugAgentIndex,
             });
         }
     }

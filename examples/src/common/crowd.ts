@@ -26,7 +26,9 @@ import {
 import {
     addCircleObstacle,
     addSegmentObstacle,
+    createObstacleAvoidanceDebugData,
     createObstacleAvoidanceQuery,
+    type ObstacleAvoidanceDebugData,
     type ObstacleAvoidanceParams,
     type ObstacleAvoidanceQuery,
     resetObstacleAvoidanceQuery,
@@ -91,6 +93,7 @@ export type Agent = {
     boundary: LocalBoundary;
     slicedQuery: SlicedNodePathQuery;
     obstacleAvoidanceQuery: ObstacleAvoidanceQuery;
+    obstacleAvoidanceDebugData: ObstacleAvoidanceDebugData | undefined;
     topologyOptTime: number;
 
     neis: Array<{ agentId: string; dist: number }>;
@@ -148,6 +151,7 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
         slicedQuery: createSlicedNodePathQuery(),
         boundary: createLocalBoundary(),
         obstacleAvoidanceQuery: createObstacleAvoidanceQuery(32, 32),
+        obstacleAvoidanceDebugData: createObstacleAvoidanceDebugData(),
         topologyOptTime: 0,
 
         neis: [],
@@ -741,6 +745,9 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
             }
 
             // sample safe velocity using adaptive sampling
+            // pass debug data if available
+            const debugData = agent.obstacleAvoidanceDebugData;
+            
             sampleVelocityAdaptive(
                 agent.obstacleAvoidanceQuery,
                 agent.position,
@@ -750,6 +757,7 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
                 agent.desiredVelocity,
                 agent.params.obstacleAvoidance,
                 agent.newVelocity,
+                debugData,
             );
         } else {
             // not using obstacle avoidance, set newVelocity to desiredVelocity
