@@ -1,5 +1,5 @@
 import { GUI } from 'lil-gui';
-import { type Vec3, vec3 } from 'maaths';
+import { createMulberry32Generator, type Vec3, vec3 } from 'maaths';
 import {
     addOffMeshConnection,
     createFindNearestPolyResult,
@@ -15,11 +15,11 @@ import {
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import {
+    addAgent,
     type Agent,
     type AgentParams,
-    addAgent,
-    CrowdUpdateFlags,
     createCrowd,
+    CrowdUpdateFlags,
     requestMoveTarget,
     updateCrowd,
 } from './common/crowd';
@@ -34,6 +34,8 @@ import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
 
+const random = createMulberry32Generator(42);
+
 /* controls */
 const guiSettings = {
     showVelocityVectors: true,
@@ -44,6 +46,7 @@ const guiSettings = {
     showCapsuleDebug: false,
     showObstacleAvoidanceDebug: false,
     debugAgentIndex: 0,
+    periodicScatter: true,
 };
 
 const gui = new GUI();
@@ -55,6 +58,7 @@ gui.add(guiSettings, 'showPathLine').name('Show Path Line');
 gui.add(guiSettings, 'showCapsuleDebug').name('Show Capsule Debug');
 gui.add(guiSettings, 'showObstacleAvoidanceDebug').name('Show Obstacle Avoidance Debug');
 gui.add(guiSettings, 'debugAgentIndex', 0, 9, 1).name('Debug Agent Index');
+gui.add(guiSettings, 'periodicScatter').name('Periodic Scatter');
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -98,6 +102,11 @@ await renderer.init();
 // controls
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true;
+orbitControls.mouseButtons = {
+    LEFT: null,
+    MIDDLE: THREE.MOUSE.ROTATE,
+    RIGHT: null,
+};
 
 /* load level model */
 const levelModel = await loadGLTF('/models/nav-test.glb');
@@ -313,10 +322,13 @@ type AgentVisuals = {
     localBoundaryLines: THREE.Line[];
     velocityArrow: THREE.ArrowHelper;
     desiredVelocityArrow: THREE.ArrowHelper;
-    
+
     // obstacle avoidance debug
     velocitySampleMeshes: THREE.Mesh[];
     maxSpeedCircle: THREE.Line | null;
+
+    // selection indicator
+    selectionRing: THREE.Line;
 };
 
 type AgentVisualsOptions = {
@@ -496,6 +508,26 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     desiredVelocityArrow.visible = false;
     scene.add(desiredVelocityArrow);
 
+    // create selection ring (blue circle at agent base)
+    const ringGeometry = new THREE.BufferGeometry();
+    const ringPoints: THREE.Vector3[] = [];
+    const segments = 32;
+    const ringRadius = radius * 1.5; // slightly larger than agent radius
+
+    for (let i = 0; i <= segments; i++) {
+        const theta = (i / segments) * Math.PI * 2;
+        const x = Math.cos(theta) * ringRadius;
+        const z = Math.sin(theta) * ringRadius;
+        ringPoints.push(new THREE.Vector3(x, 0, z));
+    }
+
+    ringGeometry.setFromPoints(ringPoints);
+    const ringMaterial = new THREE.LineBasicMaterial({ color: 0x00aaff, linewidth: 3 });
+    const selectionRing = new THREE.Line(ringGeometry, ringMaterial);
+    selectionRing.position.set(position[0], position[1] + 0.05, position[2]);
+    selectionRing.visible = false; // initially not selected
+    scene.add(selectionRing);
+
     return {
         mesh,
         catGroup,
@@ -515,6 +547,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
         desiredVelocityArrow,
         velocitySampleMeshes: [],
         maxSpeedCircle: null,
+        selectionRing,
     };
 };
 
@@ -607,6 +640,9 @@ const updateAgentVisuals = (
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPos);
     visuals.targetMesh.position.y += 0.1;
+
+    // update selection ring position
+    visuals.selectionRing.position.set(agent.position[0], agent.position[1] + 0.05, agent.position[2]);
 
     // handle path line visualization
     if (options.showPathLine) {
@@ -892,7 +928,9 @@ const agentParams: AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 10 }).map((_, i) => [-2 + i * -0.05, 0.5, 3]) as Vec3[];
+const agentPositions: Vec3[] = Array.from({ length: 10 }, () => {
+    return findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, random).position;
+});
 
 const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500, 0x800080, 0xffc0cb, 0x90ee90];
 
@@ -910,8 +948,105 @@ for (let i = 0; i < agentPositions.length; i++) {
     agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius, agentParams.height);
 }
 
+/* Agent selection system */
+const selectedAgents = new Set<string>();
+
+const selectAgent = (agentId: string) => {
+    selectedAgents.add(agentId);
+    if (agentVisuals[agentId]) {
+        agentVisuals[agentId].selectionRing.visible = true;
+    }
+};
+
+const deselectAgent = (agentId: string) => {
+    selectedAgents.delete(agentId);
+    if (agentVisuals[agentId]) {
+        agentVisuals[agentId].selectionRing.visible = false;
+    }
+};
+
+const clearSelection = () => {
+    for (const agentId of selectedAgents) {
+        if (agentVisuals[agentId]) {
+            agentVisuals[agentId].selectionRing.visible = false;
+        }
+    }
+    selectedAgents.clear();
+};
+
+const toggleAgentSelection = (agentId: string) => {
+    if (selectedAgents.has(agentId)) {
+        deselectAgent(agentId);
+    } else {
+        selectAgent(agentId);
+    }
+};
+
+const updateSelectedAgentsInfo = () => {
+    if (selectedAgents.size === 0) {
+        selectedAgentsInfoDiv.style.display = 'none';
+        return;
+    }
+
+    selectedAgentsInfoDiv.style.display = 'block';
+
+    let html = `<div style="margin-bottom: 8px; font-weight: bold; color: #00aaff;">Selected Agents (${selectedAgents.size})</div>`;
+
+    let displayCount = 0;
+    for (const agentId of selectedAgents) {
+        const agent = crowd.agents[agentId];
+        if (!agent) continue;
+
+        const agentColor = agentVisuals[agentId]?.color || 0xffffff;
+        const colorStr = '#' + agentColor.toString(16).padStart(6, '0');
+
+        html += `<div style="margin-bottom: 8px; padding: 6px; background: rgba(255,255,255,0.05); border-radius: 3px;">`;
+        html += `<div style="color: ${colorStr}; font-weight: bold; margin-bottom: 3px;">Agent ${agentId}</div>`;
+
+        // Position
+        html += `<div style="color: #ccc;">Pos: (${agent.position[0].toFixed(2)}, ${agent.position[1].toFixed(2)}, ${agent.position[2].toFixed(2)})</div>`;
+
+        // Target Position
+        html += `<div style="color: #ccc;">Target: (${agent.targetPos[0].toFixed(2)}, ${agent.targetPos[1].toFixed(2)}, ${agent.targetPos[2].toFixed(2)})</div>`;
+
+        // Velocity
+        const velLength = vec3.length(agent.velocity);
+        html += `<div style="color: #ccc;">Velocity: ${velLength.toFixed(2)} m/s</div>`;
+
+        // Current poly
+        html += `<div style="color: #ccc;">Poly: ${agent.corridor.path[0] || 'none'}</div>`;
+
+        // Target poly
+        if (agent.targetRef) {
+            html += `<div style="color: #ccc;">Target Poly: ${agent.targetRef}</div>`;
+        }
+
+        // State
+        const stateNames = ['Invalid', 'Walking', 'Offmesh'];
+        const stateName = stateNames[agent.state] || 'Unknown';
+        html += `<div style="color: ${agent.state === 2 ? '#ff00ff' : '#ccc'};">State: ${stateName}</div>`;
+
+        // Corridor path length
+        html += `<div style="color: #ccc;">Corridor: ${agent.corridor.path.length} polys</div>`;
+
+        html += `</div>`;
+        displayCount++;
+
+        // Limit display to first 5 agents if many selected
+        if (displayCount >= 5 && selectedAgents.size > 5) {
+            html += `<div style="color: #888; text-align: center; margin-top: 5px;">... and ${selectedAgents.size - 5} more</div>`;
+            break;
+        }
+    }
+
+    selectedAgentsInfoDiv.innerHTML = html;
+};
+
 const scatterCats = () => {
     for (const agentId in crowd.agents) {
+        // skip selected agents
+        if (selectedAgents.has(agentId)) continue;
+
         const randomPointResult = findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, Math.random);
 
         if (!randomPointResult.success) continue;
@@ -924,24 +1059,231 @@ scatterCats();
 
 // mouse interaction for setting agent targets
 const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
+
+// selection box state
+let isMouseDown = false;
+let isDragging = false;
+const mouseDownPos = new THREE.Vector2();
+const currentMousePos = new THREE.Vector2();
+
+// create selection box overlay
+const selectionBoxDiv = document.createElement('div');
+selectionBoxDiv.style.position = 'absolute';
+selectionBoxDiv.style.border = '1px solid #00aaff';
+selectionBoxDiv.style.backgroundColor = 'rgba(0, 170, 255, 0.1)';
+selectionBoxDiv.style.pointerEvents = 'none';
+selectionBoxDiv.style.display = 'none';
+container.appendChild(selectionBoxDiv);
+
+// create controls info overlay (bottom left)
+const controlsInfoDiv = document.createElement('div');
+controlsInfoDiv.style.position = 'absolute';
+controlsInfoDiv.style.bottom = '10px';
+controlsInfoDiv.style.left = '10px';
+controlsInfoDiv.style.color = 'white';
+controlsInfoDiv.style.fontFamily = 'monospace';
+controlsInfoDiv.style.fontSize = '12px';
+controlsInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+controlsInfoDiv.style.padding = '10px';
+controlsInfoDiv.style.borderRadius = '4px';
+controlsInfoDiv.style.pointerEvents = 'none';
+controlsInfoDiv.style.lineHeight = '1.5';
+controlsInfoDiv.innerHTML = `
+    <div style="margin-bottom: 5px; font-weight: bold; color: #00aaff;">Controls</div>
+    <div><span style="color: #aaa;">Left Click:</span> Select agent</div>
+    <div><span style="color: #aaa;">Left Click + Drag:</span> Box select agents</div>
+    <div><span style="color: #aaa;">Shift + Left Click:</span> Add/remove from selection</div>
+    <div><span style="color: #aaa;">Right Click:</span> Set move target</div>
+    <div><span style="color: #aaa;">Middle Click:</span> Rotate camera</div>
+    <div><span style="color: #aaa;">Shift + Middle Click:</span> Move camera</div>
+    <div><span style="color: #aaa;">Middle Mouse:</span> Zoom</div>
+`;
+container.appendChild(controlsInfoDiv);
+
+// create selected agents info overlay (top right)
+const selectedAgentsInfoDiv = document.createElement('div');
+selectedAgentsInfoDiv.style.position = 'absolute';
+selectedAgentsInfoDiv.style.top = '10px';
+selectedAgentsInfoDiv.style.left = '10px';
+selectedAgentsInfoDiv.style.color = 'white';
+selectedAgentsInfoDiv.style.fontFamily = 'monospace';
+selectedAgentsInfoDiv.style.fontSize = '11px';
+selectedAgentsInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+selectedAgentsInfoDiv.style.padding = '10px';
+selectedAgentsInfoDiv.style.borderRadius = '4px';
+selectedAgentsInfoDiv.style.pointerEvents = 'none';
+selectedAgentsInfoDiv.style.maxWidth = '300px';
+selectedAgentsInfoDiv.style.maxHeight = '400px';
+selectedAgentsInfoDiv.style.overflowY = 'auto';
+selectedAgentsInfoDiv.style.display = 'none';
+container.appendChild(selectedAgentsInfoDiv);
 
 // timer for auto-scatter
-let lastInteractionTime = performance.now();
 let lastScatterTime = performance.now();
 const scatterTimeoutMs = 5000;
 
-const onPointerDown = (event: MouseEvent) => {
-    if (event.button !== 0) return;
+// helper to get normalized mouse coordinates
+const getNormalizedMouse = (event: MouseEvent): THREE.Vector2 => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    return new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+};
 
-    // update interaction timer
-    lastInteractionTime = performance.now();
+// helper to get screen position of world point
+const worldToScreen = (worldPos: Vec3): THREE.Vector2 => {
+    const vector = new THREE.Vector3(worldPos[0], worldPos[1], worldPos[2]);
+    vector.project(camera);
 
     const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    return new THREE.Vector2(((vector.x + 1) * rect.width) / 2 + rect.left, ((-vector.y + 1) * rect.height) / 2 + rect.top);
+};
 
-    raycaster.setFromCamera(mouse, camera);
+// helper to check if agent is in selection box
+const isAgentInSelectionBox = (agentId: string): boolean => {
+    const agent = crowd.agents[agentId];
+    if (!agent) return false;
+
+    const screenPos = worldToScreen(agent.position);
+
+    // convert to client coordinates
+    const boxLeft = Math.min(mouseDownPos.x, currentMousePos.x);
+    const boxRight = Math.max(mouseDownPos.x, currentMousePos.x);
+    const boxTop = Math.min(mouseDownPos.y, currentMousePos.y);
+    const boxBottom = Math.max(mouseDownPos.y, currentMousePos.y);
+
+    return screenPos.x >= boxLeft && screenPos.x <= boxRight && screenPos.y >= boxTop && screenPos.y <= boxBottom;
+};
+
+const onPointerDown = (event: MouseEvent) => {
+    // left click for selection
+    if (event.button === 0) {
+        isMouseDown = true;
+        isDragging = false;
+
+        mouseDownPos.set(event.clientX, event.clientY);
+        currentMousePos.copy(mouseDownPos);
+
+        // disable orbit controls during selection
+        orbitControls.enabled = false;
+    }
+};
+
+const onPointerMove = (event: MouseEvent) => {
+    if (!isMouseDown) return;
+
+    currentMousePos.set(event.clientX, event.clientY);
+
+    // consider it a drag if moved more than 5 pixels
+    const dragDistance = mouseDownPos.distanceTo(currentMousePos);
+    if (dragDistance > 5) {
+        isDragging = true;
+
+        // show and update selection box
+        const boxLeft = Math.min(mouseDownPos.x, currentMousePos.x);
+        const boxTop = Math.min(mouseDownPos.y, currentMousePos.y);
+        const boxWidth = Math.abs(currentMousePos.x - mouseDownPos.x);
+        const boxHeight = Math.abs(currentMousePos.y - mouseDownPos.y);
+
+        selectionBoxDiv.style.display = 'block';
+        selectionBoxDiv.style.left = `${boxLeft}px`;
+        selectionBoxDiv.style.top = `${boxTop}px`;
+        selectionBoxDiv.style.width = `${boxWidth}px`;
+        selectionBoxDiv.style.height = `${boxHeight}px`;
+    }
+};
+
+const onPointerUp = (event: MouseEvent) => {
+    if (event.button !== 0) return;
+
+    if (isDragging) {
+        // box selection
+        if (!event.shiftKey) {
+            clearSelection();
+        }
+
+        // select all agents in box
+        for (const agentId in crowd.agents) {
+            if (isAgentInSelectionBox(agentId)) {
+                selectAgent(agentId);
+            }
+        }
+
+        // hide selection box
+        selectionBoxDiv.style.display = 'none';
+    } else if (isMouseDown) {
+        // single click - raycast to agent
+        const normalizedMouse = getNormalizedMouse(event);
+        raycaster.setFromCamera(normalizedMouse, camera);
+
+        // raycast to agent cat models
+        const agentMeshes: THREE.Object3D[] = [];
+        for (const agentId in crowd.agents) {
+            if (agentVisuals[agentId]) {
+                agentMeshes.push(agentVisuals[agentId].catGroup);
+            }
+        }
+
+        const intersects = raycaster.intersectObjects(agentMeshes, true);
+
+        if (intersects.length > 0) {
+            // find which agent was clicked
+            let clickedAgentId: string | null = null;
+            for (const agentId in crowd.agents) {
+                if (agentVisuals[agentId] && intersects[0].object.parent === agentVisuals[agentId].catGroup) {
+                    clickedAgentId = agentId;
+                    break;
+                }
+                // check if it's a child of the cat group
+                let obj = intersects[0].object;
+                while (obj.parent) {
+                    if (obj.parent === agentVisuals[agentId].catGroup) {
+                        clickedAgentId = agentId;
+                        break;
+                    }
+                    obj = obj.parent;
+                }
+                if (clickedAgentId) break;
+            }
+
+            if (clickedAgentId) {
+                if (event.shiftKey) {
+                    toggleAgentSelection(clickedAgentId);
+                } else {
+                    clearSelection();
+                    selectAgent(clickedAgentId);
+                }
+            }
+        } else {
+            // clicked on empty space - clear selection if not shift
+            if (!event.shiftKey) {
+                clearSelection();
+            }
+        }
+    }
+
+    isMouseDown = false;
+    isDragging = false;
+
+    // re-enable orbit controls after left-click interaction
+    orbitControls.enabled = true;
+};
+
+const onContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+
+    // temporarily disable orbit controls for right-click
+    orbitControls.enabled = false;
+    setTimeout(() => {
+        orbitControls.enabled = true;
+    }, 0);
+
+    // right click - set move target for selected agents
+    if (selectedAgents.size === 0) return;
+
+    const normalizedMouse = getNormalizedMouse(event);
+    raycaster.setFromCamera(normalizedMouse, camera);
 
     const intersects = raycaster.intersectObjects(walkableMeshes, true);
 
@@ -961,14 +1303,18 @@ const onPointerDown = (event: MouseEvent) => {
 
     if (!nearestResult.success) return;
 
-    for (const agentId in crowd.agents) {
+    // move only selected agents
+    for (const agentId of selectedAgents) {
         requestMoveTarget(crowd, agentId, nearestResult.ref, nearestResult.point);
     }
 
-    console.log('target position:', targetPosition);
+    console.log('target position for selected agents:', targetPosition);
 };
 
 renderer.domElement.addEventListener('pointerdown', onPointerDown);
+renderer.domElement.addEventListener('pointermove', onPointerMove);
+renderer.domElement.addEventListener('pointerup', onPointerUp);
+renderer.domElement.addEventListener('contextmenu', onContextMenu);
 
 /* loop */
 let prevTime = performance.now();
@@ -981,8 +1327,8 @@ function update() {
     const clampedDeltaTime = Math.min(deltaTime, 0.1);
     prevTime = time;
 
-    // check if we should scatter cats due to inactivity
-    if (time - lastInteractionTime > scatterTimeoutMs && time - lastScatterTime > scatterTimeoutMs) {
+    // check if we should scatter cats (if periodic scatter is enabled)
+    if (guiSettings.periodicScatter && time - lastScatterTime > scatterTimeoutMs) {
         scatterCats();
         lastScatterTime = time;
     }
@@ -1034,6 +1380,9 @@ function update() {
             showPoly(polyRef, mixedColor);
         }
     }
+
+    // update selected agents info display
+    updateSelectedAgentsInfo();
 
     orbitControls.update();
     renderer.render(scene, camera);
