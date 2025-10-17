@@ -93,9 +93,9 @@ type SoloNavMeshInput = {
 type SoloNavMeshOptions = {
     cellSize: number;
     cellHeight: number;
-    restrictedAreas: Array<{ areaId: number; walkableRadiusVoxels: number }>;
     walkableRadiusVoxels: number;
     walkableRadiusWorld: number;
+    walkableRadiusThresholds: Array<{ areaId: number; walkableRadiusVoxels: number }>;
     walkableClimbVoxels: number;
     walkableClimbWorld: number;
     walkableHeightVoxels: number;
@@ -197,7 +197,7 @@ function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMeshOption
 
     // Erode with smallest agent radius and mark narrow areas as restricted for larger agents
     // This computes the distance field once for better performance
-    erodeAndMarkWalkableAreas(walkableRadiusVoxels, options.restrictedAreas, compactHeightfield);
+    erodeAndMarkWalkableAreas(walkableRadiusVoxels, options.walkableRadiusThresholds, compactHeightfield);
 
     BuildContext.end(ctx, 'erode and mark walkable areas');
 
@@ -456,7 +456,7 @@ const LARGE_AGENT_RADIUS_WORLD = 0.3;
 const navMeshConfig: SoloNavMeshOptions = {
     cellSize,
     cellHeight,
-    restrictedAreas: [
+    walkableRadiusThresholds: [
         {
             areaId: AreaId.WALKABLE_NARROW,
             walkableRadiusVoxels: Math.ceil(LARGE_AGENT_RADIUS_WORLD / cellSize),
