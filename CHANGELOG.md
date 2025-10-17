@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.0.7 (Unreleased)
+
+- feat: add 'erodeAndMarkWalkableAreas', which provides a way to support multiple agent radiuses in a single navmesh by marking spans that are too narrow for larger agents with different area IDs
+
 ## 0.0.6
 
 - feat: add 'createNavMeshTileHelper' helper, similar to 'createNavMeshHelper' for visualizing individual tiles
