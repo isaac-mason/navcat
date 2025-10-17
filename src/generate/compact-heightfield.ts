@@ -417,8 +417,11 @@ export const erodeWalkableArea = (walkableRadiusVoxels: number, compactHeightfie
 };
 
 /**
- * Erodes the walkable area for a base agent radius and marks restricted areas for larger agents based on given
- * walkable radius thresholds.
+ * Erodes the walkable area for a base agent radius and marks restricted areas for larger agents based on given walkable radius thresholds.
+ *
+ * Note that this function requires careful tuning of the build parameters to get a good result:
+ * - The cellSize needs to be small enough to accurately represent narrow passages. Generally you need to use smaller cellSizes than you otherwise would for single agent navmesh builds.
+ * - The thresholds should not be so small that the resulting regions are too small to successfully build good navmesh polygons for. Values like 1-2 voxels will likely lead to poor results.
  *
  * A typical workflow for using this utility to implement multi-agent support:
  * 1. Call erodeAndMarkWalkableAreas with your smallest agent radius and list of restricted areas
