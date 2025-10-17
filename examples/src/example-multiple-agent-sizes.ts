@@ -924,16 +924,16 @@ for (let i = 0; i < agentPositions.length; i++) {
         updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS | CrowdUpdateFlags.SEPARATION | CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
         queryFilter,
         obstacleAvoidance: {
-            velBias: 0.5,
+            velBias: 0.4,
             weightDesVel: 2.0,
-            weightCurVel: 0.5,
-            weightSide: 0.5,
-            weightToi: 2.0,
-            horizTime: 2.0,
+            weightCurVel: 0.75,
+            weightSide: 0.75,
+            weightToi: 2.5,
+            horizTime: 2.5,
             gridSize: 33,
             adaptiveDivs: 7,
             adaptiveRings: 2,
-            adaptiveDepth: 3,
+            adaptiveDepth: 5,
         },
     };
 
