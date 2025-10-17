@@ -423,11 +423,22 @@ const navMeshInput: TiledNavMeshInput = {
     indices,
 };
 
-const cellSize = 0.1;
+const cellSize = 0.05;
 const cellHeight = 0.2;
 
 const walkableRadiusWorld = 0.15;
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+
+const smallAgentRadiusWorld = walkableRadiusWorld;
+const largeAgentRadiusWorld = 0.45;
+
+const walkableRadiusThresholds = [
+    {
+        areaId: AreaId.WALKABLE_NARROW,
+        walkableRadiusVoxels: Math.ceil(largeAgentRadiusWorld / cellSize),
+    },
+];
+
 const walkableClimbWorld = 0.5;
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
 const walkableHeightWorld = 1;
@@ -449,19 +460,10 @@ const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * d
 const detailSampleMaxErrorVoxels = 1;
 const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
 
-// define agent sizes
-const SMALL_AGENT_RADIUS_WORLD = 0.15;
-const LARGE_AGENT_RADIUS_WORLD = 0.3;
-
 const navMeshConfig: SoloNavMeshOptions = {
     cellSize,
     cellHeight,
-    walkableRadiusThresholds: [
-        {
-            areaId: AreaId.WALKABLE_NARROW,
-            walkableRadiusVoxels: Math.ceil(LARGE_AGENT_RADIUS_WORLD / cellSize),
-        },
-    ],
+    walkableRadiusThresholds,
     walkableRadiusWorld,
     walkableRadiusVoxels,
     walkableClimbWorld,
@@ -915,7 +917,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     const color = agentColors[i % agentColors.length];
     const agentSize = agentSizes[i % agentSizes.length];
 
-    const radius = agentSize === 's' ? SMALL_AGENT_RADIUS_WORLD : LARGE_AGENT_RADIUS_WORLD;
+    const radius = agentSize === 's' ? smallAgentRadiusWorld : largeAgentRadiusWorld;
     const queryFilter = agentSize === 's' ? SMALL_AGENT_QUERY_FILTER : LARGE_AGENT_QUERY_FILTER;
 
     // add agent to crowd
