@@ -283,25 +283,27 @@ renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
     event.preventDefault();
     const point = getPointOnNavMesh(event);
 
+    if (!point) return;
+
     if (event.button === 0) {
         if (moving === 'start') {
             moving = null;
             renderer.domElement.style.cursor = '';
-            if (point) start = point;
+            start = point;
         } else {
             moving = 'start';
             renderer.domElement.style.cursor = 'crosshair';
-            if (point) start = point;
+            start = point;
         }
     } else if (event.button === 2) {
         if (moving === 'end') {
             moving = null;
             renderer.domElement.style.cursor = '';
-            if (point) end = point;
+            end = point;
         } else {
             moving = 'end';
             renderer.domElement.style.cursor = 'crosshair';
-            if (point) end = point;
+            end = point;
         }
     }
     updatePath();
