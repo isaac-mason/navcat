@@ -147,24 +147,25 @@ const updateNearestPoly = (point: Vec3) => {
 
 updateNearestPoly([-3.94, 0.26, 4.71]);
 
-/* handle pointer down events */
+/* update nearest poly on pointer move */
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-const onPointerDown = (event: PointerEvent) => {
-    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+const onPointerMove = (event: PointerEvent) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     raycaster.setFromCamera(pointer, camera);
 
-    const intersects = raycaster.intersectObjects(walkableMeshes);
+    const intersects = raycaster.intersectObjects(walkableMeshes, true);
     if (intersects.length > 0) {
         const point = intersects[0].point;
         updateNearestPoly([point.x, point.y, point.z]);
     }
 };
 
-window.addEventListener('pointerdown', onPointerDown);
+renderer.domElement.addEventListener('pointermove', onPointerMove);
 
 /* start loop */
 function update() {
