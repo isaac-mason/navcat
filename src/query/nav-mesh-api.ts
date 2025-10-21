@@ -18,6 +18,10 @@ import {
 } from './nav-mesh';
 import { getNodeRefIndex, getNodeRefSequence, getNodeRefType, MAX_SEQUENCE, type NodeRef, NodeType, serNodeRef } from './node';
 
+/**
+ * Creates a new empty navigation mesh.
+ * @returns The created navigation mesh
+ */
 export const createNavMesh = (): NavMesh => {
     return {
         origin: [0, 0, 0],
@@ -39,12 +43,26 @@ export const createNavMesh = (): NavMesh => {
     };
 };
 
+/**
+ * Gets a navigation mesh node by its reference.
+ * Note that navmesh nodes are pooled and may be reused on removing then adding tiles, so do not store node objects.
+ * @param navMesh the navigation mesh
+ * @param ref the node reference
+ * @returns the navigation mesh node
+ */
 export const getNodeByRef = (navMesh: NavMesh, ref: NodeRef) => {
     const nodeIndex = getNodeRefIndex(ref);
     const node = navMesh.nodes[nodeIndex];
     return node;
 };
 
+/**
+ * Gets a navigation mesh node by its tile and polygon index.
+ * @param navMesh the navigation mesh
+ * @param tile the navigation mesh tile
+ * @param polyIndex the polygon index
+ * @returns the navigation mesh node
+ */
 export const getNodeByTileAndPoly = (navMesh: NavMesh, tile: NavMeshTile, polyIndex: number) => {
     const navMeshNodeIndex = tile.polyNodes[polyIndex];
     const navMeshNode = navMesh.nodes[navMeshNodeIndex];
@@ -52,6 +70,12 @@ export const getNodeByTileAndPoly = (navMesh: NavMesh, tile: NavMeshTile, polyIn
     return navMeshNode;
 };
 
+/**
+ * Checks if a navigation mesh node reference is valid.
+ * @param navMesh the navigation mesh
+ * @param nodeRef the node reference
+ * @returns true if the node reference is valid, false otherwise
+ */
 export const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
     const nodeType = getNodeRefType(nodeRef);
 
@@ -116,12 +140,27 @@ export const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
     return false;
 };
 
+/**
+ * Gets the tile at the given x, y, and layer position.
+ * @param navMesh the navigation mesh
+ * @param x the x position
+ * @param y the y position
+ * @param layer the layer
+ * @returns the navigation mesh tile
+ */
 export const getTileAt = (navMesh: NavMesh, x: number, y: number, layer: number): NavMeshTile | undefined => {
     const tileHash = getTilePositionHash(x, y, layer);
     const tileId = navMesh.tilePositionToTileId[tileHash];
     return navMesh.tiles[tileId];
 };
 
+/**
+ * Gets all tiles at the given x and y position.
+ * @param navMesh the navigation mesh
+ * @param x the x position
+ * @param y the y position
+ * @returns the navigation mesh tiles
+ */
 export const getTilesAt = (navMesh: NavMesh, x: number, y: number): NavMeshTile[] => {
     const tileColumnHash = getTileColumnHash(x, y);
     const tileIds = navMesh.tileColumnToTileIds[tileColumnHash];
@@ -468,6 +507,14 @@ export const createGetClosestPointOnPolyResult = (): GetClosestPointOnPolyResult
 
 const _getClosestPointOnPolyHeightResult = createGetPolyHeightResult();
 
+/**
+ * Gets the closest point on a polygon to a given point
+ * @param result the result object to populate
+ * @param navMesh the navigation mesh
+ * @param ref the polygon node reference
+ * @param point the point to find the closest point to
+ * @returns the result object
+ */
 export const getClosestPointOnPoly = (
     result: GetClosestPointOnPolyResult,
     navMesh: NavMesh,
@@ -506,6 +553,14 @@ const _closestPointOnPolyBoundaryLineEnd = vec3.create();
 const _closestPointOnPolyBoundaryVertices: number[] = [];
 const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
+/**
+ * Gets the closest point on the boundary of a polygon to a given point
+ * @param outClosestPoint the output closest point
+ * @param navMesh the navigation mesh
+ * @param polyRef the polygon reference
+ * @param point the point to find the closest point to
+ * @returns whether the operation was successful
+ */
 export const getClosestPointOnPolyBoundary = (
     outClosestPoint: Vec3,
     navMesh: NavMesh,
