@@ -35,6 +35,20 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
+      <a href="https://navcat.dev#example-dynamic-obstacles">
+        <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Dynamic Obstacles
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-multiple-agent-sizes">
+        <img src="./examples/public/screenshots/example-multiple-agent-sizes.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Multiple Agent Sizes
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <a href="https://navcat.dev#example-navmesh-constrained-character-controller">
         <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Navmesh Constrained Character Controller
@@ -46,28 +60,20 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Flow Field Pathfinding
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-areas">
         <img src="./examples/public/screenshots/example-custom-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom Areas
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-doors-and-keys">
         <img src="./examples/public/screenshots/example-doors-and-keys.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Doors and Keys
       </a>
     </td>
-    <td align="center">
-      <a href="https://navcat.dev#example-dynamic-obstacles">
-        <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Dynamic Obstacles
-      </a>
-    </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-upload-model">
         <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -80,14 +86,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Custom GLTF NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Solo NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -100,14 +106,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Flood Fill Pruning
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-path">
         <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -120,14 +126,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Off-Mesh Connections
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Raycast
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -140,14 +146,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Nearest Poly
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -160,6 +166,8 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Mark Compact Heightfield Areas
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-navmesh-generation">
         <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -690,6 +698,30 @@ export function buildCompactHeightfield(ctx: BuildContextState, walkableHeightVo
 export function erodeWalkableArea(walkableRadiusVoxels: number, compactHeightfield: CompactHeightfield);
 ```
 
+```ts
+/**
+ * Erodes the walkable area for a base agent radius and marks restricted areas for larger agents based on given walkable radius thresholds.
+ *
+ * Note that this function requires careful tuning of the build parameters to get a good result:
+ * - The cellSize needs to be small enough to accurately represent narrow passages. Generally you need to use smaller cellSizes than you otherwise would for single agent navmesh builds.
+ * - The thresholds should not be so small that the resulting regions are too small to successfully build good navmesh polygons for. Values like 1-2 voxels will likely lead to poor results.
+ * - You may get a better result using "buildRegionsMonotone" over "buildRegions" as this will better handle the many small clusters of areas that may be created from smaller thresholds.
+ *
+ * A typical workflow for using this utility to implement multi-agent support:
+ * 1. Call erodeAndMarkWalkableAreas with your smallest agent radius and list of restricted areas
+ * 2. Continue with buildDistanceField, buildRegionsMonotone, etc.
+ * 3. Configure query filters so large agents exclude the narrow/restricted area IDs
+ *
+ * @param baseWalkableRadiusVoxels the smallest agent radius in voxels (used for erosion)
+ * @param thresholds array of area ids and their corresponding walkable radius in voxels.
+ * @param compactHeightfield the compact heightfield to process
+ */
+export function erodeAndMarkWalkableAreas(baseWalkableRadiusVoxels: number, thresholds: Array<{
+    areaId: number;
+    walkableRadiusVoxels: number;
+}>, compactHeightfield: CompactHeightfield);
+```
+
 ### 4. Build compact heightfield regions
 
 The compact heightfield is then analyzed to identify distinct walkable regions. These regions are used to create the final navigation mesh.
@@ -1033,11 +1065,12 @@ export function createNavMesh(): NavMesh;
 
 ```ts
 /**
- * Builds a bounding volume tree for the given nav mesh tile.
- * @param navMeshTile the nav mesh tile to build the BV tree for
- * @returns
+ * Builds a navmesh tile from the given parameters
+ * This builds a BV-tree for the tile, and initializes runtime tile properties
+ * @param params the parameters to build the tile from
+ * @returns the built navmesh tile
  */
-export function buildNavMeshBvTree(params: NavMeshTileParams): NavMeshTileBvTree;
+export function buildTile(params: NavMeshTileParams): NavMeshTile;
 ```
 
 ```ts
