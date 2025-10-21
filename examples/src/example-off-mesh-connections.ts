@@ -366,18 +366,53 @@ function getPointOnNavMesh(event: PointerEvent): Vec3 | null {
     return null;
 }
 
+let moving: 'start' | 'end' | null = null;
+
 renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
     event.preventDefault();
     const point = getPointOnNavMesh(event);
     console.log('clicked on navmesh', point);
-    if (!point) return;
+
     if (event.button === 0) {
-        start = point;
+        if (moving === 'start') {
+            moving = null;
+            renderer.domElement.style.cursor = '';
+            if (point) start = point;
+        } else {
+            moving = 'start';
+            renderer.domElement.style.cursor = 'crosshair';
+            if (point) start = point;
+        }
     } else if (event.button === 2) {
-        end = point;
+        if (moving === 'end') {
+            moving = null;
+            renderer.domElement.style.cursor = '';
+            if (point) end = point;
+        } else {
+            moving = 'end';
+            renderer.domElement.style.cursor = 'crosshair';
+            if (point) end = point;
+        }
     }
     updatePath();
 });
+
+renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
+    if (!moving) return;
+
+    const point = getPointOnNavMesh(event);
+    if (!point) return;
+
+    if (moving === 'start') {
+        start = point;
+    } else if (moving === 'end') {
+        end = point;
+    }
+
+    updatePath();
+});
+
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 /* initial update */
 updatePath();
