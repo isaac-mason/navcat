@@ -32,19 +32,53 @@ export const closestPtSeg2d = (out: Vec3, pt: Vec3, p: Vec3, q: Vec3): void => {
  */
 export const pointInPoly = (point: Vec3, vertices: number[], nVertices: number): boolean => {
     let inside = false;
-    let j = nVertices - 1;
-
-    for (let i = 0; i < nVertices; j = i++) {
-        const xi = vertices[i * 3]; // x coordinate of vertex i
-        const zi = vertices[i * 3 + 2]; // z coordinate of vertex i
-        const xj = vertices[j * 3]; // x coordinate of vertex j
-        const zj = vertices[j * 3 + 2]; // z coordinate of vertex j
-
-        if (zi > point[2] !== zj > point[2] && point[0] < ((xj - xi) * (point[2] - zi)) / (zj - zi) + xi) {
-            inside = !inside;
+    const x = point[0];
+    const z = point[2];
+    for (let l = nVertices, i = 0, j = l - 1; i < l; j = i++) {
+        const xj = vertices[j * 3],
+            zj = vertices[j * 3 + 2],
+            xi = vertices[i * 3],
+            zi = vertices[i * 3 + 2];
+        const where = (zi - zj) * (x - xi) - (xi - xj) * (z - zi);
+        if (zj < zi) {
+            if (z >= zj && z < zi) {
+                if (where === 0) {
+                    // point on the line
+                    return true;
+                }
+                if (where > 0) {
+                    if (z === zj) {
+                        // ray intersects vertex
+                        if (z > vertices[(j === 0 ? l - 1 : j - 1) * 3 + 2]) {
+                            inside = !inside;
+                        }
+                    } else {
+                        inside = !inside;
+                    }
+                }
+            }
+        } else if (zi < zj) {
+            if (z > zi && z <= zj) {
+                if (where === 0) {
+                    // point on the line
+                    return true;
+                }
+                if (where < 0) {
+                    if (z === zj) {
+                        // ray intersects vertex
+                        if (z < vertices[(j === 0 ? l - 1 : j - 1) * 3 + 2]) {
+                            inside = !inside;
+                        }
+                    } else {
+                        inside = !inside;
+                    }
+                }
+            }
+        } else if (z === zi && ((x >= xj && x <= xi) || (x >= xi && x <= xj))) {
+            // point on horizontal edge
+            return true;
         }
     }
-
     return inside;
 };
 
@@ -124,7 +158,7 @@ export type DistPtSeg2dResult = { dist: number; t: number };
 
 export const createDistPtSeg2dResult = (): DistPtSeg2dResult => ({
     dist: 0,
-    t: 0
+    t: 0,
 });
 
 export const distancePtSeg2d = (out: DistPtSeg2dResult, pt: Vec3, p: Vec3, q: Vec3) => {
@@ -153,7 +187,7 @@ export type DistancePtSegSqr2dResult = { distSqr: number; t: number };
 
 export const createDistancePtSegSqr2dResult = (): DistancePtSegSqr2dResult => ({
     distSqr: 0,
-    t: 0
+    t: 0,
 });
 
 export const distancePtSegSqr2d = (out: DistancePtSegSqr2dResult, pt: Vec3, p: Vec3, q: Vec3) => {
@@ -568,13 +602,13 @@ export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], 
 const projectPoly = (out: [number, number], axis: Vec2, verts: number[], nverts: number): void => {
     let min = axis[0] * verts[0] + axis[1] * verts[2]; // dot product with first vertex (x,z)
     let max = min;
-    
+
     for (let i = 1; i < nverts; i++) {
         const dot = axis[0] * verts[i * 3] + axis[1] * verts[i * 3 + 2]; // dot product (x,z)
         min = Math.min(min, dot);
         max = Math.max(max, dot);
     }
-    
+
     out[0] = min;
     out[1] = max;
 };
@@ -589,7 +623,7 @@ const projectPoly = (out: [number, number], axis: Vec2, verts: number[], nverts:
  * @returns True if ranges overlap
  */
 const overlapRange = (amin: number, amax: number, bmin: number, bmax: number, eps: number): boolean => {
-    return !((amin + eps) > bmax || (amax - eps) < bmin);
+    return !(amin + eps > bmax || amax - eps < bmin);
 };
 
 const _overlapPolyPolyNormal: Vec2 = vec2.create();
@@ -611,63 +645,63 @@ const _overlapPolyPolyProjB: [number, number] = [0, 0];
  */
 export const overlapPolyPoly2D = (vertsA: number[], nvertsA: number, vertsB: number[], nvertsB: number): boolean => {
     const eps = 1e-4;
-    
+
     // Check separation along each edge normal of polygon A
     for (let i = 0, j = nvertsA - 1; i < nvertsA; j = i++) {
         const va = _overlapPolyPolyVa;
         const vb = _overlapPolyPolyVb;
-        
-        va[0] = vertsA[j * 3];     // x
+
+        va[0] = vertsA[j * 3]; // x
         va[1] = vertsA[j * 3 + 2]; // z
-        vb[0] = vertsA[i * 3];     // x
+        vb[0] = vertsA[i * 3]; // x
         vb[1] = vertsA[i * 3 + 2]; // z
-        
+
         // Calculate edge normal: n = { vb[z]-va[z], -(vb[x]-va[x]) }
         const normal = _overlapPolyPolyNormal;
-        normal[0] = vb[1] - va[1];  // z component
+        normal[0] = vb[1] - va[1]; // z component
         normal[1] = -(vb[0] - va[0]); // negative x component
-        
+
         // Project both polygons onto this normal
         const projA = _overlapPolyPolyProjA;
         const projB = _overlapPolyPolyProjB;
         projectPoly(projA, normal, vertsA, nvertsA);
         projectPoly(projB, normal, vertsB, nvertsB);
-        
+
         // Check if projections are separated
         if (!overlapRange(projA[0], projA[1], projB[0], projB[1], eps)) {
             // Found separating axis
             return false;
         }
     }
-    
+
     // Check separation along each edge normal of polygon B
     for (let i = 0, j = nvertsB - 1; i < nvertsB; j = i++) {
         const va = _overlapPolyPolyVa;
         const vb = _overlapPolyPolyVb;
-        
-        va[0] = vertsB[j * 3];     // x
+
+        va[0] = vertsB[j * 3]; // x
         va[1] = vertsB[j * 3 + 2]; // z
-        vb[0] = vertsB[i * 3];     // x
+        vb[0] = vertsB[i * 3]; // x
         vb[1] = vertsB[i * 3 + 2]; // z
-        
+
         // Calculate edge normal: n = { vb[z]-va[z], -(vb[x]-va[x]) }
         const normal = _overlapPolyPolyNormal;
-        normal[0] = vb[1] - va[1];  // z component
+        normal[0] = vb[1] - va[1]; // z component
         normal[1] = -(vb[0] - va[0]); // negative x component
-        
+
         // Project both polygons onto this normal
         const projA = _overlapPolyPolyProjA;
         const projB = _overlapPolyPolyProjB;
         projectPoly(projA, normal, vertsA, nvertsA);
         projectPoly(projB, normal, vertsB, nvertsB);
-        
+
         // Check if projections are separated
         if (!overlapRange(projA[0], projA[1], projB[0], projB[1], eps)) {
             // Found separating axis
             return false;
         }
     }
-    
+
     // No separating axis found, polygons overlap
     return true;
 };
