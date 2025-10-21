@@ -101,81 +101,137 @@ scene.add(navMeshHelper.object);
 
 /* flow field structures */
 let flowField: FlowField | null = null;
-let flowFieldTargetNodeRef: NodeRef | null = null;
 let flowFieldTargetPosition: Vec3 | null = null;
+let pathfindingStartPosition: Vec3 | null = null;
 const maxIterations = 1000;
 
+/* initial positions */
+const initialFlowFieldOrigin: Vec3 = [-3.94, 0.26, 4.71];
+const initialPathfindingStart: Vec3 = [2.52, 2.39, -2.2];
+
 /* interaction */
+let interactionMode: 'idle' | 'moving-flow-field' | 'moving-path' = 'idle';
+
+const getMousePosition = (event: PointerEvent): Vec3 | null => {
+    const mouse = new THREE.Vector2();
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersects = raycaster.intersectObject(navTestModel.scene, true);
+    if (intersects.length === 0) return null;
+
+    const point = intersects[0].point;
+    return [point.x, point.y, point.z];
+}
+
+const updateFlowField = (position: Vec3) => {
+    if (!navMesh) return;
+
+    const result = findNearestPoly(
+        createFindNearestPolyResult(),
+        navMesh,
+        position,
+        [1, 1, 1],
+        DEFAULT_QUERY_FILTER,
+    );
+
+    if (!result.success) return;
+
+    flowFieldTargetPosition = result.point;
+
+    showFlagAt(result.point);
+
+    console.time('computeFlowField');
+    flowField = computeUniformCostFlowField(navMesh, result.ref, DEFAULT_QUERY_FILTER, maxIterations);
+    console.timeEnd('computeFlowField');
+
+    showFlowFieldArrows(navMesh, flowField);
+
+    // Recompute path if we have a pathfinding start position
+    if (pathfindingStartPosition) {
+        updatePath(pathfindingStartPosition);
+    } else {
+        clearPathHelpers();
+    }
+}
+
+// Helper: Update pathfinding target
+function updatePath(position: Vec3) {
+    if (!navMesh || !flowField || !flowFieldTargetPosition) return;
+
+    const result = findNearestPoly(
+        createFindNearestPolyResult(),
+        navMesh,
+        position,
+        [1, 1, 1],
+        DEFAULT_QUERY_FILTER,
+    );
+
+    if (!result.success) return;
+
+    // Save pathfinding start position
+    pathfindingStartPosition = result.point;
+
+    const endResult = findNearestPoly(
+        createFindNearestPolyResult(),
+        navMesh,
+        flowFieldTargetPosition,
+        [1, 1, 1],
+        DEFAULT_QUERY_FILTER,
+    );
+    const endPt = endResult?.success ? endResult.point : null;
+
+    console.time('getNodePathFromFlowField');
+    const polyPath = getNodePathFromFlowField(flowField, result.ref);
+    console.timeEnd('getNodePathFromFlowField');
+
+    if (polyPath && endPt) {
+        const straightPathResult = findStraightPath(navMesh, result.point, endPt, polyPath);
+
+        showPath(
+            polyPath,
+            straightPathResult.path.map((p) => p.position),
+        );
+    } else {
+        clearPathHelpers();
+    }
+}
+
 renderer.domElement.addEventListener('pointerdown', (event) => {
     event.preventDefault();
 
-    if (!navMesh) return;
+    const position = getMousePosition(event);
+    if (!position) return;
 
     if (event.button === 0) {
-        // left click
-        const polyRef = getPolyRefAtMouse(event);
-        if (polyRef) {
-            const hitPos = pointerRaycast(event);
-            const startResult = findNearestPoly(createFindNearestPolyResult(), navMesh, hitPos, [1, 1, 1], DEFAULT_QUERY_FILTER);
-            const closest = startResult?.success ? startResult.point : null;
-            flowFieldTargetNodeRef = polyRef;
-            flowFieldTargetPosition = closest;
-
-            showFlagAt(closest);
-
-            console.time('computeFlowField');
-            flowField = computeUniformCostFlowField(navMesh, polyRef, DEFAULT_QUERY_FILTER, maxIterations);
-            console.timeEnd('computeFlowField');
-
-            showFlowFieldArrows(navMesh, flowField);
-            clearPathHelpers();
+        if (interactionMode === 'moving-flow-field') {
+            interactionMode = 'idle';
+        } else {
+            interactionMode = 'moving-flow-field';
         }
     } else if (event.button === 2) {
-        if (!flowField || !flowFieldTargetNodeRef || !flowFieldTargetPosition) return;
-
-        const polyRef = getPolyRefAtMouse(event);
-        if (!polyRef) return;
-
-        const hitPos = pointerRaycast(event);
-        const startResult = findNearestPoly(createFindNearestPolyResult(), navMesh, hitPos, [1, 1, 1], DEFAULT_QUERY_FILTER);
-        const startPt = startResult?.success ? startResult.point : null;
-
-        const endResult = findNearestPoly(
-            createFindNearestPolyResult(),
-            navMesh,
-            flowFieldTargetPosition,
-            [1, 1, 1],
-            DEFAULT_QUERY_FILTER,
-        );
-        const endPt = endResult?.success ? endResult.point : null;
-
-        console.time('getNodePathFromFlowField');
-        const polyPath = getNodePathFromFlowField(flowField, polyRef);
-        console.timeEnd('getNodePathFromFlowField');
-
-        if (polyPath && startPt && endPt) {
-            const straightPathResult = findStraightPath(navMesh, startPt, endPt, polyPath);
-
-            showPath(
-                polyPath,
-                straightPathResult.path.map((p) => p.position),
-            );
+        if (interactionMode === 'moving-path') {
+            interactionMode = 'idle';
         } else {
-            clearPathHelpers();
+            interactionMode = 'moving-path';
         }
     }
+});
 
-    function pointerRaycast(event: MouseEvent): [number, number, number] {
-        const mouse = new THREE.Vector2();
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObject(navTestModel.scene, true);
-        if (intersects.length === 0) return [0, 0, 0];
-        const point = intersects[0].point;
-        return [point.x, point.y, point.z];
+renderer.domElement.addEventListener('pointermove', (event) => {
+    if (interactionMode === 'moving-flow-field') {
+        const position = getMousePosition(event);
+        if (position) {
+            updateFlowField(position);
+        }
+    } else if (interactionMode === 'moving-path') {
+        const position = getMousePosition(event);
+        if (position) {
+            updatePath(position);
+        }
     }
 });
 
@@ -375,34 +431,9 @@ function showPath(pathPolys: NodeRef[], pathPoints: number[][]) {
     }
 }
 
-function getPolyRefAtMouse(event: MouseEvent): NodeRef | null {
-    if (!navMesh) return null;
-
-    const mouse = new THREE.Vector2();
-    const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-
-    const intersects = raycaster.intersectObject(navTestModel.scene, true);
-    if (intersects.length === 0) return null;
-
-    const point = intersects[0].point;
-    const targetPosition: Vec3 = [point.x, point.y, point.z];
-    const halfExtents: Vec3 = [1, 1, 1];
-    const nearestResult = findNearestPoly(
-        createFindNearestPolyResult(),
-        navMesh,
-        targetPosition,
-        halfExtents,
-        DEFAULT_QUERY_FILTER,
-    );
-
-    if (!nearestResult.success) return null;
-
-    return nearestResult.ref;
-}
+/* initialize with default positions */
+updateFlowField(initialFlowFieldOrigin);
+updatePath(initialPathfindingStart);
 
 /* start loop */
 function update() {

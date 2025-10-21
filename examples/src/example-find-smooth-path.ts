@@ -1,3 +1,4 @@
+import GUI from 'lil-gui';
 import type { Vec3 } from 'maaths';
 import { DEFAULT_QUERY_FILTER, findSmoothPath, getNodeRefType, NodeType } from 'navcat';
 import * as THREE from 'three';
@@ -99,8 +100,28 @@ scene.add(navMeshHelper.object);
 let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [1.01, 2.38, -1.93];
 const halfExtents: Vec3 = [1, 1, 1];
-const stepSize = 1;
-const slop = 0.01;
+let stepSize = 1;
+let slop = 0.01;
+
+/* controls */
+const gui = new GUI();
+const guiParams = { stepSize, slop };
+const pathFolder = gui.addFolder('Smooth Path');
+pathFolder
+    .add(guiParams, 'stepSize', 0.1, 2, 0.1)
+    .name('Step Size')
+    .onChange((v: number) => {
+        stepSize = v;
+        updatePath();
+    });
+pathFolder
+    .add(guiParams, 'slop', 0.01, 0.2, 0.02)
+    .name('Slop')
+    .onChange((v: number) => {
+        slop = v;
+        updatePath();
+    });
+pathFolder.open();
 
 type Visual = { object: THREE.Object3D; dispose: () => void };
 let visuals: Visual[] = [];
@@ -256,17 +277,54 @@ function getPointOnNavMesh(event: PointerEvent): Vec3 | null {
     return null;
 }
 
+let moving: 'start' | 'end' | null = null;
+
 renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
     event.preventDefault();
     const point = getPointOnNavMesh(event);
+
     if (!point) return;
+
     if (event.button === 0) {
-        start = point;
+        if (moving === 'start') {
+            moving = null;
+            renderer.domElement.style.cursor = '';
+            start = point;
+        } else {
+            moving = 'start';
+            renderer.domElement.style.cursor = 'crosshair';
+            start = point;
+        }
     } else if (event.button === 2) {
-        end = point;
+        if (moving === 'end') {
+            moving = null;
+            renderer.domElement.style.cursor = '';
+            end = point;
+        } else {
+            moving = 'end';
+            renderer.domElement.style.cursor = 'crosshair';
+            end = point;
+        }
     }
     updatePath();
 });
+
+renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
+    if (!moving) return;
+
+    const point = getPointOnNavMesh(event);
+    if (!point) return;
+
+    if (moving === 'start') {
+        start = point;
+    } else if (moving === 'end') {
+        end = point;
+    }
+
+    updatePath();
+});
+
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 /* initial update */
 updatePath();

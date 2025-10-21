@@ -251,7 +251,7 @@ Finally, the polygon mesh and detail mesh are combined to create a navigation me
 
 <RenderType type="import('navcat').createNavMesh" />
 
-<RenderType type="import('navcat').buildNavMeshBvTree" />
+<RenderType type="import('navcat').buildTile" />
 
 <RenderType type="import('navcat').addTile" />
 

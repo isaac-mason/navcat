@@ -3,6 +3,7 @@ import {
     createFindNearestPolyResult,
     DEFAULT_QUERY_FILTER,
     findNearestPoly,
+    type NodeRef,
 } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
@@ -14,7 +15,7 @@ import {
 } from './common/generate-tiled-nav-mesh';
 import { loadGLTF } from './common/load-gltf';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
-import { createNavMeshHelper } from './common/debug';
+import { createNavMeshHelper, createNavMeshPolyHelper } from './common/debug';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -122,6 +123,9 @@ const arrow = new THREE.ArrowHelper(
 );
 scene.add(arrow);
 
+let currentPolyRef: NodeRef | null = null;
+let polyHelper: ReturnType<typeof createNavMeshPolyHelper> | null = null;
+
 const updateNearestPoly = (point: Vec3) => {
     queryMesh.position.fromArray(point);
 
@@ -143,28 +147,45 @@ const updateNearestPoly = (point: Vec3) => {
 
     const nearestPolyElement = document.getElementById('nearest-poly')!;
     nearestPolyElement.textContent = String(nearestPoly.ref);
+
+    // Only recreate poly helper if the poly changed
+    if (currentPolyRef !== nearestPoly.ref) {
+        // Remove old poly helper
+        if (polyHelper) {
+            scene.remove(polyHelper.object);
+            polyHelper.dispose();
+        }
+
+        // Create new poly helper
+        polyHelper = createNavMeshPolyHelper(navMesh, nearestPoly.ref, [1, 0.5, 0]);
+        polyHelper.object.position.y += 0.15;
+        scene.add(polyHelper.object);
+
+        currentPolyRef = nearestPoly.ref;
+    }
 };
 
 updateNearestPoly([-3.94, 0.26, 4.71]);
 
-/* handle pointer down events */
+/* update nearest poly on pointer move */
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-const onPointerDown = (event: PointerEvent) => {
-    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+const onPointerMove = (event: PointerEvent) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     raycaster.setFromCamera(pointer, camera);
 
-    const intersects = raycaster.intersectObjects(walkableMeshes);
+    const intersects = raycaster.intersectObjects(walkableMeshes, true);
     if (intersects.length > 0) {
         const point = intersects[0].point;
         updateNearestPoly([point.x, point.y, point.z]);
     }
 };
 
-window.addEventListener('pointerdown', onPointerDown);
+renderer.domElement.addEventListener('pointermove', onPointerMove);
 
 /* start loop */
 function update() {
