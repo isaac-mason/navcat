@@ -3,6 +3,7 @@
 ## 0.0.7 (Unreleased)
 
 - feat: add 'erodeAndMarkWalkableAreas', which provides a way to support multiple agent radiuses in a single navmesh by marking spans that are too narrow for larger agents with different area IDs
+- fix: pointInPoly not returning true for points on edges of polygons
 
 ## 0.0.6
 
