@@ -1,3 +1,4 @@
+import GUI from 'lil-gui';
 import type { Vec3 } from 'maaths';
 import { DEFAULT_QUERY_FILTER, findSmoothPath, getNodeRefType, NodeType } from 'navcat';
 import * as THREE from 'three';
@@ -99,8 +100,28 @@ scene.add(navMeshHelper.object);
 let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [1.01, 2.38, -1.93];
 const halfExtents: Vec3 = [1, 1, 1];
-const stepSize = 1;
-const slop = 0.01;
+let stepSize = 1;
+let slop = 0.01;
+
+/* controls */
+const gui = new GUI();
+const guiParams = { stepSize, slop };
+const pathFolder = gui.addFolder('Smooth Path');
+pathFolder
+    .add(guiParams, 'stepSize', 0.1, 2, 0.1)
+    .name('Step Size')
+    .onChange((v: number) => {
+        stepSize = v;
+        updatePath();
+    });
+pathFolder
+    .add(guiParams, 'slop', 0.01, 0.2, 0.02)
+    .name('Slop')
+    .onChange((v: number) => {
+        slop = v;
+        updatePath();
+    });
+pathFolder.open();
 
 type Visual = { object: THREE.Object3D; dispose: () => void };
 let visuals: Visual[] = [];
