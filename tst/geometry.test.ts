@@ -21,7 +21,7 @@ describe('geometry.pointInPoly', () => {
         expect(pointInPoly(pt, verts, nv)).toBe(false);
     });
 
-    test('reported case: point on vertical edge is inside', { fails: true }, () => {
+    test('point on vertical edge is inside', () => {
         // vertices from the user (flat x,y,z array)
         const verts = [-13, 0, -10, -15, 0, -10, -14, 0, -8.5, -13, 0, -8.5];
         const nv = 4;
