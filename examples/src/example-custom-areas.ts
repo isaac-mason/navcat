@@ -3,29 +3,29 @@ import type { Box3, Vec3 } from 'maaths';
 import { box3, vec2, vec3 } from 'maaths';
 import {
     addTile,
+    buildCompactHeightfield,
     BuildContext,
     type BuildContextState,
-    buildCompactHeightfield,
     buildContours,
     buildDistanceField,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
     buildTile,
+    calculateGridSize,
+    calculateMeshBounds,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
-    calculateGridSize,
-    calculateMeshBounds,
     createHeightfield,
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     erodeWalkableArea,
-    FindStraightPathResultFlags,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
     filterWalkableLowHeightSpans,
     findPath,
+    FindStraightPathResultFlags,
     getNodeByRef,
     getNodeRefType,
     type Heightfield,
@@ -42,18 +42,18 @@ import {
     rasterizeTriangles,
     WALKABLE_AREA,
 } from 'navcat';
-import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
-import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
-import * as THREE from 'three/webgpu';
-import { Line2NodeMaterial } from 'three/webgpu';
 import {
     createCompactHeightfieldSolidHelper,
     createHeightfieldHelper,
     createNavMeshHelper,
     createNavMeshPolyHelper,
     createSearchNodesHelper,
-} from './common/debug';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
+    getPositionsAndIndices,
+} from 'navcat/three';
+import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
+import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
+import * as THREE from 'three/webgpu';
+import { Line2NodeMaterial } from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
 
 /* area types */

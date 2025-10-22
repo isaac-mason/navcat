@@ -37,12 +37,11 @@ import {
     polyMeshToTilePolys,
     rasterizeTriangles,
 } from 'navcat';
+import { createCompactHeightfieldSolidHelper, createHeightfieldHelper, createNavMeshHelper, getPositionsAndIndices } from 'navcat/three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { createCompactHeightfieldSolidHelper, createHeightfieldHelper, createNavMeshHelper } from './common/debug';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* area types */

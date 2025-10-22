@@ -24,10 +24,7 @@ export type DebugObject = {
     dispose: () => void;
 };
 
-/**
- * Converts graphics-agnostic debug primitives to Three.js objects
- */
-function primitiveToThreeJS(primitive: DebugPrimitive): { object: THREE.Object3D; dispose: () => void } {
+const primitiveToThreeJS = (primitive: DebugPrimitive): { object: THREE.Object3D; dispose: () => void } => {
     const disposables: (() => void)[] = [];
 
     switch (primitive.type) {
@@ -256,106 +253,104 @@ function primitivesToThreeJS(primitives: DebugPrimitive[]): DebugObject {
     };
 }
 
-// Debug helper functions - these wrap the agnostic helpers and convert to Three.js
-
-export function createTriangleAreaIdsHelper(
+export const createTriangleAreaIdsHelper = (
     input: { positions: ArrayLike<number>; indices: ArrayLike<number> },
     triAreaIds: ArrayLike<number>,
-): DebugObject {
+): DebugObject => {
     const primitives = NavCat.createTriangleAreaIdsHelper(input, triAreaIds);
     return primitivesToThreeJS(primitives);
 }
 
-export function createHeightfieldHelper(heightfield: Heightfield): DebugObject {
+export const createHeightfieldHelper = (heightfield: Heightfield): DebugObject => {
     const primitives = NavCat.createHeightfieldHelper(heightfield);
     return primitivesToThreeJS(primitives);
 }
 
-export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactHeightfield): DebugObject {
+export const createCompactHeightfieldSolidHelper = (compactHeightfield: CompactHeightfield): DebugObject => {
     const primitives = NavCat.createCompactHeightfieldSolidHelper(compactHeightfield);
     return primitivesToThreeJS(primitives);
 }
 
-export function createCompactHeightfieldDistancesHelper(compactHeightfield: CompactHeightfield): DebugObject {
+export const createCompactHeightfieldDistancesHelper = (compactHeightfield: CompactHeightfield): DebugObject => {
     const primitives = NavCat.createCompactHeightfieldDistancesHelper(compactHeightfield);
     return primitivesToThreeJS(primitives);
 }
 
-export function createCompactHeightfieldRegionsHelper(compactHeightfield: CompactHeightfield): DebugObject {
+export const createCompactHeightfieldRegionsHelper = (compactHeightfield: CompactHeightfield): DebugObject => {
     const primitives = NavCat.createCompactHeightfieldRegionsHelper(compactHeightfield);
     return primitivesToThreeJS(primitives);
 }
 
-export function createRawContoursHelper(contourSet: ContourSet): DebugObject {
+export const createRawContoursHelper = (contourSet: ContourSet): DebugObject => {
     const primitives = NavCat.createRawContoursHelper(contourSet);
     return primitivesToThreeJS(primitives);
 }
 
-export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugObject {
+export const createSimplifiedContoursHelper = (contourSet: ContourSet): DebugObject => {
     const primitives = NavCat.createSimplifiedContoursHelper(contourSet);
     return primitivesToThreeJS(primitives);
 }
 
-export function createPolyMeshHelper(polyMesh: PolyMesh): DebugObject {
+export const createPolyMeshHelper = (polyMesh: PolyMesh): DebugObject => {
     const primitives = NavCat.createPolyMeshHelper(polyMesh);
     return primitivesToThreeJS(primitives);
 }
 
-export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): DebugObject {
+export const createPolyMeshDetailHelper = (polyMeshDetail: PolyMeshDetail): DebugObject => {
     const primitives = NavCat.createPolyMeshDetailHelper(polyMeshDetail);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshHelper(navMesh: NavMesh): DebugObject {
+export const createNavMeshHelper = (navMesh: NavMesh): DebugObject => {
     const primitives = NavCat.createNavMeshHelper(navMesh);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshTileHelper(tile: NavMeshTile): DebugObject {
+export const createNavMeshTileHelper = (tile: NavMeshTile): DebugObject => {
     const primitives = NavCat.createNavMeshTileHelper(tile);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshPolyHelper(
+export const createNavMeshPolyHelper = (
     navMesh: NavMesh,
     polyRef: NodeRef,
     color: [number, number, number] = [0, 0.75, 1],
-): DebugObject {
+): DebugObject => {
     const primitives = NavCat.createNavMeshPolyHelper(navMesh, polyRef, color);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugObject {
+export const createNavMeshTileBvTreeHelper = (navMeshTile: NavMeshTile): DebugObject => {
     const primitives = NavCat.createNavMeshTileBvTreeHelper(navMeshTile);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshLinksHelper(navMesh: NavMesh): DebugObject {
+export const createNavMeshLinksHelper = (navMesh: NavMesh): DebugObject => {
     const primitives = NavCat.createNavMeshLinksHelper(navMesh);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugObject {
+export const createNavMeshBvTreeHelper = (navMesh: NavMesh): DebugObject => {
     const primitives = NavCat.createNavMeshBvTreeHelper(navMesh);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugObject {
+export const createNavMeshTilePortalsHelper = (navMeshTile: NavMeshTile): DebugObject => {
     const primitives = NavCat.createNavMeshTilePortalsHelper(navMeshTile);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshPortalsHelper(navMesh: NavMesh): DebugObject {
+export const createNavMeshPortalsHelper = (navMesh: NavMesh): DebugObject => {
     const primitives = NavCat.createNavMeshPortalsHelper(navMesh);
     return primitivesToThreeJS(primitives);
 }
 
-export function createSearchNodesHelper(nodePool: SearchNodePool): DebugObject {
+export const createSearchNodesHelper = (nodePool: SearchNodePool): DebugObject => {
     const primitives = NavCat.createSearchNodesHelper(nodePool);
     return primitivesToThreeJS(primitives);
 }
 
-export function createNavMeshOffMeshConnectionsHelper(navMesh: NavMesh): DebugObject {
+export const createNavMeshOffMeshConnectionsHelper = (navMesh: NavMesh): DebugObject => {
     const primitives = NavCat.createNavMeshOffMeshConnectionsHelper(navMesh);
     return primitivesToThreeJS(primitives);
 }

@@ -6,20 +6,20 @@ import {
     createNavMesh,
     DEFAULT_QUERY_FILTER,
     type ExternalPolygon,
-    FindStraightPathResultFlags,
     findPath,
+    FindStraightPathResultFlags,
     getNodeRefType,
     type NavMeshTileParams,
     NodeType,
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
 } from 'navcat';
+import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from 'navcat/three';
+import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { acceleratedRaycast, computeBoundsTree, disposeBoundsTree } from 'three-mesh-bvh';
-import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
 
 /* setup three-mesh-bvh for faster raycasting */
 THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;

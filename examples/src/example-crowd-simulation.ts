@@ -12,6 +12,14 @@ import {
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
 } from 'navcat';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import {
+    createNavMeshHelper,
+    createNavMeshOffMeshConnectionsHelper,
+    createNavMeshPolyHelper,
+    type DebugObject,
+    getPositionsAndIndices,
+} from 'navcat/three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import {
@@ -23,14 +31,6 @@ import {
     requestMoveTarget,
     updateCrowd,
 } from './common/crowd';
-import {
-    createNavMeshHelper,
-    createNavMeshOffMeshConnectionsHelper,
-    createNavMeshPolyHelper,
-    type DebugObject,
-} from './common/debug';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
 

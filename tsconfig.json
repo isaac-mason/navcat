@@ -19,8 +19,12 @@
     "skipLibCheck": true,
     "baseUrl": "./",
     "rootDir": "./",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "three": ["node_modules/@types/three"],
+      "three/*": ["node_modules/@types/three/*"]
+    }
   },
-  "include": ["./src", "./blocks"],
+  "include": ["./src", "./blocks", "./three"],
   "exclude": ["./dist"]
 }

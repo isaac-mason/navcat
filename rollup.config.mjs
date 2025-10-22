@@ -44,4 +44,24 @@ export default [
             filesize(),
         ],
     },
+    {
+        input: './three/index.ts',
+        external: ['maaths', 'navcat', 'three'],
+        output: [
+            {
+                file: 'dist/three.js',
+                format: 'es',
+                sourcemap: true,
+                exports: 'named',
+            },
+        ],
+        plugins: [
+            nodeResolve(),
+            typescript({
+                tsconfig: path.resolve(import.meta.dirname, './tsconfig.json'),
+                emitDeclarationOnly: true,
+            }),
+            filesize(),
+        ],
+    },
 ];

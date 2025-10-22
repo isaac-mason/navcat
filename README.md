@@ -222,6 +222,12 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - [Tiled Navigation Meshes](#tiled-navigation-meshes)
 - [BYO Navigation Meshes](#byo-navigation-meshes)
 - [Debug Utilities](#debug-utilities)
+- [`navcat/blocks`](#navcatblocks)
+  - [Geometry Utilities](#geometry-utilities)
+  - [Generation Presets](#generation-presets)
+- [`navcat/three`](#navcatthree)
+  - [Geometry Extraction](#geometry-extraction)
+  - [Debug Helpers](#debug-helpers)
 - [Acknowledgements](#acknowledgements)
 
 ## Quick Start
@@ -2180,6 +2186,180 @@ export type DebugBoxes = {
     transparent?: boolean;
     opacity?: number;
 };
+```
+
+## `navcat/blocks`
+
+The `navcat/blocks` entrypoint provides presets and building blocks to help you get started quickly.
+
+### Geometry Utilities
+
+```ts
+export function mergePositionsAndIndices(meshes: Array<{
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+}>): [
+    number[],
+    number[]
+];
+```
+
+### Generation Presets
+
+```ts
+export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMeshOptions): SoloNavMeshResult;
+```
+```ts
+export type SoloNavMeshInput = {
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+};
+```
+```ts
+export type SoloNavMeshOptions = {
+    cellSize: number;
+    cellHeight: number;
+    walkableRadiusVoxels: number;
+    walkableRadiusWorld: number;
+    walkableClimbVoxels: number;
+    walkableClimbWorld: number;
+    walkableHeightVoxels: number;
+    walkableHeightWorld: number;
+    walkableSlopeAngleDegrees: number;
+    borderSize: number;
+    minRegionArea: number;
+    mergeRegionArea: number;
+    maxSimplificationError: number;
+    maxEdgeLength: number;
+    maxVerticesPerPoly: number;
+    detailSampleDistance: number;
+    detailSampleMaxError: number;
+};
+```
+```ts
+export type SoloNavMeshResult = {
+    navMesh: NavMesh;
+    intermediates: SoloNavMeshIntermediates;
+};
+```
+
+```ts
+export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNavMeshOptions): TiledNavMeshResult;
+```
+```ts
+export type TiledNavMeshInput = {
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+};
+```
+```ts
+export type TiledNavMeshOptions = {
+    cellSize: number;
+    cellHeight: number;
+    tileSizeVoxels: number;
+    tileSizeWorld: number;
+    walkableRadiusVoxels: number;
+    walkableRadiusWorld: number;
+    walkableClimbVoxels: number;
+    walkableClimbWorld: number;
+    walkableHeightVoxels: number;
+    walkableHeightWorld: number;
+    walkableSlopeAngleDegrees: number;
+    borderSize: number;
+    minRegionArea: number;
+    mergeRegionArea: number;
+    maxSimplificationError: number;
+    maxEdgeLength: number;
+    maxVerticesPerPoly: number;
+    detailSampleDistance: number;
+    detailSampleMaxError: number;
+};
+```
+```ts
+export type TiledNavMeshResult = {
+    navMesh: NavMesh;
+    intermediates: TiledNavMeshIntermediates;
+};
+```
+
+## `navcat/three`
+
+The `navcat/three` entrypoint provides some utilities to help integrate navcat with threejs.
+
+### Geometry Extraction
+
+```ts
+export function getPositionsAndIndices(meshes: Mesh[]): [
+    positions: number[],
+    indices: number[]
+];
+```
+
+### Debug Helpers
+
+```ts
+export function createTriangleAreaIdsHelper(input: {
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+}, triAreaIds: ArrayLike<number>): DebugObject;
+```
+```ts
+export function createHeightfieldHelper(heightfield: Heightfield): DebugObject;
+```
+```ts
+export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactHeightfield): DebugObject;
+```
+```ts
+export function createCompactHeightfieldDistancesHelper(compactHeightfield: CompactHeightfield): DebugObject;
+```
+```ts
+export function createCompactHeightfieldRegionsHelper(compactHeightfield: CompactHeightfield): DebugObject;
+```
+```ts
+export function createRawContoursHelper(contourSet: ContourSet): DebugObject;
+```
+```ts
+export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugObject;
+```
+```ts
+export function createPolyMeshHelper(polyMesh: PolyMesh): DebugObject;
+```
+```ts
+export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): DebugObject;
+```
+```ts
+export function createNavMeshHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createNavMeshTileHelper(tile: NavMeshTile): DebugObject;
+```
+```ts
+export function createNavMeshPolyHelper(navMesh: NavMesh, polyRef: NodeRef, color: [
+    number,
+    number,
+    number
+] = [0, 0.75, 1]): DebugObject;
+```
+```ts
+export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugObject;
+```
+```ts
+export function createNavMeshLinksHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugObject;
+```
+```ts
+export function createNavMeshPortalsHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createSearchNodesHelper(nodePool: SearchNodePool): DebugObject;
+```
+```ts
+export function createNavMeshOffMeshConnectionsHelper(navMesh: NavMesh): DebugObject;
 ```
 
 ## Acknowledgements

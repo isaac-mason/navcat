@@ -1,6 +1,5 @@
 import GUI from 'lil-gui';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 import {
     createCompactHeightfieldDistancesHelper,
     createCompactHeightfieldRegionsHelper,
@@ -14,11 +13,12 @@ import {
     createRawContoursHelper,
     createSimplifiedContoursHelper,
     createTriangleAreaIdsHelper,
+    getPositionsAndIndices,
     type DebugObject,
-} from './common/debug';
+} from 'navcat/three';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { createExample } from './common/example-base';
-import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */

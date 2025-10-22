@@ -22,11 +22,11 @@ import {
     createSimplifiedContoursHelper,
     createTriangleAreaIdsHelper,
     type DebugObject,
-} from './common/debug';
+} from 'navcat/three';
 import { createExample } from './common/example-base';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
+import { getPositionsAndIndices } from 'navcat/three';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -83,33 +83,33 @@ type NavMeshType = 'solo' | 'tiled';
 const config = {
     // NavMesh type
     navmeshType: 'solo' as NavMeshType,
-    
+
     // Heightfield parameters
     cellSize: 0.15,
     cellHeight: 0.15,
-    
+
     // Tiled-specific parameters
     tileSizeVoxels: 32,
-    
+
     // Agent parameters
     walkableRadiusWorld: 0.1,
     walkableClimbWorld: 0.5,
     walkableHeightWorld: 0.25,
     walkableSlopeAngleDegrees: 45,
-    
+
     // Region parameters
     // Note: borderSize is 0 for solo, 4 for tiled (we'll handle this dynamically)
     borderSize: 0,
     minRegionArea: 8,
     mergeRegionArea: 20,
-    
+
     // Contour parameters
     maxSimplificationError: 1.3,
     maxEdgeLength: 12,
-    
+
     // PolyMesh parameters
     maxVerticesPerPoly: 5,
-    
+
     // Detail parameters (in voxels)
     detailSampleDistanceVoxels: 6,
     detailSampleMaxErrorVoxels: 1,
@@ -145,61 +145,64 @@ function buildGUI() {
     gui.add({ generate }, 'generate').name('Generate NavMesh');
     gui.add({ resetCamera }, 'resetCamera').name('Reset Camera');
     gui.add({ copyShareURL }, 'copyShareURL').name('Copy Share URL');
-    
+
     gui.title(`${config.navmeshType === 'solo' ? 'Solo' : 'Tiled'} NavMesh Generation`);
-    
+
     // Close GUI if no model is loaded
     if (!currentModel) {
         gui.close();
     }
-    
+
     // NavMesh Type Selector
     const typeFolder = gui.addFolder('NavMesh Type');
-    typeFolder.add(config, 'navmeshType', ['solo', 'tiled']).name('Type').onChange(() => {
-        // Update borderSize based on type
-        config.borderSize = config.navmeshType === 'solo' ? 0 : 4;
-        buildGUI();
-    });
+    typeFolder
+        .add(config, 'navmeshType', ['solo', 'tiled'])
+        .name('Type')
+        .onChange(() => {
+            // Update borderSize based on type
+            config.borderSize = config.navmeshType === 'solo' ? 0 : 4;
+            buildGUI();
+        });
     typeFolder.open();
-    
+
     // Heightfield parameters
     const cellFolder = gui.addFolder('Heightfield');
     cellFolder.add(config, 'cellSize', 0.01, 1, 0.01);
     cellFolder.add(config, 'cellHeight', 0.01, 1, 0.01);
-    
+
     // Tile parameters (only for tiled)
     if (config.navmeshType === 'tiled') {
         const tileFolder = gui.addFolder('Tile');
         tileFolder.add(config, 'tileSizeVoxels', 8, 128, 1);
     }
-    
+
     // Agent parameters
     const walkableFolder = gui.addFolder('Agent');
     walkableFolder.add(config, 'walkableRadiusWorld', 0, 2, 0.01);
     walkableFolder.add(config, 'walkableClimbWorld', 0, 2, 0.01);
     walkableFolder.add(config, 'walkableHeightWorld', 0, 2, 0.01);
     walkableFolder.add(config, 'walkableSlopeAngleDegrees', 0, 90, 1);
-    
+
     // Region parameters
     const regionFolder = gui.addFolder('Region');
     regionFolder.add(config, 'borderSize', 0, 10, 1);
     regionFolder.add(config, 'minRegionArea', 0, 50, 1);
     regionFolder.add(config, 'mergeRegionArea', 0, 50, 1);
-    
+
     // Contour parameters
     const contourFolder = gui.addFolder('Contour');
     contourFolder.add(config, 'maxSimplificationError', 0.1, 10, 0.1);
     contourFolder.add(config, 'maxEdgeLength', 0, 50, 1);
-    
+
     // PolyMesh parameters
     const polyMeshFolder = gui.addFolder('PolyMesh');
     polyMeshFolder.add(config, 'maxVerticesPerPoly', 3, 12, 1);
-    
+
     // Detail parameters
     const detailFolder = gui.addFolder('Detail');
     detailFolder.add(config, 'detailSampleDistanceVoxels', 0, 16, 0.1).name('Sample Distance (voxels)');
     detailFolder.add(config, 'detailSampleMaxErrorVoxels', 0, 16, 0.1).name('Max Error (voxels)');
-    
+
     // Debug Helpers
     const debugFolder = gui.addFolder('Debug Helpers');
     debugFolder
@@ -217,7 +220,10 @@ function buildGUI() {
         .add(debugConfig, 'showCompactHeightfieldDistances')
         .name('Compact Heightfield Distances')
         .onChange(updateDebugHelpers);
-    debugFolder.add(debugConfig, 'showCompactHeightfieldRegions').name('Compact Heightfield Regions').onChange(updateDebugHelpers);
+    debugFolder
+        .add(debugConfig, 'showCompactHeightfieldRegions')
+        .name('Compact Heightfield Regions')
+        .onChange(updateDebugHelpers);
     debugFolder.add(debugConfig, 'showRawContours').name('Raw Contours').onChange(updateDebugHelpers);
     debugFolder.add(debugConfig, 'showSimplifiedContours').name('Simplified Contours').onChange(updateDebugHelpers);
     debugFolder.add(debugConfig, 'showPolyMesh').name('Poly Mesh').onChange(updateDebugHelpers);
@@ -228,33 +234,36 @@ function buildGUI() {
     if (config.navmeshType === 'tiled') {
         debugFolder.add(debugConfig, 'showNavMeshPortals').name('NavMesh Portals').onChange(updateDebugHelpers);
     }
-    
+
     // Tools (only show if model is loaded)
     if (currentModel) {
         const toolFolder = gui.addFolder('🛠️ Tools');
-        toolFolder.add(toolConfig, 'activeTool', ['none', 'pathfinding', 'query']).name('Active Tool').onChange((tool: ToolType) => {
-            // Explicitly set the value to ensure it's updated before rebuilding
-            toolConfig.activeTool = tool;
-            
-            // Clear all tool visuals
-            clearPathVisuals();
-            clearQueryVisuals();
-            
-            // Hide all info panels
-            document.getElementById('pathfinding-info')!.classList.remove('visible');
-            document.getElementById('query-info')!.classList.remove('visible');
-            
-            // Show appropriate info panel
-            if (tool === 'pathfinding') {
-                document.getElementById('pathfinding-info')!.classList.add('visible');
-            } else if (tool === 'query') {
-                document.getElementById('query-info')!.classList.add('visible');
-            }
-            
-            // Rebuild GUI to show tool-specific controls
-            buildGUI();
-        });
-        
+        toolFolder
+            .add(toolConfig, 'activeTool', ['none', 'pathfinding', 'query'])
+            .name('Active Tool')
+            .onChange((tool: ToolType) => {
+                // Explicitly set the value to ensure it's updated before rebuilding
+                toolConfig.activeTool = tool;
+
+                // Clear all tool visuals
+                clearPathVisuals();
+                clearQueryVisuals();
+
+                // Hide all info panels
+                document.getElementById('pathfinding-info')!.classList.remove('visible');
+                document.getElementById('query-info')!.classList.remove('visible');
+
+                // Show appropriate info panel
+                if (tool === 'pathfinding') {
+                    document.getElementById('pathfinding-info')!.classList.add('visible');
+                } else if (tool === 'query') {
+                    document.getElementById('query-info')!.classList.add('visible');
+                }
+
+                // Rebuild GUI to show tool-specific controls
+                buildGUI();
+            });
+
         // Show tool-specific controls based on active tool
         if (toolConfig.activeTool === 'pathfinding') {
             const pathfindingFolder = toolFolder.addFolder('🎯 Pathfinding Settings');
@@ -272,7 +281,7 @@ function buildGUI() {
             queryFolder.add(queryConfig, 'halfExtentsZ', 0.1, 5, 0.1).name('Half Extents Z');
             queryFolder.open();
         }
-        
+
         toolFolder.open();
     }
 }
@@ -344,10 +353,14 @@ function updateDebugHelpers() {
     // For solo: wrap in array. For tiled: already arrays
     const triAreaIdsArray = Array.isArray(intermediates.triAreaIds) ? intermediates.triAreaIds : [intermediates.triAreaIds];
     const heightfieldArray = Array.isArray(intermediates.heightfield) ? intermediates.heightfield : [intermediates.heightfield];
-    const compactHeightfieldArray = Array.isArray(intermediates.compactHeightfield) ? intermediates.compactHeightfield : [intermediates.compactHeightfield];
+    const compactHeightfieldArray = Array.isArray(intermediates.compactHeightfield)
+        ? intermediates.compactHeightfield
+        : [intermediates.compactHeightfield];
     const contourSetArray = Array.isArray(intermediates.contourSet) ? intermediates.contourSet : [intermediates.contourSet];
     const polyMeshArray = Array.isArray(intermediates.polyMesh) ? intermediates.polyMesh : [intermediates.polyMesh];
-    const polyMeshDetailArray = Array.isArray(intermediates.polyMeshDetail) ? intermediates.polyMeshDetail : [intermediates.polyMeshDetail];
+    const polyMeshDetailArray = Array.isArray(intermediates.polyMeshDetail)
+        ? intermediates.polyMeshDetail
+        : [intermediates.polyMeshDetail];
 
     // create debug helpers
     if (debugConfig.showTriangleAreaIds) {
@@ -451,7 +464,7 @@ function clearPathVisuals() {
         visual.dispose();
     }
     pathVisuals = [];
-    
+
     // Update info panel (only if elements exist)
     const pathStartEl = document.getElementById('path-start');
     const pathEndEl = document.getElementById('path-end');
@@ -459,7 +472,7 @@ function clearPathVisuals() {
     const pathLength = document.getElementById('path-length');
     const pathPartial = document.getElementById('path-partial');
     const pathTime = document.getElementById('path-time');
-    
+
     if (pathStartEl) pathStartEl.textContent = 'Not set';
     if (pathEndEl) pathEndEl.textContent = 'Not set';
     if (pathWaypoints) pathWaypoints.textContent = '-';
@@ -490,15 +503,15 @@ function addPathVisual(visual: PathVisual) {
 
 function updatePath() {
     if (!currentResult) return;
-    
+
     // Save start and end before clearing (clearPathVisuals sets them to null)
     const start = pathStart;
     const end = pathEnd;
-    
+
     clearPathVisuals();
-    
+
     const { navMesh } = currentResult;
-    
+
     // Create start flag if start point is set
     if (start) {
         const startFlag = createFlag(0x2196f3);
@@ -521,7 +534,7 @@ function updatePath() {
             },
         });
     }
-    
+
     // Create end flag if end point is set
     if (end) {
         const endFlag = createFlag(0x00ff00);
@@ -544,7 +557,7 @@ function updatePath() {
             },
         });
     }
-    
+
     // Only compute path if both start and end are set
     if (!start || !end) {
         // Restore start and end points (clearPathVisuals set them to null)
@@ -552,21 +565,21 @@ function updatePath() {
         pathEnd = end;
         return;
     }
-    
+
     // Find path
     const halfExtents: Vec3 = [pathfindingConfig.halfExtentsX, pathfindingConfig.halfExtentsY, pathfindingConfig.halfExtentsZ];
-    
+
     const startTime = performance.now();
     const pathResult = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
     const endTime = performance.now();
-    
+
     const { path, nodePath } = pathResult;
-    
+
     // Show search nodes
     if (pathfindingConfig.showSearchNodes && nodePath) {
         const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
         addPathVisual(searchNodesHelper);
-        
+
         for (let i = 0; i < nodePath.path.length; i++) {
             const node = nodePath.path[i];
             if (getNodeRefType(node) === NodeType.POLY) {
@@ -576,19 +589,16 @@ function updatePath() {
             }
         }
     }
-    
+
     // Visualize path
     if (path) {
         let pathLength = 0;
-        
+
         for (let i = 0; i < path.length; i++) {
             const point = path[i];
-            
+
             // Waypoint sphere
-            const mesh = new THREE.Mesh(
-                new THREE.SphereGeometry(0.2), 
-                new THREE.MeshBasicMaterial({ color: 0xff0000 })
-            );
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
             mesh.position.set(...point.position);
             addPathVisual({
                 object: mesh,
@@ -597,15 +607,12 @@ function updatePath() {
                     mesh.material?.dispose?.();
                 },
             });
-            
+
             // Line to previous point
             if (i > 0) {
                 const prevPoint = path[i - 1];
                 const geometry = new LineGeometry();
-                geometry.setFromPoints([
-                    new THREE.Vector3(...prevPoint.position),
-                    new THREE.Vector3(...point.position)
-                ]);
+                geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
                 const material = new Line2NodeMaterial({
                     color: 'yellow',
                     linewidth: 0.1,
@@ -619,7 +626,7 @@ function updatePath() {
                         line.material?.dispose?.();
                     },
                 });
-                
+
                 // Calculate path length
                 const dx = point.position[0] - prevPoint.position[0];
                 const dy = point.position[1] - prevPoint.position[1];
@@ -627,17 +634,18 @@ function updatePath() {
                 pathLength += Math.sqrt(dx * dx + dy * dy + dz * dz);
             }
         }
-        
+
         // Update info panel
         const pathWaypointsEl = document.getElementById('path-waypoints');
         const pathLengthEl = document.getElementById('path-length');
         const pathPartialEl = document.getElementById('path-partial');
         const pathTimeEl = document.getElementById('path-time');
-        
+
         if (pathWaypointsEl) pathWaypointsEl.textContent = path.length.toString();
         if (pathLengthEl) pathLengthEl.textContent = pathLength.toFixed(2);
-        if (pathPartialEl) pathPartialEl.textContent = 
-            (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0 ? 'Yes' : 'No';
+        if (pathPartialEl)
+            pathPartialEl.textContent =
+                (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0 ? 'Yes' : 'No';
         if (pathTimeEl) pathTimeEl.textContent = `${(endTime - startTime).toFixed(2)}ms`;
     }
 }
@@ -649,13 +657,13 @@ function clearQueryVisuals() {
         visual.dispose();
     }
     queryVisuals = [];
-    
+
     // Update info panel (only if elements exist)
     const queryPoint = document.getElementById('query-point');
     const queryNearest = document.getElementById('query-nearest');
     const queryDistance = document.getElementById('query-distance');
     const queryRef = document.getElementById('query-ref');
-    
+
     if (queryPoint) queryPoint.textContent = '-';
     if (queryNearest) queryNearest.textContent = '-';
     if (queryDistance) queryDistance.textContent = '-';
@@ -669,28 +677,28 @@ function addQueryVisual(visual: QueryVisual) {
 
 function updateQuery(point: THREE.Vector3) {
     if (toolConfig.activeTool !== 'query' || !currentResult) return;
-    
+
     clearQueryVisuals();
-    
+
     const { navMesh } = currentResult;
     const pos: Vec3 = [point.x, point.y, point.z];
     const halfExtents: Vec3 = [queryConfig.halfExtentsX, queryConfig.halfExtentsY, queryConfig.halfExtentsZ];
-    
+
     const result = { success: false, ref: 0, point: [0, 0, 0] as Vec3 };
     findNearestPoly(result, navMesh, pos, halfExtents, DEFAULT_QUERY_FILTER);
-    
+
     if (result.success) {
         // Show the poly
         const polyHelper = createNavMeshPolyHelper(navMesh, result.ref);
         polyHelper.object.position.y += 0.1;
         addQueryVisual(polyHelper);
-        
+
         // Update info panel
         const queryPoint = document.getElementById('query-point');
         const queryNearest = document.getElementById('query-nearest');
         const queryDistance = document.getElementById('query-distance');
         const queryRef = document.getElementById('query-ref');
-        
+
         if (queryPoint) {
             queryPoint.textContent = `${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}`;
         }
@@ -700,8 +708,8 @@ function updateQuery(point: THREE.Vector3) {
         if (queryDistance) {
             queryDistance.textContent = Math.sqrt(
                 Math.pow(result.point[0] - pos[0], 2) +
-                Math.pow(result.point[1] - pos[1], 2) +
-                Math.pow(result.point[2] - pos[2], 2)
+                    Math.pow(result.point[1] - pos[1], 2) +
+                    Math.pow(result.point[2] - pos[2], 2),
             ).toFixed(3);
         }
         if (queryRef) queryRef.textContent = result.ref.toString();
@@ -710,7 +718,7 @@ function updateQuery(point: THREE.Vector3) {
         const queryNearest = document.getElementById('query-nearest');
         const queryDistance = document.getElementById('query-distance');
         const queryRef = document.getElementById('query-ref');
-        
+
         if (queryPoint) {
             queryPoint.textContent = `${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}`;
         }
@@ -753,9 +761,10 @@ function generate() {
         const walkableRadiusVoxels = Math.ceil(config.walkableRadiusWorld / config.cellSize);
         const walkableClimbVoxels = Math.ceil(config.walkableClimbWorld / config.cellHeight);
         const walkableHeightVoxels = Math.ceil(config.walkableHeightWorld / config.cellHeight);
-        
+
         // Detail mesh parameters: convert voxel units to world units
-        const detailSampleDistance = config.detailSampleDistanceVoxels < 0.9 ? 0 : config.cellSize * config.detailSampleDistanceVoxels;
+        const detailSampleDistance =
+            config.detailSampleDistanceVoxels < 0.9 ? 0 : config.cellSize * config.detailSampleDistanceVoxels;
         const detailSampleMaxError = config.cellHeight * config.detailSampleMaxErrorVoxels;
 
         const startTime = performance.now();
@@ -897,7 +906,7 @@ function updatePerformanceMetrics(generationTime: number, vertexCount: number, t
     // Count polygons and tiles
     let polyCount = 0;
     let tileCount = 0;
-    
+
     for (const tileId in navMesh.tiles) {
         const tile = navMesh.tiles[tileId];
         if (tile) {
@@ -905,7 +914,7 @@ function updatePerformanceMetrics(generationTime: number, vertexCount: number, t
             polyCount += tile.polys.length;
         }
     }
-    
+
     document.getElementById('perf-polys')!.textContent = polyCount.toString();
 
     // For tiled: show tile count
@@ -943,7 +952,7 @@ document.body.addEventListener('dragleave', (e) => {
 document.body.addEventListener('drop', async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     dropZone.classList.remove('active');
     dragOverlay.classList.remove('active');
 
@@ -1005,7 +1014,7 @@ async function loadModelFromFile(file: File) {
 
         // Fit camera to model
         fitCameraToModel();
-        
+
         // Rebuild GUI to show tools section and open it
         buildGUI();
         gui.open();
@@ -1057,7 +1066,7 @@ function resetCamera() {
 
 function copyShareURL() {
     const params = new URLSearchParams();
-    
+
     // Encode essential config
     params.set('navmeshType', config.navmeshType);
     params.set('cellSize', config.cellSize.toString());
@@ -1074,24 +1083,27 @@ function copyShareURL() {
     params.set('detailSampleDistanceVoxels', config.detailSampleDistanceVoxels.toString());
     params.set('detailSampleMaxErrorVoxels', config.detailSampleMaxErrorVoxels.toString());
     params.set('borderSize', config.borderSize.toString());
-    
+
     if (config.navmeshType === 'tiled') {
         params.set('tileSizeVoxels', config.tileSizeVoxels.toString());
     }
-    
+
     const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-    
-    navigator.clipboard.writeText(url).then(() => {
-        showStatus('Share URL copied to clipboard!', 'success');
-    }).catch((err) => {
-        console.error('Failed to copy:', err);
-        showStatus('Failed to copy URL', 'error');
-    });
+
+    navigator.clipboard
+        .writeText(url)
+        .then(() => {
+            showStatus('Share URL copied to clipboard!', 'success');
+        })
+        .catch((err) => {
+            console.error('Failed to copy:', err);
+            showStatus('Failed to copy URL', 'error');
+        });
 }
 
 function loadConfigFromURL() {
     const params = new URLSearchParams(window.location.search);
-    
+
     if (params.has('navmeshType')) {
         config.navmeshType = params.get('navmeshType') as NavMeshType;
     }
@@ -1140,7 +1152,7 @@ function loadConfigFromURL() {
     if (params.has('tileSizeVoxels')) {
         config.tileSizeVoxels = parseInt(params.get('tileSizeVoxels')!);
     }
-    
+
     buildGUI();
 }
 
@@ -1152,23 +1164,23 @@ const pointer = new THREE.Vector2();
 
 window.addEventListener('mousedown', (event) => {
     if (!currentModel || !currentResult) return;
-    
+
     // Calculate pointer position in normalized device coordinates
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
+
     // Raycast
     raycaster.setFromCamera(pointer, camera);
     const intersects = raycaster.intersectObject(currentModel, true);
-    
+
     if (intersects.length > 0) {
         const point = intersects[0].point;
-        
+
         // Handle pathfinding tool
         if (toolConfig.activeTool === 'pathfinding') {
             const pos: Vec3 = [point.x, point.y, point.z];
-            
+
             // Left click (button 0) sets start point
             if (event.button === 0) {
                 pathStart = pos;
@@ -1185,7 +1197,7 @@ window.addEventListener('mousedown', (event) => {
                 updatePath();
             }
         }
-        
+
         // Handle query tool (click mode) - left click only
         if (toolConfig.activeTool === 'query' && queryConfig.mode === 'click' && event.button === 0) {
             updateQuery(point);
@@ -1195,16 +1207,16 @@ window.addEventListener('mousedown', (event) => {
 
 window.addEventListener('mousemove', (event) => {
     if (toolConfig.activeTool !== 'query' || queryConfig.mode !== 'hover' || !currentModel || !currentResult) return;
-    
+
     // Calculate pointer position
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
+
     // Raycast
     raycaster.setFromCamera(pointer, camera);
     const intersects = raycaster.intersectObject(currentModel, true);
-    
+
     if (intersects.length > 0) {
         updateQuery(intersects[0].point);
     }

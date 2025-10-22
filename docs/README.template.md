@@ -485,6 +485,56 @@ If you are using threejs, or want a reference of how to implement debug renderin
 
 <RenderSource type="import('navcat').DebugBoxes" />
 
+## `navcat/blocks`
+
+The `navcat/blocks` entrypoint provides presets and building blocks to help you get started quickly.
+
+### Geometry Utilities
+
+<RenderType type="import('navcat/blocks').mergePositionsAndIndices" />
+
+### Generation Presets
+
+<RenderType type="import('navcat/blocks').generateSoloNavMesh" />
+<RenderType type="import('navcat/blocks').SoloNavMeshInput" />
+<RenderType type="import('navcat/blocks').SoloNavMeshOptions" />
+<RenderType type="import('navcat/blocks').SoloNavMeshResult" />
+
+<RenderType type="import('navcat/blocks').generateTiledNavMesh" />
+<RenderType type="import('navcat/blocks').TiledNavMeshInput" />
+<RenderType type="import('navcat/blocks').TiledNavMeshOptions" />
+<RenderType type="import('navcat/blocks').TiledNavMeshResult" />
+
+## `navcat/three`
+
+The `navcat/three` entrypoint provides some utilities to help integrate navcat with threejs.
+
+### Geometry Extraction
+
+<RenderType type="import('navcat/three').getPositionsAndIndices" />
+
+### Debug Helpers
+
+<RenderType type="import('navcat/three').createTriangleAreaIdsHelper" />
+<RenderType type="import('navcat/three').createHeightfieldHelper" />
+<RenderType type="import('navcat/three').createCompactHeightfieldSolidHelper" />
+<RenderType type="import('navcat/three').createCompactHeightfieldDistancesHelper" />
+<RenderType type="import('navcat/three').createCompactHeightfieldRegionsHelper" />
+<RenderType type="import('navcat/three').createRawContoursHelper" />
+<RenderType type="import('navcat/three').createSimplifiedContoursHelper" />
+<RenderType type="import('navcat/three').createPolyMeshHelper" />
+<RenderType type="import('navcat/three').createPolyMeshDetailHelper" />
+<RenderType type="import('navcat/three').createNavMeshHelper" />
+<RenderType type="import('navcat/three').createNavMeshTileHelper" />
+<RenderType type="import('navcat/three').createNavMeshPolyHelper" />
+<RenderType type="import('navcat/three').createNavMeshTileBvTreeHelper" />
+<RenderType type="import('navcat/three').createNavMeshLinksHelper" />
+<RenderType type="import('navcat/three').createNavMeshBvTreeHelper" />
+<RenderType type="import('navcat/three').createNavMeshTilePortalsHelper" />
+<RenderType type="import('navcat/three').createNavMeshPortalsHelper" />
+<RenderType type="import('navcat/three').createSearchNodesHelper" />
+<RenderType type="import('navcat/three').createNavMeshOffMeshConnectionsHelper" />
+
 ## Acknowledgements
 
 - This library is heavily inspired by the recastnavigation library: https://github.com/recastnavigation/recastnavigation

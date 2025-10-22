@@ -1,11 +1,10 @@
 import type { NavMesh, NodeRef } from 'navcat';
 import { getNodeByTileAndPoly, getNodeRefIndex } from 'navcat';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshPolyHelper, getPositionsAndIndices, type DebugObject } from 'navcat/three';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { createNavMeshPolyHelper, type DebugObject } from './common/debug';
 import { createExample } from './common/example-base';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */

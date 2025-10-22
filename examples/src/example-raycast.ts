@@ -1,14 +1,22 @@
 import GUI from 'lil-gui';
 import { type Vec3, vec3 } from 'maaths';
-import { createFindNearestPolyResult, createGetPolyHeightResult, DEFAULT_QUERY_FILTER, findNearestPoly, getPolyHeight, getTileAndPolyByRef, raycast, raycastWithCosts } from 'navcat';
+import {
+    createFindNearestPolyResult,
+    createGetPolyHeightResult,
+    DEFAULT_QUERY_FILTER,
+    findNearestPoly,
+    getPolyHeight,
+    getTileAndPolyByRef,
+    raycast,
+    raycastWithCosts,
+} from 'navcat';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshHelper, createNavMeshPolyHelper, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { createNavMeshHelper, createNavMeshPolyHelper } from './common/debug';
 import { createExample } from './common/example-base';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
@@ -123,9 +131,11 @@ let visuals: Visual[] = [];
 
 // GUI
 const gui = new GUI();
-gui.add(params, 'calculateCosts').name('Calculate Costs').onChange(() => {
-    performRaycast();
-});
+gui.add(params, 'calculateCosts')
+    .name('Calculate Costs')
+    .onChange(() => {
+        performRaycast();
+    });
 
 // Info panel
 const controlsDiv = document.createElement('div');
@@ -139,7 +149,6 @@ controlsDiv.style.fontFamily = 'monospace';
 controlsDiv.style.fontSize = '14px';
 controlsDiv.style.borderRadius = '4px';
 controlsDiv.style.pointerEvents = 'auto';
-
 
 const infoPanelTitle = document.createElement('div');
 infoPanelTitle.textContent = 'RAYCAST\n2D in XZ plane\nfollows the navmesh surface)';
@@ -243,24 +252,24 @@ function performRaycast() {
 
     // Update info panel with comprehensive metadata
     const formatVec = (v: Vec3) => `(${v[0].toFixed(2)}, ${v[1].toFixed(2)}, ${v[2].toFixed(2)})`;
-    
+
     let infoHtml = '<div style="display: grid; gap: 4px;">';
-    
+
     // Start position info
     infoHtml += '<div style="color: #66ff66;">Start:</div>';
     infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Poly: ${startPoly}</div>`;
     infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(startPos)}</div>`;
-    
+
     // End target info
     infoHtml += '<div style="color: #6699ff; margin-top: 4px;">End Target:</div>';
     infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Poly: ${endPoly}</div>`;
     infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(endPos)}</div>`;
-    
+
     // Raycast hit info - determine the status
     let statusText: string;
     let statusColor: string;
     let hitColor: string;
-    
+
     if (raycastReachedEnd && raycastHitPoly === endPoly) {
         // truly reached the end target poly
         statusText = 'REACHED END ✓';
@@ -277,20 +286,20 @@ function performRaycast() {
         statusColor = '#ff6666';
         hitColor = '#ff6666';
     }
-    
+
     infoHtml += `<div style="color: ${hitColor}; margin-top: 4px;">Raycast Hit:</div>`;
     infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Poly: ${raycastHitPoly}</div>`;
     infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(raycastHitPos)}</div>`;
-    
+
     // show actual hit position on poly if different
     if (actualHitPosOnPoly) {
         infoHtml += '<div style="color: #ffff00; margin-top: 4px;">Actual Pos on Hit Poly:</div>';
         infoHtml += `<div style="padding-left: 8px; opacity: 0.8;">Pos: ${formatVec(actualHitPosOnPoly)}</div>`;
     }
-    
+
     // status
     infoHtml += `<div style="margin-top: 8px; color: ${statusColor};">${statusText}</div>`;
-    
+
     // optional cost/metrics info
     if (params.calculateCosts) {
         infoHtml += '<div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">';
@@ -298,7 +307,7 @@ function performRaycast() {
         infoHtml += `<div>Polys Traversed: ${raycastPathLength}</div>`;
         infoHtml += '</div>';
     }
-    
+
     infoHtml += '</div>';
     infoPanelContent.innerHTML = infoHtml;
 
@@ -341,7 +350,7 @@ function performRaycast() {
     } else {
         hitMeshColor = 'red';
     }
-    
+
     const hitMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.12, 16, 16),
         new THREE.MeshBasicMaterial({ color: new THREE.Color(hitMeshColor) }),
@@ -377,15 +386,15 @@ function performRaycast() {
     const startVec = new THREE.Vector3(...startPos);
     const hitVec = new THREE.Vector3(...raycastHitPos);
     const endVec = new THREE.Vector3(...endPos);
-    
+
     // use actual hit position on poly if available, otherwise use raycastHitPos
     const actualHitVec = actualHitPosOnPoly ? new THREE.Vector3(...actualHitPosOnPoly) : hitVec;
-    
+
     const toHit = new THREE.Vector3().subVectors(actualHitVec, startVec);
     const toEnd = new THREE.Vector3().subVectors(endVec, hitVec);
     const toHitLen = toHit.length();
     const toEndLen = toEnd.length();
-    
+
     if (toHitLen > 0.01) {
         const arrowGreen = new THREE.ArrowHelper(
             toHit.clone().normalize(),
@@ -465,12 +474,12 @@ function performRaycast() {
     // exclude start, end, and raycast hit polys as they're already highlighted
     for (let i = 0; i < raycastResult.path.length; i++) {
         const poly = raycastResult.path[i];
-        
+
         // skip if this poly is already highlighted
         if (poly === startPoly || poly === endPoly || poly === raycastHitPoly) {
             continue;
         }
-        
+
         const hslColor = new THREE.Color().setHSL(0.8, 0.9, 0.4 + (i / raycastResult.path.length) * 0.3);
         const polyHelper = createNavMeshPolyHelper(navMesh, poly, hslColor.toArray() as [number, number, number]);
         polyHelper.object.position.y += 0.35;
