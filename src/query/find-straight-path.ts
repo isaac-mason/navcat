@@ -8,7 +8,7 @@ import {
     intersectSegSeg2D,
     triArea2D,
 } from '../geometry';
-import type { NavMesh } from './nav-mesh';
+import { OffMeshConnectionSide, type NavMesh } from './nav-mesh';
 import { getClosestPointOnPolyBoundary, getNodeByRef } from './nav-mesh-api';
 import { getPortalPoints } from './nav-mesh-search';
 import { getNodeRefType, type NodeRef, NodeType } from './node';
@@ -61,11 +61,19 @@ const appendVertex = (
     maxPoints: number | null = null,
 ): AppendVertexStatus => {
     if (outPoints.length > 0 && vec3.equals(outPoints[outPoints.length - 1].position, point)) {
-        // the vertices are equal, update
-        outPoints[outPoints.length - 1].nodeRef = ref;
-        outPoints[outPoints.length - 1].type = nodeType;
+        const prevType = outPoints[outPoints.length - 1].type;
 
-        return AppendVertexStatus.IN_PROGRESS;
+        // only update if both points are regular polygon nodes
+        // off-mesh connections should always be distinct waypoints
+        if (prevType === NodeType.POLY && nodeType === NodeType.POLY) {
+            // the vertices are equal, update
+            outPoints[outPoints.length - 1].nodeRef = ref;
+            outPoints[outPoints.length - 1].type = nodeType;
+
+            return AppendVertexStatus.IN_PROGRESS;
+        }
+
+        // for off-mesh connections or mixed types, fall through to append a new point
     }
 
     // append new vertex
@@ -271,10 +279,98 @@ export const findStraightPath = (
                     );
                 }
 
-                if (i === 0) {
+                if (i === 0 && toType === NodeType.POLY) {
                     // if starting really close to the portal, advance
                     const result = distancePtSegSqr2d(_findStraightPath_distancePtSegSqr2dResult, portalApex, left, right);
                     if (result.distSqr < 1e-6) continue;
+                }
+
+                // handle off-mesh connections explicitly
+                // off-mesh connections should not be subject to string-pulling optimization
+                if (toType === NodeType.OFFMESH) {
+                    // get the off-mesh connection data
+                    const node = getNodeByRef(navMesh, toRef);
+                    const offMeshConnection = navMesh.offMeshConnections[node.offMeshConnectionId];
+
+                    // determine start and end based on which side of the connection we're entering from
+                    const offMeshStart =
+                        node.offMeshConnectionSide === OffMeshConnectionSide.START
+                            ? offMeshConnection.start
+                            : offMeshConnection.end;
+                    const offMeshEnd =
+                        node.offMeshConnectionSide === OffMeshConnectionSide.START
+                            ? offMeshConnection.end
+                            : offMeshConnection.start;
+
+                    // get the target polygon we'll land on after the off-mesh connection
+                    // NOTE: alternatively we could lookup navMesh.links[node.links[0]].toNodeRef or navMesh.links[node.links[1]].toNodeRef
+                    // depending on offMeshConnectionSide, but this is more explicit.
+                    const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[node.offMeshConnectionId];
+                    const toPolyRef =
+                        node.offMeshConnectionSide === OffMeshConnectionSide.START
+                            ? offMeshConnectionAttachment.endPolyNode
+                            : offMeshConnectionAttachment.startPolyNode;
+
+                    // append any pending portals along the current straight path segment
+                    // this ensures we add intermediate waypoints between the current apex and the off-mesh connection start
+                    const appendPortalsStatus = appendPortals(
+                        navMesh,
+                        apexIndex,
+                        i,
+                        offMeshStart,
+                        pathNodeRefs,
+                        path,
+                        straightPathOptions,
+                        maxPoints,
+                    );
+                    if (appendPortalsStatus !== AppendVertexStatus.IN_PROGRESS) {
+                        const maxPointsReached = (appendPortalsStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
+                        let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
+                        if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
+                        return makeFindStraightPathResult(flags, path);
+                    }
+
+                    // append the off-mesh connection start point (with OFFMESH flag)
+                    const appendStartStatus = appendVertex(
+                        offMeshStart,
+                        toRef,
+                        StraightPathPointFlags.OFFMESH,
+                        path,
+                        NodeType.OFFMESH,
+                        maxPoints,
+                    );
+
+                    if (appendStartStatus !== AppendVertexStatus.IN_PROGRESS) {
+                        const maxPointsReached = (appendStartStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
+                        let resultFlags = FindStraightPathResultFlags.SUCCESS;
+                        if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
+                        return makeFindStraightPathResult(resultFlags, path);
+                    }
+
+                    // append the off-mesh connection end point (landing point on target polygon)
+                    const appendEndStatus = appendVertex(offMeshEnd, toPolyRef, 0, path, NodeType.POLY, maxPoints);
+
+                    if (appendEndStatus !== AppendVertexStatus.IN_PROGRESS) {
+                        const maxPointsReached = (appendEndStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
+                        let resultFlags = FindStraightPathResultFlags.SUCCESS;
+                        if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
+                        return makeFindStraightPathResult(resultFlags, path);
+                    }
+
+                    // reset the funnel, we should start from the ground poly at the end of the off-mesh connection
+                    vec3.copy(portalApex, offMeshEnd);
+                    vec3.copy(portalLeft, offMeshEnd);
+                    vec3.copy(portalRight, offMeshEnd);
+                    apexIndex = i;
+                    leftIndex = i;
+                    rightIndex = i;
+                    leftNodeRef = toPolyRef;
+                    rightNodeRef = toPolyRef;
+                    leftNodeType = NodeType.POLY;
+                    rightNodeType = NodeType.POLY;
+
+                    // skip normal funnel processing for this off-mesh connection
+                    continue;
                 }
             } else {
                 // end of path
@@ -317,9 +413,8 @@ export const findStraightPath = (
                     let pointFlags = 0;
                     if (!leftNodeRef) {
                         pointFlags = StraightPathPointFlags.END;
-                    } else if (leftNodeType === NodeType.OFFMESH) {
-                        pointFlags = StraightPathPointFlags.OFFMESH;
                     }
+                    // note: leftNodeType can never be OFFMESH here because off-mesh connections are handled explicitly above
 
                     // append or update vertex
                     const appendStatus = appendVertex(
@@ -393,9 +488,8 @@ export const findStraightPath = (
                     let pointFlags = 0;
                     if (!rightNodeRef) {
                         pointFlags = StraightPathPointFlags.END;
-                    } else if (rightNodeType === NodeType.OFFMESH) {
-                        pointFlags = StraightPathPointFlags.OFFMESH;
                     }
+                    // note: rightNodeType can never be OFFMESH here because off-mesh connections are handled explicitly above
 
                     // add/update vertex
                     const appendStatus = appendVertex(
@@ -454,14 +548,7 @@ export const findStraightPath = (
     // append end point
     // attach the last poly ref if available for the end point for easier identification
     const endRef = pathNodeRefs.length > 0 ? pathNodeRefs[pathNodeRefs.length - 1] : null;
-    const endAppendStatus = appendVertex(
-        closestEndPos,
-        endRef,
-        StraightPathPointFlags.END,
-        path,
-        NodeType.POLY,
-        maxPoints,
-    );
+    const endAppendStatus = appendVertex(closestEndPos, endRef, StraightPathPointFlags.END, path, NodeType.POLY, maxPoints);
     const maxPointsReached = (endAppendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
 
     let resultFlags = FindStraightPathResultFlags.SUCCESS;

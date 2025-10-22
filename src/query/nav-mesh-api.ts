@@ -1243,7 +1243,7 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
 
     navMesh.offMeshConnectionAttachments[offMeshConnection.id] = offMeshConnectionState;
 
-    // create a node for the off mesh connection start
+    // create a node for the off mesh connection
     const offMeshNode = allocateNode(navMesh);
     const offMeshNodeRef = serNodeRef(NodeType.OFFMESH, offMeshNode.index, offMeshConnection.sequence);
     offMeshNode.type = NodeType.OFFMESH;

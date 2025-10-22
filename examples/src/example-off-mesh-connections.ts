@@ -164,6 +164,22 @@ const offMeshConnections: OffMeshConnectionParams[] = [
         area: OffMeshConnectionAreaType.CLIMB,
         flags: 0xffffff,
     },
+    {
+        start: [3.54, 0.27, -3.89],
+        end: [6.09, 0.69, -3.59],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        area: 0,
+        flags: 0xffffff,
+    },
+    {
+        start: [6.09, 0.69, -3.59],
+        end: [6.55, 0.39, -0.68],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        area: 0,
+        flags: 0xffffff,
+    },
 ];
 
 for (const connection of offMeshConnections) {
@@ -261,11 +277,7 @@ function updatePath() {
         },
     });
 
-    console.time('findPath');
     const pathResult = findPath(navMesh, start, end, halfExtents, queryFilter);
-    console.timeEnd('findPath');
-
-    console.log('pathResult', pathResult);
 
     if (pathResult.success) {
         const { path, nodePath } = pathResult;
@@ -348,6 +360,8 @@ function updatePath() {
             }
         }
     }
+
+    updateStats();
 }
 
 /* interaction */
@@ -415,7 +429,52 @@ renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
 
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
+/* path stats */
+const statsDiv = document.createElement('div');
+statsDiv.style.position = 'absolute';
+statsDiv.style.top = '10px';
+statsDiv.style.left = '10px';
+statsDiv.style.color = 'white';
+statsDiv.style.fontFamily = 'monospace';
+statsDiv.style.fontSize = '11px';
+statsDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+statsDiv.style.padding = '10px';
+statsDiv.style.borderRadius = '4px';
+statsDiv.style.minWidth = '200px';
+container.appendChild(statsDiv);
+
+function updateStats() {
+    let html = `<div style="margin-bottom: 8px; font-weight: bold; color: #00aaff;">Path Stats</div>`;
+
+    // Start position
+    html += `<div style="margin-bottom: 4px;">`;
+    html += `<div style="color: #2196f3; font-weight: bold;">Start Position</div>`;
+    html += `<div style="color: #ccc; padding-left: 8px;">X: ${start[0].toFixed(2)}</div>`;
+    html += `<div style="color: #ccc; padding-left: 8px;">Y: ${start[1].toFixed(2)}</div>`;
+    html += `<div style="color: #ccc; padding-left: 8px;">Z: ${start[2].toFixed(2)}</div>`;
+    html += `</div>`;
+
+    // End position
+    html += `<div style="margin-bottom: 4px;">`;
+    html += `<div style="color: #00ff00; font-weight: bold;">End Position</div>`;
+    html += `<div style="color: #ccc; padding-left: 8px;">X: ${end[0].toFixed(2)}</div>`;
+    html += `<div style="color: #ccc; padding-left: 8px;">Y: ${end[1].toFixed(2)}</div>`;
+    html += `<div style="color: #ccc; padding-left: 8px;">Z: ${end[2].toFixed(2)}</div>`;
+    html += `</div>`;
+
+    // Path stats
+    const pathResult = findPath(navMesh, start, end, halfExtents, queryFilter);
+
+    html += `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2);">`;
+    html += `<div style="color: #ffff00; font-weight: bold; margin-bottom: 4px;">Path Info</div>`;
+    html += `<pre style="color: #ccc; font-size: 10px; margin: 0; overflow-x: auto; max-height: 400px; overflow-y: auto;">${JSON.stringify(pathResult, null, 2)}</pre>`;
+    html += `</div>`;
+
+    statsDiv.innerHTML = html;
+}
+
 /* initial update */
+updateStats();
 updatePath();
 
 /* start loop */
