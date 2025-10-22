@@ -38,6 +38,8 @@ Below is a minimal example of using the presets in `navcat/blocks` to generate a
 
 For information on how to tune these options, and how the generation process works under the hood with images, see the [Generating navigation meshes](#generating-navigation-meshes) section below.
 
+If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
+
 <Snippet source="./snippets/blocks.ts" select="quickstart" />
 
 ## Introduction

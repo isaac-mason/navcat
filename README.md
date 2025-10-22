@@ -2292,10 +2292,12 @@ The `navcat/three` entrypoint provides some utilities to help integrate navcat w
 
 Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract geometry from a threejs mesh for navmesh generation, and how to use `createNavMeshHelper` to visualize the generated navmesh in threejs.
 
+If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
+
 ```ts
 import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
-import { createNavMeshHelper, getPositionsAndIndices } from 'navcat/three';
+import { createNavMeshHelper, createSearchNodesHelper, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
 
 // create a simple threejs scene
@@ -2387,6 +2389,19 @@ console.log(
     'path:',
     path.path.map((p) => p.position),
 );
+
+// visualise the path points
+for (const point of path.path) {
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+    sphere.position.set(point.position[0], point.position[1], point.position[2]);
+    scene.add(sphere);
+}
+
+// visualise the A* search nodes
+if (path.nodePath) {
+    const searchNodesHelper = createSearchNodesHelper(path.nodePath.nodes);
+    scene.add(searchNodesHelper.object);
+}
 ```
 
 ### Geometry Extraction
