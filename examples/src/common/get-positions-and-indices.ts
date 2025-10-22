@@ -1,4 +1,4 @@
-import { mergePositionsAndIndices } from 'navcat';
+import { mergePositionsAndIndices } from 'navcat/blocks';
 import { type BufferAttribute, type Mesh, Vector3 } from 'three';
 
 const _position = new Vector3();

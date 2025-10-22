@@ -7,6 +7,7 @@
 - feat: add `navcat/blocks` entrypoint, which will home higher level apis and presets for navmesh generation and querying
   - moved `generateSoloNavMesh` and `generateTiledNavMesh` from the examples into `navcat/blocks` to begin
 - feat: re-export `Vec3` and `Box3` types from `maaths`
+- feat: move `mergePositionsAndIndices` utility from `navcat` to `navcat/blocks`
 
 ## 0.0.6
 
