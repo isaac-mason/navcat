@@ -37,7 +37,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 
 Below is a minimal example of using the presets in `navcat/blocks` to generate a navigation mesh, and then using APIs in `navcat` to find a path on the generated navmesh.
 
-For information on how to tune these options, and how the generation process works under the hood with images, see the [Generating navigation meshes](#generating-navigation-meshes) section below.
+For information on how to tune these options, and how the generation process works under the hood with images, see the [Navigation mesh generation](#navigation-mesh-generation) section below.
 
 If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
 
@@ -84,8 +84,6 @@ Each `node` represents either a polygon in the navigation mesh or an off-mesh co
 The `NodeRef` is a packed number that encodes the node type (polygon or off-mesh connection), the node index (index in the `navMesh.nodes` array), and a sequence number which handles invalidation of node references when tiles or off mesh connections are removed and re-added.
 
 Each `link` represents a connection between two nodes, either between two polygons if they share an edge, or between a polygon and an off-mesh connection.
-
-Because the navigation mesh is a fully JSON-serializable data structure, you can easily save and load navigation meshes to/from disk, or send them over a network. It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
@@ -471,6 +469,10 @@ You can also use `polysToTileDetailMesh` to generate a detail mesh for your poly
 See the "Custom GLTF NavMesh" Example to see how to use an "externally generated" navigation mesh with navcat:
 
 <Example id="example-custom-gltf-navmesh" />
+
+## Saving and Loading NavMeshes
+
+Because the navigation mesh is a normal JSON-serializable object, you can easily save and load navigation meshes to/from disk, or send them over a network. It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
 
 ## Debug Utilities
 

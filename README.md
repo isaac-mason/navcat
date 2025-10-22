@@ -222,6 +222,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - [Off-Mesh Connections](#off-mesh-connections)
 - [Tiled Navigation Meshes](#tiled-navigation-meshes)
 - [BYO Navigation Meshes](#byo-navigation-meshes)
+- [Saving and Loading NavMeshes](#saving-and-loading-navmeshes)
 - [Debug Utilities](#debug-utilities)
 - [`navcat/blocks`](#navcatblocks)
   - [Geometry Utilities](#geometry-utilities)
@@ -362,8 +363,6 @@ Each `node` represents either a polygon in the navigation mesh or an off-mesh co
 The `NodeRef` is a packed number that encodes the node type (polygon or off-mesh connection), the node index (index in the `navMesh.nodes` array), and a sequence number which handles invalidation of node references when tiles or off mesh connections are removed and re-added.
 
 Each `link` represents a connection between two nodes, either between two polygons if they share an edge, or between a polygon and an off-mesh connection.
-
-Because the navigation mesh is a fully JSON-serializable data structure, you can easily save and load navigation meshes to/from disk, or send them over a network. It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
@@ -2091,6 +2090,10 @@ See the "Custom GLTF NavMesh" Example to see how to use an "externally generated
   <p>Example of loading a level model and navmesh from a GLTF file</p>
 </div>
 
+
+## Saving and Loading NavMeshes
+
+Because the navigation mesh is a normal JSON-serializable object, you can easily save and load navigation meshes to/from disk, or send them over a network. It is as simple as `JSON.stringify(navMesh)` and `JSON.parse(navMeshJsonString)`, really.
 
 ## Debug Utilities
 
