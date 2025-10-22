@@ -151,8 +151,6 @@ export const findSmoothPath = (
 
     let polys = [...nodePath.path];
 
-    // const path: StraightPathPoint[] = [];
-
     result.path.push({
         position: vec3.clone(iterPos),
         type: NodeType.POLY,
