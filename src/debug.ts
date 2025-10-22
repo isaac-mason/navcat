@@ -52,44 +52,63 @@ export type DebugBoxes = {
 
 export type DebugPrimitive = DebugTriangles | DebugLines | DebugPoints | DebugBoxes;
 
-// Utility functions
-function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+const hslToRgb = (out: Vec3, h: number, s: number, l: number): Vec3 => {
     h /= 360;
     const a = s * Math.min(l, 1 - l);
     const f = (n: number) => {
         const k = (n + h * 12) % 12;
         return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
     };
-    return [f(0), f(8), f(4)];
-}
+    out[0] = f(0);
+    out[1] = f(8);
+    out[2] = f(4);
+    return out;
+};
 
-function regionToColor(regionId: number, alpha = 1.0): [number, number, number] {
+const regionToColor = (out: Vec3, regionId: number, alpha = 1.0): Vec3 => {
     if (regionId === 0) {
-        return [0, 0, 0];
+        out[0] = 0;
+        out[1] = 0;
+        out[2] = 0;
+        return out;
     }
     const hash = regionId * 137.5;
     const hue = hash % 360;
-    const [r, g, b] = hslToRgb(hue, 0.7, 0.6);
-    return [r * alpha, g * alpha, b * alpha];
-}
+    hslToRgb(out, hue, 0.7, 0.6);
+    out[0] *= alpha;
+    out[1] *= alpha;
+    out[2] *= alpha;
+    return out;
+};
 
-function areaToColor(area: number, alpha = 1.0): [number, number, number] {
+const areaToColor = (out: Vec3, area: number, alpha = 1.0): Vec3 => {
     if (area === WALKABLE_AREA) {
-        return [0, 192 / 255, 1];
+        out[0] = 0;
+        out[1] = 192 / 255;
+        out[2] = 1;
+        return out;
     }
     if (area === NULL_AREA) {
-        return [0, 0, 0];
+        out[0] = 0;
+        out[1] = 0;
+        out[2] = 0;
+        return out;
     }
     const hash = area * 137.5;
     const hue = hash % 360;
-    const [r, g, b] = hslToRgb(hue, 0.7, 0.6);
-    return [r * alpha, g * alpha, b * alpha];
-}
+    hslToRgb(out, hue, 0.7, 0.6);
+    out[0] *= alpha;
+    out[1] *= alpha;
+    out[2] *= alpha;
+    return out;
+};
 
-export function createTriangleAreaIdsHelper(
+const _color = vec3.create();
+
+export const createTriangleAreaIdsHelper = (
     input: { positions: ArrayLike<number>; indices: ArrayLike<number> },
     triAreaIds: ArrayLike<number>,
-): DebugPrimitive[] {
+): DebugPrimitive[] => {
     const areaToColorMap: Record<number, [number, number, number]> = {};
     const positions: number[] = [];
     const indices: number[] = [];
@@ -109,7 +128,8 @@ export function createTriangleAreaIdsHelper(
             } else if (areaId === NULL_AREA) {
                 color = [1, 0, 0];
             } else {
-                color = areaToColor(areaId);
+                areaToColor(_color, areaId);
+                color = [_color[0], _color[1], _color[2]];
             }
             areaToColorMap[areaId] = color;
         }
@@ -151,9 +171,9 @@ export function createTriangleAreaIdsHelper(
             opacity: 1,
         },
     ];
-}
+};
 
-export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitive[] {
+export const createHeightfieldHelper = (heightfield: Heightfield): DebugPrimitive[] => {
     // Count total spans
     let totalSpans = 0;
     for (let z = 0; z < heightfield.height; z++) {
@@ -202,7 +222,8 @@ export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitiv
                     } else if (span.area === NULL_AREA) {
                         color = [1, 0, 0];
                     } else {
-                        color = areaToColor(span.area);
+                        areaToColor(_color, span.area);
+                        color = [_color[0], _color[1], _color[2]];
                     }
                     areaToColorMap[span.area] = color;
                 }
@@ -222,9 +243,9 @@ export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitiv
             scales,
         },
     ];
-}
+};
 
-export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[] {
+export const createCompactHeightfieldSolidHelper = (compactHeightfield: CompactHeightfield): DebugPrimitive[] => {
     const chf = compactHeightfield;
 
     let totalQuads = 0;
@@ -254,22 +275,22 @@ export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactH
                 const span = chf.spans[i];
                 const area = chf.areas[i];
 
-                const color = areaToColor(area);
+                areaToColor(_color, area);
 
                 const fy = chf.bounds[0][1] + (span.y + 1) * chf.cellHeight;
 
                 // Create quad vertices
                 positions.push(fx, fy, fz);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 positions.push(fx, fy, fz + chf.cellSize);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 positions.push(fx + chf.cellSize, fy, fz + chf.cellSize);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 positions.push(fx + chf.cellSize, fy, fz);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 // Create triangles
                 indices.push(indexOffset, indexOffset + 1, indexOffset + 2);
@@ -291,9 +312,9 @@ export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactH
             doubleSided: true,
         },
     ];
-}
+};
 
-export function createCompactHeightfieldDistancesHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[] {
+export const createCompactHeightfieldDistancesHelper = (compactHeightfield: CompactHeightfield): DebugPrimitive[] => {
     const chf = compactHeightfield;
 
     if (!chf.distances) {
@@ -366,9 +387,9 @@ export function createCompactHeightfieldDistancesHelper(compactHeightfield: Comp
             doubleSided: true,
         },
     ];
-}
+};
 
-export function createCompactHeightfieldRegionsHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[] {
+export const createCompactHeightfieldRegionsHelper = (compactHeightfield: CompactHeightfield): DebugPrimitive[] => {
     const chf = compactHeightfield;
 
     let totalQuads = 0;
@@ -398,20 +419,20 @@ export function createCompactHeightfieldRegionsHelper(compactHeightfield: Compac
                 const span = chf.spans[i];
                 const fy = chf.bounds[0][1] + span.y * chf.cellHeight;
 
-                const color = regionToColor(span.region);
+                regionToColor(_color, span.region);
 
                 // Create quad vertices
                 positions.push(fx, fy, fz);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 positions.push(fx, fy, fz + chf.cellSize);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 positions.push(fx + chf.cellSize, fy, fz + chf.cellSize);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 positions.push(fx + chf.cellSize, fy, fz);
-                colors.push(color[0], color[1], color[2]);
+                colors.push(_color[0], _color[1], _color[2]);
 
                 // Create triangles
                 indices.push(indexOffset, indexOffset + 1, indexOffset + 2);
@@ -433,9 +454,9 @@ export function createCompactHeightfieldRegionsHelper(compactHeightfield: Compac
             doubleSided: true,
         },
     ];
-}
+};
 
-export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[] {
+export const createRawContoursHelper = (contourSet: ContourSet): DebugPrimitive[] => {
     if (!contourSet || contourSet.contours.length === 0) {
         return [];
     }
@@ -452,7 +473,7 @@ export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[
     // Draw lines for each contour
     for (let i = 0; i < contourSet.contours.length; ++i) {
         const c = contourSet.contours[i];
-        const color = regionToColor(c.reg, 0.8);
+        regionToColor(_color, c.reg, 0.8);
 
         for (let j = 0; j < c.nRawVertices; ++j) {
             const v = c.rawVertices.slice(j * 4, j * 4 + 4);
@@ -461,11 +482,11 @@ export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[
             const fz = orig[2] + v[2] * cs;
 
             linePositions.push(fx, fy, fz);
-            lineColors.push(color[0], color[1], color[2]);
+            lineColors.push(_color[0], _color[1], _color[2]);
 
             if (j > 0) {
                 linePositions.push(fx, fy, fz);
-                lineColors.push(color[0], color[1], color[2]);
+                lineColors.push(_color[0], _color[1], _color[2]);
             }
         }
 
@@ -477,15 +498,15 @@ export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[
             const fz = orig[2] + v[2] * cs;
 
             linePositions.push(fx, fy, fz);
-            lineColors.push(color[0], color[1], color[2]);
+            lineColors.push(_color[0], _color[1], _color[2]);
         }
     }
 
     // Draw points for each contour
     for (let i = 0; i < contourSet.contours.length; ++i) {
         const c = contourSet.contours[i];
-        const baseColor = regionToColor(c.reg, 0.8);
-        const darkenedColor: [number, number, number] = [baseColor[0] * 0.5, baseColor[1] * 0.5, baseColor[2] * 0.5];
+        regionToColor(_color, c.reg, 0.8);
+        const darkenedColor: [number, number, number] = [_color[0] * 0.5, _color[1] * 0.5, _color[2] * 0.5];
 
         for (let j = 0; j < c.nRawVertices; ++j) {
             const v = c.rawVertices.slice(j * 4, j * 4 + 4);
@@ -531,9 +552,9 @@ export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[
     }
 
     return primitives;
-}
+};
 
-export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPrimitive[] {
+export const createSimplifiedContoursHelper = (contourSet: ContourSet): DebugPrimitive[] => {
     if (!contourSet || contourSet.contours.length === 0) {
         return [];
     }
@@ -552,19 +573,17 @@ export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPri
         const c = contourSet.contours[i];
         if (c.nVertices === 0) continue;
 
-        const baseColor = regionToColor(c.reg, 0.8);
+        regionToColor(_color, c.reg, 0.8);
+        const baseColor: [number, number, number] = [_color[0], _color[1], _color[2]];
         const whiteColor: [number, number, number] = [1, 1, 1];
 
-        // Lerp between colors
-        const lerpColor = (t: number): [number, number, number] => {
-            const f = t / 255.0;
-            return [
-                baseColor[0] * (1 - f) + whiteColor[0] * f,
-                baseColor[1] * (1 - f) + whiteColor[1] * f,
-                baseColor[2] * (1 - f) + whiteColor[2] * f,
-            ];
-        };
-        const borderColor = lerpColor(128);
+        // Compute border color (lerp between baseColor and white at t=128)
+        const f = 128 / 255.0;
+        const borderColor: [number, number, number] = [
+            baseColor[0] * (1 - f) + whiteColor[0] * f,
+            baseColor[1] * (1 - f) + whiteColor[1] * f,
+            baseColor[2] * (1 - f) + whiteColor[2] * f,
+        ];
 
         for (let j = 0, k = c.nVertices - 1; j < c.nVertices; k = j++) {
             const va = c.vertices.slice(k * 4, k * 4 + 4);
@@ -591,8 +610,8 @@ export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPri
     // Draw points for each contour
     for (let i = 0; i < contourSet.contours.length; ++i) {
         const c = contourSet.contours[i];
-        const baseColor = regionToColor(c.reg, 0.8);
-        const darkenedColor: [number, number, number] = [baseColor[0] * 0.5, baseColor[1] * 0.5, baseColor[2] * 0.5];
+        regionToColor(_color, c.reg, 0.8);
+        const darkenedColor: [number, number, number] = [_color[0] * 0.5, _color[1] * 0.5, _color[2] * 0.5];
 
         for (let j = 0; j < c.nVertices; ++j) {
             const v = c.vertices.slice(j * 4, j * 4 + 4);
@@ -637,9 +656,9 @@ export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPri
     }
 
     return primitives;
-}
+};
 
-export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[] {
+export const createPolyMeshHelper = (polyMesh: PolyMesh): DebugPrimitive[] => {
     if (!polyMesh || polyMesh.nPolys === 0) {
         return [];
     }
@@ -663,7 +682,7 @@ export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[] {
     for (let i = 0; i < polyMesh.nPolys; i++) {
         const polyBase = i * nvp;
         const area = polyMesh.areas[i];
-        const color = areaToColor(area);
+        areaToColor(_color, area);
 
         // Triangulate polygon by creating a triangle fan from vertex 0
         for (let j = 2; j < nvp; j++) {
@@ -682,7 +701,7 @@ export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[] {
                 const z = orig[2] + polyMesh.vertices[vertIndex + 2] * cs;
 
                 triPositions.push(x, y, z);
-                triColors.push(color[0], color[1], color[2]);
+                triColors.push(_color[0], _color[1], _color[2]);
             }
 
             triIndices.push(triVertexIndex, triVertexIndex + 1, triVertexIndex + 2);
@@ -763,9 +782,9 @@ export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[] {
     }
 
     return primitives;
-}
+};
 
-export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): DebugPrimitive[] {
+export const createPolyMeshDetailHelper = (polyMeshDetail: PolyMeshDetail): DebugPrimitive[] => {
     if (!polyMeshDetail || polyMeshDetail.nMeshes === 0) {
         return [];
     }
@@ -775,11 +794,14 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
     const edgeColor: [number, number, number] = [0, 0, 0];
     const vertexColor: [number, number, number] = [1, 1, 1];
 
-    const submeshToColor = (submeshIndex: number): [number, number, number] => {
+    const submeshToColor = (out: Vec3, submeshIndex: number): Vec3 => {
         const hash = submeshIndex * 137.5;
         const hue = hash % 360;
-        const [r, g, b] = hslToRgb(hue, 0.7, 0.6);
-        return [r * 0.3, g * 0.3, b * 0.3];
+        hslToRgb(out, hue, 0.7, 0.6);
+        out[0] *= 0.3;
+        out[1] *= 0.3;
+        out[2] *= 0.3;
+        return out;
     };
 
     // 1. Draw triangles
@@ -796,7 +818,7 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
         const verts = bverts * 3;
         const tris = btris * 4;
 
-        const color = submeshToColor(i);
+        submeshToColor(_color, i);
 
         for (let j = 0; j < ntris; ++j) {
             const triBase = tris + j * 4;
@@ -823,7 +845,7 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
 
             // Add colors for all three vertices
             for (let k = 0; k < 3; k++) {
-                triColors.push(color[0], color[1], color[2]);
+                triColors.push(_color[0], _color[1], _color[2]);
             }
 
             triIndices.push(triVertexIndex, triVertexIndex + 1, triVertexIndex + 2);
@@ -991,9 +1013,9 @@ export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): Debu
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
+export const createNavMeshHelper = (navMesh: NavMesh): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     const triPositions: number[] = [];
@@ -1020,7 +1042,8 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
             if (!polyDetail) continue;
 
             // Get polygon color based on area
-            const col = areaToColor(poly.area, 0.4);
+            areaToColor(_color, poly.area, 0.4);
+            const col: [number, number, number] = [_color[0], _color[1], _color[2]];
 
             // Draw detail triangles for this polygon
             for (let j = 0; j < polyDetail.trianglesCount; j++) {
@@ -1166,9 +1189,9 @@ export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[] {
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshTileHelper(tile: NavMeshTile): DebugPrimitive[] {
+export const createNavMeshTileHelper = (tile: NavMeshTile): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     const triPositions: number[] = [];
@@ -1191,7 +1214,8 @@ export function createNavMeshTileHelper(tile: NavMeshTile): DebugPrimitive[] {
         if (!polyDetail) continue;
 
         // Get polygon color based on area
-        const col = areaToColor(poly.area, 0.4);
+        areaToColor(_color, poly.area, 0.4);
+        const col: [number, number, number] = [_color[0], _color[1], _color[2]];
 
         // Draw detail triangles for this polygon
         for (let j = 0; j < polyDetail.trianglesCount; j++) {
@@ -1336,13 +1360,13 @@ export function createNavMeshTileHelper(tile: NavMeshTile): DebugPrimitive[] {
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshPolyHelper(
+export const createNavMeshPolyHelper = (
     navMesh: NavMesh,
     polyRef: NodeRef,
     color: [number, number, number] = [0, 0.75, 1],
-): DebugPrimitive[] {
+): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     // Get tile and polygon from reference
@@ -1454,9 +1478,9 @@ export function createNavMeshPolyHelper(
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugPrimitive[] {
+export const createNavMeshTileBvTreeHelper = (navMeshTile: NavMeshTile): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     if (navMeshTile.bvTree.nodes.length === 0) {
@@ -1526,9 +1550,9 @@ export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugPr
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
+export const createNavMeshBvTreeHelper = (navMesh: NavMesh): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     // Draw BV tree for all tiles in the nav mesh
@@ -1541,7 +1565,7 @@ export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugPrimitive[] {
     }
 
     return primitives;
-}
+};
 
 const _createNavMeshLinksHelper_sourceCenter = vec3.create();
 const _createNavMeshLinksHelper_targetCenter = vec3.create();
@@ -1551,7 +1575,7 @@ const _createNavMeshLinksHelper_edgeMidpoint = vec3.create();
 const _createNavMeshLinksHelper_sourcePoint = vec3.create();
 const _createNavMeshLinksHelper_targetPoint = vec3.create();
 
-export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
+export const createNavMeshLinksHelper = (navMesh: NavMesh): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     // Arrays for line data
@@ -1721,9 +1745,9 @@ export function createNavMeshLinksHelper(navMesh: NavMesh): DebugPrimitive[] {
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugPrimitive[] {
+export const createNavMeshTilePortalsHelper = (navMeshTile: NavMeshTile): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     const padx = 0.04; // (purely visual)
@@ -1799,9 +1823,9 @@ export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugP
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshPortalsHelper(navMesh: NavMesh): DebugPrimitive[] {
+export const createNavMeshPortalsHelper = (navMesh: NavMesh): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     for (const tileId in navMesh.tiles) {
@@ -1812,9 +1836,9 @@ export function createNavMeshPortalsHelper(navMesh: NavMesh): DebugPrimitive[] {
     }
 
     return primitives;
-}
+};
 
-export function createSearchNodesHelper(nodePool: SearchNodePool): DebugPrimitive[] {
+export const createSearchNodesHelper = (nodePool: SearchNodePool): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     if (!nodePool || Object.keys(nodePool).length === 0) {
@@ -1893,9 +1917,9 @@ export function createSearchNodesHelper(nodePool: SearchNodePool): DebugPrimitiv
     }
 
     return primitives;
-}
+};
 
-export function createNavMeshOffMeshConnectionsHelper(navMesh: NavMesh): DebugPrimitive[] {
+export const createNavMeshOffMeshConnectionsHelper = (navMesh: NavMesh): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     const arcSegments = 16;
@@ -2007,7 +2031,7 @@ export function createNavMeshOffMeshConnectionsHelper(navMesh: NavMesh): DebugPr
     }
 
     return primitives;
-}
+};
 
 // All debug helper functions are now implemented
 // The pattern is: return DebugPrimitive[] where each primitive has a 'type' field
