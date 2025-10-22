@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.0.8 (Unreleased)
+
+- fix: findStraightPath handling of offmesh connections
+  - credit to @FlorentMasson for investigating and sharing a patch for one of the string pulling with offmesh links algorithm fixes
+
 ## 0.0.7
 
 - feat: add `navcat/blocks` entrypoint, which will home higher level apis and presets for navmesh generation and querying
