@@ -1,4 +1,4 @@
-import { type Box3, type Vec3, vec3 } from 'maaths';
+import { box3, type Box3, type Vec3, vec3 } from 'maaths';
 import { pointInPoly } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common';
@@ -111,7 +111,7 @@ export const buildCompactHeightfield = (
         borderSize: 0,
         maxDistance: 0,
         maxRegions: 0,
-        bounds: structuredClone(heightfield.bounds),
+        bounds: box3.clone(heightfield.bounds),
         cellSize: heightfield.cellSize,
         cellHeight: heightfield.cellHeight,
         cells: new Array(xSize * zSize),
