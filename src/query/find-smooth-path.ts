@@ -1,7 +1,7 @@
 import type { Vec3 } from 'maaths';
 import { vec3 } from 'maaths';
 import { findStraightPath, StraightPathPointFlags } from './find-straight-path';
-import { type NavMesh, OffMeshConnectionSide } from './nav-mesh';
+import type { NavMesh } from './nav-mesh';
 import type { QueryFilter } from './nav-mesh-api';
 import { createFindNearestPolyResult, findNearestPoly, getNodeByRef } from './nav-mesh-api';
 import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
@@ -218,10 +218,12 @@ export const findSmoothPath = (
             const offMeshConRef = steerTarget.steerPosRef;
 
             // advance the path up to and over the off-mesh connection
+            let prevPolyRef: NodeRef | null = null;
             let polyRef: NodeRef = polys[0];
             let npos = 0;
 
             while (npos < polys.length && polyRef !== offMeshConRef) {
+                prevPolyRef = polyRef;
                 polyRef = polys[npos];
                 npos++;
             }
@@ -230,10 +232,26 @@ export const findSmoothPath = (
             polys.splice(0, npos);
 
             // handle the off-mesh connection
-            const { offMeshConnectionId, offMeshConnectionSide } = getNodeByRef(navMesh, offMeshConRef);
-            const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+            const offMeshNode = getNodeByRef(navMesh, offMeshConRef);
+            const offMeshConnection = navMesh.offMeshConnections[offMeshNode.offMeshConnectionId];
 
-            if (offMeshConnection) {
+            if (offMeshConnection && prevPolyRef) {
+                // find the link from the previous poly to the off-mesh node to determine direction
+                const prevNode = getNodeByRef(navMesh, prevPolyRef);
+                let linkEdge = 0; // default to START
+
+                for (const linkIndex of prevNode.links) {
+                    const link = navMesh.links[linkIndex];
+                    if (link.toNodeRef === offMeshConRef) {
+                        linkEdge = link.edge;
+                        break;
+                    }
+                }
+
+                // use the link edge to determine direction
+                // edge 0 = entering from START side, edge 1 = entering from END side
+                const enteringFromStart = linkEdge === 0;
+
                 if (result.path.length < maxPoints) {
                     result.path.push({
                         position: vec3.clone(iterPos),
@@ -242,8 +260,7 @@ export const findSmoothPath = (
                         flags: SmoothPathPointFlags.OFFMESH,
                     });
 
-                    const endPosition =
-                        offMeshConnectionSide === OffMeshConnectionSide.START ? offMeshConnection.end : offMeshConnection.start;
+                    const endPosition = enteringFromStart ? offMeshConnection.end : offMeshConnection.start;
 
                     vec3.copy(iterPos, endPosition);
                 }

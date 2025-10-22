@@ -14,7 +14,6 @@ import {
     type OffMeshConnectionAttachment,
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
-    OffMeshConnectionSide,
 } from './nav-mesh';
 import { getNodeRefIndex, getNodeRefSequence, getNodeRefType, MAX_SEQUENCE, type NodeRef, NodeType, serNodeRef } from './node';
 
@@ -830,7 +829,6 @@ const allocateNode = (navMesh: NavMesh) => {
             tileId: -1,
             polyIndex: -1,
             offMeshConnectionId: -1,
-            offMeshConnectionSide: -1,
         };
     }
 
@@ -851,7 +849,6 @@ const releaseNode = (navMesh: NavMesh, index: number) => {
     node.tileId = -1;
     node.polyIndex = -1;
     node.offMeshConnectionId = -1;
-    node.offMeshConnectionSide = -1;
 
     releaseIndex(navMesh.nodeIndexPool, index);
 };
@@ -1251,7 +1248,6 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
     offMeshNode.area = offMeshConnection.area;
     offMeshNode.flags = offMeshConnection.flags;
     offMeshNode.offMeshConnectionId = offMeshConnection.id;
-    offMeshNode.offMeshConnectionSide = OffMeshConnectionSide.START;
 
     offMeshConnectionState.offMeshNode = offMeshNodeRef;
 

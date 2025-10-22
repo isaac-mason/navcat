@@ -8,7 +8,7 @@ import {
     intersectSegSeg2D,
     triArea2D,
 } from '../geometry';
-import { OffMeshConnectionSide, type NavMesh } from './nav-mesh';
+import type { NavMesh } from './nav-mesh';
 import { getClosestPointOnPolyBoundary, getNodeByRef } from './nav-mesh-api';
 import { getPortalPoints } from './nav-mesh-search';
 import { getNodeRefType, type NodeRef, NodeType } from './node';
@@ -291,25 +291,33 @@ export const findStraightPath = (
                     // get the off-mesh connection data
                     const node = getNodeByRef(navMesh, toRef);
                     const offMeshConnection = navMesh.offMeshConnections[node.offMeshConnectionId];
+                    const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[node.offMeshConnectionId];
+
+                    // find the link from the previous poly to the off-mesh node to determine direction
+                    const prevPolyRef = pathNodeRefs[i];
+                    const prevNode = getNodeByRef(navMesh, prevPolyRef);
+                    let linkEdge = 0; // default to START
+
+                    for (const linkIndex of prevNode.links) {
+                        const link = navMesh.links[linkIndex];
+                        if (link.toNodeRef === toRef) {
+                            linkEdge = link.edge;
+                            break;
+                        }
+                    }
+
+                    // use the link edge to determine direction
+                    // edge 0 = entering from START side, edge 1 = entering from END side
+                    const enteringFromStart = linkEdge === 0;
 
                     // determine start and end based on which side of the connection we're entering from
-                    const offMeshStart =
-                        node.offMeshConnectionSide === OffMeshConnectionSide.START
-                            ? offMeshConnection.start
-                            : offMeshConnection.end;
-                    const offMeshEnd =
-                        node.offMeshConnectionSide === OffMeshConnectionSide.START
-                            ? offMeshConnection.end
-                            : offMeshConnection.start;
+                    const offMeshStart = enteringFromStart ? offMeshConnection.start : offMeshConnection.end;
+                    const offMeshEnd = enteringFromStart ? offMeshConnection.end : offMeshConnection.start;
 
                     // get the target polygon we'll land on after the off-mesh connection
-                    // NOTE: alternatively we could lookup navMesh.links[node.links[0]].toNodeRef or navMesh.links[node.links[1]].toNodeRef
-                    // depending on offMeshConnectionSide, but this is more explicit.
-                    const offMeshConnectionAttachment = navMesh.offMeshConnectionAttachments[node.offMeshConnectionId];
-                    const toPolyRef =
-                        node.offMeshConnectionSide === OffMeshConnectionSide.START
-                            ? offMeshConnectionAttachment.endPolyNode
-                            : offMeshConnectionAttachment.startPolyNode;
+                    const toPolyRef = enteringFromStart
+                        ? offMeshConnectionAttachment.endPolyNode
+                        : offMeshConnectionAttachment.startPolyNode;
 
                     // append any pending portals along the current straight path segment
                     // this ensures we add intermediate waypoints between the current apex and the off-mesh connection start

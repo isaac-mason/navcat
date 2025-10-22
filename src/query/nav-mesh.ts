@@ -120,9 +120,6 @@ export type NavMeshNode = {
 
     /** the offmesh connection id, for offmesh connection nodes */
     offMeshConnectionId: number;
-
-    /** the offmesh connection side, for offmesh connection nodes */
-    offMeshConnectionSide: number;
 };
 
 export type NavMeshLink = {
@@ -160,11 +157,6 @@ export type NavMeshLink = {
 export enum OffMeshConnectionDirection {
     START_TO_END = 0,
     BIDIRECTIONAL = 1,
-}
-
-export enum OffMeshConnectionSide {
-    START = 0,
-    END = 1,
 }
 
 export type OffMeshConnection = {
