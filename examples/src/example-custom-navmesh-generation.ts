@@ -1,5 +1,5 @@
 import GUI from 'lil-gui';
-import { type Box3, box3, createMulberry32Generator, createSimplex2D, type Vec3 } from 'maaths';
+import { type Box3, box3, createMulberry32Generator, createSimplex2D, type Vec3 } from 'mathcat';
 import {
     addTile,
     buildTile,

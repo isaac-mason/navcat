@@ -1,4 +1,4 @@
-import { vec3 } from 'maaths';
+import { vec3 } from 'mathcat';
 import { describe, expect, test } from 'vitest';
 import { pointInPoly } from '../src/geometry';
 

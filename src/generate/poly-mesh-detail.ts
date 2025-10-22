@@ -1,4 +1,4 @@
-import { clamp, type Vec2, type Vec3, vec2, vec3, triangle2, circle } from 'maaths';
+import { clamp, type Vec2, type Vec3, vec2, vec3, triangle2, circle } from 'mathcat';
 import { distancePtSeg, distToPoly, distToTriMesh, overlapSegSeg2d, polyMinExtent } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { getDirForOffset, getDirOffsetX, getDirOffsetY, MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED } from './common';

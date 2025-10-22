@@ -1,4 +1,4 @@
-import { type Box3, type Vec3, vec3 } from 'maaths';
+import { type Box3, type Vec3, vec3 } from 'mathcat';
 import type { ArrayLike } from './common';
 import { NULL_AREA, WALKABLE_AREA } from './common';
 

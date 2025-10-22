@@ -1,4 +1,4 @@
-import type { Vec3 } from 'maaths';
+import type { Vec3 } from 'mathcat';
 import { DEFAULT_QUERY_FILTER, FindStraightPathResultFlags, findPath, getNodeRefType, NodeType } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';

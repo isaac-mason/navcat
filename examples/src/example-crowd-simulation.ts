@@ -1,5 +1,5 @@
 import { GUI } from 'lil-gui';
-import { createMulberry32Generator, type Vec3, vec3 } from 'maaths';
+import { createMulberry32Generator, type Vec3, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
     createFindNearestPolyResult,

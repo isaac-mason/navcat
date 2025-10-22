@@ -1,5 +1,5 @@
-import type { Vec3 } from 'maaths';
-import { vec3 } from 'maaths';
+import type { Vec3 } from 'mathcat';
+import { vec3 } from 'mathcat';
 import {
     createDistancePtSegSqr2dResult,
     createIntersectSegSeg2DResult,

@@ -1,4 +1,4 @@
-import { type Box3, box3 } from 'maaths';
+import { type Box3, box3 } from 'mathcat';
 import { describe, expect, test } from 'vitest';
 import {
     addOffMeshConnection,

@@ -1,4 +1,4 @@
-import type { Vec3 } from 'maaths';
+import type { Vec3 } from 'mathcat';
 import type { NavMesh, NodeRef } from 'navcat';
 import {
     createFindNearestPolyResult,

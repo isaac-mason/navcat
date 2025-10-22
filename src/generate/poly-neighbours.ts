@@ -1,4 +1,4 @@
-import type { Vec3 } from 'maaths';
+import type { Vec3 } from 'mathcat';
 import type { NavMeshPoly } from '../query';
 import { MESH_NULL_IDX, POLY_NEIS_FLAG_EXT_LINK } from './common';
 

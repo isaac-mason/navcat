@@ -1,5 +1,5 @@
-import type { Box3, Triangle3, Vec2, Vec3 } from 'maaths';
-import { box3, vec2, vec3 } from 'maaths';
+import type { Box3, Triangle3, Vec2, Vec3 } from 'mathcat';
+import { box3, vec2, vec3 } from 'mathcat';
 import { DETAIL_EDGE_BOUNDARY, POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
 import { closestHeightPointTriangle, createDistancePtSegSqr2dResult, distancePtSegSqr2d, pointInPoly } from '../geometry';
 import { createIndexPool, releaseIndex, requestIndex } from '../index-pool';

@@ -1,5 +1,5 @@
-import type { Vec3 } from 'maaths';
-import { vec3 } from 'maaths';
+import type { Vec3 } from 'mathcat';
+import { vec3 } from 'mathcat';
 import { POLY_NEIS_FLAG_EXT_LINK } from '../generate';
 import { createDistancePtSegSqr2dResult, distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry';
 import type { NavMesh } from './nav-mesh';

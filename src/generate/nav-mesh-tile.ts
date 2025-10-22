@@ -1,4 +1,4 @@
-import type { Box3 } from 'maaths';
+import type { Box3 } from 'mathcat';
 import type { NavMeshPoly, NavMeshPolyDetail, NavMeshTile } from '../query';
 import { MESH_NULL_IDX } from './common';
 import type { PolyMesh } from './poly-mesh';

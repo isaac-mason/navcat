@@ -1,4 +1,4 @@
-import { type Vec3, vec2, vec3 } from 'maaths';
+import { type Vec3, vec2, vec3 } from 'mathcat';
 import {
     createFindNearestPolyResult,
     createSlicedNodePathQuery,

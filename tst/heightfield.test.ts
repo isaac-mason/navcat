@@ -1,4 +1,4 @@
-import { type Box3, vec2 } from 'maaths';
+import { type Box3, vec2 } from 'mathcat';
 import { describe, expect, test } from 'vitest';
 import {
     addHeightfieldSpan,

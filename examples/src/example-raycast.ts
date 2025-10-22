@@ -1,5 +1,5 @@
 import GUI from 'lil-gui';
-import { type Vec3, vec3 } from 'maaths';
+import { type Vec3, vec3 } from 'mathcat';
 import {
     createFindNearestPolyResult,
     createGetPolyHeightResult,

@@ -1,4 +1,4 @@
-import { type Vec3, vec3 } from 'maaths';
+import { type Vec3, vec3 } from 'mathcat';
 import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, moveAlongSurface } from 'navcat';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
 import { createNavMeshHelper, createNavMeshLinksHelper, getPositionsAndIndices } from 'navcat/three';

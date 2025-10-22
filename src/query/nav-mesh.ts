@@ -1,4 +1,4 @@
-import type { Box3, Vec3 } from 'maaths';
+import type { Box3, Vec3 } from 'mathcat';
 import type { IndexPool } from '../index-pool';
 import type { NodeRef, NodeType } from './node';
 

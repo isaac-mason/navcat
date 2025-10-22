@@ -1,6 +1,6 @@
 import Rapier from '@dimforge/rapier3d-compat';
 import { GUI } from 'lil-gui';
-import { box3, triangle3, vec2, type Vec3, vec3 } from 'maaths';
+import { box3, triangle3, vec2, type Vec3, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
     addTile,

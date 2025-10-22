@@ -1,4 +1,4 @@
-import { type Box3, box3, triangle3, vec2, vec3 } from 'maaths';
+import { type Box3, box3, triangle3, vec2, vec3 } from 'mathcat';
 import {
     addTile,
     BuildContext,

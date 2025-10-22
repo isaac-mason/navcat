@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
-import type { Box3, Vec3 } from 'maaths';
-import { box3, vec2, vec3 } from 'maaths';
+import type { Box3, Vec3 } from 'mathcat';
+import { box3, vec2, vec3 } from 'mathcat';
 import {
     addTile,
     BuildContext,

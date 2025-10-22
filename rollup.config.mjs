@@ -6,7 +6,7 @@ import filesize from 'rollup-plugin-filesize';
 export default [
     {
         input: './src/index.ts',
-        external: ['maaths'],
+        external: ['mathcat'],
         output: [
             {
                 file: 'dist/index.js',
@@ -26,7 +26,7 @@ export default [
     },
     {
         input: './blocks/index.ts',
-        external: ['maaths', 'navcat'],
+        external: ['mathcat', 'navcat'],
         output: [
             {
                 file: 'dist/blocks.js',
@@ -46,7 +46,7 @@ export default [
     },
     {
         input: './three/index.ts',
-        external: ['maaths', 'navcat', 'three'],
+        external: ['mathcat', 'navcat', 'three'],
         output: [
             {
                 file: 'dist/three.js',
