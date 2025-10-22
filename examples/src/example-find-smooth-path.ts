@@ -1,8 +1,22 @@
 import GUI from 'lil-gui';
 import type { Vec3 } from 'maaths';
-import { DEFAULT_QUERY_FILTER, findSmoothPath, getNodeRefType, NodeType } from 'navcat';
+import {
+    addOffMeshConnection,
+    DEFAULT_QUERY_FILTER,
+    findSmoothPath,
+    getNodeRefType,
+    NodeType,
+    OffMeshConnectionDirection,
+    type OffMeshConnectionParams,
+} from 'navcat';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
-import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper, getPositionsAndIndices } from 'navcat/three';
+import {
+    createNavMeshHelper,
+    createNavMeshOffMeshConnectionsHelper,
+    createNavMeshPolyHelper,
+    createSearchNodesHelper,
+    getPositionsAndIndices,
+} from 'navcat/three';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
@@ -91,15 +105,42 @@ const navMeshConfig: TiledNavMeshOptions = {
 const navMeshResult = generateTiledNavMesh(navMeshInput, navMeshConfig);
 const navMesh = navMeshResult.navMesh;
 
+/* add off mesh connections */
+const offMeshConnections: OffMeshConnectionParams[] = [
+    {
+        start: [3.54, 0.27, -3.89],
+        end: [6.09, 0.69, -3.59],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        area: 0,
+        flags: 0xffffff,
+    },
+    {
+        start: [6.09, 0.69, -3.59],
+        end: [6.55, 0.39, -0.68],
+        direction: OffMeshConnectionDirection.START_TO_END,
+        radius: 0.5,
+        area: 0,
+        flags: 0xffffff,
+    },
+];
+
+for (const connection of offMeshConnections) {
+    addOffMeshConnection(navMesh, connection);
+}
+
 const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
+
+const offMeshConnectionsHelper = createNavMeshOffMeshConnectionsHelper(navMesh);
+scene.add(offMeshConnectionsHelper.object);
 
 /* find smooth path */
 let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [1.01, 2.38, -1.93];
 const halfExtents: Vec3 = [1, 1, 1];
-let stepSize = 1;
+let stepSize = 0.3;
 let slop = 0.01;
 
 /* controls */
@@ -107,7 +148,7 @@ const gui = new GUI();
 const guiParams = { stepSize, slop };
 const pathFolder = gui.addFolder('Smooth Path');
 pathFolder
-    .add(guiParams, 'stepSize', 0.1, 2, 0.1)
+    .add(guiParams, 'stepSize', 0.1, 1, 0.1)
     .name('Step Size')
     .onChange((v: number) => {
         stepSize = v;
