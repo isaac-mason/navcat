@@ -266,7 +266,7 @@ const walkableHeightWorld = 0.25;
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 const walkableSlopeAngleDegrees = 45;
 
-const borderSize = 4;
+const borderSize = 0;
 const minRegionArea = 8;
 const mergeRegionArea = 20;
 
@@ -2329,7 +2329,7 @@ const walkableHeightWorld = 0.25;
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 const walkableSlopeAngleDegrees = 45;
 
-const borderSize = 4;
+const borderSize = 0;
 const minRegionArea = 8;
 const mergeRegionArea = 20;
 
