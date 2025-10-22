@@ -18,6 +18,9 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Pure javascript - no wasm
 - Fully JSON serializable data structures
 - Tiny - ~40 kB minified + gzipped, and highly tree-shakeable
+- Works with any javascript engine/library
+  - [Comes with threejs helpers in navcat/three](#navcatthree)
+  - ...other libraries in future!
 
 **Used in**
 
