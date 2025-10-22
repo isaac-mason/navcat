@@ -235,7 +235,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 
 Below is a minimal example of using the presets in `navcat/blocks` to generate a navigation mesh, and then using APIs in `navcat` to find a path on the generated navmesh.
 
-For information on how to tune these options, and how the generation process works under the hood with images, see the [Generating navigation meshes](#generating-navigation-meshes) section below.
+For information on how to tune these options, and how the generation process works under the hood with images, see the [Navigation mesh generation](#navigation-mesh-generation) section below.
 
 If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
 
