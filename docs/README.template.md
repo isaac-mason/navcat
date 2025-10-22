@@ -32,6 +32,12 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 
 <TOC />
 
+## Quick Start
+
+Below is a minimal example of using the presets in `navcat/blocks` to generate a navigation mesh, and then using APIs in `navcat` to find a path on the generated navmesh.
+
+<Snippet source="./snippets/blocks.ts" select="quickstart" />
+
 ## Introduction
 
 ### What is a navigation mesh?

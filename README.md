@@ -181,6 +181,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
+- [Quick Start](#quick-start)
 - [Introduction](#introduction)
   - [What is a navigation mesh?](#what-is-a-navigation-mesh)
   - [The navcat navigation mesh structure](#the-navcat-navigation-mesh-structure)
@@ -221,6 +222,97 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - [BYO Navigation Meshes](#byo-navigation-meshes)
 - [Debug Utilities](#debug-utilities)
 - [Acknowledgements](#acknowledgements)
+
+## Quick Start
+
+Below is a minimal example of using the presets in `navcat/blocks` to generate a navigation mesh, and then using APIs in `navcat` to find a path on the generated navmesh.
+
+```ts
+import type { Vec3 } from 'maaths';
+import { DEFAULT_QUERY_FILTER, findPath } from 'navcat';
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
+
+// generation input
+const positions = new Float32Array([
+  // ... populate with your level geometry positions
+]);
+
+const indices = new Uint32Array([
+  // ... populate with your level geometry indices
+]);
+
+const input: SoloNavMeshInput = {
+    positions,
+    indices,
+};
+
+// generation options
+const cellSize = 0.15;
+const cellHeight = 0.15;
+
+const walkableRadiusWorld = 0.1;
+const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+const walkableClimbWorld = 0.5;
+const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
+const walkableHeightWorld = 0.25;
+const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
+const walkableSlopeAngleDegrees = 45;
+
+const borderSize = 4;
+const minRegionArea = 8;
+const mergeRegionArea = 20;
+
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+
+const maxVerticesPerPoly = 5;
+
+const detailSampleDistanceVoxels = 6;
+const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
+
+const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
+
+const options: SoloNavMeshOptions = {
+    cellSize,
+    cellHeight,
+    walkableRadiusWorld,
+    walkableRadiusVoxels,
+    walkableClimbWorld,
+    walkableClimbVoxels,
+    walkableHeightWorld,
+    walkableHeightVoxels,
+    walkableSlopeAngleDegrees,
+    borderSize,
+    minRegionArea,
+    mergeRegionArea,
+    maxSimplificationError,
+    maxEdgeLength,
+    maxVerticesPerPoly,
+    detailSampleDistance,
+    detailSampleMaxError,
+};
+
+// generate a navmesh
+const result = generateSoloNavMesh(input, options);
+
+const navMesh = result.navMesh; // the nav mesh
+const intermediates = result.intermediates; // intermediate data for debugging
+
+console.log('generated navmesh:', navMesh, intermediates);
+
+// find a path
+const start: Vec3 = [-4, 0, -4];
+const end: Vec3 = [4, 0, 4];
+const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+const path = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
+
+console.log(
+    'path:',
+    path.path.map((p) => p.position),
+);
+```
 
 ## Introduction
 
@@ -1060,6 +1152,10 @@ Nav.addTile(navMesh, tile);
 ![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
 
 ```ts
+/**
+ * Creates a new empty navigation mesh.
+ * @returns The created navigation mesh
+ */
 export function createNavMesh(): NavMesh;
 ```
 
@@ -1160,6 +1256,12 @@ console.log(isValid);
 ```
 
 ```ts
+/**
+ * Checks if a navigation mesh node reference is valid.
+ * @param navMesh the navigation mesh
+ * @param nodeRef the node reference
+ * @returns true if the node reference is valid, false otherwise
+ */
 export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
 ```
 
@@ -1171,6 +1273,13 @@ console.log(node);
 ```
 
 ```ts
+/**
+ * Gets a navigation mesh node by its reference.
+ * Note that navmesh nodes are pooled and may be reused on removing then adding tiles, so do not store node objects.
+ * @param navMesh the navigation mesh
+ * @param ref the node reference
+ * @returns the navigation mesh node
+ */
 export function getNodeByRef(navMesh: NavMesh, ref: NodeRef);
 ```
 
@@ -1182,6 +1291,13 @@ console.log(node);
 ```
 
 ```ts
+/**
+ * Gets a navigation mesh node by its tile and polygon index.
+ * @param navMesh the navigation mesh
+ * @param tile the navigation mesh tile
+ * @param polyIndex the polygon index
+ * @returns the navigation mesh node
+ */
 export function getNodeByTileAndPoly(navMesh: NavMesh, tile: NavMeshTile, polyIndex: number);
 ```
 
@@ -1615,6 +1731,14 @@ console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on t
 ```
 
 ```ts
+/**
+ * Gets the closest point on a polygon to a given point
+ * @param result the result object to populate
+ * @param navMesh the navigation mesh
+ * @param ref the polygon node reference
+ * @param point the point to find the closest point to
+ * @returns the result object
+ */
 export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, ref: NodeRef, point: Vec3): GetClosestPointOnPolyResult;
 ```
 

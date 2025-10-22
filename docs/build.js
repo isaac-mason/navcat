@@ -143,28 +143,37 @@ readmeText = readmeText.replace(snippetRegex, (fullMatch, sourcePath, groupName)
     }
     const sourceText = fs.readFileSync(absSourcePath, 'utf-8');
 
-    // extract the selected group and its indentation
+    // extract all matching groups with the same name and join them
     const groupRegex = new RegExp(
         String.raw`^([ \t]*)\/\*[ \t]*SNIPPET_START:[ \t]*${groupName}[ \t]*\*\/[\r\n]+([\s\S]*?)[ \t]*^\1\/\*[ \t]*SNIPPET_END:[ \t]*${groupName}[ \t]*\*\/`,
-        'm'
+        'gm'
     );
-    const match = groupRegex.exec(sourceText);
-    if (!match) {
+    const matches = Array.from(sourceText.matchAll(groupRegex));
+    if (matches.length === 0) {
         console.warn(`Snippet group '${groupName}' not found in ${sourcePath}`);
         return fullMatch;
     }
-    const baseIndent = match[1] || '';
-    let snippetCode = match[2];
-    // Remove the detected indentation from all lines
-    if (baseIndent) {
-        snippetCode = snippetCode.replace(new RegExp(`^${baseIndent}`, 'gm'), '');
-    }
+
+    // Process each match and collect the code snippets
+    const snippetParts = matches.map(match => {
+        const baseIndent = match[1] || '';
+        let snippetCode = match[2];
+        // Remove the detected indentation from all lines
+        if (baseIndent) {
+            snippetCode = snippetCode.replace(new RegExp(`^${baseIndent}`, 'gm'), '');
+        }
         // Remove lines containing nested SNIPPET_START/SNIPPET_END blocks for any group
         snippetCode = snippetCode.replace(/^.*\/\*[ \t]*SNIPPET_START:[^*]*\*\/.*\n?/gm, '');
         snippetCode = snippetCode.replace(/^.*\/\*[ \t]*SNIPPET_END:[^*]*\*\/.*\n?/gm, '');
-        // Remove any leading/trailing blank lines
-        snippetCode = snippetCode.replace(/^\s*\n|\n\s*$/g, '');
-        return `\`\`\`ts\n${snippetCode}\n\`\`\``;
+        return snippetCode;
+    });
+
+    // Join all parts together
+    let snippetCode = snippetParts.join('');
+
+    // Remove any leading/trailing blank lines
+    snippetCode = snippetCode.replace(/^\s*\n|\n\s*$/g, '');
+    return `\`\`\`ts\n${snippetCode}\n\`\`\``;
 });
 
 /* write result */
