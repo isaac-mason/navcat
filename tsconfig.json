@@ -11,15 +11,20 @@
     "esModuleInterop": true,
     "noEmit": true,
     "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "./dist",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "skipLibCheck": true,
     "baseUrl": "./",
-    "rootDir": "./src",
+    "rootDir": "./",
     "allowSyntheticDefaultImports": true,
-    "outDir": "dist"
+    "paths": {
+      "three": ["node_modules/@types/three"],
+      "three/*": ["node_modules/@types/three/*"]
+    }
   },
-  "include": ["./src"],
+  "include": ["./src", "./blocks", "./three"],
   "exclude": ["./dist"]
 }

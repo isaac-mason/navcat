@@ -1,21 +1,21 @@
 import Rapier from '@dimforge/rapier3d-compat';
 import { GUI } from 'lil-gui';
-import { box3, triangle3, type Vec3, vec2, vec3 } from 'maaths';
+import { box3, triangle3, vec2, type Vec3, vec3 } from 'maaths';
 import {
     addOffMeshConnection,
     addTile,
-    BuildContext,
     buildCompactHeightfield,
+    BuildContext,
     buildContours,
     buildDistanceField,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
     buildTile,
-    type CompactHeightfield,
-    ContourBuildFlags,
     calculateGridSize,
     calculateMeshBounds,
+    type CompactHeightfield,
+    ContourBuildFlags,
     createFindNearestPolyResult,
     createHeightfield,
     createNavMesh,
@@ -36,19 +36,18 @@ import {
     removeTile,
     WALKABLE_AREA,
 } from 'navcat';
+import { createNavMeshOffMeshConnectionsHelper, createNavMeshTileHelper, type DebugObject, getPositionsAndIndices } from 'navcat/three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import {
+    addAgent,
     type Agent,
     type AgentParams,
-    addAgent,
-    CrowdUpdateFlags,
     createCrowd,
+    CrowdUpdateFlags,
     requestMoveTarget,
     updateCrowd,
 } from './common/crowd';
-import { createNavMeshOffMeshConnectionsHelper, createNavMeshTileHelper, type DebugObject } from './common/debug';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
 

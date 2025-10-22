@@ -52,8 +52,8 @@ import {
     createNavMeshHelper,
     createNavMeshPolyHelper,
     createSearchNodesHelper,
-} from './common/debug';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
+} from 'navcat/three';
+import { getPositionsAndIndices } from 'navcat/three';
 import { loadGLTF } from './common/load-gltf';
 
 /* area types */

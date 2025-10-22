@@ -4,10 +4,10 @@ import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from './common/debug';
+import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from 'navcat/three';
 import { createExample } from './common/example-base';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { getPositionsAndIndices } from 'navcat/three';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */

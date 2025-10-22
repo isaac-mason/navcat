@@ -18,6 +18,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Pure javascript - no wasm
 - Fully JSON serializable data structures
 - Tiny - ~40 kB minified + gzipped, and highly tree-shakeable
+- Works with any javascript engine/library - Babylon.js, PlayCanvas, Three.js, or your own engine
 
 **Used in**
 
@@ -181,11 +182,13 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
+- [Quick Start](#quick-start)
 - [Introduction](#introduction)
   - [What is a navigation mesh?](#what-is-a-navigation-mesh)
-  - [The navcat navigation mesh structure](#the-navcat-navigation-mesh-structure)
   - [Can navcat be integrated with XYZ?](#can-navcat-be-integrated-with-xyz)
-- [How are navigation meshes generated with navcat?](#how-are-navigation-meshes-generated-with-navcat)
+- [Navigation Mesh Generation](#navigation-mesh-generation)
+  - [The navcat navigation mesh structure](#the-navcat-navigation-mesh-structure)
+  - [Navigation mesh generation process](#navigation-mesh-generation-process)
   - [0. Input and setup](#0-input-and-setup)
   - [1. Mark walkable triangles](#1-mark-walkable-triangles)
   - [2. Rasterize triangles into a heightfield, do filtering with the heightfield](#2-rasterize-triangles-into-a-heightfield-do-filtering-with-the-heightfield)
@@ -220,7 +223,103 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - [Tiled Navigation Meshes](#tiled-navigation-meshes)
 - [BYO Navigation Meshes](#byo-navigation-meshes)
 - [Debug Utilities](#debug-utilities)
+- [`navcat/blocks`](#navcatblocks)
+  - [Geometry Utilities](#geometry-utilities)
+  - [Generation Presets](#generation-presets)
+- [`navcat/three`](#navcatthree)
+  - [Geometry Extraction](#geometry-extraction)
+  - [Debug Helpers](#debug-helpers)
 - [Acknowledgements](#acknowledgements)
+
+## Quick Start
+
+Below is a minimal example of using the presets in `navcat/blocks` to generate a navigation mesh, and then using APIs in `navcat` to find a path on the generated navmesh.
+
+For information on how to tune these options, and how the generation process works under the hood with images, see the [Generating navigation meshes](#generating-navigation-meshes) section below.
+
+If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
+
+```ts
+import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
+
+// generation input - populate positions and indices with your level geometry
+// don't include geometry that shouldn't contribute to walkable surface generation, like foliage or small decorative props
+const positions = new Float32Array([/* ... */]);
+const indices = new Uint32Array([/* ... */]);
+
+const input: SoloNavMeshInput = {
+    positions,
+    indices,
+};
+
+// generation options
+const cellSize = 0.15;
+const cellHeight = 0.15;
+
+const walkableRadiusWorld = 0.1;
+const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+const walkableClimbWorld = 0.5;
+const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
+const walkableHeightWorld = 0.25;
+const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
+const walkableSlopeAngleDegrees = 45;
+
+const borderSize = 4;
+const minRegionArea = 8;
+const mergeRegionArea = 20;
+
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+
+const maxVerticesPerPoly = 5;
+
+const detailSampleDistanceVoxels = 6;
+const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
+
+const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
+
+const options: SoloNavMeshOptions = {
+    cellSize,
+    cellHeight,
+    walkableRadiusWorld,
+    walkableRadiusVoxels,
+    walkableClimbWorld,
+    walkableClimbVoxels,
+    walkableHeightWorld,
+    walkableHeightVoxels,
+    walkableSlopeAngleDegrees,
+    borderSize,
+    minRegionArea,
+    mergeRegionArea,
+    maxSimplificationError,
+    maxEdgeLength,
+    maxVerticesPerPoly,
+    detailSampleDistance,
+    detailSampleMaxError,
+};
+
+// generate a navmesh
+const result = generateSoloNavMesh(input, options);
+
+const navMesh = result.navMesh; // the nav mesh
+const intermediates = result.intermediates; // intermediate data for debugging
+
+console.log('generated navmesh:', navMesh, intermediates);
+
+// find a path
+const start: Vec3 = [-4, 0, -4];
+const end: Vec3 = [4, 0, 4];
+const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+const path = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
+
+console.log(
+    'path:',
+    path.path.map((p) => p.position),
+);
+```
 
 ## Introduction
 
@@ -229,6 +328,28 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 A navigation mesh (or navmesh) is a simplified representation of a 3D environment that is used for pathfinding and AI navigation in video games and simulations. It consists of interconnected polygons that define walkable areas within the environment. These polygons are connected by edges and off-mesh connections, allowing agents (characters) to move from one polygon to another.
 
 ![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
+
+### Can navcat be integrated with XYZ?
+
+navcat is agnostic of rendering or game engine library, so it will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
+
+If you are using threejs, you may make use of the utilities in the `navcat/three` entrypoint, see the [navcat/three docs](#navcatthree). Integrations for other engines may be added in future.
+
+navcat adheres to the OpenGL conventions:
+- Uses the right-handed coordinate system
+- Indices should be in counter-clockwise winding order
+
+If you are importing a navmesh created externally, note that navmesh poly vertices must be indexed / must share vertices between adjacent polygons.
+
+If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
+
+The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
+
+## Navigation Mesh Generation
+
+If you want to get started quickly and don't require deep customization, you can use the presets in `navcat/blocks`. See the [quick start](#quick-start) section above for a minimal example.
+
+If you'd like to understand how to tweak navmesh generation parameters, or you want to eject from the presets and have more control over the generation process, read on!
 
 ### The navcat navigation mesh structure
 
@@ -246,25 +367,9 @@ Because the navigation mesh is a fully JSON-serializable data structure, you can
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
-### Can navcat be integrated with XYZ?
+### Navigation mesh generation process
 
-navcat is agnostic of other javascript libraries, but should work well with any of them.
-
-There are some built-in utilities for creating debug visualisations with threejs. But navcat will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
-
-navcat supports inputs that adhere to the OpenGL conventions:
-- Uses the right-handed coordinate system
-- Indices should be in counter-clockwise winding order
-
-If you are importing a navmesh created externally, note that navmesh poly vertices must be indexed / must share vertices between adjacent polygons.
-
-If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
-
-The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
-
-## How are navigation meshes generated with navcat?
-
-The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach to navigation mesh generation.
+The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach.
 
 At a high-level:
 - Input triangles are rasterized into voxels / into a heightfield
@@ -277,15 +382,12 @@ Like recast, navcat supports both single and tiled navigation meshes. Single-til
 If you want an interactive example / starter, see the examples:
 - https://navcat.dev/examples#example-generate-navmesh
 - [./examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
-- [./examples/src/common/generate-solo-nav-mesh.ts](./examples/src/common/generate-solo-nav-mesh.ts)
+- [./blocks/generate-solo-nav-mesh.ts](./blocks/generate-solo-nav-mesh.ts)
 
 If you are looking for a minimal snippet to copy & paste into your project to quick-start, see below. The sections following the snippet provides a step-by-step breakdown of the process with images and explanations.
 
 ```ts
 import * as Nav from 'navcat';
-
-type Vec3 = [number, number, number];
-type Box3 = [Vec3, Vec3];
 
 // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const positions: number[] = [];
@@ -318,7 +420,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Box3 = [[0, 0, 0], [0, 0, 0]];
+const bounds: Nav.Box3 = [[0, 0, 0], [0, 0, 0]];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -420,7 +522,7 @@ navMesh.origin[0] = polyMesh.bounds[0][0];
 navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
-// create the navmesh tile
+// assemble the navmesh tile params
 const tileParams: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
@@ -455,9 +557,6 @@ The navigation mesh generation process emits diagnostic messages, warnings, and 
 
 ```ts
 import * as Nav from 'navcat';
-
-type Vec3 = [number, number, number];
-type Box3 = [Vec3, Vec3];
 
 // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const positions: number[] = [];
@@ -529,7 +628,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Box3 = [[0, 0, 0], [0, 0, 0]];
+const bounds: Nav.Box3 = [[0, 0, 0], [0, 0, 0]];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -1032,7 +1131,7 @@ navMesh.origin[0] = polyMesh.bounds[0][0];
 navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
-// create the navmesh tile
+// assemble the navmesh tile params
 const tileParams: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,
@@ -1060,6 +1159,10 @@ Nav.addTile(navMesh, tile);
 ![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
 
 ```ts
+/**
+ * Creates a new empty navigation mesh.
+ * @returns The created navigation mesh
+ */
 export function createNavMesh(): NavMesh;
 ```
 
@@ -1102,9 +1205,9 @@ export function removeTile(navMesh: NavMesh, x: number, y: number, layer: number
 The `findPath` function is a convenience wrapper around `findNearestPoly`, `findNodePath`, and `findStraightPath` to get a path between two points on the navigation mesh.
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find a path from start to end
 const findPathResult = Nav.findPath(navMesh, start, end, halfExtents, Nav.DEFAULT_QUERY_FILTER);
@@ -1160,6 +1263,12 @@ console.log(isValid);
 ```
 
 ```ts
+/**
+ * Checks if a navigation mesh node reference is valid.
+ * @param navMesh the navigation mesh
+ * @param nodeRef the node reference
+ * @returns true if the node reference is valid, false otherwise
+ */
 export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
 ```
 
@@ -1171,6 +1280,13 @@ console.log(node);
 ```
 
 ```ts
+/**
+ * Gets a navigation mesh node by its reference.
+ * Note that navmesh nodes are pooled and may be reused on removing then adding tiles, so do not store node objects.
+ * @param navMesh the navigation mesh
+ * @param ref the node reference
+ * @returns the navigation mesh node
+ */
 export function getNodeByRef(navMesh: NavMesh, ref: NodeRef);
 ```
 
@@ -1182,14 +1298,21 @@ console.log(node);
 ```
 
 ```ts
+/**
+ * Gets a navigation mesh node by its tile and polygon index.
+ * @param navMesh the navigation mesh
+ * @param tile the navigation mesh tile
+ * @param polyIndex the polygon index
+ * @returns the navigation mesh node
+ */
 export function getNodeByTileAndPoly(navMesh: NavMesh, tile: NavMeshTile, polyIndex: number);
 ```
 
 ### findNearestPoly
 
 ```ts
-const position: Vec3 = [1, 0, 1];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const position: Nav.Vec3 = [1, 0, 1];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find the nearest nav mesh poly node to the position
 const findNearestPolyResult = Nav.createFindNearestPolyResult();
@@ -1217,9 +1340,9 @@ export function findNearestPoly(result: FindNearestPolyResult, navMesh: NavMesh,
 ### findNodePath
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find the nearest nav mesh poly node to the start position
 const startNode = Nav.findNearestPoly(
@@ -1272,8 +1395,8 @@ export function findNodePath(navMesh: NavMesh, startRef: NodeRef, endRef: NodeRe
 ### findStraightPath
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
 
 // array of nav mesh node refs, often retrieved from a call to findNodePath
 const findStraightPathNodes: Nav.NodeRef[] = [
@@ -1309,9 +1432,9 @@ export function findStraightPath(navMesh: NavMesh, start: Vec3, end: Vec3, pathN
 ### moveAlongSurface
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const startNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1376,9 +1499,9 @@ export function moveAlongSurface(navMesh: NavMesh, startRef: NodeRef, startPosit
 ### raycast
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const startNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1427,9 +1550,9 @@ export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3
 ### raycastWithCosts
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const startNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1472,8 +1595,8 @@ export function raycastWithCosts(navMesh: NavMesh, startRef: NodeRef, startPosit
 ### getPolyHeight
 
 ```ts
-const position: Vec3 = [1, 0, 1];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const position: Nav.Vec3 = [1, 0, 1];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const nearestPoly = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1542,10 +1665,10 @@ export function findRandomPoint(navMesh: NavMesh, filter: QueryFilter, rand: () 
 ### findRandomPointAroundCircle
 
 ```ts
-const center: Vec3 = [5, 0, 5];
+const center: Nav.Vec3 = [5, 0, 5];
 const radius = 3.0; // world units
 
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const centerNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1615,14 +1738,22 @@ console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on t
 ```
 
 ```ts
+/**
+ * Gets the closest point on a polygon to a given point
+ * @param result the result object to populate
+ * @param navMesh the navigation mesh
+ * @param ref the polygon node reference
+ * @param point the point to find the closest point to
+ * @returns the result object
+ */
 export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, ref: NodeRef, point: Vec3): GetClosestPointOnPolyResult;
 ```
 
 ### getClosestPointOnDetailEdges
 
 ```ts
-const position: Vec3 = [1, 0, 1];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const position: Nav.Vec3 = [1, 0, 1];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find the nearest nav mesh poly node to the position
 const nearestPoly = Nav.findNearestPoly(
@@ -1635,7 +1766,7 @@ const nearestPoly = Nav.findNearestPoly(
 
 const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
 
-const closestPoint: Vec3 = [0, 0, 0];
+const closestPoint: Nav.Vec3 = [0, 0, 0];
 const onlyBoundaryEdges = false;
 
 const squaredDistance = Nav.getClosestPointOnDetailEdges(
@@ -1672,8 +1803,8 @@ export function getClosestPointOnDetailEdges(outClosestPoint: Vec3, tile: NavMes
 const startNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
 const endNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
 
-const left: Vec3 = [0, 0, 0];
-const right: Vec3 = [0, 0, 0];
+const left: Nav.Vec3 = [0, 0, 0];
+const right: Nav.Vec3 = [0, 0, 0];
 
 const getPortalPointsSuccess = Nav.getPortalPoints(navMesh, startNodeRef, endNodeRef, left, right);
 
@@ -1694,7 +1825,7 @@ export function getPortalPoints(navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRe
 
 ```ts
 // find all polys within a box area
-const bounds: Box3 = [
+const bounds: Nav.Box3 = [
     [0, 0, 0],
     [1, 1, 1],
 ];
@@ -1712,7 +1843,7 @@ export function queryPolygons(navMesh: NavMesh, bounds: Box3, filter: QueryFilte
 
 ```ts
 const tile = Object.values(navMesh.tiles)[0]; // example tile
-const bounds: Box3 = tile.bounds;
+const bounds: Nav.Box3 = tile.bounds;
 
 const outNodeRefs: Nav.NodeRef[] = [];
 
@@ -1788,6 +1919,26 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
     <strong>Custom Areas</strong>
   </a>
   <p>Example of using custom area types in a navmesh</p>
+</div>
+
+
+
+<div align="center">
+  <a href="https://navcat.dev#example-off-mesh-connections">
+    <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Off-Mesh Connections</strong>
+  </a>
+  <p>Example of using off-mesh connections in a navmesh</p>
+</div>
+
+
+
+<div align="center">
+  <a href="https://navcat.dev#example-multiple-agent-sizes">
+    <img src="./examples/public/screenshots/example-multiple-agent-sizes.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Multiple Agent Sizes</strong>
+  </a>
+  <p>Example of crowd simulation with agents of multiple sizes</p>
 </div>
 
 
@@ -1945,6 +2096,8 @@ See the "Custom GLTF NavMesh" Example to see how to use an "externally generated
 
 navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
 
+If you are using threejs, or want a reference of how to implement debug rendering, see the debug rendering code from the examples: [./examples/src/common/debug.ts](./examples/src/common/debug.ts)
+
 ```ts
 const triangleAreaIdsHelper = Nav.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
 
@@ -2036,8 +2189,294 @@ export type DebugBoxes = {
 };
 ```
 
+## `navcat/blocks`
+
+The `navcat/blocks` entrypoint provides presets and building blocks to help you get started quickly.
+
+### Geometry Utilities
+
+```ts
+export function mergePositionsAndIndices(meshes: Array<{
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+}>): [
+    number[],
+    number[]
+];
+```
+
+### Generation Presets
+
+```ts
+export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMeshOptions): SoloNavMeshResult;
+```
+```ts
+export type SoloNavMeshInput = {
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+};
+```
+```ts
+export type SoloNavMeshOptions = {
+    cellSize: number;
+    cellHeight: number;
+    walkableRadiusVoxels: number;
+    walkableRadiusWorld: number;
+    walkableClimbVoxels: number;
+    walkableClimbWorld: number;
+    walkableHeightVoxels: number;
+    walkableHeightWorld: number;
+    walkableSlopeAngleDegrees: number;
+    borderSize: number;
+    minRegionArea: number;
+    mergeRegionArea: number;
+    maxSimplificationError: number;
+    maxEdgeLength: number;
+    maxVerticesPerPoly: number;
+    detailSampleDistance: number;
+    detailSampleMaxError: number;
+};
+```
+```ts
+export type SoloNavMeshResult = {
+    navMesh: NavMesh;
+    intermediates: SoloNavMeshIntermediates;
+};
+```
+
+```ts
+export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNavMeshOptions): TiledNavMeshResult;
+```
+```ts
+export type TiledNavMeshInput = {
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+};
+```
+```ts
+export type TiledNavMeshOptions = {
+    cellSize: number;
+    cellHeight: number;
+    tileSizeVoxels: number;
+    tileSizeWorld: number;
+    walkableRadiusVoxels: number;
+    walkableRadiusWorld: number;
+    walkableClimbVoxels: number;
+    walkableClimbWorld: number;
+    walkableHeightVoxels: number;
+    walkableHeightWorld: number;
+    walkableSlopeAngleDegrees: number;
+    borderSize: number;
+    minRegionArea: number;
+    mergeRegionArea: number;
+    maxSimplificationError: number;
+    maxEdgeLength: number;
+    maxVerticesPerPoly: number;
+    detailSampleDistance: number;
+    detailSampleMaxError: number;
+};
+```
+```ts
+export type TiledNavMeshResult = {
+    navMesh: NavMesh;
+    intermediates: TiledNavMeshIntermediates;
+};
+```
+
+## `navcat/three`
+
+The `navcat/three` entrypoint provides some utilities to help integrate navcat with threejs.
+
+Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract geometry from a threejs mesh for navmesh generation, and how to use `createNavMeshHelper` to visualize the generated navmesh in threejs.
+
+```ts
+import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshHelper, createSearchNodesHelper, getPositionsAndIndices } from 'navcat/three';
+import * as THREE from 'three';
+
+// create a simple threejs scene
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ color: 0x808080 }));
+floor.rotation.x = -Math.PI / 2;
+
+const box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8080ff }));
+box.position.set(0, 0.5, 0);
+
+const scene = new THREE.Scene();
+scene.add(floor);
+scene.add(box);
+
+// generation input
+const [positions, indices] = getPositionsAndIndices([floor, box]);
+
+const input: SoloNavMeshInput = {
+    positions,
+    indices,
+};
+
+// generation options
+const cellSize = 0.15;
+const cellHeight = 0.15;
+
+const walkableRadiusWorld = 0.1;
+const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+const walkableClimbWorld = 0.5;
+const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
+const walkableHeightWorld = 0.25;
+const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
+const walkableSlopeAngleDegrees = 45;
+
+const borderSize = 4;
+const minRegionArea = 8;
+const mergeRegionArea = 20;
+
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+
+const maxVerticesPerPoly = 5;
+
+const detailSampleDistanceVoxels = 6;
+const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
+
+const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
+
+const options: SoloNavMeshOptions = {
+    cellSize,
+    cellHeight,
+    walkableRadiusWorld,
+    walkableRadiusVoxels,
+    walkableClimbWorld,
+    walkableClimbVoxels,
+    walkableHeightWorld,
+    walkableHeightVoxels,
+    walkableSlopeAngleDegrees,
+    borderSize,
+    minRegionArea,
+    mergeRegionArea,
+    maxSimplificationError,
+    maxEdgeLength,
+    maxVerticesPerPoly,
+    detailSampleDistance,
+    detailSampleMaxError,
+};
+
+// generate a navmesh
+const result = generateSoloNavMesh(input, options);
+
+const navMesh = result.navMesh; // the nav mesh
+const intermediates = result.intermediates; // intermediate data for debugging
+
+console.log('generated navmesh:', navMesh, intermediates);
+
+// visualize the navmesh in threejs
+const navMeshHelper = createNavMeshHelper(navMesh);
+scene.add(navMeshHelper.object);
+
+// find a path
+const start: Vec3 = [-4, 0, -4];
+const end: Vec3 = [4, 0, 4];
+const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+const path = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
+
+console.log(
+    'path:',
+    path.path.map((p) => p.position),
+);
+
+// visualise the path points
+for (const point of path.path) {
+    const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+    sphere.position.set(point.position[0], point.position[1], point.position[2]);
+    scene.add(sphere);
+}
+
+// visualise the A* search nodes
+if (path.nodePath) {
+    const searchNodesHelper = createSearchNodesHelper(path.nodePath.nodes);
+    scene.add(searchNodesHelper.object);
+}
+```
+
+### Geometry Extraction
+
+```ts
+export function getPositionsAndIndices(meshes: Mesh[]): [
+    positions: number[],
+    indices: number[]
+];
+```
+
+### Debug Helpers
+
+```ts
+export function createTriangleAreaIdsHelper(input: {
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+}, triAreaIds: ArrayLike<number>): DebugObject;
+```
+```ts
+export function createHeightfieldHelper(heightfield: Heightfield): DebugObject;
+```
+```ts
+export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactHeightfield): DebugObject;
+```
+```ts
+export function createCompactHeightfieldDistancesHelper(compactHeightfield: CompactHeightfield): DebugObject;
+```
+```ts
+export function createCompactHeightfieldRegionsHelper(compactHeightfield: CompactHeightfield): DebugObject;
+```
+```ts
+export function createRawContoursHelper(contourSet: ContourSet): DebugObject;
+```
+```ts
+export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugObject;
+```
+```ts
+export function createPolyMeshHelper(polyMesh: PolyMesh): DebugObject;
+```
+```ts
+export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): DebugObject;
+```
+```ts
+export function createNavMeshHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createNavMeshTileHelper(tile: NavMeshTile): DebugObject;
+```
+```ts
+export function createNavMeshPolyHelper(navMesh: NavMesh, polyRef: NodeRef, color: [
+    number,
+    number,
+    number
+] = [0, 0.75, 1]): DebugObject;
+```
+```ts
+export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugObject;
+```
+```ts
+export function createNavMeshLinksHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugObject;
+```
+```ts
+export function createNavMeshPortalsHelper(navMesh: NavMesh): DebugObject;
+```
+```ts
+export function createSearchNodesHelper(nodePool: SearchNodePool): DebugObject;
+```
+```ts
+export function createNavMeshOffMeshConnectionsHelper(navMesh: NavMesh): DebugObject;
+```
+
 ## Acknowledgements
 
 - This library is heavily inspired by the recastnavigation library: https://github.com/recastnavigation/recastnavigation
-  - Although navcat is not a direct port of recastnavigation, the core navigation mesh generation approach is based on the recastnavigation library's voxelization-based approach to navigation mesh generation.
+  - Although navcat is not a direct port of recastnavigation, the core navigation mesh generation approach is based on the recastnavigation library's voxelization-based approach.
 - Shoutout to @verekia for the cute name idea :)

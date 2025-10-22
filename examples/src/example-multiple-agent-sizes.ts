@@ -1,23 +1,23 @@
 import { GUI } from 'lil-gui';
-import { box3, type Vec3, vec2, vec3, createMulberry32Generator } from 'maaths';
+import { box3, createMulberry32Generator, vec2, type Vec3, vec3 } from 'maaths';
 import {
-    ANY_QUERY_FILTER,
     addOffMeshConnection,
     addTile,
+    ANY_QUERY_FILTER,
+    buildCompactHeightfield,
     BuildContext,
     type BuildContextState,
-    buildCompactHeightfield,
     buildContours,
     buildDistanceField,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegionsMonotone,
     buildTile,
+    calculateGridSize,
+    calculateMeshBounds,
     type CompactHeightfield,
     ContourBuildFlags,
     type ContourSet,
-    calculateGridSize,
-    calculateMeshBounds,
     createFindNearestPolyResult,
     createHeightfield,
     createNavMesh,
@@ -46,17 +46,7 @@ import {
     rasterizeTriangles,
     WALKABLE_AREA,
 } from 'navcat';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import * as THREE from 'three/webgpu';
-import {
-    type Agent,
-    type AgentParams,
-    addAgent,
-    CrowdUpdateFlags,
-    createCrowd,
-    requestMoveTarget,
-    updateCrowd,
-} from './common/crowd';
+import type { TiledNavMeshInput } from 'navcat/blocks';
 import {
     createCompactHeightfieldDistancesHelper,
     createCompactHeightfieldRegionsHelper,
@@ -72,9 +62,19 @@ import {
     createSimplifiedContoursHelper,
     createTriangleAreaIdsHelper,
     type DebugObject,
-} from './common/debug';
-import type { TiledNavMeshInput } from './common/generate-tiled-nav-mesh';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
+    getPositionsAndIndices,
+} from 'navcat/three';
+import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import * as THREE from 'three/webgpu';
+import {
+    addAgent,
+    type Agent,
+    type AgentParams,
+    createCrowd,
+    CrowdUpdateFlags,
+    requestMoveTarget,
+    updateCrowd,
+} from './common/crowd';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
 

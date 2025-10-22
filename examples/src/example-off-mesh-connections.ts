@@ -9,19 +9,19 @@ import {
     type OffMeshConnectionParams,
     type QueryFilter,
 } from 'navcat';
-import * as THREE from 'three';
-import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
-import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
-import { Line2NodeMaterial } from 'three/webgpu';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
 import {
     createNavMeshHelper,
     createNavMeshOffMeshConnectionsHelper,
     createNavMeshPolyHelper,
     createSearchNodesHelper,
-} from './common/debug';
+    getPositionsAndIndices,
+} from 'navcat/three';
+import * as THREE from 'three';
+import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
+import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
+import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */

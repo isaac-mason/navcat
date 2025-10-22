@@ -2,8 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 
-// find all .ts files in src
-const srcDir = path.join(path.dirname(new URL(import.meta.url).pathname), '../src');
+// utility to find all .ts files in a directory
 function getAllSourceFiles(dir) {
     let files = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -16,17 +15,59 @@ function getAllSourceFiles(dir) {
     }
     return files;
 }
-const sourceFiles = getAllSourceFiles(srcDir);
 
-// create a TypeScript program from all .ts files
-const tsProgram = ts.createProgram(sourceFiles, {
-    allowJs: false,
-    declaration: true,
-    emitDeclarationOnly: true,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    strict: true,
-    noEmit: true,
-});
+// resolve module path to source directory based on package.json exports
+const projectRoot = path.join(path.dirname(new URL(import.meta.url).pathname), '..');
+const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf-8'));
+
+function resolveModuleToSourceDir(modulePath) {
+    const packageName = packageJson.name;
+
+    // Handle the main package export
+    if (modulePath === packageName) {
+        return path.join(projectRoot, 'src');
+    }
+
+    // Handle subpath exports (e.g., "navcat/blocks" -> "./blocks")
+    const subpath = modulePath.replace(`${packageName}/`, '');
+    const exportEntry = packageJson.exports?.[`./${subpath}`];
+
+    if (exportEntry?.types) {
+        // Extract directory from types path (e.g., "./dist/blocks/index.d.ts" -> "blocks")
+        const typesPath = exportEntry.types;
+        const match = typesPath.match(/\.\/dist\/([^/]+)\//);
+        if (match) {
+            return path.join(projectRoot, match[1]);
+        }
+    }
+
+    // Fallback: assume subpath maps directly to a directory
+    return path.join(projectRoot, subpath);
+}
+
+// cache TypeScript programs per module to avoid recreating them
+const tsProgramCache = new Map();
+
+function getTsProgramForModule(modulePath) {
+    if (tsProgramCache.has(modulePath)) {
+        return tsProgramCache.get(modulePath);
+    }
+
+    const sourceDir = resolveModuleToSourceDir(modulePath);
+    const sourceFiles = getAllSourceFiles(sourceDir);
+
+    const program = ts.createProgram(sourceFiles, {
+        allowJs: false,
+        declaration: true,
+        emitDeclarationOnly: true,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        strict: true,
+        noEmit: true,
+    });
+
+    tsProgramCache.set(modulePath, program);
+    return program;
+}
 
 const readmeTemplatePath = path.join(path.dirname(new URL(import.meta.url).pathname), './README.template.md');
 const readmeOutPath = path.join(path.dirname(new URL(import.meta.url).pathname), '../README.md');
@@ -112,22 +153,22 @@ readmeText = readmeText.replace(exampleRegex, (fullMatch, exampleId) => {
 });
 
 /* <RenderType type="import('navcat').TypeName" /> */
-const renderTypeRegex = /<RenderType\s+type=["']import\(['"]navcat['"]\)\.(\w+)["']\s*\/>/g;
-readmeText = readmeText.replace(renderTypeRegex, (fullMatch, typeName) => {
-    const typeDef = getType(typeName);
+const renderTypeRegex = /<RenderType\s+type=["']import\(['"]([^'"]+)['"]\)\.(\w+)["']\s*\/>/g;
+readmeText = readmeText.replace(renderTypeRegex, (fullMatch, modulePath, typeName) => {
+    const typeDef = getType(modulePath, typeName);
     if (!typeDef) {
-        console.warn(`Type ${typeName} not found`);
+        console.warn(`Type ${typeName} not found in module ${modulePath}`);
         return fullMatch;
     }
     return `\`\`\`ts\n${typeDef}\n\`\`\``;
 });
 
 /* <RenderSource type="import('navcat').TypeName" /> */
-const renderSourceRegex = /<RenderSource\s+type=["']import\(['"]navcat['"]\)\.(\w+)["']\s*\/>/g;
-readmeText = readmeText.replace(renderSourceRegex, (fullMatch, typeName) => {
-    const typeDef = getSource(typeName);
+const renderSourceRegex = /<RenderSource\s+type=["']import\(['"]([^'"]+)['"]\)\.(\w+)["']\s*\/>/g;
+readmeText = readmeText.replace(renderSourceRegex, (fullMatch, modulePath, typeName) => {
+    const typeDef = getSource(modulePath, typeName);
     if (!typeDef) {
-        console.warn(`Type ${typeName} not found`);
+        console.warn(`Type ${typeName} not found in module ${modulePath}`);
         return fullMatch;
     }
     return `\`\`\`ts\n${typeDef}\n\`\`\``;
@@ -143,35 +184,48 @@ readmeText = readmeText.replace(snippetRegex, (fullMatch, sourcePath, groupName)
     }
     const sourceText = fs.readFileSync(absSourcePath, 'utf-8');
 
-    // extract the selected group and its indentation
+    // extract all matching groups with the same name and join them
     const groupRegex = new RegExp(
         String.raw`^([ \t]*)\/\*[ \t]*SNIPPET_START:[ \t]*${groupName}[ \t]*\*\/[\r\n]+([\s\S]*?)[ \t]*^\1\/\*[ \t]*SNIPPET_END:[ \t]*${groupName}[ \t]*\*\/`,
-        'm'
+        'gm'
     );
-    const match = groupRegex.exec(sourceText);
-    if (!match) {
+    const matches = Array.from(sourceText.matchAll(groupRegex));
+    if (matches.length === 0) {
         console.warn(`Snippet group '${groupName}' not found in ${sourcePath}`);
         return fullMatch;
     }
-    const baseIndent = match[1] || '';
-    let snippetCode = match[2];
-    // Remove the detected indentation from all lines
-    if (baseIndent) {
-        snippetCode = snippetCode.replace(new RegExp(`^${baseIndent}`, 'gm'), '');
-    }
+
+    // Process each match and collect the code snippets
+    const snippetParts = matches.map(match => {
+        const baseIndent = match[1] || '';
+        let snippetCode = match[2];
+        // Remove the detected indentation from all lines
+        if (baseIndent) {
+            snippetCode = snippetCode.replace(new RegExp(`^${baseIndent}`, 'gm'), '');
+        }
         // Remove lines containing nested SNIPPET_START/SNIPPET_END blocks for any group
         snippetCode = snippetCode.replace(/^.*\/\*[ \t]*SNIPPET_START:[^*]*\*\/.*\n?/gm, '');
         snippetCode = snippetCode.replace(/^.*\/\*[ \t]*SNIPPET_END:[^*]*\*\/.*\n?/gm, '');
-        // Remove any leading/trailing blank lines
-        snippetCode = snippetCode.replace(/^\s*\n|\n\s*$/g, '');
-        return `\`\`\`ts\n${snippetCode}\n\`\`\``;
+        return snippetCode;
+    });
+
+    // Join all parts together
+    let snippetCode = snippetParts.join('');
+
+    // Remove any leading/trailing blank lines
+    snippetCode = snippetCode.replace(/^\s*\n|\n\s*$/g, '');
+    return `\`\`\`ts\n${snippetCode}\n\`\`\``;
 });
 
 /* write result */
 fs.writeFileSync(readmeOutPath, readmeText, 'utf-8');
 
 /* utils */
-function getSource(typeName) {
+function getSource(modulePath, typeName) {
+    const tsProgram = getTsProgramForModule(modulePath);
+    const sourceDir = resolveModuleToSourceDir(modulePath);
+    const sourceFiles = getAllSourceFiles(sourceDir);
+
     let found = null;
     function visit(node, fileText) {
         // Types, interfaces, classes
@@ -222,8 +276,11 @@ function getSource(typeName) {
     return found ? found.trimStart() : null;
 }
 
-function getType(typeName) {
+function getType(modulePath, typeName) {
+    const tsProgram = getTsProgramForModule(modulePath);
     const checker = tsProgram.getTypeChecker();
+    const sourceDir = resolveModuleToSourceDir(modulePath);
+    const sourceFiles = getAllSourceFiles(sourceDir);
 
     let found = null;
     function visit(node, fileText) {

@@ -18,7 +18,7 @@
     "baseUrl": "./",
     "rootDir": "./",
     "allowSyntheticDefaultImports": true,
-    "outDir": "dist"
+    "outDir": "dist",
   },
   "include": ["./*.ts"]
 }

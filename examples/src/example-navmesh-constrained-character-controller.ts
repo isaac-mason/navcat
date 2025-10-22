@@ -1,11 +1,10 @@
 import { GUI } from 'lil-gui';
 import type { Vec3 } from 'maaths';
 import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, moveAlongSurface } from 'navcat';
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshHelper, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
-import { createNavMeshHelper } from './common/debug';
 import { createExample } from './common/example-base';
-import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from './common/generate-solo-nav-mesh';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* controls */

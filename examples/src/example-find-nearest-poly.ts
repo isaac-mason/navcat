@@ -5,17 +5,16 @@ import {
     findNearestPoly,
     type NodeRef,
 } from 'navcat';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { createExample } from './common/example-base';
 import {
     generateTiledNavMesh,
     type TiledNavMeshInput,
     type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+} from 'navcat/blocks';
+import { createNavMeshHelper, createNavMeshPolyHelper, getPositionsAndIndices } from 'navcat/three';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { createExample } from './common/example-base';
 import { loadGLTF } from './common/load-gltf';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
-import { createNavMeshHelper, createNavMeshPolyHelper } from './common/debug';
 
 /* setup example scene */
 const container = document.getElementById('root')!;

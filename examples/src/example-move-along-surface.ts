@@ -1,11 +1,10 @@
 import { type Vec3, vec3 } from 'maaths';
 import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, moveAlongSurface } from 'navcat';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshHelper, createNavMeshLinksHelper, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
-import { createNavMeshHelper, createNavMeshLinksHelper } from './common/debug';
 import { createExample } from './common/example-base';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
-import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
