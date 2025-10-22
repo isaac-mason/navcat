@@ -1,13 +1,13 @@
 # CHANGELOG
 
-## 0.0.7 (Unreleased)
+## 0.0.7
 
-- feat: add 'erodeAndMarkWalkableAreas', which provides a way to support multiple agent radiuses in a single navmesh by marking spans that are too narrow for larger agents with different area IDs
-- fix: pointInPoly not returning true for points on edges of polygons
 - feat: add `navcat/blocks` entrypoint, which will home higher level apis and presets for navmesh generation and querying
   - moved `generateSoloNavMesh` and `generateTiledNavMesh` from the examples into `navcat/blocks` to begin
+  - moved `mergePositionsAndIndices` utility from `navcat` to `navcat/blocks`
+- feat: add 'erodeAndMarkWalkableAreas', which provides a way to support multiple agent radiuses in a single navmesh by marking spans that are too narrow for larger agents with different area IDs
 - feat: re-export `Vec3` and `Box3` types from `maaths`
-- feat: move `mergePositionsAndIndices` utility from `navcat` to `navcat/blocks`
+- fix: pointInPoly not returning true for points on edges of polygons
 
 ## 0.0.6
 
