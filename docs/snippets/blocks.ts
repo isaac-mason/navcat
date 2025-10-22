@@ -1,23 +1,18 @@
 /* SNIPPET_START: quickstart */
-/* SNIPPET_START: generate */
 import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 
 // generation input
 /* SNIPPET_END: quickstart */
-/* SNIPPET_END: generate */
 // biome-ignore format: readability
 /* SNIPPET_START: quickstart */
-/* SNIPPET_START: generate */
 const positions = new Float32Array([
   // ... populate with your level geometry positions
 ]);
 
 /* SNIPPET_END: quickstart */
-/* SNIPPET_END: generate */
 // biome-ignore format: readability
 /* SNIPPET_START: quickstart */
-/* SNIPPET_START: generate */
 const indices = new Uint32Array([
   // ... populate with your level geometry indices
 ]);
@@ -81,7 +76,6 @@ const navMesh = result.navMesh; // the nav mesh
 const intermediates = result.intermediates; // intermediate data for debugging
 
 console.log('generated navmesh:', navMesh, intermediates);
-/* SNIPPET_END: generate */
 
 // find a path
 const start: Vec3 = [-4, 0, -4];

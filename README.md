@@ -228,6 +228,8 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 
 Below is a minimal example of using the presets in `navcat/blocks` to generate a navigation mesh, and then using APIs in `navcat` to find a path on the generated navmesh.
 
+For information on how to tune these options, and how the generation process works under the hood with images, see the [Generating navigation meshes](#generating-navigation-meshes) section below.
+
 ```ts
 import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
@@ -338,81 +340,7 @@ The examples use threejs for rendering, but the core navcat APIs are completely 
 
 ## Generating navigation meshes
 
-If you want to get started quickly and don't require deep customization, you can use the presets in `navcat/blocks` to generate a navigation mesh from your 3D geometry:
-
-```ts
-import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
-import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
-
-// generation input
-const positions = new Float32Array([
-  // ... populate with your level geometry positions
-]);
-
-const indices = new Uint32Array([
-  // ... populate with your level geometry indices
-]);
-
-const input: SoloNavMeshInput = {
-    positions,
-    indices,
-};
-
-// generation options
-const cellSize = 0.15;
-const cellHeight = 0.15;
-
-const walkableRadiusWorld = 0.1;
-const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-const walkableClimbWorld = 0.5;
-const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-const walkableHeightWorld = 0.25;
-const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
-const walkableSlopeAngleDegrees = 45;
-
-const borderSize = 4;
-const minRegionArea = 8;
-const mergeRegionArea = 20;
-
-const maxSimplificationError = 1.3;
-const maxEdgeLength = 12;
-
-const maxVerticesPerPoly = 5;
-
-const detailSampleDistanceVoxels = 6;
-const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
-
-const detailSampleMaxErrorVoxels = 1;
-const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
-
-const options: SoloNavMeshOptions = {
-    cellSize,
-    cellHeight,
-    walkableRadiusWorld,
-    walkableRadiusVoxels,
-    walkableClimbWorld,
-    walkableClimbVoxels,
-    walkableHeightWorld,
-    walkableHeightVoxels,
-    walkableSlopeAngleDegrees,
-    borderSize,
-    minRegionArea,
-    mergeRegionArea,
-    maxSimplificationError,
-    maxEdgeLength,
-    maxVerticesPerPoly,
-    detailSampleDistance,
-    detailSampleMaxError,
-};
-
-// generate a navmesh
-const result = generateSoloNavMesh(input, options);
-
-const navMesh = result.navMesh; // the nav mesh
-const intermediates = result.intermediates; // intermediate data for debugging
-
-console.log('generated navmesh:', navMesh, intermediates);
-```
+If you want to get started quickly and don't require deep customization, you can use the presets in `navcat/blocks`. See the [quick start](#quick-start) section above for a minimal example.
 
 If you'd like to understand how to tweak navmesh generation parameters, or you want to eject from the presets and have more control over the generation process, read on!
 
