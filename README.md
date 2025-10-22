@@ -382,9 +382,6 @@ If you are looking for a minimal snippet to copy & paste into your project to qu
 ```ts
 import * as Nav from 'navcat';
 
-type Vec3 = [number, number, number];
-type Box3 = [Vec3, Vec3];
-
 // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const positions: number[] = [];
 
@@ -416,7 +413,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Box3 = [[0, 0, 0], [0, 0, 0]];
+const bounds: Nav.Box3 = [[0, 0, 0], [0, 0, 0]];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -554,9 +551,6 @@ The navigation mesh generation process emits diagnostic messages, warnings, and 
 ```ts
 import * as Nav from 'navcat';
 
-type Vec3 = [number, number, number];
-type Box3 = [Vec3, Vec3];
-
 // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const positions: number[] = [];
 
@@ -627,7 +621,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Box3 = [[0, 0, 0], [0, 0, 0]];
+const bounds: Nav.Box3 = [[0, 0, 0], [0, 0, 0]];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -1204,9 +1198,9 @@ export function removeTile(navMesh: NavMesh, x: number, y: number, layer: number
 The `findPath` function is a convenience wrapper around `findNearestPoly`, `findNodePath`, and `findStraightPath` to get a path between two points on the navigation mesh.
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find a path from start to end
 const findPathResult = Nav.findPath(navMesh, start, end, halfExtents, Nav.DEFAULT_QUERY_FILTER);
@@ -1310,8 +1304,8 @@ export function getNodeByTileAndPoly(navMesh: NavMesh, tile: NavMeshTile, polyIn
 ### findNearestPoly
 
 ```ts
-const position: Vec3 = [1, 0, 1];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const position: Nav.Vec3 = [1, 0, 1];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find the nearest nav mesh poly node to the position
 const findNearestPolyResult = Nav.createFindNearestPolyResult();
@@ -1339,9 +1333,9 @@ export function findNearestPoly(result: FindNearestPolyResult, navMesh: NavMesh,
 ### findNodePath
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find the nearest nav mesh poly node to the start position
 const startNode = Nav.findNearestPoly(
@@ -1394,8 +1388,8 @@ export function findNodePath(navMesh: NavMesh, startRef: NodeRef, endRef: NodeRe
 ### findStraightPath
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
 
 // array of nav mesh node refs, often retrieved from a call to findNodePath
 const findStraightPathNodes: Nav.NodeRef[] = [
@@ -1431,9 +1425,9 @@ export function findStraightPath(navMesh: NavMesh, start: Vec3, end: Vec3, pathN
 ### moveAlongSurface
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const startNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1498,9 +1492,9 @@ export function moveAlongSurface(navMesh: NavMesh, startRef: NodeRef, startPosit
 ### raycast
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const startNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1549,9 +1543,9 @@ export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3
 ### raycastWithCosts
 
 ```ts
-const start: Vec3 = [1, 0, 1];
-const end: Vec3 = [8, 0, 8];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const start: Nav.Vec3 = [1, 0, 1];
+const end: Nav.Vec3 = [8, 0, 8];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const startNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1594,8 +1588,8 @@ export function raycastWithCosts(navMesh: NavMesh, startRef: NodeRef, startPosit
 ### getPolyHeight
 
 ```ts
-const position: Vec3 = [1, 0, 1];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const position: Nav.Vec3 = [1, 0, 1];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const nearestPoly = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1664,10 +1658,10 @@ export function findRandomPoint(navMesh: NavMesh, filter: QueryFilter, rand: () 
 ### findRandomPointAroundCircle
 
 ```ts
-const center: Vec3 = [5, 0, 5];
+const center: Nav.Vec3 = [5, 0, 5];
 const radius = 3.0; // world units
 
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 const centerNode = Nav.findNearestPoly(
     Nav.createFindNearestPolyResult(),
@@ -1751,8 +1745,8 @@ export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMe
 ### getClosestPointOnDetailEdges
 
 ```ts
-const position: Vec3 = [1, 0, 1];
-const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+const position: Nav.Vec3 = [1, 0, 1];
+const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
 // find the nearest nav mesh poly node to the position
 const nearestPoly = Nav.findNearestPoly(
@@ -1765,7 +1759,7 @@ const nearestPoly = Nav.findNearestPoly(
 
 const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
 
-const closestPoint: Vec3 = [0, 0, 0];
+const closestPoint: Nav.Vec3 = [0, 0, 0];
 const onlyBoundaryEdges = false;
 
 const squaredDistance = Nav.getClosestPointOnDetailEdges(
@@ -1802,8 +1796,8 @@ export function getClosestPointOnDetailEdges(outClosestPoint: Vec3, tile: NavMes
 const startNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
 const endNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
 
-const left: Vec3 = [0, 0, 0];
-const right: Vec3 = [0, 0, 0];
+const left: Nav.Vec3 = [0, 0, 0];
+const right: Nav.Vec3 = [0, 0, 0];
 
 const getPortalPointsSuccess = Nav.getPortalPoints(navMesh, startNodeRef, endNodeRef, left, right);
 
@@ -1824,7 +1818,7 @@ export function getPortalPoints(navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRe
 
 ```ts
 // find all polys within a box area
-const bounds: Box3 = [
+const bounds: Nav.Box3 = [
     [0, 0, 0],
     [1, 1, 1],
 ];
@@ -1842,7 +1836,7 @@ export function queryPolygons(navMesh: NavMesh, bounds: Box3, filter: QueryFilte
 
 ```ts
 const tile = Object.values(navMesh.tiles)[0]; // example tile
-const bounds: Box3 = tile.bounds;
+const bounds: Nav.Box3 = tile.bounds;
 
 const outNodeRefs: Nav.NodeRef[] = [];
 
@@ -1928,6 +1922,16 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
     <strong>Off-Mesh Connections</strong>
   </a>
   <p>Example of using off-mesh connections in a navmesh</p>
+</div>
+
+
+
+<div align="center">
+  <a href="https://navcat.dev#example-multiple-agent-sizes">
+    <img src="./examples/public/screenshots/example-multiple-agent-sizes.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Multiple Agent Sizes</strong>
+  </a>
+  <p>Example of crowd simulation with agents of multiple sizes</p>
 </div>
 
 

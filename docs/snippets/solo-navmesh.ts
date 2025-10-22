@@ -5,9 +5,6 @@
 /* SNIPPET_START: input */
 import * as Nav from 'navcat';
 
-type Vec3 = [number, number, number];
-type Box3 = [Vec3, Vec3];
-
 // flat array of vertex positions [x1, y1, z1, x2, y2, z2, ...]
 const positions: number[] = [];
 
@@ -43,7 +40,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Box3 = [[0, 0, 0], [0, 0, 0]];
+const bounds: Nav.Box3 = [[0, 0, 0], [0, 0, 0]];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -186,9 +183,9 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: findPath */
-    const start: Vec3 = [1, 0, 1];
-    const end: Vec3 = [8, 0, 8];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const start: Nav.Vec3 = [1, 0, 1];
+    const end: Nav.Vec3 = [8, 0, 8];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     // find a path from start to end
     const findPathResult = Nav.findPath(navMesh, start, end, halfExtents, Nav.DEFAULT_QUERY_FILTER);
@@ -202,8 +199,8 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: findNearestPoly */
-    const position: Vec3 = [1, 0, 1];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const position: Nav.Vec3 = [1, 0, 1];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     // find the nearest nav mesh poly node to the position
     const findNearestPolyResult = Nav.createFindNearestPolyResult();
@@ -228,8 +225,8 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: getClosestPointOnDetailEdges */
-    const position: Vec3 = [1, 0, 1];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const position: Nav.Vec3 = [1, 0, 1];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     // find the nearest nav mesh poly node to the position
     const nearestPoly = Nav.findNearestPoly(
@@ -242,7 +239,7 @@ Nav.addTile(navMesh, tile);
 
     const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
 
-    const closestPoint: Vec3 = [0, 0, 0];
+    const closestPoint: Nav.Vec3 = [0, 0, 0];
     const onlyBoundaryEdges = false;
 
     const squaredDistance = Nav.getClosestPointOnDetailEdges(
@@ -261,9 +258,9 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: findNodePath */
-    const start: Vec3 = [1, 0, 1];
-    const end: Vec3 = [8, 0, 8];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const start: Nav.Vec3 = [1, 0, 1];
+    const end: Nav.Vec3 = [8, 0, 8];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     // find the nearest nav mesh poly node to the start position
     const startNode = Nav.findNearestPoly(
@@ -296,8 +293,8 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: findStraightPath */
-    const start: Vec3 = [1, 0, 1];
-    const end: Vec3 = [8, 0, 8];
+    const start: Nav.Vec3 = [1, 0, 1];
+    const end: Nav.Vec3 = [8, 0, 8];
 
     // array of nav mesh node refs, often retrieved from a call to findNodePath
     const findStraightPathNodes: Nav.NodeRef[] = [
@@ -314,9 +311,9 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: moveAlongSurface */
-    const start: Vec3 = [1, 0, 1];
-    const end: Vec3 = [8, 0, 8];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const start: Nav.Vec3 = [1, 0, 1];
+    const end: Nav.Vec3 = [8, 0, 8];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     const startNode = Nav.findNearestPoly(
         Nav.createFindNearestPolyResult(),
@@ -337,9 +334,9 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: raycast */
-    const start: Vec3 = [1, 0, 1];
-    const end: Vec3 = [8, 0, 8];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const start: Nav.Vec3 = [1, 0, 1];
+    const end: Nav.Vec3 = [8, 0, 8];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     const startNode = Nav.findNearestPoly(
         Nav.createFindNearestPolyResult(),
@@ -360,9 +357,9 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: raycastWithCosts */
-    const start: Vec3 = [1, 0, 1];
-    const end: Vec3 = [8, 0, 8];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const start: Nav.Vec3 = [1, 0, 1];
+    const end: Nav.Vec3 = [8, 0, 8];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     const startNode = Nav.findNearestPoly(
         Nav.createFindNearestPolyResult(),
@@ -386,8 +383,8 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: getPolyHeight */
-    const position: Vec3 = [1, 0, 1];
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const position: Nav.Vec3 = [1, 0, 1];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     const nearestPoly = Nav.findNearestPoly(
         Nav.createFindNearestPolyResult(),
@@ -422,10 +419,10 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: findRandomPointAroundCircle */
-    const center: Vec3 = [5, 0, 5];
+    const center: Nav.Vec3 = [5, 0, 5];
     const radius = 3.0; // world units
 
-    const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+    const halfExtents: Nav.Vec3 = [0.5, 0.5, 0.5];
 
     const centerNode = Nav.findNearestPoly(
         Nav.createFindNearestPolyResult(),
@@ -457,8 +454,8 @@ Nav.addTile(navMesh, tile);
     const startNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
     const endNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
 
-    const left: Vec3 = [0, 0, 0];
-    const right: Vec3 = [0, 0, 0];
+    const left: Nav.Vec3 = [0, 0, 0];
+    const right: Nav.Vec3 = [0, 0, 0];
 
     const getPortalPointsSuccess = Nav.getPortalPoints(navMesh, startNodeRef, endNodeRef, left, right);
 
@@ -501,7 +498,7 @@ Nav.addTile(navMesh, tile);
     /* SNIPPET_START: queryPolygons */
     
     // find all polys within a box area
-    const bounds: Box3 = [
+    const bounds: Nav.Box3 = [
         [0, 0, 0],
         [1, 1, 1],
     ];
@@ -515,7 +512,7 @@ Nav.addTile(navMesh, tile);
 {
     /* SNIPPET_START: queryPolygonsInTile */
     const tile = Object.values(navMesh.tiles)[0]; // example tile
-    const bounds: Box3 = tile.bounds;
+    const bounds: Nav.Box3 = tile.bounds;
 
     const outNodeRefs: Nav.NodeRef[] = [];
 
