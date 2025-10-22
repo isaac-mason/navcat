@@ -242,14 +242,10 @@ If you are using threejs, you can find [a threejs-specific version of this snipp
 import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 
-// generation input
-const positions = new Float32Array([
-  // ... populate with your level geometry positions
-]);
-
-const indices = new Uint32Array([
-  // ... populate with your level geometry indices
-]);
+// generation input - populate positions and indices with your level geometry
+// don't include geometry that shouldn't contribute to walkable surface generation, like foliage or small decorative props
+const positions = new Float32Array([/* ... */]);
+const indices = new Uint32Array([/* ... */]);
 
 const input: SoloNavMeshInput = {
     positions,
