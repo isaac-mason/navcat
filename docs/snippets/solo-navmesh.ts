@@ -157,7 +157,7 @@ navMesh.origin[0] = polyMesh.bounds[0][0];
 navMesh.origin[1] = polyMesh.bounds[0][1];
 navMesh.origin[2] = polyMesh.bounds[0][2];
 
-// create the navmesh tile
+// assemble the navmesh tile params
 const tileParams: Nav.NavMeshTileParams = {
     bounds: polyMesh.bounds,
     vertices: tilePolys.vertices,

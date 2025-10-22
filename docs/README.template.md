@@ -46,6 +46,28 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 
 ![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
 
+### Can navcat be integrated with XYZ?
+
+navcat is agnostic of rendering or game engine library, so it will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
+
+navcat adheres to the OpenGL conventions:
+- Uses the right-handed coordinate system
+- Indices should be in counter-clockwise winding order
+
+If you are importing a navmesh created externally, note that navmesh poly vertices must be indexed / must share vertices between adjacent polygons.
+
+If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
+
+The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
+
+## Generating navigation meshes
+
+If you want to get started quickly and don't require deep customization, you can use the presets in `navcat/blocks` to generate a navigation mesh from your 3D geometry:
+
+<Snippet source="./snippets/blocks.ts" select="generate" />
+
+If you'd like to understand how to tweak navmesh generation parameters, or you want to eject from the presets and have more control over the generation process, read on!
+
 ### The navcat navigation mesh structure
 
 In navcat, a navigation mesh can contain multiple "tiles", where each tile contains a set of polygons and a detail mesh. A navigation mesh can either have one tile that covers the entire area, or multiple tiles can be added in a grid for more advanced use cases.
@@ -62,25 +84,9 @@ Because the navigation mesh is a fully JSON-serializable data structure, you can
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
-### Can navcat be integrated with XYZ?
-
-navcat is agnostic of other javascript libraries, but should work well with any of them.
-
-There are some built-in utilities for creating debug visualisations with threejs. But navcat will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
-
-navcat supports inputs that adhere to the OpenGL conventions:
-- Uses the right-handed coordinate system
-- Indices should be in counter-clockwise winding order
-
-If you are importing a navmesh created externally, note that navmesh poly vertices must be indexed / must share vertices between adjacent polygons.
-
-If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
-
-The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
-
 ## How are navigation meshes generated with navcat?
 
-The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach to navigation mesh generation.
+The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach.
 
 At a high-level:
 - Input triangles are rasterized into voxels / into a heightfield
@@ -93,7 +99,7 @@ Like recast, navcat supports both single and tiled navigation meshes. Single-til
 If you want an interactive example / starter, see the examples:
 - https://navcat.dev/examples#example-generate-navmesh
 - [./examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
-- [./examples/src/common/generate-solo-nav-mesh.ts](./examples/src/common/generate-solo-nav-mesh.ts)
+- [./blocks/generate-solo-nav-mesh.ts](./blocks/generate-solo-nav-mesh.ts)
 
 If you are looking for a minimal snippet to copy & paste into your project to quick-start, see below. The sections following the snippet provides a step-by-step breakdown of the process with images and explanations.
 
@@ -478,5 +484,5 @@ navcat provides graphics-library agnostic debug drawing functions to help visual
 ## Acknowledgements
 
 - This library is heavily inspired by the recastnavigation library: https://github.com/recastnavigation/recastnavigation
-  - Although navcat is not a direct port of recastnavigation, the core navigation mesh generation approach is based on the recastnavigation library's voxelization-based approach to navigation mesh generation.
+  - Although navcat is not a direct port of recastnavigation, the core navigation mesh generation approach is based on the recastnavigation library's voxelization-based approach.
 - Shoutout to @verekia for the cute name idea :)
