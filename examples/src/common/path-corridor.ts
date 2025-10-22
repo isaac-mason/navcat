@@ -122,7 +122,7 @@ export const findCorridorCorners = (
         const firstCorner = corners[0];
         const distance = vec3.distance(corridor.position, firstCorner.position);
 
-        // if the first corner is an offmesh node, or is far enough, we're done pruning
+        // if the first corner is far enough, we're done pruning
         if (firstCorner.type === NodeType.OFFMESH || distance > MIN_TARGET_DIST) {
             break;
         }
