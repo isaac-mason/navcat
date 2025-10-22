@@ -1915,6 +1915,16 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
 </div>
 
 
+
+<div align="center">
+  <a href="https://navcat.dev#example-off-mesh-connections">
+    <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Off-Mesh Connections</strong>
+  </a>
+  <p>Example of using off-mesh connections in a navmesh</p>
+</div>
+
+
 ## Agent / Crowd Simulation
 
 This library provides tools for you to simulate agents / crowds navigating the navmesh, but it deliberately does not do everything for you.

@@ -405,6 +405,8 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
 
 <Example id="example-custom-areas" />
 
+<Example id="example-off-mesh-connections" />
+
 ## Agent / Crowd Simulation
 
 This library provides tools for you to simulate agents / crowds navigating the navmesh, but it deliberately does not do everything for you.
