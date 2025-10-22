@@ -62,7 +62,7 @@ If your environment uses a different coordinate system, you will need to transfo
 
 The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
 
-## Generating navigation meshes
+## Navigation Mesh Generation
 
 If you want to get started quickly and don't require deep customization, you can use the presets in `navcat/blocks`. See the [quick start](#quick-start) section above for a minimal example.
 
@@ -84,7 +84,7 @@ Because the navigation mesh is a fully JSON-serializable data structure, you can
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
-## How are navigation meshes generated with navcat?
+### Navigation mesh generation process
 
 The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach.
 

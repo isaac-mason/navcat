@@ -185,9 +185,9 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - [Introduction](#introduction)
   - [What is a navigation mesh?](#what-is-a-navigation-mesh)
   - [Can navcat be integrated with XYZ?](#can-navcat-be-integrated-with-xyz)
-- [Generating navigation meshes](#generating-navigation-meshes)
+- [Navigation Mesh Generation](#navigation-mesh-generation)
   - [The navcat navigation mesh structure](#the-navcat-navigation-mesh-structure)
-- [How are navigation meshes generated with navcat?](#how-are-navigation-meshes-generated-with-navcat)
+  - [Navigation mesh generation process](#navigation-mesh-generation-process)
   - [0. Input and setup](#0-input-and-setup)
   - [1. Mark walkable triangles](#1-mark-walkable-triangles)
   - [2. Rasterize triangles into a heightfield, do filtering with the heightfield](#2-rasterize-triangles-into-a-heightfield-do-filtering-with-the-heightfield)
@@ -338,7 +338,7 @@ If your environment uses a different coordinate system, you will need to transfo
 
 The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
 
-## Generating navigation meshes
+## Navigation Mesh Generation
 
 If you want to get started quickly and don't require deep customization, you can use the presets in `navcat/blocks`. See the [quick start](#quick-start) section above for a minimal example.
 
@@ -360,7 +360,7 @@ Because the navigation mesh is a fully JSON-serializable data structure, you can
 
 The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
 
-## How are navigation meshes generated with navcat?
+### Navigation mesh generation process
 
 The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach.
 
