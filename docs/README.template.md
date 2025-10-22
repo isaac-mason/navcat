@@ -515,8 +515,6 @@ The `navcat/three` entrypoint provides some utilities to help integrate navcat w
 
 Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract geometry from a threejs mesh for navmesh generation, and how to use `createNavMeshHelper` to visualize the generated navmesh in threejs.
 
-If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
-
 <Snippet source="./snippets/threejs.ts" select="quickstart" />
 
 ### Geometry Extraction
