@@ -369,9 +369,12 @@ export const findStraightPath = (
                     vec3.copy(portalApex, offMeshEnd);
                     vec3.copy(portalLeft, offMeshEnd);
                     vec3.copy(portalRight, offMeshEnd);
-                    apexIndex = i;
-                    leftIndex = i;
-                    rightIndex = i;
+                    // set apex to the landing polygon (i+1) rather than the off-mesh node (i)
+                    // this prevents infinite loops: if the funnel restarts via `i = apexIndex`,
+                    // we want to restart from the landing polygon, not re-enter the off-mesh handler
+                    apexIndex = i + 1;
+                    leftIndex = i + 1;
+                    rightIndex = i + 1;
                     leftNodeRef = toPolyRef;
                     rightNodeRef = toPolyRef;
                     leftNodeType = NodeType.POLY;
