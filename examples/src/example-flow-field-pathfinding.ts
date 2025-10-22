@@ -16,7 +16,7 @@ import { Line2NodeMaterial } from 'three/webgpu';
 import { createNavMeshHelper, createNavMeshPolyHelper, type DebugObject } from './common/debug';
 import { createExample } from './common/example-base';
 import { computeUniformCostFlowField, type FlowField, getNodePathFromFlowField } from './common/flow-field';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from './common/generate-tiled-nav-mesh';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 

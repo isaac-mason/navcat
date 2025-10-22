@@ -11,15 +11,16 @@
     "esModuleInterop": true,
     "noEmit": true,
     "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "./dist",
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "skipLibCheck": true,
     "baseUrl": "./",
-    "rootDir": "./src",
-    "allowSyntheticDefaultImports": true,
-    "outDir": "dist"
+    "rootDir": "./",
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["./src"],
+  "include": ["./src", "./blocks"],
   "exclude": ["./dist"]
 }

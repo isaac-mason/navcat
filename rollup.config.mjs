@@ -6,10 +6,30 @@ import filesize from 'rollup-plugin-filesize';
 export default [
     {
         input: './src/index.ts',
-        external: ['three', 'maaths'],
+        external: ['maaths'],
         output: [
             {
-                dir: `dist`,
+                file: 'dist/index.js',
+                format: 'es',
+                sourcemap: true,
+                exports: 'named',
+            },
+        ],
+        plugins: [
+            nodeResolve(),
+            typescript({
+                tsconfig: path.resolve(import.meta.dirname, './tsconfig.json'),
+                emitDeclarationOnly: true,
+            }),
+            filesize(),
+        ],
+    },
+    {
+        input: './blocks/index.ts',
+        external: ['maaths', 'navcat'],
+        output: [
+            {
+                file: 'dist/blocks.js',
                 format: 'es',
                 sourcemap: true,
                 exports: 'named',

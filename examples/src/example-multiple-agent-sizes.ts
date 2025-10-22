@@ -73,7 +73,7 @@ import {
     createTriangleAreaIdsHelper,
     type DebugObject,
 } from './common/debug';
-import type { TiledNavMeshInput } from './common/generate-tiled-nav-mesh';
+import type { TiledNavMeshInput } from 'navcat/blocks';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';

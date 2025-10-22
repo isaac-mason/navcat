@@ -12,7 +12,7 @@ import {
     generateTiledNavMesh,
     type TiledNavMeshInput,
     type TiledNavMeshOptions,
-} from './common/generate-tiled-nav-mesh';
+} from 'navcat/blocks';
 import { loadGLTF } from './common/load-gltf';
 import { getPositionsAndIndices } from './common/get-positions-and-indices';
 import { createNavMeshHelper, createNavMeshPolyHelper } from './common/debug';
