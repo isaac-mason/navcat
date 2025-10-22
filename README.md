@@ -2085,6 +2085,8 @@ See the "Custom GLTF NavMesh" Example to see how to use an "externally generated
 
 navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
 
+If you are using threejs, or want a reference of how to implement debug rendering, see the debug rendering code from the examples: [./examples/src/common/debug.ts](./examples/src/common/debug.ts)
+
 ```ts
 const triangleAreaIdsHelper = Nav.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
 
