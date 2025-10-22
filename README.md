@@ -236,6 +236,8 @@ Below is a minimal example of using the presets in `navcat/blocks` to generate a
 
 For information on how to tune these options, and how the generation process works under the hood with images, see the [Generating navigation meshes](#generating-navigation-meshes) section below.
 
+If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
+
 ```ts
 import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
@@ -333,6 +335,8 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 ### Can navcat be integrated with XYZ?
 
 navcat is agnostic of rendering or game engine library, so it will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
+
+If you are using threejs, you may make use of the utilities in the `navcat/three` entrypoint, see the [navcat/three docs](#navcatthree). Integrations for other engines may be added in future.
 
 navcat adheres to the OpenGL conventions:
 - Uses the right-handed coordinate system
@@ -2285,6 +2289,105 @@ export type TiledNavMeshResult = {
 ## `navcat/three`
 
 The `navcat/three` entrypoint provides some utilities to help integrate navcat with threejs.
+
+Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract geometry from a threejs mesh for navmesh generation, and how to use `createNavMeshHelper` to visualize the generated navmesh in threejs.
+
+```ts
+import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshHelper, getPositionsAndIndices } from 'navcat/three';
+import * as THREE from 'three';
+
+// create a simple threejs scene
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ color: 0x808080 }));
+floor.rotation.x = -Math.PI / 2;
+
+const box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8080ff }));
+box.position.set(0, 0.5, 0);
+
+const scene = new THREE.Scene();
+scene.add(floor);
+scene.add(box);
+
+// generation input
+const [positions, indices] = getPositionsAndIndices([floor, box]);
+
+const input: SoloNavMeshInput = {
+    positions,
+    indices,
+};
+
+// generation options
+const cellSize = 0.15;
+const cellHeight = 0.15;
+
+const walkableRadiusWorld = 0.1;
+const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
+const walkableClimbWorld = 0.5;
+const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
+const walkableHeightWorld = 0.25;
+const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
+const walkableSlopeAngleDegrees = 45;
+
+const borderSize = 4;
+const minRegionArea = 8;
+const mergeRegionArea = 20;
+
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+
+const maxVerticesPerPoly = 5;
+
+const detailSampleDistanceVoxels = 6;
+const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
+
+const detailSampleMaxErrorVoxels = 1;
+const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
+
+const options: SoloNavMeshOptions = {
+    cellSize,
+    cellHeight,
+    walkableRadiusWorld,
+    walkableRadiusVoxels,
+    walkableClimbWorld,
+    walkableClimbVoxels,
+    walkableHeightWorld,
+    walkableHeightVoxels,
+    walkableSlopeAngleDegrees,
+    borderSize,
+    minRegionArea,
+    mergeRegionArea,
+    maxSimplificationError,
+    maxEdgeLength,
+    maxVerticesPerPoly,
+    detailSampleDistance,
+    detailSampleMaxError,
+};
+
+// generate a navmesh
+const result = generateSoloNavMesh(input, options);
+
+const navMesh = result.navMesh; // the nav mesh
+const intermediates = result.intermediates; // intermediate data for debugging
+
+console.log('generated navmesh:', navMesh, intermediates);
+
+// visualize the navmesh in threejs
+const navMeshHelper = createNavMeshHelper(navMesh);
+scene.add(navMeshHelper.object);
+
+// find a path
+const start: Vec3 = [-4, 0, -4];
+const end: Vec3 = [4, 0, 4];
+const halfExtents: Vec3 = [0.5, 0.5, 0.5];
+
+const path = findPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER);
+
+console.log(
+    'path:',
+    path.path.map((p) => p.position),
+);
+```
 
 ### Geometry Extraction
 

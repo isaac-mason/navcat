@@ -52,6 +52,8 @@ A navigation mesh (or navmesh) is a simplified representation of a 3D environmen
 
 navcat is agnostic of rendering or game engine library, so it will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
 
+If you are using threejs, you may make use of the utilities in the `navcat/three` entrypoint, see the [navcat/three docs](#navcatthree). Integrations for other engines may be added in future.
+
 navcat adheres to the OpenGL conventions:
 - Uses the right-handed coordinate system
 - Indices should be in counter-clockwise winding order
@@ -508,6 +510,12 @@ The `navcat/blocks` entrypoint provides presets and building blocks to help you 
 ## `navcat/three`
 
 The `navcat/three` entrypoint provides some utilities to help integrate navcat with threejs.
+
+Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract geometry from a threejs mesh for navmesh generation, and how to use `createNavMeshHelper` to visualize the generated navmesh in threejs.
+
+If you are using threejs, you can find [a threejs-specific version of this snippet in the navcat/three section](#navcatthree).
+
+<Snippet source="./snippets/threejs.ts" select="quickstart" />
 
 ### Geometry Extraction
 
