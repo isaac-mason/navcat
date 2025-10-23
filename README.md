@@ -265,43 +265,37 @@ const input: SoloNavMeshInput = {
 // it's generally recommended that you use the library debug helpers to visualize the navmesh
 // generation and fine tune these parameters.
 
-// agent parameters: the navmesh will be built to accommodate an agent with these dimensions
-const walkableRadiusWorld = 0.3; // how wide the agent is
-const walkableHeightWorld = 2.0; // how tall the agent is
-const walkableClimbWorld = 0.5; // how high the agent can step
-const walkableSlopeAngleDegrees = 45; // how steep a slope the agent can walk up
+// heightfield parameters
+const cellSize = 0.15;
+const cellHeight = 0.25;
 
-// voxelization: triangles are rasterized into a voxel grid. smaller cells = more detail (slower); larger = simpler, faster.
-// heuristic to start with: cellSize ≈ walkableRadiusWorld / 3, cellHeight ≈ walkableClimbWorld / 2
-// typically you might start with the heuristic values then adjust depending on your level scale and desired detail.
-// if you want to generate quickly, increase these values to the highest acceptable level of detail.
-const cellSize = 0.15; // horizontal (xz) voxel size
-const cellHeight = 0.25; // vertical (y) voxel size
+// agent parameters
+const walkableRadiusWorld = 0.3;
+const walkableHeightWorld = 2.0;
+const walkableClimbWorld = 0.5;
+const walkableSlopeAngleDegrees = 45;
 
-// using these, we’ll calculate voxel-based equivalents of the agent dimensions
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
-// region merging (simplifies contiguous walkable areas)
-const minRegionArea = 8; // minimum isolated region size
-const mergeRegionArea = 20; // regions smaller than this will be merged with neighbors
+// compact heightfield region parameters
+const minRegionArea = 8;
+const mergeRegionArea = 20;
 
-// polygon generation: tradeoff between detail and mesh complexity
-const maxSimplificationError = 1.3; // how far simplified edges can deviate from the original raw contour
-const maxEdgeLength = 12; // max polygon edge length
-const maxVerticesPerPoly = 5; // max vertices per polygon
+// polygon generation parameters
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+const maxVerticesPerPoly = 5;
 
-// detail mesh sampling: vertical pathfinding precision
-// higher values increase generation time and memory usage, but can be useful for very uneven surfaces
-const detailSampleDistanceVoxels = 6; // distance between sample points, smaller values increase precision
-const detailSampleMaxErrorVoxels = 1; // height error tolerance per sample
+// detail mesh generation parameters
+const detailSampleDistanceVoxels = 6;
+const detailSampleMaxErrorVoxels = 1;
 
-// convert detail sampling from voxel units to world units
 const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
 const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
 
-// optional border padding (used for seamless tile edges, 0 for single meshes)
+// border size around each tile, in voxels. 0 for solo navmesh.
 const borderSize = 0;
 
 const options: SoloNavMeshOptions = {
@@ -345,6 +339,24 @@ console.log(
 );
 ```
 
+Below is a quick summary of the navmesh generation parameters used above, and how to start tuning them:
+
+| Parameter                   | Description                                                                                                       | Range / Heuristic for 1 = 1m humanoid agents | Example |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------- |
+| `cellSize`                  | Horizontal voxel size (XZ). Smaller = finer detail, slower generation.                                            | ≈ `walkableRadiusWorld / 3`                  | `0.15`  |
+| `cellHeight`                | Vertical voxel size (Y). Controls height resolution.                                                              | ≈ `walkableClimbWorld / 2`                   | `0.25`  |
+| `walkableRadiusWorld`       | Agent radius (half-width). Determines clearance around walls.                                                     | 0.2–0.5 m                                    | `0.3`   |
+| `walkableHeightWorld`       | Agent height. Areas with ceilings lower than this are excluded.                                                   | 1.6–2.0 m                                    | `2.0`   |
+| `walkableSlopeAngleDegrees` | Max slope angle the agent can walk. This filters out input triangles at the very beginning of navmesh generation. | 35–50°                                       | `45`    |
+| `walkableClimbWorld`        | Max step height. Allows stepping up/down small edges. This filters at the heightfield navmesh generation stage.   | 0.3–0.5 m                                    | `0.5`   |
+| `minRegionArea`             | Smallest isolated region kept.                                                                                    | 4–16 voxels                                  | `8`     |
+| `mergeRegionArea`           | Regions smaller than this merge into neighbors.                                                                   | 8–32 voxels                                  | `20`    |
+| `maxSimplificationError`    | Edge simplification tolerance (higher = simpler mesh).                                                            | 1–2                                          | `1.3`   |
+| `maxEdgeLength`             | Max polygon edge length before splitting.                                                                         | 8–24                                         | `12`    |
+| `maxVerticesPerPoly`        | Max vertices per polygon.                                                                                         | 3–6                                          | `5`     |
+| `detailSampleDistance`      | Distance between height samples (affects vertical detail).                                                        | `cellSize * 4–8`                             | `0.9`   |
+| `detailSampleMaxError`      | Allowed height deviation when simplifying detail mesh.                                                            | `cellHeight * 1–2`                           | `0.25`  |
+
 ## Introduction
 
 ### What is a navigation mesh?
@@ -360,6 +372,7 @@ navcat is agnostic of rendering or game engine library, so it will work well wit
 If you are using threejs, you may make use of the utilities in the `navcat/three` entrypoint, see the [navcat/three docs](#navcatthree). Integrations for other engines may be added in future.
 
 navcat adheres to the OpenGL conventions:
+
 - Uses the right-handed coordinate system
 - Indices should be in counter-clockwise winding order
 
@@ -394,6 +407,7 @@ The navigation mesh data is transparent enough that you can write your own logic
 The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach.
 
 At a high-level:
+
 - Input triangles are rasterized into voxels / into a heightfield
 - Voxels in areas where agents (defined by your parameters) would not be able to move are filtered and removed
 - Walkable areas described by the voxel grid are divided into sets of polygonal regions
@@ -402,6 +416,7 @@ At a high-level:
 Like recast, navcat supports both single and tiled navigation meshes. Single-tile meshes are suitable for many simple, static cases and are easy to work with. Tiled navmeshes are more complex to work with but better support larger, more dynamic environments, and enable advanced use cases like re-baking, navmesh data-streaming.
 
 If you want an interactive example / starter, see the examples:
+
 - https://navcat.dev/examples#example-generate-navmesh
 - [./examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
 - [./blocks/generate-solo-nav-mesh.ts](./blocks/generate-solo-nav-mesh.ts)
@@ -632,7 +647,7 @@ export function markWalkableTriangles(inVertices: ArrayLike<number>, inIndices: 
 
 The walkable triangles are then voxelized into a heightfield, taking the triangle's "walkability" into each span.
 
-Some filtering is done to the heightfield to remove spans where a character cannot stand, and unwanted overhangs are removed. 
+Some filtering is done to the heightfield to remove spans where a character cannot stand, and unwanted overhangs are removed.
 
 The heightfield resolution is configurable, and greatly affects the fidelity of the resulting navigation mesh, and the performance of the navigation mesh generation process.
 

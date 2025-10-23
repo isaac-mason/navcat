@@ -23,43 +23,37 @@ const input: SoloNavMeshInput = {
 // it's generally recommended that you use the library debug helpers to visualize the navmesh
 // generation and fine tune these parameters.
 
-// agent parameters: the navmesh will be built to accommodate an agent with these dimensions
-const walkableRadiusWorld = 0.3; // how wide the agent is
-const walkableHeightWorld = 2.0; // how tall the agent is
-const walkableClimbWorld = 0.5; // how high the agent can step
-const walkableSlopeAngleDegrees = 45; // how steep a slope the agent can walk up
+// heightfield parameters
+const cellSize = 0.15;
+const cellHeight = 0.25;
 
-// voxelization: triangles are rasterized into a voxel grid. smaller cells = more detail (slower); larger = simpler, faster.
-// heuristic to start with: cellSize ≈ walkableRadiusWorld / 3, cellHeight ≈ walkableClimbWorld / 2
-// typically you might start with the heuristic values then adjust depending on your level scale and desired detail.
-// if you want to generate quickly, increase these values to the highest acceptable level of detail.
-const cellSize = 0.15; // horizontal (xz) voxel size
-const cellHeight = 0.25; // vertical (y) voxel size
+// agent parameters
+const walkableRadiusWorld = 0.3;
+const walkableHeightWorld = 2.0;
+const walkableClimbWorld = 0.5;
+const walkableSlopeAngleDegrees = 45;
 
-// using these, we’ll calculate voxel-based equivalents of the agent dimensions
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
-// region merging (simplifies contiguous walkable areas)
-const minRegionArea = 8; // minimum isolated region size
-const mergeRegionArea = 20; // regions smaller than this will be merged with neighbors
+// compact heightfield region parameters
+const minRegionArea = 8;
+const mergeRegionArea = 20;
 
-// polygon generation: tradeoff between detail and mesh complexity
-const maxSimplificationError = 1.3; // how far simplified edges can deviate from the original raw contour
-const maxEdgeLength = 12; // max polygon edge length
-const maxVerticesPerPoly = 5; // max vertices per polygon
+// polygon generation parameters
+const maxSimplificationError = 1.3;
+const maxEdgeLength = 12;
+const maxVerticesPerPoly = 5;
 
-// detail mesh sampling: vertical pathfinding precision
-// higher values increase generation time and memory usage, but can be useful for very uneven surfaces
-const detailSampleDistanceVoxels = 6; // distance between sample points, smaller values increase precision
-const detailSampleMaxErrorVoxels = 1; // height error tolerance per sample
+// detail mesh generation parameters
+const detailSampleDistanceVoxels = 6;
+const detailSampleMaxErrorVoxels = 1;
 
-// convert detail sampling from voxel units to world units
 const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
 const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
 
-// optional border padding (used for seamless tile edges, 0 for single meshes)
+// border size around each tile, in voxels. 0 for solo navmesh.
 const borderSize = 0;
 
 const options: SoloNavMeshOptions = {
