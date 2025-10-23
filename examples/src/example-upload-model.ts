@@ -86,7 +86,7 @@ const config = {
 
     // Heightfield parameters
     cellSize: 0.15,
-    cellHeight: 0.15,
+    cellHeight: 0.25,
 
     // Tiled-specific parameters
     tileSizeVoxels: 32,
