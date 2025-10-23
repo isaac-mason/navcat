@@ -1,4 +1,4 @@
-export * from './crowd';
-export * from './local-boundary';
-export * from './obstacle-avoidance';
-export * from './path-corridor';
+export * as crowd from './crowd';
+export * as localBoundary from './local-boundary';
+export * as obstacleAvoidance from './obstacle-avoidance';
+export * as pathCorridor from './path-corridor';

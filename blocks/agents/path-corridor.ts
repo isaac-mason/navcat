@@ -19,25 +19,25 @@ export type PathCorridor = {
     maxPath: number;
 };
 
-export const createPathCorridor = (maxPath: number): PathCorridor => ({
+export const create = (maxPath: number): PathCorridor => ({
     position: [0, 0, 0],
     target: [0, 0, 0],
     path: [],
     maxPath,
 });
 
-export const resetCorridor = (corridor: PathCorridor, ref: NodeRef, position: Vec3): void => {
+export const reset = (corridor: PathCorridor, ref: NodeRef, position: Vec3): void => {
     vec3.copy(corridor.position, position);
     vec3.copy(corridor.target, position);
     corridor.path = [ref];
 };
 
-export const setCorridorPath = (corridor: PathCorridor, target: Vec3, path: NodeRef[]): void => {
+export const setPath = (corridor: PathCorridor, target: Vec3, path: NodeRef[]): void => {
     vec3.copy(corridor.target, target);
     corridor.path = path.slice(0, corridor.maxPath);
 };
 
-export const mergeCorridorStartMoved = (currentPath: NodeRef[], visited: NodeRef[], maxPath: number): NodeRef[] => {
+export const mergeStartMoved = (currentPath: NodeRef[], visited: NodeRef[], maxPath: number): NodeRef[] => {
     if (visited.length === 0) return currentPath;
 
     let furthestPath = -1;
@@ -86,13 +86,13 @@ export const mergeCorridorStartMoved = (currentPath: NodeRef[], visited: NodeRef
     return newPath.slice(0, req + size);
 };
 
-export const corridorMovePosition = (corridor: PathCorridor, newPos: Vec3, navMesh: NavMesh, filter: QueryFilter): boolean => {
+export const movePosition = (corridor: PathCorridor, newPos: Vec3, navMesh: NavMesh, filter: QueryFilter): boolean => {
     if (corridor.path.length === 0) return false;
 
     const result = moveAlongSurface(navMesh, corridor.path[0], corridor.position, newPos, filter);
 
     if (result.success) {
-        corridor.path = mergeCorridorStartMoved(corridor.path, result.visited, corridor.maxPath);
+        corridor.path = mergeStartMoved(corridor.path, result.visited, corridor.maxPath);
         vec3.copy(corridor.position, result.resultPosition);
         return true;
     }
@@ -102,7 +102,7 @@ export const corridorMovePosition = (corridor: PathCorridor, newPos: Vec3, navMe
 
 const MIN_TARGET_DIST = 0.01;
 
-export const findCorridorCorners = (
+export const findCorners = (
     corridor: PathCorridor,
     navMesh: NavMesh,
     maxCorners: number,

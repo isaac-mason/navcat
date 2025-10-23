@@ -16,35 +16,9 @@ import {
     StraightPathPointFlags,
     updateSlicedFindNodePath,
 } from 'navcat';
-import {
-    createLocalBoundary,
-    isLocalBoundaryValid,
-    type LocalBoundary,
-    resetLocalBoundary,
-    updateLocalBoundary,
-} from './local-boundary';
-import {
-    addCircleObstacle,
-    addSegmentObstacle,
-    createObstacleAvoidanceDebugData,
-    createObstacleAvoidanceQuery,
-    type ObstacleAvoidanceDebugData,
-    type ObstacleAvoidanceParams,
-    type ObstacleAvoidanceQuery,
-    resetObstacleAvoidanceQuery,
-    sampleVelocityAdaptive,
-} from './obstacle-avoidance';
-import {
-    corridorIsValid,
-    corridorMovePosition,
-    createPathCorridor,
-    findCorridorCorners,
-    fixPathStart,
-    moveOverOffMeshConnection,
-    type PathCorridor,
-    resetCorridor,
-    setCorridorPath,
-} from './path-corridor';
+import * as localBoundary from './local-boundary';
+import * as obstacleAvoidance from './obstacle-avoidance';
+import * as pathCorridor from './path-corridor';
 
 export enum AgentState {
     INVALID,
@@ -80,7 +54,7 @@ export type AgentParams = {
     /** @see CrowdUpdateFlags */
     updateFlags: number;
     queryFilter: QueryFilter;
-    obstacleAvoidance: ObstacleAvoidanceParams;
+    obstacleAvoidance: obstacleAvoidance.ObstacleAvoidanceParams;
 };
 
 export type Agent = {
@@ -89,11 +63,11 @@ export type Agent = {
     /** @see AgentState */
     state: number;
 
-    corridor: PathCorridor;
-    boundary: LocalBoundary;
+    corridor: pathCorridor.PathCorridor;
+    boundary: localBoundary.LocalBoundary;
     slicedQuery: SlicedNodePathQuery;
-    obstacleAvoidanceQuery: ObstacleAvoidanceQuery;
-    obstacleAvoidanceDebugData: ObstacleAvoidanceDebugData | undefined;
+    obstacleAvoidanceQuery: obstacleAvoidance.ObstacleAvoidanceQuery;
+    obstacleAvoidanceDebugData: obstacleAvoidance.ObstacleAvoidanceDebugData | undefined;
     topologyOptTime: number;
 
     neis: Array<{ agentId: string; dist: number }>;
@@ -130,7 +104,7 @@ export type Crowd = {
     agentPlacementHalfExtents: Vec3;
 };
 
-export const createCrowd = (maxAgentRadius: number): Crowd => {
+export const create = (maxAgentRadius: number): Crowd => {
     return {
         agents: {},
         agentIdCounter: 0,
@@ -147,11 +121,11 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
 
         state: AgentState.WALKING,
 
-        corridor: createPathCorridor(256),
+        corridor: pathCorridor.create(256),
         slicedQuery: createSlicedNodePathQuery(),
-        boundary: createLocalBoundary(),
-        obstacleAvoidanceQuery: createObstacleAvoidanceQuery(32, 32),
-        obstacleAvoidanceDebugData: createObstacleAvoidanceDebugData(),
+        boundary: localBoundary.create(),
+        obstacleAvoidanceQuery: obstacleAvoidance.createObstacleAvoidanceQuery(32, 32),
+        obstacleAvoidanceDebugData: obstacleAvoidance.createObstacleAvoidanceDebugData(),
         topologyOptTime: 0,
 
         neis: [],
@@ -267,14 +241,14 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
             if (!nearestPolyResult.success) {
                 // could not find location in navmesh, set agent state to invalid
                 agent.state = AgentState.INVALID;
-                resetCorridor(agent.corridor, 0, agent.position);
-                resetLocalBoundary(agent.boundary);
+                pathCorridor.reset(agent.corridor, 0, agent.position);
+                localBoundary.resetLocalBoundary(agent.boundary);
 
                 continue;
             }
 
-            fixPathStart(agent.corridor, nearestPolyResult.ref, agent.position);
-            resetLocalBoundary(agent.boundary);
+            pathCorridor.fixPathStart(agent.corridor, nearestPolyResult.ref, agent.position);
+            localBoundary.resetLocalBoundary(agent.boundary);
             vec3.copy(agent.position, nearestPolyResult.point);
 
             replan = true;
@@ -305,7 +279,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                     // could not find location in navmesh, set agent state to invalid
                     agent.targetState = AgentTargetState.NONE;
                     agent.targetRef = null;
-                    resetCorridor(agent.corridor, 0, agent.position);
+                    pathCorridor.reset(agent.corridor, 0, agent.position);
                 } else {
                     // target poly became invalid, update to nearest valid poly
                     agent.targetRef = nearestPolyResult.ref;
@@ -316,7 +290,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
         }
 
         // if nearby corridor is not valid, replan
-        const corridorValid = corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.params.queryFilter);
+        const corridorValid = pathCorridor.corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.params.queryFilter);
         if (!corridorValid) {
             replan = true;
         }
@@ -418,8 +392,8 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             agent.targetPathfindingTime = 0;
 
             const result = finalizeSlicedFindNodePath(navMesh, agent.slicedQuery);
-            setCorridorPath(agent.corridor, agent.targetPos, result.path);
-            resetLocalBoundary(agent.boundary);
+            pathCorridor.setPath(agent.corridor, agent.targetPos, result.path);
+            localBoundary.resetLocalBoundary(agent.boundary);
         }
     }
 };
@@ -460,8 +434,8 @@ const updateLocalBoundaries = (crowd: Crowd, navMesh: NavMesh): void => {
         const updateThreshold = agent.params.collisionQueryRange * 0.25;
         const movedDistance = vec3.distance(agent.position, agent.boundary.center);
 
-        if (movedDistance > updateThreshold || !isLocalBoundaryValid(agent.boundary, navMesh, agent.params.queryFilter)) {
-            updateLocalBoundary(
+        if (movedDistance > updateThreshold || !localBoundary.isLocalBoundaryValid(agent.boundary, navMesh, agent.params.queryFilter)) {
+            localBoundary.updateLocalBoundary(
                 agent.boundary,
                 agent.corridor.path[0],
                 agent.position,
@@ -492,7 +466,7 @@ const updateCorners = (crowd: Crowd, navMesh: NavMesh): void => {
         }
 
         // get corridor corners for steering
-        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+        const corners = pathCorridor.findCorners(agent.corridor, navMesh, 3);
 
         if (!corners) {
             vec3.set(agent.desiredVelocity, 0, 0, 0);
@@ -543,7 +517,7 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
 
             if (!offMeshConnectionNode) continue;
 
-            const result = moveOverOffMeshConnection(agent.corridor, offMeshConnectionNode, navMesh);
+            const result = pathCorridor.moveOverOffMeshConnection(agent.corridor, offMeshConnectionNode, navMesh);
 
             if (result === false) continue;
 
@@ -714,12 +688,12 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
 
         if (agent.params.updateFlags & CrowdUpdateFlags.OBSTACLE_AVOIDANCE) {
             // reset obstacle query
-            resetObstacleAvoidanceQuery(agent.obstacleAvoidanceQuery);
+            obstacleAvoidance.resetObstacleAvoidanceQuery(agent.obstacleAvoidanceQuery);
 
             // add neighboring agents as circular obstacles
             for (const neighbor of agent.neis) {
                 const neighborAgent = crowd.agents[neighbor.agentId];
-                addCircleObstacle(
+                obstacleAvoidance.addCircleObstacle(
                     agent.obstacleAvoidanceQuery,
                     neighborAgent.position,
                     neighborAgent.params.radius,
@@ -741,14 +715,14 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
                     continue;
                 }
 
-                addSegmentObstacle(agent.obstacleAvoidanceQuery, p1, p2);
+                obstacleAvoidance.addSegmentObstacle(agent.obstacleAvoidanceQuery, p1, p2);
             }
 
             // sample safe velocity using adaptive sampling
             // pass debug data if available
             const debugData = agent.obstacleAvoidanceDebugData;
             
-            sampleVelocityAdaptive(
+            obstacleAvoidance.sampleVelocityAdaptive(
                 agent.obstacleAvoidanceQuery,
                 agent.position,
                 agent.params.radius,
@@ -878,14 +852,14 @@ const updateCorridors = (crowd: Crowd, navMesh: NavMesh): void => {
         if (agent.state !== AgentState.WALKING) continue;
 
         // move along navmesh
-        corridorMovePosition(agent.corridor, agent.position, navMesh, agent.params.queryFilter);
+        pathCorridor.movePosition(agent.corridor, agent.position, navMesh, agent.params.queryFilter);
 
         // get valid constrained position back
         vec3.copy(agent.position, agent.corridor.position);
 
         // if not using path, truncate the corridor to one poly
         if (agent.targetState === AgentTargetState.NONE || agent.targetState === AgentTargetState.VELOCITY) {
-            resetCorridor(agent.corridor, agent.corridor.path[0], agent.position);
+            pathCorridor.reset(agent.corridor, agent.corridor.path[0], agent.position);
         }
     }
 };
