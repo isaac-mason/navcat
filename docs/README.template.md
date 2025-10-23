@@ -45,21 +45,21 @@ If you are using threejs, you can find [a threejs-specific version of this snipp
 
 Below is a quick summary of the navmesh generation parameters used above, and how to start tuning them:
 
-| Parameter                   | Description                                                                                                       | Range / Heuristic for 1 = 1m humanoid agents | Example |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------- | ------- |
-| `cellSize`                  | Horizontal voxel size (XZ). Smaller = finer detail, slower generation.                                            | ≈ `walkableRadiusWorld / 3`                  | `0.15`  |
-| `cellHeight`                | Vertical voxel size (Y). Controls height resolution.                                                              | ≈ `walkableClimbWorld / 2`                   | `0.25`  |
-| `walkableRadiusWorld`       | Agent radius (half-width). Determines clearance around walls.                                                     | 0.2–0.5 m                                    | `0.3`   |
-| `walkableHeightWorld`       | Agent height. Areas with ceilings lower than this are excluded.                                                   | 1.6–2.0 m                                    | `2.0`   |
-| `walkableSlopeAngleDegrees` | Max slope angle the agent can walk. This filters out input triangles at the very beginning of navmesh generation. | 35–50°                                       | `45`    |
-| `walkableClimbWorld`        | Max step height. Allows stepping up/down small edges. This filters at the heightfield navmesh generation stage.   | 0.3–0.5 m                                    | `0.5`   |
-| `minRegionArea`             | Smallest isolated region kept.                                                                                    | 4–16 voxels                                  | `8`     |
-| `mergeRegionArea`           | Regions smaller than this merge into neighbors.                                                                   | 8–32 voxels                                  | `20`    |
-| `maxSimplificationError`    | Edge simplification tolerance (higher = simpler mesh).                                                            | 1–2                                          | `1.3`   |
-| `maxEdgeLength`             | Max polygon edge length before splitting.                                                                         | 8–24                                         | `12`    |
-| `maxVerticesPerPoly`        | Max vertices per polygon.                                                                                         | 3–6                                          | `5`     |
-| `detailSampleDistance`      | Distance between height samples (affects vertical detail).                                                        | `cellSize * 4–8`                             | `0.9`   |
-| `detailSampleMaxError`      | Allowed height deviation when simplifying detail mesh.                                                            | `cellHeight * 1–2`                           | `0.25`  |
+| Parameter                   | Description                                                                                                       | Range / Heuristic for 1 = 1m humanoid agents |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `cellSize`                  | Horizontal voxel size (XZ). Smaller = finer detail, slower generation.                                            | ≈ `walkableRadiusWorld / 3`                  |
+| `cellHeight`                | Vertical voxel size (Y). Controls height resolution.                                                              | ≈ `walkableClimbWorld / 2`                   |
+| `walkableRadiusWorld`       | Agent radius (half-width). Determines clearance around walls.                                                     | 0.2–0.5 m                                    |
+| `walkableHeightWorld`       | Agent height. Areas with ceilings lower than this are excluded.                                                   | 1.6–2.0 m                                    |
+| `walkableSlopeAngleDegrees` | Max slope angle the agent can walk. This filters out input triangles at the very beginning of navmesh generation. | 35–50°                                       |
+| `walkableClimbWorld`        | Max step height. Allows stepping up/down small edges. This filters at the heightfield navmesh generation stage.   | 0.3–0.5 m                                    |
+| `minRegionArea`             | Smallest isolated region kept.                                                                                    | 4–16 voxels                                  |
+| `mergeRegionArea`           | Regions smaller than this merge into neighbors.                                                                   | 8–32 voxels                                  |
+| `maxSimplificationError`    | Edge simplification tolerance (higher = simpler mesh).                                                            | 1–2                                          |
+| `maxEdgeLength`             | Max polygon edge length before splitting.                                                                         | 8–24                                         |
+| `maxVerticesPerPoly`        | Max vertices per polygon.                                                                                         | 3–6                                          |
+| `detailSampleDistance`      | Distance between height samples (affects vertical detail).                                                        | `cellSize * 4–8`, e.g. `0.9`                 |
+| `detailSampleMaxError`      | Allowed height deviation when simplifying detail mesh.                                                            | `cellHeight * 1–2`, e.g. `0.25`              |
 
 ## Introduction
 
