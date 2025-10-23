@@ -55,6 +55,14 @@ export type AgentParams = {
     updateFlags: number;
     queryFilter: QueryFilter;
     obstacleAvoidance: obstacleAvoidance.ObstacleAvoidanceParams;
+
+    /**
+     * If true, agents will automatically traverse off-mesh connections with a linear interpolation.
+     * If false, the agent will enter OFFMESH state and populate offMeshAnimation data,
+     * but the application must manually animate and call completeOffMeshConnection when done.
+     * @default true
+     */
+    autoTraverseOffMeshConnections: boolean;
 };
 
 export type Agent = {
@@ -522,15 +530,49 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
             if (result === false) continue;
 
             agent.state = AgentState.OFFMESH;
+
+            // if autoTraverseOffMeshConnections is true, set up automatic animation
+            // otherwise, still populate the data but the user must call completeOffMeshConnection manually
             agent.offMeshAnimation = {
                 t: 0,
-                duration: 0.5,
+                duration: agent.params.autoTraverseOffMeshConnections ? 0.5 : -1,
                 startPos: vec3.clone(agent.position),
                 endPos: vec3.clone(result.endPosition),
                 nodeRef: result.offMeshNodeRef,
             };
         }
     }
+};
+
+/**
+ * Manually completes an off-mesh connection for an agent.
+ * This should be called after custom off-mesh animation is complete.
+ * @param crowd the crowd
+ * @param agentId the agent id
+ * @returns true if the off-mesh connection was completed successfully, false otherwise
+ */
+export const completeOffMeshConnection = (crowd: Crowd, agentId: string): boolean => {
+    const agent = crowd.agents[agentId];
+
+    if (!agent) return false;
+
+    if (agent.state !== AgentState.OFFMESH) return false;
+
+    if (!agent.offMeshAnimation) return false;
+
+    vec3.copy(agent.position, agent.offMeshAnimation.endPos);
+
+    // update velocity - set to zero during off-mesh connection
+    vec3.set(agent.velocity, 0, 0, 0);
+    vec3.set(agent.desiredVelocity, 0, 0, 0);
+
+    // finish animation
+    agent.offMeshAnimation = null;
+
+    // prepare agent for walking
+    agent.state = AgentState.WALKING;
+
+    return true;
 };
 
 const _direction = vec3.create();
@@ -870,6 +912,12 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
         const agent = crowd.agents[agentId];
 
         if (!agent.offMeshAnimation) {
+            continue;
+        }
+
+        // only auto-update if autoTraverseOffMeshConnections is enabled
+        // otherwise, the user is responsible for animation and calling completeOffMeshConnection
+        if (!agent.params.autoTraverseOffMeshConnections) {
             continue;
         }
 

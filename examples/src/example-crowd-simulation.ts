@@ -12,7 +12,7 @@ import {
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
 } from 'navcat';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { crowd, generateTiledNavMesh, pathCorridor, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
 import {
     createNavMeshHelper,
     createNavMeshOffMeshConnectionsHelper,
@@ -22,9 +22,7 @@ import {
 } from 'navcat/three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
-import { crowd } from 'navcat/blocks';;
 import { loadGLTF } from './common/load-gltf';
-import { pathCorridor } from 'navcat/blocks';
 
 const random = createMulberry32Generator(42);
 
@@ -901,9 +899,9 @@ const agentParams: crowd.AgentParams = {
     maxAcceleration: 15.0,
     maxSpeed: 3.5,
     collisionQueryRange: 2,
-    // pathOptimizationRange: 30.0,
     separationWeight: 0.5,
-    updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+    updateFlags:
+        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
     obstacleAvoidance: {
         velBias: 0.4,
@@ -917,6 +915,8 @@ const agentParams: crowd.AgentParams = {
         adaptiveRings: 2,
         adaptiveDepth: 5,
     },
+    // we will do a custom animation for off-mesh connections
+    autoTraverseOffMeshConnections: false,
 };
 
 // create agents at different positions
@@ -1326,9 +1326,45 @@ function update() {
     }
 
     // update crowd
-    // console.time("update crowd");
     crowd.updateCrowd(catsCrowd, navMesh, clampedDeltaTime);
-    // console.timeEnd("update crowd");
+
+    // handle custom off-mesh connection animations with arcs
+    for (const agentId in catsCrowd.agents) {
+        const agent = catsCrowd.agents[agentId];
+
+        if (agent.state === crowd.AgentState.OFFMESH && agent.offMeshAnimation) {
+            const anim = agent.offMeshAnimation;
+
+            // progress animation time
+            anim.t += clampedDeltaTime;
+
+            // custom animation duration
+            const customDuration = 0.8; // slightly longer for nice arc
+
+            if (anim.t >= customDuration) {
+                // finish the off-mesh connection
+                crowd.completeOffMeshConnection(catsCrowd, agentId);
+            } else {
+                // animate with a parabolic arc
+                const progress = anim.t / customDuration;
+
+                // linear interpolation for x and z
+                const x = anim.startPos[0] + (anim.endPos[0] - anim.startPos[0]) * progress;
+                const z = anim.startPos[2] + (anim.endPos[2] - anim.startPos[2]) * progress;
+
+                // parabolic arc for y (creates a jump effect)
+                const startY = anim.startPos[1];
+                const endY = anim.endPos[1];
+                const arcHeight = 1.0; // height of the arc
+
+                // parabola: y = -4h * (p - 0.5)^2 + h where h is max height above start
+                const parabola = -4 * arcHeight * (progress - 0.5) ** 2 + arcHeight;
+                const y = startY + (endY - startY) * progress + parabola;
+
+                vec3.set(agent.position, x, y, z);
+            }
+        }
+    }
 
     // update visuals
     clearPolyHelpers();

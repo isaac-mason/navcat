@@ -908,6 +908,7 @@ const agentParams: crowd.AgentParams = {
     separationWeight: 0.5,
     updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
+    autoTraverseOffMeshConnections: true,
     obstacleAvoidance: {
         velBias: 0.4,
         weightDesVel: 2.0,
