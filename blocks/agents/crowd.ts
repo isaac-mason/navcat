@@ -153,6 +153,27 @@ export type Crowd = {
     agentIdCounter: number;
     maxAgentRadius: number;
     agentPlacementHalfExtents: Vec3;
+
+    /**
+     * Maximum pathfinding iterations distributed across all agents per update.
+     * Higher values allow more agents to complete pathfinding faster but increase CPU cost.
+     * @default 600
+     */
+    maxIterationsPerUpdate: number;
+
+    /**
+     * Maximum pathfinding iterations per agent per update.
+     * Limits how much CPU time a single agent can consume.
+     * @default 200
+     */
+    maxIterationsPerAgent: number;
+
+    /**
+     * Initial quick search iterations when pathfinding request starts.
+     * Helps find short paths immediately.
+     * @default 20
+     */
+    quickSearchIterations: number;
 };
 
 export const create = (maxAgentRadius: number): Crowd => {
@@ -161,6 +182,9 @@ export const create = (maxAgentRadius: number): Crowd => {
         agentIdCounter: 0,
         maxAgentRadius,
         agentPlacementHalfExtents: [maxAgentRadius, maxAgentRadius, maxAgentRadius],
+        maxIterationsPerUpdate: 600,
+        maxIterationsPerAgent: 200,
+        quickSearchIterations: 20,
     };
 };
 
@@ -364,10 +388,6 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
     }
 };
 
-const GLOBAL_MAX_ITERATIONS = 600;
-const AGENT_MAX_ITERATIONS = 200;
-const QUICK_SEARCH_ITERATIONS = 20;
-
 const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     // first, update pathfinding time for all agents in PATHFINDING state
     for (const agentId in crowd.agents) {
@@ -405,7 +425,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             );
 
             // quick search
-            updateSlicedFindNodePath(navMesh, agent.slicedQuery, QUICK_SEARCH_ITERATIONS);
+            updateSlicedFindNodePath(navMesh, agent.slicedQuery, crowd.quickSearchIterations);
 
             agent.targetState = AgentTargetState.PATHFINDING;
             agent.targetPathfindingTime = 0;
@@ -420,15 +440,15 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
     pathfindingAgents.sort((a, b) => crowd.agents[b].targetPathfindingTime - crowd.agents[a].targetPathfindingTime);
 
     // distribute global iteration budget across prioritized agents
-    let remainingIterations = GLOBAL_MAX_ITERATIONS;
+    let remainingIterations = crowd.maxIterationsPerUpdate;
 
     for (const agentId of pathfindingAgents) {
         const agent = crowd.agents[agentId];
 
         if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.IN_PROGRESS) !== 0 && remainingIterations > 0) {
             // allocate iterations for this agent (minimum 1, maximum remaining)
-            const iterationsForAgent = Math.min(AGENT_MAX_ITERATIONS, remainingIterations);
-    
+            const iterationsForAgent = Math.min(crowd.maxIterationsPerAgent, remainingIterations);
+
             const iterationsPerformed = updateSlicedFindNodePath(navMesh, agent.slicedQuery, iterationsForAgent);
             remainingIterations -= iterationsPerformed;
         }
@@ -485,7 +505,10 @@ const updateLocalBoundaries = (crowd: Crowd, navMesh: NavMesh): void => {
         const updateThreshold = agent.params.collisionQueryRange * 0.25;
         const movedDistance = vec3.distance(agent.position, agent.boundary.center);
 
-        if (movedDistance > updateThreshold || !localBoundary.isLocalBoundaryValid(agent.boundary, navMesh, agent.params.queryFilter)) {
+        if (
+            movedDistance > updateThreshold ||
+            !localBoundary.isLocalBoundaryValid(agent.boundary, navMesh, agent.params.queryFilter)
+        ) {
             localBoundary.updateLocalBoundary(
                 agent.boundary,
                 agent.corridor.path[0],
@@ -694,7 +717,7 @@ const getDistanceToGoal = (agent: Agent, range: number) => {
     const dist = vec2.distance(_getDistanceToGoalStart, _getDistanceToGoalEnd);
 
     return Math.min(range, dist);
-}
+};
 
 const updateSteering = (crowd: Crowd): void => {
     for (const agentId in crowd.agents) {
@@ -806,7 +829,7 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
             // sample safe velocity using adaptive sampling
             // pass debug data if available
             const debugData = agent.obstacleAvoidanceDebugData;
-            
+
             obstacleAvoidance.sampleVelocityAdaptive(
                 agent.obstacleAvoidanceQuery,
                 agent.position,
