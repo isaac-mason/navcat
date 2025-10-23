@@ -1012,7 +1012,7 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
     }
 };
 
-export const updateCrowd = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
+export const update = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     // check whether agent paths are still valid
     checkPathValidity(crowd, navMesh, deltaTime);
 

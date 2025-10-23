@@ -1326,7 +1326,7 @@ function update() {
     }
 
     // update crowd
-    crowd.updateCrowd(catsCrowd, navMesh, clampedDeltaTime);
+    crowd.update(catsCrowd, navMesh, clampedDeltaTime);
 
     // handle custom off-mesh connection animations with arcs
     for (const agentId in catsCrowd.agents) {

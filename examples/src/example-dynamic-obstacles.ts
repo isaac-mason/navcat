@@ -994,7 +994,7 @@ function update() {
     prevTime = time;
 
     // update crowd
-    crowd.updateCrowd(catsCrowd, navMesh, clampedDeltaTime);
+    crowd.update(catsCrowd, navMesh, clampedDeltaTime);
 
     // update physics
     physicsWorld.timestep = clampedDeltaTime;

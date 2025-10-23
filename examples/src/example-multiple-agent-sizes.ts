@@ -1007,7 +1007,7 @@ function update() {
     }
 
     // update crowd
-    crowd.updateCrowd(mixedCrowd, navMesh, clampedDeltaTime);
+    crowd.update(mixedCrowd, navMesh, clampedDeltaTime);
 
     const agents = Object.keys(mixedCrowd.agents);
 
