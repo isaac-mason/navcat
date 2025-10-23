@@ -42,18 +42,61 @@ export enum CrowdUpdateFlags {
 }
 
 export type AgentParams = {
+    /**
+     * Agent radius (in world units).
+     * Used for collision detection and avoidance calculations.
+     */
     radius: number;
+
+    /**
+     * Agent height (in world units).
+     * Used for visualization and spatial queries.
+     */
     height: number;
+
+    /**
+     * Maximum acceleration (in world units per second squared).
+     * Controls how quickly an agent can change velocity.
+     */
     maxAcceleration: number;
+
+    /**
+     * Maximum speed (in world units per second).
+     * The agent will not exceed this speed.
+     */
     maxSpeed: number;
 
+    /**
+     * Collision query range (in world units).
+     * Determines how far to look for neighboring agents and obstacles.
+     * Larger values increase computational cost but improve avoidance quality.
+     */
     collisionQueryRange: number;
-    // pathOptimizationRange: number;
+
+    /**
+     * Separation weight.
+     * Controls the strength of separation behavior from other agents.
+     * Higher values make agents maintain more distance from each other.
+     * Only applies when CrowdUpdateFlags.SEPARATION is enabled.
+     */
     separationWeight: number;
 
-    /** @see CrowdUpdateFlags */
+    /**
+     * Combination of CrowdUpdateFlags that control agent behavior.
+     * @see CrowdUpdateFlags
+     */
     updateFlags: number;
+
+    /**
+     * Query filter used for navmesh queries.
+     * Determines which polygons the agent can traverse.
+     */
     queryFilter: QueryFilter;
+
+    /**
+     * Obstacle avoidance parameters.
+     * Configures the adaptive sampling algorithm for velocity planning.
+     */
     obstacleAvoidance: obstacleAvoidance.ObstacleAvoidanceParams;
 
     /**
