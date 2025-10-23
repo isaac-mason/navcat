@@ -92,9 +92,9 @@ const config = {
     tileSizeVoxels: 32,
 
     // Agent parameters
-    walkableRadiusWorld: 0.1,
-    walkableClimbWorld: 0.5,
-    walkableHeightWorld: 0.25,
+    walkableRadiusWorld: 0.3,
+    walkableClimbWorld: 0.4,
+    walkableHeightWorld: 2,
     walkableSlopeAngleDegrees: 45,
 
     // Region parameters
