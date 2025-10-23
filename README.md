@@ -271,12 +271,12 @@ const walkableHeightWorld = 2.0; // how tall the agent is
 const walkableClimbWorld = 0.5; // how high the agent can step
 const walkableSlopeAngleDegrees = 45; // how steep a slope the agent can walk up
 
-// voxelization: triangles are rasterized into a voxel grid.
-// smaller cells = more detail (slower); larger = simpler, faster.
-// heuristic: cellSize ≈ radius/3, cellHeight ≈ climb/2
-// typically adjusted based on level scale and desired detail.
+// voxelization: triangles are rasterized into a voxel grid. smaller cells = more detail (slower); larger = simpler, faster.
+// heuristic to start with: cellSize ≈ walkableRadiusWorld / 3, cellHeight ≈ walkableClimbWorld / 2
+// typically you might start with the heuristic values then adjust depending on your level scale and desired detail.
+// if you want to generate quickly, increase these values to the highest acceptable level of detail.
 const cellSize = 0.15; // horizontal (xz) voxel size
-const cellHeight = 0.15; // vertical (y) voxel size
+const cellHeight = 0.25; // vertical (y) voxel size
 
 // using these, we’ll calculate voxel-based equivalents of the agent dimensions
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
