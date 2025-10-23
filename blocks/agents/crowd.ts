@@ -16,35 +16,9 @@ import {
     StraightPathPointFlags,
     updateSlicedFindNodePath,
 } from 'navcat';
-import {
-    createLocalBoundary,
-    isLocalBoundaryValid,
-    type LocalBoundary,
-    resetLocalBoundary,
-    updateLocalBoundary,
-} from './local-boundary';
-import {
-    addCircleObstacle,
-    addSegmentObstacle,
-    createObstacleAvoidanceDebugData,
-    createObstacleAvoidanceQuery,
-    type ObstacleAvoidanceDebugData,
-    type ObstacleAvoidanceParams,
-    type ObstacleAvoidanceQuery,
-    resetObstacleAvoidanceQuery,
-    sampleVelocityAdaptive,
-} from './obstacle-avoidance';
-import {
-    corridorIsValid,
-    corridorMovePosition,
-    createPathCorridor,
-    findCorridorCorners,
-    fixPathStart,
-    moveOverOffMeshConnection,
-    type PathCorridor,
-    resetCorridor,
-    setCorridorPath,
-} from './path-corridor';
+import * as localBoundary from './local-boundary';
+import * as obstacleAvoidance from './obstacle-avoidance';
+import * as pathCorridor from './path-corridor';
 
 export enum AgentState {
     INVALID,
@@ -68,19 +42,70 @@ export enum CrowdUpdateFlags {
 }
 
 export type AgentParams = {
+    /**
+     * Agent radius (in world units).
+     * Used for collision detection and avoidance calculations.
+     */
     radius: number;
+
+    /**
+     * Agent height (in world units).
+     * Used for visualization and spatial queries.
+     */
     height: number;
+
+    /**
+     * Maximum acceleration (in world units per second squared).
+     * Controls how quickly an agent can change velocity.
+     */
     maxAcceleration: number;
+
+    /**
+     * Maximum speed (in world units per second).
+     * The agent will not exceed this speed.
+     */
     maxSpeed: number;
 
+    /**
+     * Collision query range (in world units).
+     * Determines how far to look for neighboring agents and obstacles.
+     * Larger values increase computational cost but improve avoidance quality.
+     */
     collisionQueryRange: number;
-    // pathOptimizationRange: number;
+
+    /**
+     * Separation weight.
+     * Controls the strength of separation behavior from other agents.
+     * Higher values make agents maintain more distance from each other.
+     * Only applies when CrowdUpdateFlags.SEPARATION is enabled.
+     */
     separationWeight: number;
 
-    /** @see CrowdUpdateFlags */
+    /**
+     * Combination of CrowdUpdateFlags that control agent behavior.
+     * @see CrowdUpdateFlags
+     */
     updateFlags: number;
+
+    /**
+     * Query filter used for navmesh queries.
+     * Determines which polygons the agent can traverse.
+     */
     queryFilter: QueryFilter;
-    obstacleAvoidance: ObstacleAvoidanceParams;
+
+    /**
+     * Obstacle avoidance parameters.
+     * Configures the adaptive sampling algorithm for velocity planning.
+     */
+    obstacleAvoidance: obstacleAvoidance.ObstacleAvoidanceParams;
+
+    /**
+     * If true, agents will automatically traverse off-mesh connections with a linear interpolation.
+     * If false, the agent will enter OFFMESH state and populate offMeshAnimation data,
+     * but the application must manually animate and call completeOffMeshConnection when done.
+     * @default true
+     */
+    autoTraverseOffMeshConnections: boolean;
 };
 
 export type Agent = {
@@ -89,11 +114,11 @@ export type Agent = {
     /** @see AgentState */
     state: number;
 
-    corridor: PathCorridor;
-    boundary: LocalBoundary;
+    corridor: pathCorridor.PathCorridor;
+    boundary: localBoundary.LocalBoundary;
     slicedQuery: SlicedNodePathQuery;
-    obstacleAvoidanceQuery: ObstacleAvoidanceQuery;
-    obstacleAvoidanceDebugData: ObstacleAvoidanceDebugData | undefined;
+    obstacleAvoidanceQuery: obstacleAvoidance.ObstacleAvoidanceQuery;
+    obstacleAvoidanceDebugData: obstacleAvoidance.ObstacleAvoidanceDebugData | undefined;
     topologyOptTime: number;
 
     neis: Array<{ agentId: string; dist: number }>;
@@ -128,14 +153,38 @@ export type Crowd = {
     agentIdCounter: number;
     maxAgentRadius: number;
     agentPlacementHalfExtents: Vec3;
+
+    /**
+     * Maximum pathfinding iterations distributed across all agents per update.
+     * Higher values allow more agents to complete pathfinding faster but increase CPU cost.
+     * @default 600
+     */
+    maxIterationsPerUpdate: number;
+
+    /**
+     * Maximum pathfinding iterations per agent per update.
+     * Limits how much CPU time a single agent can consume.
+     * @default 200
+     */
+    maxIterationsPerAgent: number;
+
+    /**
+     * Initial quick search iterations when pathfinding request starts.
+     * Helps find short paths immediately.
+     * @default 20
+     */
+    quickSearchIterations: number;
 };
 
-export const createCrowd = (maxAgentRadius: number): Crowd => {
+export const create = (maxAgentRadius: number): Crowd => {
     return {
         agents: {},
         agentIdCounter: 0,
         maxAgentRadius,
         agentPlacementHalfExtents: [maxAgentRadius, maxAgentRadius, maxAgentRadius],
+        maxIterationsPerUpdate: 600,
+        maxIterationsPerAgent: 200,
+        quickSearchIterations: 20,
     };
 };
 
@@ -147,11 +196,11 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
 
         state: AgentState.WALKING,
 
-        corridor: createPathCorridor(256),
+        corridor: pathCorridor.create(),
         slicedQuery: createSlicedNodePathQuery(),
-        boundary: createLocalBoundary(),
-        obstacleAvoidanceQuery: createObstacleAvoidanceQuery(32, 32),
-        obstacleAvoidanceDebugData: createObstacleAvoidanceDebugData(),
+        boundary: localBoundary.create(),
+        obstacleAvoidanceQuery: obstacleAvoidance.createObstacleAvoidanceQuery(32, 32),
+        obstacleAvoidanceDebugData: obstacleAvoidance.createObstacleAvoidanceDebugData(),
         topologyOptTime: 0,
 
         neis: [],
@@ -267,14 +316,14 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
             if (!nearestPolyResult.success) {
                 // could not find location in navmesh, set agent state to invalid
                 agent.state = AgentState.INVALID;
-                resetCorridor(agent.corridor, 0, agent.position);
-                resetLocalBoundary(agent.boundary);
+                pathCorridor.reset(agent.corridor, 0, agent.position);
+                localBoundary.resetLocalBoundary(agent.boundary);
 
                 continue;
             }
 
-            fixPathStart(agent.corridor, nearestPolyResult.ref, agent.position);
-            resetLocalBoundary(agent.boundary);
+            pathCorridor.fixPathStart(agent.corridor, nearestPolyResult.ref, agent.position);
+            localBoundary.resetLocalBoundary(agent.boundary);
             vec3.copy(agent.position, nearestPolyResult.point);
 
             replan = true;
@@ -305,7 +354,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                     // could not find location in navmesh, set agent state to invalid
                     agent.targetState = AgentTargetState.NONE;
                     agent.targetRef = null;
-                    resetCorridor(agent.corridor, 0, agent.position);
+                    pathCorridor.reset(agent.corridor, 0, agent.position);
                 } else {
                     // target poly became invalid, update to nearest valid poly
                     agent.targetRef = nearestPolyResult.ref;
@@ -316,7 +365,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
         }
 
         // if nearby corridor is not valid, replan
-        const corridorValid = corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.params.queryFilter);
+        const corridorValid = pathCorridor.corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.params.queryFilter);
         if (!corridorValid) {
             replan = true;
         }
@@ -338,10 +387,6 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
         }
     }
 };
-
-const GLOBAL_MAX_ITERATIONS = 600;
-const AGENT_MAX_ITERATIONS = 200;
-const QUICK_SEARCH_ITERATIONS = 20;
 
 const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     // first, update pathfinding time for all agents in PATHFINDING state
@@ -380,7 +425,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             );
 
             // quick search
-            updateSlicedFindNodePath(navMesh, agent.slicedQuery, QUICK_SEARCH_ITERATIONS);
+            updateSlicedFindNodePath(navMesh, agent.slicedQuery, crowd.quickSearchIterations);
 
             agent.targetState = AgentTargetState.PATHFINDING;
             agent.targetPathfindingTime = 0;
@@ -395,15 +440,15 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
     pathfindingAgents.sort((a, b) => crowd.agents[b].targetPathfindingTime - crowd.agents[a].targetPathfindingTime);
 
     // distribute global iteration budget across prioritized agents
-    let remainingIterations = GLOBAL_MAX_ITERATIONS;
+    let remainingIterations = crowd.maxIterationsPerUpdate;
 
     for (const agentId of pathfindingAgents) {
         const agent = crowd.agents[agentId];
 
         if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.IN_PROGRESS) !== 0 && remainingIterations > 0) {
             // allocate iterations for this agent (minimum 1, maximum remaining)
-            const iterationsForAgent = Math.min(AGENT_MAX_ITERATIONS, remainingIterations);
-    
+            const iterationsForAgent = Math.min(crowd.maxIterationsPerAgent, remainingIterations);
+
             const iterationsPerformed = updateSlicedFindNodePath(navMesh, agent.slicedQuery, iterationsForAgent);
             remainingIterations -= iterationsPerformed;
         }
@@ -418,8 +463,8 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             agent.targetPathfindingTime = 0;
 
             const result = finalizeSlicedFindNodePath(navMesh, agent.slicedQuery);
-            setCorridorPath(agent.corridor, agent.targetPos, result.path);
-            resetLocalBoundary(agent.boundary);
+            pathCorridor.setPath(agent.corridor, agent.targetPos, result.path);
+            localBoundary.resetLocalBoundary(agent.boundary);
         }
     }
 };
@@ -460,8 +505,11 @@ const updateLocalBoundaries = (crowd: Crowd, navMesh: NavMesh): void => {
         const updateThreshold = agent.params.collisionQueryRange * 0.25;
         const movedDistance = vec3.distance(agent.position, agent.boundary.center);
 
-        if (movedDistance > updateThreshold || !isLocalBoundaryValid(agent.boundary, navMesh, agent.params.queryFilter)) {
-            updateLocalBoundary(
+        if (
+            movedDistance > updateThreshold ||
+            !localBoundary.isLocalBoundaryValid(agent.boundary, navMesh, agent.params.queryFilter)
+        ) {
+            localBoundary.updateLocalBoundary(
                 agent.boundary,
                 agent.corridor.path[0],
                 agent.position,
@@ -492,7 +540,7 @@ const updateCorners = (crowd: Crowd, navMesh: NavMesh): void => {
         }
 
         // get corridor corners for steering
-        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+        const corners = pathCorridor.findCorners(agent.corridor, navMesh, 3);
 
         if (!corners) {
             vec3.set(agent.desiredVelocity, 0, 0, 0);
@@ -543,20 +591,54 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
 
             if (!offMeshConnectionNode) continue;
 
-            const result = moveOverOffMeshConnection(agent.corridor, offMeshConnectionNode, navMesh);
+            const result = pathCorridor.moveOverOffMeshConnection(agent.corridor, offMeshConnectionNode, navMesh);
 
             if (result === false) continue;
 
             agent.state = AgentState.OFFMESH;
+
+            // if autoTraverseOffMeshConnections is true, set up automatic animation
+            // otherwise, still populate the data but the user must call completeOffMeshConnection manually
             agent.offMeshAnimation = {
                 t: 0,
-                duration: 0.5,
+                duration: agent.params.autoTraverseOffMeshConnections ? 0.5 : -1,
                 startPos: vec3.clone(agent.position),
                 endPos: vec3.clone(result.endPosition),
                 nodeRef: result.offMeshNodeRef,
             };
         }
     }
+};
+
+/**
+ * Manually completes an off-mesh connection for an agent.
+ * This should be called after custom off-mesh animation is complete.
+ * @param crowd the crowd
+ * @param agentId the agent id
+ * @returns true if the off-mesh connection was completed successfully, false otherwise
+ */
+export const completeOffMeshConnection = (crowd: Crowd, agentId: string): boolean => {
+    const agent = crowd.agents[agentId];
+
+    if (!agent) return false;
+
+    if (agent.state !== AgentState.OFFMESH) return false;
+
+    if (!agent.offMeshAnimation) return false;
+
+    vec3.copy(agent.position, agent.offMeshAnimation.endPos);
+
+    // update velocity - set to zero during off-mesh connection
+    vec3.set(agent.velocity, 0, 0, 0);
+    vec3.set(agent.desiredVelocity, 0, 0, 0);
+
+    // finish animation
+    agent.offMeshAnimation = null;
+
+    // prepare agent for walking
+    agent.state = AgentState.WALKING;
+
+    return true;
 };
 
 const _direction = vec3.create();
@@ -635,7 +717,7 @@ const getDistanceToGoal = (agent: Agent, range: number) => {
     const dist = vec2.distance(_getDistanceToGoalStart, _getDistanceToGoalEnd);
 
     return Math.min(range, dist);
-}
+};
 
 const updateSteering = (crowd: Crowd): void => {
     for (const agentId in crowd.agents) {
@@ -714,12 +796,12 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
 
         if (agent.params.updateFlags & CrowdUpdateFlags.OBSTACLE_AVOIDANCE) {
             // reset obstacle query
-            resetObstacleAvoidanceQuery(agent.obstacleAvoidanceQuery);
+            obstacleAvoidance.resetObstacleAvoidanceQuery(agent.obstacleAvoidanceQuery);
 
             // add neighboring agents as circular obstacles
             for (const neighbor of agent.neis) {
                 const neighborAgent = crowd.agents[neighbor.agentId];
-                addCircleObstacle(
+                obstacleAvoidance.addCircleObstacle(
                     agent.obstacleAvoidanceQuery,
                     neighborAgent.position,
                     neighborAgent.params.radius,
@@ -741,14 +823,14 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
                     continue;
                 }
 
-                addSegmentObstacle(agent.obstacleAvoidanceQuery, p1, p2);
+                obstacleAvoidance.addSegmentObstacle(agent.obstacleAvoidanceQuery, p1, p2);
             }
 
             // sample safe velocity using adaptive sampling
             // pass debug data if available
             const debugData = agent.obstacleAvoidanceDebugData;
-            
-            sampleVelocityAdaptive(
+
+            obstacleAvoidance.sampleVelocityAdaptive(
                 agent.obstacleAvoidanceQuery,
                 agent.position,
                 agent.params.radius,
@@ -878,14 +960,14 @@ const updateCorridors = (crowd: Crowd, navMesh: NavMesh): void => {
         if (agent.state !== AgentState.WALKING) continue;
 
         // move along navmesh
-        corridorMovePosition(agent.corridor, agent.position, navMesh, agent.params.queryFilter);
+        pathCorridor.movePosition(agent.corridor, agent.position, navMesh, agent.params.queryFilter);
 
         // get valid constrained position back
         vec3.copy(agent.position, agent.corridor.position);
 
         // if not using path, truncate the corridor to one poly
         if (agent.targetState === AgentTargetState.NONE || agent.targetState === AgentTargetState.VELOCITY) {
-            resetCorridor(agent.corridor, agent.corridor.path[0], agent.position);
+            pathCorridor.reset(agent.corridor, agent.corridor.path[0], agent.position);
         }
     }
 };
@@ -896,6 +978,12 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
         const agent = crowd.agents[agentId];
 
         if (!agent.offMeshAnimation) {
+            continue;
+        }
+
+        // only auto-update if autoTraverseOffMeshConnections is enabled
+        // otherwise, the user is responsible for animation and calling completeOffMeshConnection
+        if (!agent.params.autoTraverseOffMeshConnections) {
             continue;
         }
 
@@ -924,7 +1012,7 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
     }
 };
 
-export const updateCrowd = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
+export const update = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     // check whether agent paths are still valid
     checkPathValidity(crowd, navMesh, deltaTime);
 

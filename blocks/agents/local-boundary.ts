@@ -24,7 +24,7 @@ export type LocalBoundary = {
 /**
  * Creates a new local boundary instance.
  */
-export const createLocalBoundary = (): LocalBoundary => ({
+export const create = (): LocalBoundary => ({
     center: [Number.MAX_VALUE, Number.MAX_VALUE, Number.MAX_VALUE],
     segments: [],
     polys: [],
