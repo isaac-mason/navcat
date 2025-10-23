@@ -16,14 +16,12 @@ export type PathCorridor = {
     position: Vec3;
     target: Vec3;
     path: NodeRef[];
-    maxPath: number;
 };
 
-export const create = (maxPath: number): PathCorridor => ({
+export const create = (): PathCorridor => ({
     position: [0, 0, 0],
     target: [0, 0, 0],
     path: [],
-    maxPath,
 });
 
 export const reset = (corridor: PathCorridor, ref: NodeRef, position: Vec3): void => {
@@ -34,10 +32,10 @@ export const reset = (corridor: PathCorridor, ref: NodeRef, position: Vec3): voi
 
 export const setPath = (corridor: PathCorridor, target: Vec3, path: NodeRef[]): void => {
     vec3.copy(corridor.target, target);
-    corridor.path = path.slice(0, corridor.maxPath);
+    corridor.path = path;
 };
 
-export const mergeStartMoved = (currentPath: NodeRef[], visited: NodeRef[], maxPath: number): NodeRef[] => {
+export const mergeStartMoved = (currentPath: NodeRef[], visited: NodeRef[]): NodeRef[] => {
     if (visited.length === 0) return currentPath;
 
     let furthestPath = -1;
@@ -63,16 +61,12 @@ export const mergeStartMoved = (currentPath: NodeRef[], visited: NodeRef[], maxP
     // concatenate paths
     const req = visited.length - furthestVisited;
     const orig = Math.min(furthestPath + 1, currentPath.length);
-    let size = Math.max(0, currentPath.length - orig);
-
-    if (req + size > maxPath) {
-        size = maxPath - req;
-    }
+    const size = Math.max(0, currentPath.length - orig);
 
     const newPath: NodeRef[] = [];
 
     // store visited polygons (in reverse order)
-    for (let i = 0; i < Math.min(req, maxPath); i++) {
+    for (let i = 0; i < req; i++) {
         newPath[i] = visited[visited.length - 1 - i];
     }
 
@@ -83,7 +77,7 @@ export const mergeStartMoved = (currentPath: NodeRef[], visited: NodeRef[], maxP
         }
     }
 
-    return newPath.slice(0, req + size);
+    return newPath;
 };
 
 export const movePosition = (corridor: PathCorridor, newPos: Vec3, navMesh: NavMesh, filter: QueryFilter): boolean => {
@@ -92,7 +86,7 @@ export const movePosition = (corridor: PathCorridor, newPos: Vec3, navMesh: NavM
     const result = moveAlongSurface(navMesh, corridor.path[0], corridor.position, newPos, filter);
 
     if (result.success) {
-        corridor.path = mergeStartMoved(corridor.path, result.visited, corridor.maxPath);
+        corridor.path = mergeStartMoved(corridor.path, result.visited);
         vec3.copy(corridor.position, result.resultPosition);
         return true;
     }

@@ -196,7 +196,7 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
 
         state: AgentState.WALKING,
 
-        corridor: pathCorridor.create(256),
+        corridor: pathCorridor.create(),
         slicedQuery: createSlicedNodePathQuery(),
         boundary: localBoundary.create(),
         obstacleAvoidanceQuery: obstacleAvoidance.createObstacleAvoidanceQuery(32, 32),
