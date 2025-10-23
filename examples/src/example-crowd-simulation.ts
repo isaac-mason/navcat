@@ -30,9 +30,9 @@ import {
     CrowdUpdateFlags,
     requestMoveTarget,
     updateCrowd,
-} from './common/crowd';
+} from 'navcat/blocks';;
 import { loadGLTF } from './common/load-gltf';
-import { findCorridorCorners } from './common/path-corridor';
+import { findCorridorCorners } from 'navcat/blocks';
 
 const random = createMulberry32Generator(42);
 

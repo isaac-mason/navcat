@@ -47,7 +47,7 @@ import {
     CrowdUpdateFlags,
     requestMoveTarget,
     updateCrowd,
-} from './common/crowd';
+} from 'navcat/blocks';;
 import { loadGLTF } from './common/load-gltf';
 import { findCorridorCorners } from './common/path-corridor';
 
