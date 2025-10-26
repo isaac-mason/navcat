@@ -641,6 +641,13 @@ Nav.markWalkableTriangles(positions, indices, triAreaIds, walkableSlopeAngleDegr
 export function markWalkableTriangles(inVertices: ArrayLike<number>, inIndices: ArrayLike<number>, outTriAreaIds: ArrayLike<number>, walkableSlopeAngle = 45.0);
 ```
 
+```ts
+export function createTriangleAreaIdsHelper(input: {
+    positions: ArrayLike<number>;
+    indices: ArrayLike<number>;
+}, triAreaIds: ArrayLike<number>): DebugPrimitive[];
+```
+
 ### 2. Rasterize triangles into a heightfield, do filtering with the heightfield
 
 The walkable triangles are then voxelized into a heightfield, taking the triangle's "walkability" into each span.
@@ -742,6 +749,10 @@ export function filterLedgeSpans(heightfield: Heightfield, walkableHeight: numbe
 
 ```ts
 export function filterWalkableLowHeightSpans(heightfield: Heightfield, walkableHeight: number);
+```
+
+```ts
+export function createHeightfieldHelper(heightfield: Heightfield): DebugPrimitive[];
 ```
 
 ### 3. Build compact heightfield, erode walkable area, mark areas
@@ -856,6 +867,10 @@ export function erodeAndMarkWalkableAreas(baseWalkableRadiusVoxels: number, thre
 }>, compactHeightfield: CompactHeightfield);
 ```
 
+```ts
+export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[];
+```
+
 ### 4. Build compact heightfield regions
 
 The compact heightfield is then analyzed to identify distinct walkable regions. These regions are used to create the final navigation mesh.
@@ -908,6 +923,14 @@ export function buildRegionsMonotone(compactHeightfield: CompactHeightfield, bor
  * Layer regions handle overlapping walkable areas by creating separate layers.
  */
 export function buildLayerRegions(compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number): boolean;
+```
+
+```ts
+export function createCompactHeightfieldDistancesHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[];
+```
+
+```ts
+export function createCompactHeightfieldRegionsHelper(compactHeightfield: CompactHeightfield): DebugPrimitive[];
 ```
 
 ### 5. Build contours from compact heightfield regions
@@ -975,6 +998,14 @@ export type Contour = {
 
 ```ts
 export function buildContours(ctx: BuildContextState, compactHeightfield: CompactHeightfield, maxSimplificationError: number, maxEdgeLength: number, buildFlags: ContourBuildFlags): ContourSet;
+```
+
+```ts
+export function createRawContoursHelper(contourSet: ContourSet): DebugPrimitive[];
+```
+
+```ts
+export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugPrimitive[];
 ```
 
 ### 6. Build polygon mesh from contours, build detail mesh
@@ -1081,6 +1112,10 @@ export function buildPolyMesh(ctx: BuildContextState, contourSet: ContourSet, ma
 export function buildPolyMeshDetail(ctx: BuildContextState, polyMesh: PolyMesh, compactHeightfield: CompactHeightfield, sampleDist: number, sampleMaxError: number): PolyMeshDetail;
 ```
 
+```ts
+export function createPolyMeshHelper(polyMesh: PolyMesh): DebugPrimitive[];
+```
+
 ### 7. Convert build-time poly mesh and poly mesh detail to runtime navmesh tile format
 
 Next, we do a post-processing step on the poly mesh and the poly mesh detail to prepare them for use in the navigation mesh.
@@ -1147,6 +1182,10 @@ export type NavMeshPolyDetail = {
     /** The number of triangles in the sub-mesh */
     trianglesCount: number;
 };
+```
+
+```ts
+export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): DebugPrimitive[];
 ```
 
 ### 8. Assemble the navigation mesh
@@ -1230,6 +1269,10 @@ export function addTile(navMesh: NavMesh, tile: NavMeshTile): void;
  * @returns true if the tile was removed, otherwise false
  */
 export function removeTile(navMesh: NavMesh, x: number, y: number, layer: number): boolean;
+```
+
+```ts
+export function createNavMeshHelper(navMesh: NavMesh): DebugPrimitive[];
 ```
 
 ## Navigation Mesh Querying

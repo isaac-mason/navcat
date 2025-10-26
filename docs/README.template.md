@@ -157,6 +157,8 @@ The first step is to filter the input triangles to find the walkable triangles. 
 
 <RenderType type="import('navcat').markWalkableTriangles" />
 
+<RenderType type="import('navcat').createTriangleAreaIdsHelper" />
+
 ### 2. Rasterize triangles into a heightfield, do filtering with the heightfield
 
 The walkable triangles are then voxelized into a heightfield, taking the triangle's "walkability" into each span.
@@ -187,6 +189,8 @@ The heightfield resolution is configurable, and greatly affects the fidelity of 
 
 <RenderType type="import('navcat').filterWalkableLowHeightSpans" />
 
+<RenderType type="import('navcat').createHeightfieldHelper" />
+
 ### 3. Build compact heightfield, erode walkable area, mark areas
 
 The heightfield is then compacted to only represent the top walkable surfaces.
@@ -209,6 +213,8 @@ The compact heightfield is generally eroded by the agent radius to ensure that t
 
 <RenderType type="import('navcat').erodeAndMarkWalkableAreas" />
 
+<RenderType type="import('navcat').createCompactHeightfieldSolidHelper" />
+
 ### 4. Build compact heightfield regions
 
 The compact heightfield is then analyzed to identify distinct walkable regions. These regions are used to create the final navigation mesh.
@@ -229,6 +235,10 @@ Some of the region generation algorithms compute a distance field to identify re
 
 <RenderType type="import('navcat').buildLayerRegions" />
 
+<RenderType type="import('navcat').createCompactHeightfieldDistancesHelper" />
+
+<RenderType type="import('navcat').createCompactHeightfieldRegionsHelper" />
+
 ### 5. Build contours from compact heightfield regions
 
 Contours are generated around the edges of the regions. These contours are simplified to reduce the number of vertices while maintaining the overall shape.
@@ -244,6 +254,10 @@ Contours are generated around the edges of the regions. These contours are simpl
 <RenderSource type="import('navcat').Contour" />
 
 <RenderType type="import('navcat').buildContours" />
+
+<RenderType type="import('navcat').createRawContoursHelper" />
+
+<RenderType type="import('navcat').createSimplifiedContoursHelper" />
 
 ### 6. Build polygon mesh from contours, build detail mesh
 
@@ -265,6 +279,8 @@ A "detail triangle mesh" is also generated to capture more accurate height infor
 
 <RenderType type="import('navcat').buildPolyMeshDetail" />
 
+<RenderType type="import('navcat').createPolyMeshHelper" />
+
 ### 7. Convert build-time poly mesh and poly mesh detail to runtime navmesh tile format
 
 Next, we do a post-processing step on the poly mesh and the poly mesh detail to prepare them for use in the navigation mesh.
@@ -281,6 +297,8 @@ This step involes computing adjacency information for the polygons, and mapping 
 
 <RenderSource type="import('navcat').NavMeshPolyDetail" />
 
+<RenderType type="import('navcat').createPolyMeshDetailHelper" />
+
 ### 8. Assemble the navigation mesh
 
 Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
@@ -296,6 +314,8 @@ Finally, the polygon mesh and detail mesh are combined to create a navigation me
 <RenderType type="import('navcat').addTile" />
 
 <RenderType type="import('navcat').removeTile" />
+
+<RenderType type="import('navcat').createNavMeshHelper" />
 
 ## Navigation Mesh Querying
 

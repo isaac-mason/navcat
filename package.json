@@ -35,9 +35,8 @@
         "build": "rm -rf ./dist && rollup --config rollup.config.mjs",
         "format": "biome format --write src/.",
         "lint": "biome lint --write src/.",
-        "docs:readme": "cd docs && node ./build.js",
-        "docs:typedoc": "typedoc --tsconfig ./tsconfig.json --name \"navcat docs\" --out ./dist-typedoc ./src/index.ts ./blocks/index.ts ./three/index.ts",
-        "docs": "node ./docs/build.js",
+        "docs": "cd docs && node ./build.js",
+        "typedoc": "typedoc --tsconfig ./tsconfig.json --name \"navcat docs\" --out ./dist-typedoc ./src/index.ts ./blocks/index.ts ./three/index.ts",
         "test": "vitest"
     },
     "packageManager": "pnpm@8.15.2+sha1.798034f615aa211c6c2ae00010cc20be5fc102ee",

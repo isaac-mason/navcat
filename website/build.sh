@@ -8,7 +8,7 @@ rm -rf ./dist
 
 # build typedoc
 echo "Building API docs..."
-(cd ../ && npm run docs:typedoc)
+(cd ../ && npm run typedoc)
 
 # build examples
 echo "Building Examples..."
