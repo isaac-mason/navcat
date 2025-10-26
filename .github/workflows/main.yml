@@ -30,16 +30,16 @@ jobs:
       - name: Build root project
         run: pnpm run build
 
-      - name: Build examples
+      - name: Build website
         run: |
-          cd examples
+          cd website
           pnpm install
-          pnpm run build
+          ./build.sh
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./examples/dist
+          path: ./website/dist
 
       - name: Run tests
         run: pnpm test
