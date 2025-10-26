@@ -36,7 +36,7 @@
         "format": "biome format --write src/.",
         "lint": "biome lint --write src/.",
         "docs:readme": "cd docs && node ./build.js",
-        "docs:typedoc": "typedoc --tsconfig ./tsconfig.json --out ./dist-typedoc ./src",
+        "docs:typedoc": "typedoc --tsconfig ./tsconfig.json --name \"navcat docs\" --out ./dist-typedoc ./src/index.ts ./blocks/index.ts ./three/index.ts",
         "docs": "node ./docs/build.js",
         "test": "vitest"
     },
