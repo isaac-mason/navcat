@@ -2,6 +2,7 @@
 
 ## 0.0.8 (Unreleased)
 
+- feat: add `crowd` and `pathCorridor` APIs to `navcat/blocks`, updated examples to use them for crowd simulation
 - fix: findStraightPath handling of offmesh connections
   - credit to @FlorentMasson for investigating and sharing a patch for one of the string pulling with offmesh links algorithm fixes
 - feat: change `maaths` dependency to `mathcat` as it was renamed in v0.0.6
