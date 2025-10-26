@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.0.8 (Unreleased)
+## 0.0.8
 
 - feat: add `crowd` and `pathCorridor` APIs to `navcat/blocks`, updated examples to use them for crowd simulation
 - fix: findStraightPath handling of offmesh connections
