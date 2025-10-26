@@ -1,7 +1,7 @@
 import type { NavMesh, NodeRef } from 'navcat';
 import { getNodeByTileAndPoly, getNodeRefIndex } from 'navcat';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
-import { createNavMeshPolyHelper, getPositionsAndIndices, type DebugObject } from 'navcat/three';
+import { floodFillNavMesh, generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshPolyHelper, type DebugObject, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { createExample } from './common/example-base';
@@ -175,7 +175,7 @@ function applyFloodFillPruning(startRef?: NodeRef) {
     const selectedStartRef = startRef || getRandomPolyRef();
 
     if (selectedStartRef) {
-        floodFillPruneNavMesh(currentResult.navMesh, selectedStartRef as NodeRef);
+        floodFillPruneNavMesh(currentResult.navMesh, [selectedStartRef as NodeRef]);
 
         hasBeenPruned = true;
     }
@@ -183,48 +183,25 @@ function applyFloodFillPruning(startRef?: NodeRef) {
     updateNavMeshVisualization();
 }
 
-function floodFillPruneNavMesh(navMesh: NavMesh, startRef: NodeRef) {
-    const visited = new Set<number>();
-    const queue: number[] = [getNodeRefIndex(startRef)];
+function floodFillPruneNavMesh(navMesh: NavMesh, startRefs: NodeRef[]) {
+    // flood fill from startRefs to find reachable and unreachable polygons
+    const { reachable, unreachable } = floodFillNavMesh(navMesh, startRefs);
 
-    // bfs from starting polygon to find all reachable polygons
-    while (queue.length > 0) {
-        const currentNodeIndex = queue.shift()!;
+    // disable unreachable polygons
+    for (const nodeRef of unreachable) {
+        const nodeIndex = getNodeRefIndex(nodeRef);
+        const node = navMesh.nodes[nodeIndex];
 
-        if (visited.has(currentNodeIndex)) continue;
-        visited.add(currentNodeIndex);
+        // disable the poly by setting its node's flags to 0
+        node.flags = 0;
 
-        // get links for this polygon using navMesh.nodes
-        const node = navMesh.nodes[currentNodeIndex];
-
-        // follow all links to neighboring polygons
-        for (const linkIndex of node.links) {
-            const link = navMesh.links[linkIndex];
-
-            const toNodeIndex = link.toNodeIndex;
-            if (visited.has(toNodeIndex)) continue;
-
-            queue.push(toNodeIndex);
-        }
+        // also set the flag in the source tile data, useful if we want to persist the tile
+        const tile = navMesh.tiles[node.tileId];
+        const polyIndex = node.polyIndex;
+        tile.polys[polyIndex].flags = 0;
     }
 
-    // count all polygons and disable those not reachable
-    let disabledCount = 0;
-
-    for (const tileId in navMesh.tiles) {
-        const tile = navMesh.tiles[tileId];
-        for (let polyIndex = 0; polyIndex < tile.polys.length; polyIndex++) {
-            const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
-
-            if (!visited.has(node.index)) {
-                // this polygon is not reachable from the start, disable it by setting flags to 0
-                tile.polys[polyIndex].flags = 0;
-                disabledCount++;
-            }
-        }
-    }
-
-    return disabledCount;
+    console.log('flood fill result', { reachable, unreachable });
 }
 
 function getRandomPolyRef(): string | null {

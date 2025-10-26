@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.0.9 (Unreleased)
+
+- feat: add `floodFillNavMesh` to `navcat/blocks` for finding reachable and unreachable polygon nodes from seed polygons
+
 ## 0.0.8
 
 - feat: add `crowd` and `pathCorridor` APIs to `navcat/blocks`, updated examples to use them for crowd simulation
