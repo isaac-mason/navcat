@@ -62,7 +62,6 @@ export type ExternalPolygon = Pick<NavMeshPoly, 'vertices' | 'flags' | 'area'>;
  * Computes poly neighbours used for internal polygon edge neighbour linking, and finds portal edges used for nav mesh tile stitching.
  * @param polygons polygons
  * @param vertices polygon vertices in world space
- * @param maxVerticesPerPoly the maximum number of vertices per poly
  * @param borderSize the border size. if above 0, portal edges will be marked
  * @param bounds the bounds of the polygon vertices
  * @returns NavMeshTile polygons
@@ -152,7 +151,6 @@ export const polysToTileDetailMesh = (polys: NavMeshPoly[]): NavMeshTileDetailMe
 /**
  * Converts a given PolyMeshDetail to the tile detail mesh format.
  * @param polys
- * @param maxVerticesPerPoly
  * @param polyMeshDetail
  * @returns
  */

@@ -224,8 +224,8 @@ const getTileColumnHash = (x: number, y: number): string => {
 /**
  * Returns the tile x and y position in the nav mesh from a world space position.
  * @param outTilePosition the output tile position
- * @param worldX the world tile x coordinate
- * @param worldY the world tile y coordinate (along the z axis)
+ * @param navMesh the navigation mesh
+ * @param worldPosition the world space position
  */
 export const worldToTilePosition = (outTilePosition: Vec2, navMesh: NavMesh, worldPosition: Vec3) => {
     outTilePosition[0] = Math.floor((worldPosition[0] - navMesh.origin[0]) / navMesh.tileWidth);
@@ -404,7 +404,6 @@ const _closestPointOnDetailEdges_distancePtSegSqr2dResult = createDistancePtSegS
  * Gets the closest point on detail mesh edges to a given point
  * @param tile The tile containing the detail mesh
  * @param poly The polygon
- * @param detailMesh The detail mesh
  * @param pos The position to find closest point for
  * @param outClosestPoint Output parameter for the closest point
  * @param onlyBoundary If true, only consider boundary edges
@@ -1324,7 +1323,7 @@ const disconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMes
 /**
  * Reconnects an off mesh connection. This must be called if any properties of an off mesh connection are changed, for example the start or end positions.
  * @param navMesh the navmesh
- * @param offMeshConnectionId the ID of the off mesh connection to reconnect
+ * @param offMeshConnection the off mesh connectionion to reconnect
  * @returns whether the off mesh connection was successfully reconnected
  */
 export const reconnectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshConnection): boolean => {
@@ -1532,7 +1531,7 @@ export const removeTile = (navMesh: NavMesh, x: number, y: number, layer: number
 /**
  * Adds a new off mesh connection to the NavMesh, and returns it's ID
  * @param navMesh the navmesh to add the off mesh connection to
- * @param offMeshConnection the off mesh connection to add
+ * @param offMeshConnectionParams the parameters of the off mesh connection to add
  * @returns the ID of the added off mesh connection
  */
 export const addOffMeshConnection = (navMesh: NavMesh, offMeshConnectionParams: OffMeshConnectionParams): number => {
@@ -1586,7 +1585,7 @@ export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnection
 export type QueryFilter = {
     /**
      * Checks if a NavMesh node passes the filter.
-     * @param ref The node reference.
+     * @param nodeRef The node reference.
      * @param navMesh The navmesh
      * @returns Whether the node reference passes the filter.
      */

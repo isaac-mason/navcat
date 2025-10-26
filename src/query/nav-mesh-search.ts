@@ -1142,7 +1142,6 @@ export type MoveAlongSurfaceResult = {
  *
  * The resulting position is projected onto the surface of the navigation mesh with @see getPolyHeight.
  *
- * @param result The result object to populate
  * @param navMesh The navigation mesh
  * @param startNodeRef The reference ID of the starting polygon
  * @param startPosition The starting position [(x, y, z)]
@@ -1764,7 +1763,6 @@ export type FindRandomPointAroundCircleResult = {
  * then selects a random polygon weighted by area, and finally generates
  * a random point within that polygon.
  *
- * @param result - Result object to store the random point and polygon reference
  * @param navMesh - The navigation mesh
  * @param startNodeRef - Reference to the polygon to start the search from
  * @param position - Center position of the search circle
