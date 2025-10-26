@@ -98,29 +98,29 @@ const addSegmentToBoundary = (boundary: LocalBoundary, dist: number, s: number[]
 /**
  * Updates the local boundary data around the given position.
  * @param boundary The local boundary to update
- * @param ref Current polygon reference
- * @param pos Current position
+ * @param nodeRef Current polygon reference
+ * @param position Current position
  * @param collisionQueryRange Query range for finding nearby walls
  * @param navMesh Navigation mesh
  * @param filter Query filter
  */
 export const updateLocalBoundary = (
     boundary: LocalBoundary,
-    ref: NodeRef,
-    pos: Vec3,
+    nodeRef: NodeRef,
+    position: Vec3,
     collisionQueryRange: number,
     navMesh: NavMesh,
     filter: QueryFilter,
 ): void => {
-    if (!ref) {
+    if (!nodeRef) {
         resetLocalBoundary(boundary);
         return;
     }
 
-    vec3.copy(boundary.center, pos);
+    vec3.copy(boundary.center, position);
 
     // first query non-overlapping polygons
-    const neighbourhoodResult = findLocalNeighbourhood(navMesh, ref, pos, collisionQueryRange, filter);
+    const neighbourhoodResult = findLocalNeighbourhood(navMesh, nodeRef, position, collisionQueryRange, filter);
 
     if (!neighbourhoodResult.success) {
         boundary.segments.length = 0;
@@ -151,7 +151,7 @@ export const updateLocalBoundary = (
             const segmentStart: Vec3 = [s[0], s[1], s[2]];
             const segmentEnd: Vec3 = [s[3], s[4], s[5]];
 
-            const distSqr = distancePtSegSqr2d(pos, segmentStart, segmentEnd);
+            const distSqr = distancePtSegSqr2d(position, segmentStart, segmentEnd);
 
             if (distSqr > collisionQueryRangeSqr) {
                 continue;

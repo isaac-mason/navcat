@@ -104,10 +104,10 @@ const updateRandomPoint = (point: Vec3) => {
 
     if (!nearestPoly.success) return;
 
-    const startRef = nearestPoly.ref;
-    const startPoint = nearestPoly.point;
+    const startRef = nearestPoly.nodeRef;
+    const startPosition = nearestPoly.position;
 
-    const result = findRandomPointAroundCircle(navMesh, startRef, startPoint, 0.5, DEFAULT_QUERY_FILTER, Math.random);
+    const result = findRandomPointAroundCircle(navMesh, startRef, startPosition, 0.5, DEFAULT_QUERY_FILTER, Math.random);
 
     if (result.success) {
         pointMesh.position.fromArray(result.position);

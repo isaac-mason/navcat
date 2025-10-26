@@ -50,13 +50,13 @@ export type FindSmoothPathResult = {
     startNodeRef: NodeRef | null;
 
     /** the start closest point */
-    startPoint: Vec3;
+    startPosition: Vec3;
 
     /** the end poly node ref */
     endNodeRef: NodeRef | null;
 
     /** the end closest point */
-    endPoint: Vec3;
+    endPosition: Vec3;
 
     /** the node path result */
     nodePath: FindNodePathResult | null;
@@ -102,9 +102,9 @@ export const findSmoothPath = (
         flags: FindSmoothPathResultFlags.NONE | FindSmoothPathResultFlags.INVALID_INPUT,
         path: [],
         startNodeRef: null,
-        startPoint: [0, 0, 0],
+        startPosition: [0, 0, 0],
         endNodeRef: null,
-        endPoint: [0, 0, 0],
+        endPosition: [0, 0, 0],
         nodePath: null,
     };
 
@@ -118,23 +118,23 @@ export const findSmoothPath = (
     );
     if (!startNearestPolyResult.success) return result;
 
-    vec3.copy(result.startPoint, startNearestPolyResult.point);
-    result.startNodeRef = startNearestPolyResult.ref;
+    vec3.copy(result.startPosition, startNearestPolyResult.position);
+    result.startNodeRef = startNearestPolyResult.nodeRef;
 
     /* find end nearest poly */
     const endNearestPolyResult = findNearestPoly(_findSmoothPath_endNearestPolyResult, navMesh, end, halfExtents, queryFilter);
     if (!endNearestPolyResult.success) return result;
 
-    vec3.copy(result.endPoint, endNearestPolyResult.point);
-    result.endNodeRef = endNearestPolyResult.ref;
+    vec3.copy(result.endPosition, endNearestPolyResult.position);
+    result.endNodeRef = endNearestPolyResult.nodeRef;
 
     /* find node path */
     const nodePath = findNodePath(
         navMesh,
         result.startNodeRef,
         result.endNodeRef,
-        result.startPoint,
-        result.endPoint,
+        result.startPosition,
+        result.endPosition,
         queryFilter,
     );
 
@@ -146,8 +146,8 @@ export const findSmoothPath = (
     }
 
     // iterate over the path to find a smooth path
-    const iterPos = vec3.clone(result.startPoint);
-    const targetPos = vec3.clone(result.endPoint);
+    const iterPos = vec3.clone(result.startPosition);
+    const targetPos = vec3.clone(result.endPosition);
 
     let polys = [...nodePath.path];
 
@@ -218,13 +218,13 @@ export const findSmoothPath = (
             const offMeshConRef = steerTarget.steerPosRef;
 
             // advance the path up to and over the off-mesh connection
-            let prevPolyRef: NodeRef | null = null;
-            let polyRef: NodeRef = polys[0];
+            let prevNodeRef: NodeRef | null = null;
+            let nodeRef: NodeRef = polys[0];
             let npos = 0;
 
-            while (npos < polys.length && polyRef !== offMeshConRef) {
-                prevPolyRef = polyRef;
-                polyRef = polys[npos];
+            while (npos < polys.length && nodeRef !== offMeshConRef) {
+                prevNodeRef = nodeRef;
+                nodeRef = polys[npos];
                 npos++;
             }
 
@@ -235,9 +235,9 @@ export const findSmoothPath = (
             const offMeshNode = getNodeByRef(navMesh, offMeshConRef);
             const offMeshConnection = navMesh.offMeshConnections[offMeshNode.offMeshConnectionId];
 
-            if (offMeshConnection && prevPolyRef) {
+            if (offMeshConnection && prevNodeRef) {
                 // find the link from the previous poly to the off-mesh node to determine direction
-                const prevNode = getNodeByRef(navMesh, prevPolyRef);
+                const prevNode = getNodeByRef(navMesh, prevNodeRef);
                 let linkEdge = 0; // default to START
 
                 for (const linkIndex of prevNode.links) {

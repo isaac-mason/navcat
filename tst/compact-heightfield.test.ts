@@ -11,7 +11,7 @@ import {
     markRotatedBoxArea,
     NULL_AREA,
     setCon,
-} from '../dist';
+} from '../src';
 
 describe('compact-heightfield', () => {
     describe('setCon and getCon', () => {

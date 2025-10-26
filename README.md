@@ -1311,10 +1311,10 @@ console.log(node);
  * Gets a navigation mesh node by its reference.
  * Note that navmesh nodes are pooled and may be reused on removing then adding tiles, so do not store node objects.
  * @param navMesh the navigation mesh
- * @param ref the node reference
+ * @param nodeRef the node reference
  * @returns the navigation mesh node
  */
-export function getNodeByRef(navMesh: NavMesh, ref: NodeRef);
+export function getNodeByRef(navMesh: NavMesh, nodeRef: NodeRef);
 ```
 
 ### getNodeByTileAndPoly
@@ -1346,8 +1346,8 @@ const findNearestPolyResult = Nav.createFindNearestPolyResult();
 Nav.findNearestPoly(findNearestPolyResult, navMesh, position, halfExtents, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(findNearestPolyResult.success); // true if a nearest poly was found
-console.log(findNearestPolyResult.ref); // the nearest poly's node ref, or 0 if none found
-console.log(findNearestPolyResult.point); // the nearest point on the poly in world space [x, y, z]
+console.log(findNearestPolyResult.nodeRef); // the nearest poly's node ref, or 0 if none found
+console.log(findNearestPolyResult.position); // the nearest point on the poly in world space [x, y, z]
 ```
 
 ```ts
@@ -1387,10 +1387,10 @@ const endNode = Nav.findNearestPoly(Nav.createFindNearestPolyResult(), navMesh, 
 if (startNode.success && endNode.success) {
     const nodePath = Nav.findNodePath(
         navMesh,
-        startNode.ref,
-        endNode.ref,
-        startNode.point,
-        endNode.point,
+        startNode.nodeRef,
+        endNode.nodeRef,
+        startNode.position,
+        endNode.position,
         Nav.DEFAULT_QUERY_FILTER,
     );
 
@@ -1409,14 +1409,14 @@ if (startNode.success && endNode.success) {
  * The start and end positions are used to calculate traversal costs.
  * (The y-values impact the result.)
  *
- * @param startRef The reference ID of the starting node.
- * @param endRef The reference ID of the ending node.
- * @param startPos The starting position in world space.
- * @param endPos The ending position in world space.
+ * @param startNodeRef The reference ID of the starting node.
+ * @param endNodeRef The reference ID of the ending node.
+ * @param startPosition The starting position in world space.
+ * @param endPosition The ending position in world space.
  * @param filter The query filter.
  * @returns The result of the pathfinding operation.
  */
-export function findNodePath(navMesh: NavMesh, startRef: NodeRef, endRef: NodeRef, startPos: Vec3, endPos: Vec3, filter: QueryFilter): FindNodePathResult;
+export function findNodePath(navMesh: NavMesh, startNodeRef: NodeRef, endNodeRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): FindNodePathResult;
 ```
 
 ### findStraightPath
@@ -1471,7 +1471,7 @@ const startNode = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
+const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(moveAlongSurfaceResult.success); // true if the move was successful
 console.log(moveAlongSurfaceResult.resultPosition); // the resulting position after the move [x, y, z]
@@ -1494,13 +1494,13 @@ console.log(moveAlongSurfaceResult.visited); // array of node refs that were vis
  *
  * @param result The result object to populate
  * @param navMesh The navigation mesh
- * @param startRef The reference ID of the starting polygon
+ * @param startNodeRef The reference ID of the starting polygon
  * @param startPosition The starting position [(x, y, z)]
  * @param endPosition The ending position [(x, y, z)]
  * @param filter The query filter.
  * @returns Result containing status, final position, and visited polygons
  */
-export function moveAlongSurface(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): MoveAlongSurfaceResult;
+export function moveAlongSurface(navMesh: NavMesh, startNodeRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): MoveAlongSurfaceResult;
 ```
 
 
@@ -1538,7 +1538,7 @@ const startNode = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
+const raycastResult = Nav.raycast(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER);
 
 console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
 console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
@@ -1555,13 +1555,13 @@ console.log(raycastResult.path); // array of node refs that were visited during 
  * The raycast ignores the y-value of the end position (2D check).
  *
  * @param navMesh The navigation mesh to use for the raycast.
- * @param startRef The NodeRef for the start polygon
+ * @param startNodeRef The NodeRef for the start polygon
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
  * @returns The raycast result with hit information and visited polygons (without cost calculation).
  */
-export function raycast(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): RaycastResult;
+export function raycast(navMesh: NavMesh, startNodeRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): RaycastResult;
 ```
 
 
@@ -1591,7 +1591,7 @@ const startNode = Nav.findNearestPoly(
 
 // raycastWithCosts calculates path costs and requires the previous polygon reference
 const prevRef = 0; // 0 if no previous polygon
-const raycastResult = Nav.raycastWithCosts(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, prevRef);
+const raycastResult = Nav.raycastWithCosts(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER, prevRef);
 
 console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
 console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
@@ -1609,14 +1609,14 @@ console.log(raycastResult.pathCost); // accumulated cost along the raycast path
  * The raycast ignores the y-value of the end position (2D check).
  *
  * @param navMesh The navigation mesh to use for the raycast.
- * @param startRef The NodeRef for the start polygon
+ * @param startNodeRef The NodeRef for the start polygon
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
  * @param prevRef The reference to the polygon we came from (for accurate cost calculations).
  * @returns The raycast result with hit information, visited polygons, and accumulated path costs.
  */
-export function raycastWithCosts(navMesh: NavMesh, startRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter, prevRef: NodeRef): RaycastResult;
+export function raycastWithCosts(navMesh: NavMesh, startNodeRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter, prevRef: NodeRef): RaycastResult;
 ```
 
 ### getPolyHeight
@@ -1633,7 +1633,7 @@ const nearestPoly = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
+const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nodeRef, navMesh);
 
 if (nearestPoly.success) {
     const getPolyHeightResult = Nav.createGetPolyHeightResult();
@@ -1664,7 +1664,7 @@ const randomPoint = Nav.findRandomPoint(navMesh, Nav.DEFAULT_QUERY_FILTER, Math.
 
 console.log(randomPoint.success); // true if a random point was found
 console.log(randomPoint.position); // [x, y, z]
-console.log(randomPoint.ref); // the poly node ref that the random point is on
+console.log(randomPoint.nodeRef); // the poly node ref that the random point is on
 ```
 
 ```ts
@@ -1708,7 +1708,7 @@ const centerNode = Nav.findNearestPoly(
 if (centerNode.success) {
     const randomPointAroundCircle = Nav.findRandomPointAroundCircle(
         navMesh,
-        centerNode.ref,
+        centerNode.nodeRef,
         center,
         radius,
         Nav.DEFAULT_QUERY_FILTER,
@@ -1717,7 +1717,7 @@ if (centerNode.success) {
 
     console.log(randomPointAroundCircle.success); // true if a random point was found
     console.log(randomPointAroundCircle.position); // [x, y, z]
-    console.log(randomPointAroundCircle.randomRef); // the poly node ref that the random point is on
+    console.log(randomPointAroundCircle.nodeRef); // the poly node ref that the random point is on
 }
 ```
 
@@ -1731,14 +1731,14 @@ if (centerNode.success) {
  *
  * @param result - Result object to store the random point and polygon reference
  * @param navMesh - The navigation mesh
- * @param startRef - Reference to the polygon to start the search from
- * @param centerPosition - Center position of the search circle
+ * @param startNodeRef - Reference to the polygon to start the search from
+ * @param position - Center position of the search circle
  * @param maxRadius - Maximum radius of the search circle
  * @param filter - Query filter to apply to polygons
  * @param rand - Function that returns random values [0,1]
  * @returns The result object with success flag, random point, and polygon reference
  */
-export function findRandomPointAroundCircle(navMesh: NavMesh, startRef: NodeRef, centerPosition: Vec3, maxRadius: number, filter: QueryFilter, rand: () => number): FindRandomPointAroundCircleResult;
+export function findRandomPointAroundCircle(navMesh: NavMesh, startNodeRef: NodeRef, position: Vec3, maxRadius: number, filter: QueryFilter, rand: () => number): FindRandomPointAroundCircleResult;
 ```
 
 
@@ -1754,14 +1754,14 @@ export function findRandomPointAroundCircle(navMesh: NavMesh, startRef: NodeRef,
 ### getClosestPointOnPoly
 
 ```ts
-const polyRef = findNearestPolyResult.ref;
+const polyRef = findNearestPolyResult.nodeRef;
 const getClosestPointOnPolyResult = Nav.createGetClosestPointOnPolyResult();
 
 Nav.getClosestPointOnPoly(getClosestPointOnPolyResult, navMesh, polyRef, position);
 
 console.log(getClosestPointOnPolyResult.success); // true if a closest point was found
 console.log(getClosestPointOnPolyResult.isOverPoly); // true if the position was inside the poly
-console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on the poly in world space [x, y, z]
+console.log(getClosestPointOnPolyResult.position); // the closest point on the poly in world space [x, y, z]
 ```
 
 ```ts
@@ -1769,11 +1769,11 @@ console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on t
  * Gets the closest point on a polygon to a given point
  * @param result the result object to populate
  * @param navMesh the navigation mesh
- * @param ref the polygon node reference
- * @param point the point to find the closest point to
+ * @param nodeRef the polygon node reference
+ * @param position the point to find the closest point to
  * @returns the result object
  */
-export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, ref: NodeRef, point: Vec3): GetClosestPointOnPolyResult;
+export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, nodeRef: NodeRef, position: Vec3): GetClosestPointOnPolyResult;
 ```
 
 ### getClosestPointOnDetailEdges
@@ -1791,7 +1791,7 @@ const nearestPoly = Nav.findNearestPoly(
     Nav.DEFAULT_QUERY_FILTER,
 );
 
-const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
+const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nodeRef, navMesh);
 
 const closestPoint: Nav.Vec3 = [0, 0, 0];
 const onlyBoundaryEdges = false;

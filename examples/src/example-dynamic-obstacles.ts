@@ -963,7 +963,7 @@ const onPointerDown = (event: MouseEvent) => {
     if (!nearestResult.success) return;
 
     for (const agentId in catsCrowd.agents) {
-        crowd.requestMoveTarget(catsCrowd, agentId, nearestResult.ref, nearestResult.point);
+        crowd.requestMoveTarget(catsCrowd, agentId, nearestResult.nodeRef, nearestResult.position);
     }
 
     console.log('target position:', targetPosition);

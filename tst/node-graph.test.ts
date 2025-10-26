@@ -5,8 +5,8 @@ import {
     addTile,
     buildTile,
     createNavMesh,
-    isValidNodeRef,
     type ExternalPolygon,
+    isValidNodeRef,
     type NavMesh,
     type NavMeshTileParams,
     OffMeshConnectionDirection,
@@ -14,7 +14,7 @@ import {
     polysToTileDetailMesh,
     removeOffMeshConnection,
     removeTile,
-} from '../dist';
+} from '../src';
 
 describe('node graph', () => {
     test('tile polys', () => {
@@ -297,14 +297,14 @@ describe('node graph', () => {
         // check offmesh connection was removed
         expect(navMesh.offMeshConnections[offMeshConnectionId]).toBeUndefined();
 
-    // check offmesh node is deallocated
-    const nodesAfterRemove = Object.values(navMesh.nodes).filter((node) => node.allocated);
-    expect(nodesAfterRemove.length).toBe(4);
-    const offMeshNodesAfterRemove = nodesAfterRemove.filter((node) => node.type === 1);
-    expect(offMeshNodesAfterRemove.length).toBe(0);
+        // check offmesh node is deallocated
+        const nodesAfterRemove = Object.values(navMesh.nodes).filter((node) => node.allocated);
+        expect(nodesAfterRemove.length).toBe(4);
+        const offMeshNodesAfterRemove = nodesAfterRemove.filter((node) => node.type === 1);
+        expect(offMeshNodesAfterRemove.length).toBe(0);
 
-    // and the saved ref should now be invalid
-    expect(isValidNodeRef(navMesh, startOffMeshNodeRef)).toBe(false);
+        // and the saved ref should now be invalid
+        expect(isValidNodeRef(navMesh, startOffMeshNodeRef)).toBe(false);
     });
 });
 

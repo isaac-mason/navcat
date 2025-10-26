@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
 import type { Vec3 } from 'mathcat';
-import { DEFAULT_QUERY_FILTER, FindStraightPathResultFlags, findNearestPoly, findPath, getNodeRefType, NodeType } from 'navcat';
+import { DEFAULT_QUERY_FILTER, FindStraightPathResultFlags, findNearestPoly, findPath, getNodeRefType, NodeType, createFindNearestPolyResult } from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
@@ -684,12 +684,12 @@ function updateQuery(point: THREE.Vector3) {
     const pos: Vec3 = [point.x, point.y, point.z];
     const halfExtents: Vec3 = [queryConfig.halfExtentsX, queryConfig.halfExtentsY, queryConfig.halfExtentsZ];
 
-    const result = { success: false, ref: 0, point: [0, 0, 0] as Vec3 };
+    const result = createFindNearestPolyResult();
     findNearestPoly(result, navMesh, pos, halfExtents, DEFAULT_QUERY_FILTER);
 
     if (result.success) {
         // Show the poly
-        const polyHelper = createNavMeshPolyHelper(navMesh, result.ref);
+        const polyHelper = createNavMeshPolyHelper(navMesh, result.nodeRef);
         polyHelper.object.position.y += 0.1;
         addQueryVisual(polyHelper);
 
@@ -703,16 +703,16 @@ function updateQuery(point: THREE.Vector3) {
             queryPoint.textContent = `${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}, ${pos[2].toFixed(2)}`;
         }
         if (queryNearest) {
-            queryNearest.textContent = `${result.point[0].toFixed(2)}, ${result.point[1].toFixed(2)}, ${result.point[2].toFixed(2)}`;
+            queryNearest.textContent = `${result.position[0].toFixed(2)}, ${result.position[1].toFixed(2)}, ${result.position[2].toFixed(2)}`;
         }
         if (queryDistance) {
             queryDistance.textContent = Math.sqrt(
-                Math.pow(result.point[0] - pos[0], 2) +
-                    Math.pow(result.point[1] - pos[1], 2) +
-                    Math.pow(result.point[2] - pos[2], 2),
+                Math.pow(result.position[0] - pos[0], 2) +
+                    Math.pow(result.position[1] - pos[1], 2) +
+                    Math.pow(result.position[2] - pos[2], 2),
             ).toFixed(3);
         }
-        if (queryRef) queryRef.textContent = result.ref.toString();
+        if (queryRef) queryRef.textContent = result.nodeRef.toString();
     } else {
         const queryPoint = document.getElementById('query-point');
         const queryNearest = document.getElementById('query-nearest');

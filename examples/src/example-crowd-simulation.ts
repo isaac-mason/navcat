@@ -1038,7 +1038,7 @@ const scatterCats = () => {
 
         if (!randomPointResult.success) continue;
 
-        crowd.requestMoveTarget(catsCrowd, agentId, randomPointResult.ref, randomPointResult.position);
+        crowd.requestMoveTarget(catsCrowd, agentId, randomPointResult.nodeRef, randomPointResult.position);
     }
 };
 
@@ -1292,7 +1292,7 @@ const onContextMenu = (event: MouseEvent) => {
 
     // move only selected agents
     for (const agentId of selectedAgents) {
-        crowd.requestMoveTarget(catsCrowd, agentId, nearestResult.ref, nearestResult.point);
+        crowd.requestMoveTarget(catsCrowd, agentId, nearestResult.nodeRef, nearestResult.position);
     }
 
     console.log('target position for selected agents:', targetPosition);
@@ -1344,12 +1344,12 @@ function update() {
                 const progress = anim.t / customDuration;
 
                 // linear interpolation for x and z
-                const x = anim.startPos[0] + (anim.endPos[0] - anim.startPos[0]) * progress;
-                const z = anim.startPos[2] + (anim.endPos[2] - anim.startPos[2]) * progress;
+                const x = anim.startPosition[0] + (anim.endPosition[0] - anim.startPosition[0]) * progress;
+                const z = anim.startPosition[2] + (anim.endPosition[2] - anim.startPosition[2]) * progress;
 
                 // parabolic arc for y (creates a jump effect)
-                const startY = anim.startPos[1];
-                const endY = anim.endPos[1];
+                const startY = anim.startPosition[1];
+                const endY = anim.endPosition[1];
                 const arcHeight = 1.0; // height of the arc
 
                 // parabola: y = -4h * (p - 0.5)^2 + h where h is max height above start

@@ -207,19 +207,19 @@ Nav.addTile(navMesh, tile);
     Nav.findNearestPoly(findNearestPolyResult, navMesh, position, halfExtents, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(findNearestPolyResult.success); // true if a nearest poly was found
-    console.log(findNearestPolyResult.ref); // the nearest poly's node ref, or 0 if none found
-    console.log(findNearestPolyResult.point); // the nearest point on the poly in world space [x, y, z]
+    console.log(findNearestPolyResult.nodeRef); // the nearest poly's node ref, or 0 if none found
+    console.log(findNearestPolyResult.position); // the nearest point on the poly in world space [x, y, z]
     /* SNIPPET_END: findNearestPoly */
 
     /* SNIPPET_START: getClosestPointOnPoly */
-    const polyRef = findNearestPolyResult.ref;
+    const polyRef = findNearestPolyResult.nodeRef;
     const getClosestPointOnPolyResult = Nav.createGetClosestPointOnPolyResult();
 
     Nav.getClosestPointOnPoly(getClosestPointOnPolyResult, navMesh, polyRef, position);
 
     console.log(getClosestPointOnPolyResult.success); // true if a closest point was found
     console.log(getClosestPointOnPolyResult.isOverPoly); // true if the position was inside the poly
-    console.log(getClosestPointOnPolyResult.closestPoint); // the closest point on the poly in world space [x, y, z]
+    console.log(getClosestPointOnPolyResult.position); // the closest point on the poly in world space [x, y, z]
     /* SNIPPET_END: getClosestPointOnPoly */
 }
 
@@ -237,7 +237,7 @@ Nav.addTile(navMesh, tile);
         Nav.DEFAULT_QUERY_FILTER,
     );
 
-    const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
+    const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nodeRef, navMesh);
 
     const closestPoint: Nav.Vec3 = [0, 0, 0];
     const onlyBoundaryEdges = false;
@@ -278,10 +278,10 @@ Nav.addTile(navMesh, tile);
     if (startNode.success && endNode.success) {
         const nodePath = Nav.findNodePath(
             navMesh,
-            startNode.ref,
-            endNode.ref,
-            startNode.point,
-            endNode.point,
+            startNode.nodeRef,
+            endNode.nodeRef,
+            startNode.position,
+            endNode.position,
             Nav.DEFAULT_QUERY_FILTER,
         );
 
@@ -323,7 +323,7 @@ Nav.addTile(navMesh, tile);
         Nav.DEFAULT_QUERY_FILTER,
     );
 
-    const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
+    const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(moveAlongSurfaceResult.success); // true if the move was successful
     console.log(moveAlongSurfaceResult.resultPosition); // the resulting position after the move [x, y, z]
@@ -346,7 +346,7 @@ Nav.addTile(navMesh, tile);
         Nav.DEFAULT_QUERY_FILTER,
     );
 
-    const raycastResult = Nav.raycast(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER);
+    const raycastResult = Nav.raycast(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
     console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
@@ -371,7 +371,7 @@ Nav.addTile(navMesh, tile);
 
     // raycastWithCosts calculates path costs and requires the previous polygon reference
     const prevRef = 0; // 0 if no previous polygon
-    const raycastResult = Nav.raycastWithCosts(navMesh, startNode.ref, start, end, Nav.DEFAULT_QUERY_FILTER, prevRef);
+    const raycastResult = Nav.raycastWithCosts(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER, prevRef);
 
     console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
     console.log(raycastResult.hitNormal); // the normal of the obstruction hit, or [0, 0, 0] if none
@@ -394,7 +394,7 @@ Nav.addTile(navMesh, tile);
         Nav.DEFAULT_QUERY_FILTER,
     );
 
-    const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.ref, navMesh);
+    const tileAndPoly = Nav.getTileAndPolyByRef(nearestPoly.nodeRef, navMesh);
 
     if (nearestPoly.success) {
         const getPolyHeightResult = Nav.createGetPolyHeightResult();
@@ -412,7 +412,7 @@ Nav.addTile(navMesh, tile);
 
     console.log(randomPoint.success); // true if a random point was found
     console.log(randomPoint.position); // [x, y, z]
-    console.log(randomPoint.ref); // the poly node ref that the random point is on
+    console.log(randomPoint.nodeRef); // the poly node ref that the random point is on
 
     /* SNIPPET_END: findRandomPoint */
 }
@@ -435,7 +435,7 @@ Nav.addTile(navMesh, tile);
     if (centerNode.success) {
         const randomPointAroundCircle = Nav.findRandomPointAroundCircle(
             navMesh,
-            centerNode.ref,
+            centerNode.nodeRef,
             center,
             radius,
             Nav.DEFAULT_QUERY_FILTER,
@@ -444,7 +444,7 @@ Nav.addTile(navMesh, tile);
 
         console.log(randomPointAroundCircle.success); // true if a random point was found
         console.log(randomPointAroundCircle.position); // [x, y, z]
-        console.log(randomPointAroundCircle.randomRef); // the poly node ref that the random point is on
+        console.log(randomPointAroundCircle.nodeRef); // the poly node ref that the random point is on
     }
     /* SNIPPET_END: findRandomPointAroundCircle */
 }

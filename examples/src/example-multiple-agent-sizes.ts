@@ -931,7 +931,7 @@ const scatterCats = () => {
 
         if (!randomPointResult.success) continue;
 
-        crowd.requestMoveTarget(mixedCrowd, agentId, randomPointResult.ref, randomPointResult.position);
+        crowd.requestMoveTarget(mixedCrowd, agentId, randomPointResult.nodeRef, randomPointResult.position);
     }
 };
 
@@ -970,7 +970,7 @@ const onPointerDown = (event: MouseEvent) => {
     if (!nearestResult.success) return;
 
     for (const agentId in mixedCrowd.agents) {
-        crowd.requestMoveTarget(mixedCrowd, agentId, nearestResult.ref, nearestResult.point);
+        crowd.requestMoveTarget(mixedCrowd, agentId, nearestResult.nodeRef, nearestResult.position);
     }
 
     console.log('target position:', targetPosition);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { addTile, createNavMesh, getTileAt, getTilesAt, type NavMeshTile } from '../dist';
+import { addTile, createNavMesh, getTileAt, getTilesAt, type NavMeshTile } from '../src';
 
 const mockTile = (tileX: number, tileY: number, tileLayer: number): NavMeshTile => ({
     id: -1,

@@ -303,19 +303,19 @@ const HEURISTIC_SCALE = 0.999; // Search heuristic scale
  * The start and end positions are used to calculate traversal costs.
  * (The y-values impact the result.)
  *
- * @param startRef The reference ID of the starting node.
- * @param endRef The reference ID of the ending node.
- * @param startPos The starting position in world space.
- * @param endPos The ending position in world space.
+ * @param startNodeRef The reference ID of the starting node.
+ * @param endNodeRef The reference ID of the ending node.
+ * @param startPosition The starting position in world space.
+ * @param endPosition The ending position in world space.
  * @param filter The query filter.
  * @returns The result of the pathfinding operation.
  */
 export const findNodePath = (
     navMesh: NavMesh,
-    startRef: NodeRef,
-    endRef: NodeRef,
-    startPos: Vec3,
-    endPos: Vec3,
+    startNodeRef: NodeRef,
+    endNodeRef: NodeRef,
+    startPosition: Vec3,
+    endPosition: Vec3,
     filter: QueryFilter,
 ): FindNodePathResult => {
     const nodes: SearchNodePool = {};
@@ -323,10 +323,10 @@ export const findNodePath = (
 
     // validate input
     if (
-        !isValidNodeRef(navMesh, startRef) ||
-        !isValidNodeRef(navMesh, endRef) ||
-        !vec3.finite(startPos) ||
-        !vec3.finite(endPos)
+        !isValidNodeRef(navMesh, startNodeRef) ||
+        !isValidNodeRef(navMesh, endNodeRef) ||
+        !vec3.finite(startPosition) ||
+        !vec3.finite(endPosition)
     ) {
         return {
             flags: FindNodePathResultFlags.NONE | FindNodePathResultFlags.INVALID_INPUT,
@@ -338,11 +338,11 @@ export const findNodePath = (
     }
 
     // early exit if start and end are the same
-    if (startRef === endRef) {
+    if (startNodeRef === endNodeRef) {
         return {
             flags: FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
             success: true,
-            path: [startRef],
+            path: [startNodeRef],
             nodes,
             openList,
         };
@@ -353,13 +353,13 @@ export const findNodePath = (
 
     const startNode: SearchNode = {
         cost: 0,
-        total: vec3.distance(startPos, endPos) * HEURISTIC_SCALE,
+        total: vec3.distance(startPosition, endPosition) * HEURISTIC_SCALE,
         parentNodeRef: null,
         parentState: null,
-        nodeRef: startRef,
+        nodeRef: startNodeRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
-        position: [startPos[0], startPos[1], startPos[2]],
+        position: [startPosition[0], startPosition[1], startPosition[2]],
     };
 
     addSearchNode(nodes, startNode);
@@ -376,7 +376,7 @@ export const findNodePath = (
 
         // if we have reached the goal, stop searching
         const bestNodeRef = bestSearchNode.nodeRef;
-        if (bestNodeRef === endRef) {
+        if (bestNodeRef === endNodeRef) {
             lastBestNode = bestSearchNode;
             break;
         }
@@ -443,12 +443,12 @@ export const findNodePath = (
             cost = bestSearchNode.cost + curCost;
 
             // special case for last node - add cost to reach end position
-            if (neighbourNodeRef === endRef) {
-                const endCost = getCost(neighbourSearchNode.position, endPos, navMesh, bestNodeRef, neighbourNodeRef, undefined);
+            if (neighbourNodeRef === endNodeRef) {
+                const endCost = getCost(neighbourSearchNode.position, endPosition, navMesh, bestNodeRef, neighbourNodeRef, undefined);
                 cost = cost + endCost;
                 heuristic = 0;
             } else {
-                heuristic = vec3.distance(neighbourSearchNode.position, endPos) * HEURISTIC_SCALE;
+                heuristic = vec3.distance(neighbourSearchNode.position, endPosition) * HEURISTIC_SCALE;
             }
 
             const total = cost + heuristic;
@@ -505,7 +505,7 @@ export const findNodePath = (
     path.reverse();
 
     // if the end node was not reached, return with the partial result status
-    if (lastBestNode.nodeRef !== endRef) {
+    if (lastBestNode.nodeRef !== endNodeRef) {
         return {
             flags: FindNodePathResultFlags.PARTIAL_PATH,
             success: true,
@@ -544,10 +544,10 @@ export type SlicedNodePathQuery = {
     status: SlicedFindNodePathStatusFlags;
 
     // search parameters
-    startRef: NodeRef;
-    endRef: NodeRef;
-    startPos: Vec3;
-    endPos: Vec3;
+    startNodeRef: NodeRef;
+    endNodeRef: NodeRef;
+    startPosition: Vec3;
+    endPosition: Vec3;
     filter: QueryFilter;
 
     // search state
@@ -567,10 +567,10 @@ export type SlicedNodePathQuery = {
  */
 export const createSlicedNodePathQuery = (): SlicedNodePathQuery => ({
     status: SlicedFindNodePathStatusFlags.NOT_INITIALIZED,
-    startRef: 0,
-    endRef: 0,
-    startPos: [0, 0, 0],
-    endPos: [0, 0, 0],
+    startNodeRef: 0,
+    endNodeRef: 0,
+    startPosition: [0, 0, 0],
+    endPosition: [0, 0, 0],
     filter: DEFAULT_QUERY_FILTER,
     nodes: {},
     openList: [],
@@ -584,10 +584,10 @@ export const createSlicedNodePathQuery = (): SlicedNodePathQuery => ({
  *
  * @param navMesh The navigation mesh
  * @param query The sliced path query to initialize
- * @param startRef The reference ID of the starting node
- * @param endRef The reference ID of the ending node
- * @param startPos The starting position in world space
- * @param endPos The ending position in world space
+ * @param startNodeRef The reference ID of the starting node
+ * @param endNodeRef The reference ID of the ending node
+ * @param startPosition The starting position in world space
+ * @param endPosition The ending position in world space
  * @param filter The query filter
  * @param flags Optional flags for the query (@see SlicedFindNodePathInitFlags)
  * @returns The status of the initialization
@@ -595,18 +595,18 @@ export const createSlicedNodePathQuery = (): SlicedNodePathQuery => ({
 export const initSlicedFindNodePath = (
     navMesh: NavMesh,
     query: SlicedNodePathQuery,
-    startRef: NodeRef,
-    endRef: NodeRef,
-    startPos: Vec3,
-    endPos: Vec3,
+    startNodeRef: NodeRef,
+    endNodeRef: NodeRef,
+    startPosition: Vec3,
+    endPosition: Vec3,
     filter: QueryFilter,
     flags: number = 0,
 ): SlicedFindNodePathStatusFlags => {
     // set search parameters
-    query.startRef = startRef;
-    query.endRef = endRef;
-    vec3.copy(query.startPos, startPos);
-    vec3.copy(query.endPos, endPos);
+    query.startNodeRef = startNodeRef;
+    query.endNodeRef = endNodeRef;
+    vec3.copy(query.startPosition, startPosition);
+    vec3.copy(query.endPosition, endPosition);
     query.filter = filter;
 
     // reset search state
@@ -618,10 +618,10 @@ export const initSlicedFindNodePath = (
 
     // validate input
     if (
-        !isValidNodeRef(navMesh, startRef) ||
-        !isValidNodeRef(navMesh, endRef) ||
-        !vec3.finite(startPos) ||
-        !vec3.finite(endPos)
+        !isValidNodeRef(navMesh, startNodeRef) ||
+        !isValidNodeRef(navMesh, endNodeRef) ||
+        !vec3.finite(startPosition) ||
+        !vec3.finite(endPosition)
     ) {
         query.status = SlicedFindNodePathStatusFlags.FAILURE | SlicedFindNodePathStatusFlags.INVALID_PARAM;
         return query.status;
@@ -644,13 +644,13 @@ export const initSlicedFindNodePath = (
     // start node
     const startNode: SearchNode = {
         cost: 0,
-        total: vec3.distance(startPos, endPos) * HEURISTIC_SCALE,
+        total: vec3.distance(startPosition, endPosition) * HEURISTIC_SCALE,
         parentNodeRef: null,
         parentState: null,
-        nodeRef: startRef,
+        nodeRef: startNodeRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
-        position: [startPos[0], startPos[1], startPos[2]],
+        position: [startPosition[0], startPosition[1], startPosition[2]],
     };
 
     addSearchNode(query.nodes, startNode);
@@ -658,7 +658,7 @@ export const initSlicedFindNodePath = (
     query.lastBestNodeCost = startNode.total;
 
     // early exit if the start poly is the end poly
-    if (startRef === endRef) {
+    if (startNodeRef === endNodeRef) {
         query.status = SlicedFindNodePathStatusFlags.SUCCESS;
         return query.status;
     }
@@ -674,10 +674,10 @@ export const initSlicedFindNodePath = (
  *
  * @param navMesh The navigation mesh
  * @param query The sliced path query to update
- * @param maxIter The maximum number of iterations to perform
+ * @param maxIterations The maximum number of iterations to perform
  * @returns iterations performed
  */
-export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePathQuery, maxIter: number): number => {
+export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePathQuery, maxIterations: number): number => {
     let itersDone = 0;
 
     // check if query is in valid state
@@ -686,14 +686,14 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
     }
 
     // validate refs are still valid
-    if (!isValidNodeRef(navMesh, query.startRef) || !isValidNodeRef(navMesh, query.endRef)) {
+    if (!isValidNodeRef(navMesh, query.startNodeRef) || !isValidNodeRef(navMesh, query.endNodeRef)) {
         query.status = SlicedFindNodePathStatusFlags.FAILURE;
         return itersDone;
     }
 
     const getCost = query.filter.getCost;
 
-    while (itersDone < maxIter && query.openList.length > 0) {
+    while (itersDone < maxIterations && query.openList.length > 0) {
         itersDone++;
 
         // remove best node from open list and close it
@@ -702,7 +702,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
         bestSearchNode.flags |= NODE_FLAG_CLOSED;
 
         // check if we've reached the goal
-        if (bestSearchNode.nodeRef === query.endRef) {
+        if (bestSearchNode.nodeRef === query.endNodeRef) {
             query.lastBestNode = bestSearchNode;
             query.status = SlicedFindNodePathStatusFlags.SUCCESS;
             return itersDone;
@@ -803,10 +803,10 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
             }
 
             // special case for last node - add cost to reach end position
-            if (neighbourNodeRef === query.endRef) {
+            if (neighbourNodeRef === query.endNodeRef) {
                 const endCost = getCost(
                     neighbourSearchNode.position,
-                    query.endPos,
+                    query.endPosition,
                     navMesh,
                     bestNodeRef,
                     neighbourNodeRef,
@@ -815,7 +815,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                 cost = cost + endCost;
                 heuristic = 0;
             } else {
-                heuristic = vec3.distance(neighbourSearchNode.position, query.endPos) * HEURISTIC_SCALE;
+                heuristic = vec3.distance(neighbourSearchNode.position, query.endPosition) * HEURISTIC_SCALE;
             }
 
             const total = cost + heuristic;
@@ -893,8 +893,8 @@ export const finalizeSlicedFindNodePath = (
     }
 
     // handle same start/end case
-    if (query.startRef === query.endRef) {
-        result.path.push(query.startRef);
+    if (query.startNodeRef === query.endNodeRef) {
+        result.path.push(query.startNodeRef);
         result.pathCount = 1;
         result.status = SlicedFindNodePathStatusFlags.SUCCESS;
         // reset query
@@ -903,7 +903,7 @@ export const finalizeSlicedFindNodePath = (
     }
 
     // check for partial result
-    if (query.lastBestNode.nodeRef !== query.endRef) {
+    if (query.lastBestNode.nodeRef !== query.endNodeRef) {
         query.status |= SlicedFindNodePathStatusFlags.PARTIAL_RESULT;
     }
 
@@ -1032,8 +1032,8 @@ export const finalizeSlicedFindNodePathPartial = (
     }
 
     // handle same start/end case
-    if (query.startRef === query.endRef) {
-        result.path.push(query.startRef);
+    if (query.startNodeRef === query.endNodeRef) {
+        result.path.push(query.startNodeRef);
         result.pathCount = 1;
         result.status = SlicedFindNodePathStatusFlags.SUCCESS;
         // reset query
@@ -1144,7 +1144,7 @@ export type MoveAlongSurfaceResult = {
  *
  * @param result The result object to populate
  * @param navMesh The navigation mesh
- * @param startRef The reference ID of the starting polygon
+ * @param startNodeRef The reference ID of the starting polygon
  * @param startPosition The starting position [(x, y, z)]
  * @param endPosition The ending position [(x, y, z)]
  * @param filter The query filter.
@@ -1152,7 +1152,7 @@ export type MoveAlongSurfaceResult = {
  */
 export const moveAlongSurface = (
     navMesh: NavMesh,
-    startRef: NodeRef,
+    startNodeRef: NodeRef,
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
@@ -1160,11 +1160,11 @@ export const moveAlongSurface = (
     const result: MoveAlongSurfaceResult = {
         success: false,
         resultPosition: vec3.clone(startPosition),
-        resultRef: startRef,
+        resultRef: startNodeRef,
         visited: [],
     };
 
-    if (!isValidNodeRef(navMesh, startRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition) || !filter) {
+    if (!isValidNodeRef(navMesh, startNodeRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition) || !filter) {
         return result;
     }
 
@@ -1177,7 +1177,7 @@ export const moveAlongSurface = (
         total: 0,
         parentNodeRef: null,
         parentState: null,
-        nodeRef: startRef,
+        nodeRef: startNodeRef,
         state: 0,
         flags: NODE_FLAG_CLOSED,
         position: [startPosition[0], startPosition[1], startPosition[2]],
@@ -1372,7 +1372,7 @@ export type RaycastResult = {
  * The raycast ignores the y-value of the end position (2D check).
  *
  * @param navMesh The navigation mesh to use for the raycast.
- * @param startRef The NodeRef for the start polygon
+ * @param startNodeRef The NodeRef for the start polygon
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
@@ -1381,7 +1381,7 @@ export type RaycastResult = {
  */
 const raycastBase = (
     navMesh: NavMesh,
-    startRef: NodeRef,
+    startNodeRef: NodeRef,
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
@@ -1397,11 +1397,11 @@ const raycastBase = (
     };
 
     // validate input
-    if (!isValidNodeRef(navMesh, startRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition) || !filter) {
+    if (!isValidNodeRef(navMesh, startNodeRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition) || !filter) {
         return result;
     }
 
-    let curRef: NodeRef | null = startRef;
+    let curRef: NodeRef | null = startNodeRef;
     let prevRefTracking: NodeRef = prevRef;
 
     const intersectSegmentPoly2DResult = createIntersectSegmentPoly2DResult();
@@ -1589,7 +1589,7 @@ const raycastBase = (
  * The raycast ignores the y-value of the end position (2D check).
  *
  * @param navMesh The navigation mesh to use for the raycast.
- * @param startRef The NodeRef for the start polygon
+ * @param startNodeRef The NodeRef for the start polygon
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
@@ -1597,12 +1597,12 @@ const raycastBase = (
  */
 export const raycast = (
     navMesh: NavMesh,
-    startRef: NodeRef,
+    startNodeRef: NodeRef,
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
 ): RaycastResult => {
-    return raycastBase(navMesh, startRef, startPosition, endPosition, filter, false, 0);
+    return raycastBase(navMesh, startNodeRef, startPosition, endPosition, filter, false, 0);
 };
 
 /**
@@ -1613,7 +1613,7 @@ export const raycast = (
  * The raycast ignores the y-value of the end position (2D check).
  *
  * @param navMesh The navigation mesh to use for the raycast.
- * @param startRef The NodeRef for the start polygon
+ * @param startNodeRef The NodeRef for the start polygon
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter to apply.
@@ -1622,20 +1622,20 @@ export const raycast = (
  */
 export const raycastWithCosts = (
     navMesh: NavMesh,
-    startRef: NodeRef,
+    startNodeRef: NodeRef,
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
     prevRef: NodeRef,
 ): RaycastResult => {
-    return raycastBase(navMesh, startRef, startPosition, endPosition, filter, true, prevRef);
+    return raycastBase(navMesh, startNodeRef, startPosition, endPosition, filter, true, prevRef);
 };
 
 const _findRandomPointVertices: number[] = [];
 
 export type FindRandomPointResult = {
     success: boolean;
-    ref: NodeRef;
+    nodeRef: NodeRef;
     position: Vec3;
 };
 
@@ -1650,7 +1650,7 @@ export type FindRandomPointResult = {
 export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () => number): FindRandomPointResult => {
     const result: FindRandomPointResult = {
         success: false,
-        ref: 0,
+        nodeRef: 0,
         position: [0, 0, 0],
     };
 
@@ -1737,12 +1737,12 @@ export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () 
     getClosestPointOnPoly(closestPointResult, navMesh, selectedPolyRef, pt);
 
     if (closestPointResult.success) {
-        vec3.copy(result.position, closestPointResult.closestPoint);
+        vec3.copy(result.position, closestPointResult.position);
     } else {
         vec3.copy(result.position, pt);
     }
 
-    result.ref = selectedPolyRef;
+    result.nodeRef = selectedPolyRef;
     result.success = true;
 
     return result;
@@ -1753,7 +1753,7 @@ const _findRandomPointAroundCircle_distancePtSegSqr2dResult = createDistancePtSe
 
 export type FindRandomPointAroundCircleResult = {
     success: boolean;
-    randomRef: NodeRef;
+    nodeRef: NodeRef;
     position: Vec3;
 };
 
@@ -1766,8 +1766,8 @@ export type FindRandomPointAroundCircleResult = {
  *
  * @param result - Result object to store the random point and polygon reference
  * @param navMesh - The navigation mesh
- * @param startRef - Reference to the polygon to start the search from
- * @param centerPosition - Center position of the search circle
+ * @param startNodeRef - Reference to the polygon to start the search from
+ * @param position - Center position of the search circle
  * @param maxRadius - Maximum radius of the search circle
  * @param filter - Query filter to apply to polygons
  * @param rand - Function that returns random values [0,1]
@@ -1775,30 +1775,30 @@ export type FindRandomPointAroundCircleResult = {
  */
 export const findRandomPointAroundCircle = (
     navMesh: NavMesh,
-    startRef: NodeRef,
-    centerPosition: Vec3,
+    startNodeRef: NodeRef,
+    position: Vec3,
     maxRadius: number,
     filter: QueryFilter,
     rand: () => number,
 ): FindRandomPointAroundCircleResult => {
     const result: FindRandomPointAroundCircleResult = {
         success: false,
-        randomRef: 0,
+        nodeRef: 0,
         position: [0, 0, 0],
     };
 
     // validate input
-    if (!isValidNodeRef(navMesh, startRef) || !vec3.finite(centerPosition) || maxRadius < 0 || !Number.isFinite(maxRadius)) {
+    if (!isValidNodeRef(navMesh, startNodeRef) || !vec3.finite(position) || maxRadius < 0 || !Number.isFinite(maxRadius)) {
         return result;
     }
 
-    const startTileAndPoly = getTileAndPolyByRef(startRef, navMesh);
+    const startTileAndPoly = getTileAndPolyByRef(startNodeRef, navMesh);
     if (!startTileAndPoly.success) {
         return result;
     }
 
     // check if start polygon passes filter
-    if (!filter.passFilter(startRef, navMesh)) {
+    if (!filter.passFilter(startNodeRef, navMesh)) {
         return result;
     }
 
@@ -1811,10 +1811,10 @@ export const findRandomPointAroundCircle = (
         total: 0,
         parentNodeRef: null,
         parentState: null,
-        nodeRef: startRef,
+        nodeRef: startNodeRef,
         state: 0,
         flags: NODE_FLAG_OPEN,
-        position: [centerPosition[0], centerPosition[1], centerPosition[2]],
+        position: [position[0], position[1], position[2]],
     };
 
     addSearchNode(nodes, startNode);
@@ -1898,7 +1898,7 @@ export const findRandomPointAroundCircle = (
             }
 
             // if the circle is not touching the next polygon, skip it
-            const { distSqr } = distancePtSegSqr2d(_findRandomPointAroundCircle_distancePtSegSqr2dResult, centerPosition, va, vb);
+            const { distSqr } = distancePtSegSqr2d(_findRandomPointAroundCircle_distancePtSegSqr2dResult, position, va, vb);
             if (distSqr > radiusSqr) {
                 continue;
             }
@@ -1976,12 +1976,12 @@ export const findRandomPointAroundCircle = (
     getClosestPointOnPoly(closestPointResult, navMesh, randomPolyRef, pt);
 
     if (closestPointResult.success) {
-        vec3.copy(result.position, closestPointResult.closestPoint);
+        vec3.copy(result.position, closestPointResult.position);
     } else {
         vec3.copy(result.position, pt);
     }
 
-    result.randomRef = randomPolyRef;
+    result.nodeRef = randomPolyRef;
     result.success = true;
 
     return result;

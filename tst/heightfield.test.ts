@@ -2,15 +2,15 @@ import { type Box3, vec2 } from 'mathcat';
 import { describe, expect, test } from 'vitest';
 import {
     addHeightfieldSpan,
+    BuildContext,
     calculateGridSize,
     createHeightfield,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
     filterWalkableLowHeightSpans,
+    NULL_AREA,
     rasterizeTriangles,
-} from '../dist';
-import { BuildContext } from '../src/generate/build-context';
-import { NULL_AREA } from '../src/generate/common';
+} from '../src';
 
 describe('heightfield', () => {
     describe('calculateGridSize', () => {

@@ -46,11 +46,11 @@ export const createNavMesh = (): NavMesh => {
  * Gets a navigation mesh node by its reference.
  * Note that navmesh nodes are pooled and may be reused on removing then adding tiles, so do not store node objects.
  * @param navMesh the navigation mesh
- * @param ref the node reference
+ * @param nodeRef the node reference
  * @returns the navigation mesh node
  */
-export const getNodeByRef = (navMesh: NavMesh, ref: NodeRef) => {
-    const nodeIndex = getNodeRefIndex(ref);
+export const getNodeByRef = (navMesh: NavMesh, nodeRef: NodeRef) => {
+    const nodeIndex = getNodeRefIndex(nodeRef);
     const node = navMesh.nodes[nodeIndex];
     return node;
 };
@@ -493,14 +493,14 @@ export const getClosestPointOnDetailEdges = (
 export type GetClosestPointOnPolyResult = {
     success: boolean;
     isOverPoly: boolean;
-    closestPoint: Vec3;
+    position: Vec3;
 };
 
 export const createGetClosestPointOnPolyResult = (): GetClosestPointOnPolyResult => {
     return {
         success: false,
         isOverPoly: false,
-        closestPoint: [0, 0, 0],
+        position: [0, 0, 0],
     };
 };
 
@@ -510,21 +510,21 @@ const _getClosestPointOnPolyHeightResult = createGetPolyHeightResult();
  * Gets the closest point on a polygon to a given point
  * @param result the result object to populate
  * @param navMesh the navigation mesh
- * @param ref the polygon node reference
- * @param point the point to find the closest point to
+ * @param nodeRef the polygon node reference
+ * @param position the point to find the closest point to
  * @returns the result object
  */
 export const getClosestPointOnPoly = (
     result: GetClosestPointOnPolyResult,
     navMesh: NavMesh,
-    ref: NodeRef,
-    point: Vec3,
+    nodeRef: NodeRef,
+    position: Vec3,
 ): GetClosestPointOnPolyResult => {
     result.success = false;
     result.isOverPoly = false;
-    vec3.copy(result.closestPoint, point);
+    vec3.copy(result.position, position);
 
-    const tileAndPoly = getTileAndPolyByRef(ref, navMesh);
+    const tileAndPoly = getTileAndPolyByRef(nodeRef, navMesh);
 
     if (!tileAndPoly.success) {
         return result;
@@ -533,16 +533,16 @@ export const getClosestPointOnPoly = (
     result.success = true;
 
     const { tile, poly, polyIndex } = tileAndPoly;
-    const polyHeight = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, polyIndex, point);
+    const polyHeight = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, polyIndex, position);
 
     if (polyHeight.success) {
-        vec3.copy(result.closestPoint, point);
-        result.closestPoint[1] = polyHeight.height;
+        vec3.copy(result.position, position);
+        result.position[1] = polyHeight.height;
         result.isOverPoly = true;
         return result;
     }
 
-    getClosestPointOnDetailEdges(result.closestPoint, tile, poly, polyIndex, point, true);
+    getClosestPointOnDetailEdges(result.position, tile, poly, polyIndex, position, true);
 
     return result;
 };
@@ -554,21 +554,21 @@ const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSeg
 
 /**
  * Gets the closest point on the boundary of a polygon to a given point
- * @param outClosestPoint the output closest point
+ * @param out the output closest point
  * @param navMesh the navigation mesh
- * @param polyRef the polygon reference
+ * @param nodeRef the polygon reference
  * @param point the point to find the closest point to
  * @returns whether the operation was successful
  */
 export const getClosestPointOnPolyBoundary = (
-    outClosestPoint: Vec3,
+    out: Vec3,
     navMesh: NavMesh,
-    polyRef: NodeRef,
+    nodeRef: NodeRef,
     point: Vec3,
 ): boolean => {
-    const tileAndPoly = getTileAndPolyByRef(polyRef, navMesh);
+    const tileAndPoly = getTileAndPolyByRef(nodeRef, navMesh);
 
-    if (!tileAndPoly.success || !vec3.finite(point) || !outClosestPoint) {
+    if (!tileAndPoly.success || !vec3.finite(point) || !out) {
         return false;
     }
 
@@ -589,7 +589,7 @@ export const getClosestPointOnPolyBoundary = (
 
     // if inside polygon, return the point as-is
     if (pointInPoly(point, vertices, verticesCount)) {
-        vec3.copy(outClosestPoint, point);
+        vec3.copy(out, point);
         return true;
     }
 
@@ -633,24 +633,24 @@ export const getClosestPointOnPolyBoundary = (
     if (t < 0) t = 0;
     else if (t > 1) t = 1;
 
-    outClosestPoint[0] = va0 + (vb0 - va0) * t;
-    outClosestPoint[1] = va1 + (vb1 - va1) * t;
-    outClosestPoint[2] = va2 + (vb2 - va2) * t;
+    out[0] = va0 + (vb0 - va0) * t;
+    out[1] = va1 + (vb1 - va1) * t;
+    out[2] = va2 + (vb2 - va2) * t;
 
     return true;
 };
 
 export type FindNearestPolyResult = {
     success: boolean;
-    ref: NodeRef;
-    point: Vec3;
+    nodeRef: NodeRef;
+    position: Vec3;
 };
 
 export const createFindNearestPolyResult = (): FindNearestPolyResult => {
     return {
         success: false,
-        ref: 0,
-        point: [0, 0, 0],
+        nodeRef: 0,
+        position: [0, 0, 0],
     };
 };
 
@@ -666,8 +666,8 @@ export const findNearestPoly = (
     queryFilter: QueryFilter,
 ): FindNearestPolyResult => {
     result.success = false;
-    result.ref = 0;
-    vec3.copy(result.point, center);
+    result.nodeRef = 0;
+    vec3.copy(result.position, center);
 
     // get bounds for the query
     const bounds = _findNearestPolyBounds;
@@ -692,7 +692,7 @@ export const findNearestPoly = (
         if (!tile) continue;
 
         // calculate difference vector
-        vec3.sub(_findNearestPolyDiff, center, closestPoint.closestPoint);
+        vec3.sub(_findNearestPolyDiff, center, closestPoint.position);
 
         let distSqr: number;
 
@@ -707,8 +707,8 @@ export const findNearestPoly = (
 
         if (distSqr < nearestDistSqr) {
             nearestDistSqr = distSqr;
-            result.ref = ref;
-            vec3.copy(result.point, closestPoint.closestPoint);
+            result.nodeRef = ref;
+            vec3.copy(result.position, closestPoint.position);
             result.success = true;
         }
     }
@@ -1022,12 +1022,12 @@ const findConnectingPolys = (
     vb: Vec3,
     target: NavMeshTile | undefined,
     side: number,
-): { ref: NodeRef; umin: number; umax: number }[] => {
+): { nodeRef: NodeRef; umin: number; umax: number }[] => {
     if (!target) return [];
     calcSlabEndPoints(va, vb, _amin, _amax, side); // store u,y
     const apos = getSlabCoord(va, side);
 
-    const results: { ref: NodeRef; umin: number; umax: number }[] = [];
+    const results: { nodeRef: NodeRef; umin: number; umax: number }[] = [];
 
     // iterate target polys & their boundary edges (those marked ext link in that direction)
     for (let i = 0; i < target.polys.length; i++) {
@@ -1061,7 +1061,7 @@ const findConnectingPolys = (
             const polyRef = getNodeByTileAndPoly(navMesh, target, i).ref;
 
             results.push({
-                ref: polyRef,
+                nodeRef: polyRef,
                 umin: Math.max(_amin[0], _bmin[0]),
                 umax: Math.min(_amax[0], _bmax[0]),
             });
@@ -1133,8 +1133,8 @@ const connectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, target: NavMe
 
                 link.fromNodeIndex = node.index;
                 link.fromNodeRef = node.ref;
-                link.toNodeIndex = getNodeRefIndex(o.ref);
-                link.toNodeRef = o.ref;
+                link.toNodeIndex = getNodeRefIndex(o.nodeRef);
+                link.toNodeRef = o.nodeRef;
                 link.edge = j;
                 link.side = dir;
                 link.bmin = Math.round(tmin * 255);
@@ -1225,10 +1225,10 @@ const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshCo
     }
 
     // get start and end poly nodes
-    const startNodeRef = startTilePolyResult.ref;
+    const startNodeRef = startTilePolyResult.nodeRef;
     const startNode = getNodeByRef(navMesh, startNodeRef);
 
-    const endNodeRef = endTilePolyResult.ref;
+    const endNodeRef = endTilePolyResult.nodeRef;
     const endNode = getNodeByRef(navMesh, endNodeRef);
 
     // create off mesh connection state, for quick revalidation of connections when adding and removing tiles

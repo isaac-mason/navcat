@@ -21,7 +21,7 @@ export function computeUniformCostFlowField(
     const cost = new Map<NodeRef, number>();
     const next = new Map<NodeRef, NodeRef | null>();
     const visited = new Set<NodeRef>();
-    const queue: Array<{ ref: NodeRef; c: number }> = [{ ref: targetRef, c: 0 }];
+    const queue: Array<{ nodeRef: NodeRef; c: number }> = [{ nodeRef: targetRef, c: 0 }];
 
     cost.set(targetRef, 0);
     next.set(targetRef, null);
@@ -29,7 +29,7 @@ export function computeUniformCostFlowField(
 
     let iterations = 0;
     while (queue.length > 0 && iterations < maxIterations) {
-        const { ref: currentRef, c: currentCost } = queue.shift()!;
+        const { nodeRef: currentRef, c: currentCost } = queue.shift()!;
         iterations++;
 
         // get links for this node
@@ -47,7 +47,7 @@ export function computeUniformCostFlowField(
             cost.set(neighborRef, currentCost + 1);
             next.set(neighborRef, currentRef);
             visited.add(neighborRef);
-            queue.push({ ref: neighborRef, c: currentCost + 1 });
+            queue.push({ nodeRef: neighborRef, c: currentCost + 1 });
         }
     }
 
@@ -57,12 +57,12 @@ export function computeUniformCostFlowField(
 /**
  * Extracts a path from a start node to the target using the flow field.
  * @param flowField - The computed flow field.
- * @param startRef - The starting node reference.
+ * @param startNodeRef - The starting node reference.
  * @returns An array of NodeRefs representing the path, or null if unreachable.
  */
-export function getNodePathFromFlowField(flowField: FlowField, startRef: NodeRef): NodeRef[] | null {
+export function getNodePathFromFlowField(flowField: FlowField, startNodeRef: NodeRef): NodeRef[] | null {
     const path: NodeRef[] = [];
-    let current = startRef;
+    let current = startNodeRef;
     const visited = new Set<NodeRef>();
 
     while (current && flowField.next.has(current) && !visited.has(current)) {

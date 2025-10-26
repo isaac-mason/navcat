@@ -457,16 +457,16 @@ const _intersectSegmentPoly2DEdge = vec3.create();
  * Intersects a segment with a polygon in 2D (ignoring Y).
  * Uses the Sutherland-Hodgman clipping algorithm approach.
  *
- * @param result - The result object to store intersection data
- * @param startPos - Start position of the segment
- * @param endPos - End position of the segment
- * @param verts - Polygon vertices as flat array [x,y,z,x,y,z,...]
- * @param nv - Number of vertices in the polygon
+ * @param result The result object to store intersection data
+ * @param startPosition Start position of the segment
+ * @param endPosition End position of the segment
+ * @param verts Polygon vertices as flat array [x,y,z,x,y,z,...]
+ * @param nv Number of vertices in the polygon
  */
 export const intersectSegmentPoly2D = (
     result: IntersectSegmentPoly2DResult,
-    startPos: Vec3,
-    endPos: Vec3,
+    startPosition: Vec3,
+    endPosition: Vec3,
     nv: number,
     verts: number[],
 ): IntersectSegmentPoly2DResult => {
@@ -476,7 +476,7 @@ export const intersectSegmentPoly2D = (
     result.segMin = -1;
     result.segMax = -1;
 
-    const dir = vec3.subtract(_intersectSegmentPoly2DDir, endPos, startPos);
+    const dir = vec3.subtract(_intersectSegmentPoly2DDir, endPosition, startPosition);
 
     const vi = _intersectSegmentPoly2DVi;
     const vj = _intersectSegmentPoly2DVj;
@@ -488,7 +488,7 @@ export const intersectSegmentPoly2D = (
         vec3.fromBuffer(vj, verts, j * 3);
 
         vec3.subtract(edge, vi, vj);
-        vec3.subtract(diff, startPos, vj);
+        vec3.subtract(diff, startPosition, vj);
 
         const n = vperp2D(edge, diff);
         const d = vperp2D(dir, edge);

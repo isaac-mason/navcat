@@ -1364,13 +1364,13 @@ export const createNavMeshTileHelper = (tile: NavMeshTile): DebugPrimitive[] => 
 
 export const createNavMeshPolyHelper = (
     navMesh: NavMesh,
-    polyRef: NodeRef,
+    nodeRef: NodeRef,
     color: [number, number, number] = [0, 0.75, 1],
 ): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
     // Get tile and polygon from reference
-    const { tileId, polyIndex } = getNodeByRef(navMesh, polyRef);
+    const { tileId, polyIndex } = getNodeByRef(navMesh, nodeRef);
 
     const tile = navMesh.tiles[tileId];
     if (!tile || !tile.polys[polyIndex]) {

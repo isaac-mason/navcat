@@ -263,8 +263,8 @@ const nearestPolyResult = findNearestPoly(
 );
 
 if (nearestPolyResult.success) {
-    playerGroup.position.fromArray(nearestPolyResult.point);
-    console.log('Positioned player at:', nearestPolyResult.point);
+    playerGroup.position.fromArray(nearestPolyResult.position);
+    console.log('Positioned player at:', nearestPolyResult.position);
 } else {
     console.warn('Could not find starting position on navmesh');
 }
@@ -332,7 +332,7 @@ const movementUpdate = (delta: number) => {
         if (nearestResult.success) {
             const moveResult = moveAlongSurface(
                 navMesh,
-                nearestResult.ref,
+                nearestResult.nodeRef,
                 [playerGroup.position.x, playerGroup.position.y, playerGroup.position.z],
                 [movementTarget.x, movementTarget.y, movementTarget.z],
                 DEFAULT_QUERY_FILTER,

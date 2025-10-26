@@ -16,13 +16,13 @@ import { getNodeRefType, type NodeRef, NodeType } from './node';
 import type { QueryFilter } from './nav-mesh-api';
 
 type SegmentInterval = {
-    ref: NodeRef | null;
+    nodeRef: NodeRef | null;
     tmin: number;
     tmax: number;
 };
 
 // helper to insert an interval into a sorted array
-const insertInterval = (intervals: SegmentInterval[], tmin: number, tmax: number, ref: NodeRef | null): void => {
+const insertInterval = (intervals: SegmentInterval[], tmin: number, tmax: number, nodeRef: NodeRef | null): void => {
     // Find insertion point
     let idx = 0;
     while (idx < intervals.length && tmax > intervals[idx].tmin) {
@@ -30,7 +30,7 @@ const insertInterval = (intervals: SegmentInterval[], tmin: number, tmax: number
     }
 
     // Insert at the found position
-    intervals.splice(idx, 0, { ref, tmin, tmax });
+    intervals.splice(idx, 0, { nodeRef: nodeRef, tmin, tmax });
 };
 
 export type FindLocalNeighbourhoodResult = {
@@ -58,16 +58,16 @@ const _findLocalNeighbourhood_distancePtSegSqr2dResult = createDistancePtSegSqr2
  * the xz-plane. So the y-value of the center point does not affect intersection tests.
  *
  * @param navMesh The navigation mesh
- * @param startRef The reference ID of the starting polygon
- * @param centerPos The center position of the search circle
+ * @param startNodeRef The reference ID of the starting polygon
+ * @param position The center position of the search circle
  * @param radius The search radius
  * @param filter The query filter to apply
  * @returns The result containing found polygons and their parents
  */
 export const findLocalNeighbourhood = (
     navMesh: NavMesh,
-    startRef: NodeRef,
-    centerPos: Vec3,
+    startNodeRef: NodeRef,
+    position: Vec3,
     radius: number,
     filter: QueryFilter,
 ): FindLocalNeighbourhoodResult => {
@@ -82,7 +82,7 @@ export const findLocalNeighbourhood = (
     };
 
     // validate input
-    if (!isValidNodeRef(navMesh, startRef) || !vec3.finite(centerPos) || radius < 0 || !Number.isFinite(radius) || !filter) {
+    if (!isValidNodeRef(navMesh, startNodeRef) || !vec3.finite(position) || radius < 0 || !Number.isFinite(radius) || !filter) {
         return result;
     }
 
@@ -92,10 +92,10 @@ export const findLocalNeighbourhood = (
         total: 0,
         parentNodeRef: null,
         parentState: null,
-        nodeRef: startRef,
+        nodeRef: startNodeRef,
         state: 0,
         flags: NODE_FLAG_CLOSED,
-        position: [centerPos[0], centerPos[1], centerPos[2]],
+        position: [position[0], position[1], position[2]],
     };
     addSearchNode(nodes, startNode);
     stack.push(startNode);
@@ -103,7 +103,7 @@ export const findLocalNeighbourhood = (
     const radiusSqr = radius * radius;
 
     // add start polygon to results
-    result.resultRefs.push(startRef);
+    result.resultRefs.push(startNodeRef);
 
     // temporary arrays for polygon vertices
     const polyVerticesA = _findLocalNeighbourhoodPolyVerticesA;
@@ -148,7 +148,7 @@ export const findLocalNeighbourhood = (
             if (!getPortalPoints(navMesh, curRef, neighbourRef, va, vb)) continue;
 
             // if the circle is not touching the next polygon, skip it
-            distancePtSegSqr2d(_findLocalNeighbourhood_distancePtSegSqr2dResult, centerPos, va, vb);
+            distancePtSegSqr2d(_findLocalNeighbourhood_distancePtSegSqr2dResult, position, va, vb);
             if (_findLocalNeighbourhood_distancePtSegSqr2dResult.distSqr > radiusSqr) continue;
 
             // mark node visited before overlap test
@@ -160,7 +160,7 @@ export const findLocalNeighbourhood = (
                 nodeRef: neighbourRef,
                 state: 0,
                 flags: NODE_FLAG_CLOSED,
-                position: [centerPos[0], centerPos[1], centerPos[2]],
+                position: [position[0], position[1], position[2]],
             };
             addSearchNode(nodes, neighbourNode);
 
@@ -324,7 +324,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
 
         for (let k = 1; k < intervals.length; ++k) {
             // portal segment
-            if (includePortals && intervals[k].ref) {
+            if (includePortals && intervals[k].nodeRef) {
                 const tmin = intervals[k].tmin / 255.0;
                 const tmax = intervals[k].tmax / 255.0;
 
@@ -334,7 +334,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
                 vec3.lerp(segEnd, vj, vi, tmax);
 
                 segmentVerts.push(segStart[0], segStart[1], segStart[2], segEnd[0], segEnd[1], segEnd[2]);
-                segmentRefs.push(intervals[k].ref);
+                segmentRefs.push(intervals[k].nodeRef);
             }
 
             // wall segment

@@ -162,8 +162,8 @@ export type Agent = {
     /** Off-mesh connection animation state (null when not traversing an off-mesh connection) */
     offMeshAnimation: {
         t: number;
-        startPos: Vec3;
-        endPos: Vec3;
+        startPosition: Vec3;
+        endPosition: Vec3;
         nodeRef: NodeRef;
         duration: number;
     } | null;
@@ -384,9 +384,9 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 continue;
             }
 
-            pathCorridor.fixPathStart(agent.corridor, nearestPolyResult.ref, agent.position);
+            pathCorridor.fixPathStart(agent.corridor, nearestPolyResult.nodeRef, agent.position);
             localBoundary.resetLocalBoundary(agent.boundary);
-            vec3.copy(agent.position, nearestPolyResult.point);
+            vec3.copy(agent.position, nearestPolyResult.position);
 
             replan = true;
         }
@@ -419,8 +419,8 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                     pathCorridor.reset(agent.corridor, 0, agent.position);
                 } else {
                     // target poly became invalid, update to nearest valid poly
-                    agent.targetRef = nearestPolyResult.ref;
-                    vec3.copy(agent.targetPosition, nearestPolyResult.point);
+                    agent.targetRef = nearestPolyResult.nodeRef;
+                    vec3.copy(agent.targetPosition, nearestPolyResult.position);
                     replan = true;
                 }
             }
@@ -668,8 +668,8 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
             agent.offMeshAnimation = {
                 t: 0,
                 duration: agent.params.autoTraverseOffMeshConnections ? 0.5 : -1,
-                startPos: vec3.clone(agent.position),
-                endPos: vec3.clone(result.endPosition),
+                startPosition: vec3.clone(agent.position),
+                endPosition: vec3.clone(result.endPosition),
                 nodeRef: result.offMeshNodeRef,
             };
         }
@@ -692,7 +692,7 @@ export const completeOffMeshConnection = (crowd: Crowd, agentId: string): boolea
 
     if (!agent.offMeshAnimation) return false;
 
-    vec3.copy(agent.position, agent.offMeshAnimation.endPos);
+    vec3.copy(agent.position, agent.offMeshAnimation.endPosition);
 
     // update velocity - set to zero during off-mesh connection
     vec3.set(agent.velocity, 0, 0, 0);
@@ -772,12 +772,12 @@ const _getDistanceToGoalEnd = vec2.create();
 const getDistanceToGoal = (agent: Agent, range: number) => {
     if (agent.corners.length === 0) return range;
 
-    const endPoint = agent.corners[agent.corners.length - 1];
-    const isEndOfPath = (endPoint.flags & StraightPathPointFlags.END) !== 0;
+    const endPosition = agent.corners[agent.corners.length - 1];
+    const isEndOfPath = (endPosition.flags & StraightPathPointFlags.END) !== 0;
 
     if (!isEndOfPath) return range;
 
-    vec2.set(_getDistanceToGoalStart, endPoint.position[0], endPoint.position[2]);
+    vec2.set(_getDistanceToGoalStart, endPosition.position[0], endPosition.position[2]);
     vec2.set(_getDistanceToGoalEnd, agent.position[0], agent.position[2]);
 
     const dist = vec2.distance(_getDistanceToGoalStart, _getDistanceToGoalEnd);
@@ -1069,7 +1069,7 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
 
         // update position
         const progress = anim.t / anim.duration;
-        vec3.lerp(agent.position, anim.startPos, anim.endPos, progress);
+        vec3.lerp(agent.position, anim.startPosition, anim.endPosition, progress);
 
         // update velocity - set to zero during off-mesh connection
         vec3.set(agent.velocity, 0, 0, 0);
@@ -1141,14 +1141,14 @@ export const isAgentAtTarget = (crowd: Crowd, agentId: string, threshold: number
     // check if we have corners and the last corner is marked as END
     if (agent.corners.length === 0) return false;
 
-    const endPoint = agent.corners[agent.corners.length - 1];
-    const isEndOfPath = (endPoint.flags & StraightPathPointFlags.END) !== 0;
+    const endPosition = agent.corners[agent.corners.length - 1];
+    const isEndOfPath = (endPosition.flags & StraightPathPointFlags.END) !== 0;
 
     if (!isEndOfPath) return false;
 
     // check distance to the end point
     const arrivalThreshold = threshold ?? agent.params.radius;
-    const dist = vec3.distance(agent.position, endPoint.position);
+    const dist = vec3.distance(agent.position, endPosition.position);
 
     return dist <= arrivalThreshold;
 };

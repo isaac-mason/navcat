@@ -3,6 +3,20 @@
 ## 0.0.9 (Unreleased)
 
 - feat: add `floodFillNavMesh` to `navcat/blocks` for finding reachable and unreachable polygon nodes from seed polygons
+- feat: standardize "position", "point", "center", "nodeRef", "ref" naming in APIs and types
+  - standardize on "position" for 3D points in space
+  - standardize on "nodeRef" for navmesh polygon references e.g. "nodeRef", "startNodeRef", "endNodeRef"
+  - breaking:
+    - `FindPathResult`: `startPoint` and `endPoint` renamed to `startPosition` and `endPosition`
+    - `FindSmoothPathResult`: `startPoint` and `endPoint` renamed to `startPosition` and `endPosition`
+    - `FindNearestPolyResult`: `point` renamed to `position`
+    - `GetClosestPointOnPolyResult`: `closestPoint` renamed to `position`
+    - `crowd` `Agent` type: `offMeshAnimation.startPos` and `offMeshAnimation.endPos` renamed to `offMeshAnimation.startPosition` and `offMeshAnimation.endPosition`
+    - `SlicedNodePathQuery`: `startPos` and `endPos` renamed to `startPosition` and `endPosition`
+    - `SlicedNodePathQuery`: `startRef` and `endRef` renamed to `startNodeRef` and `endNodeRef`
+    - `FindNearestPolyResult`: `ref` renamed to `nodeRef`
+    - `FindRandomPointResult`: `ref` renamed to `nodeRef`
+    - `FindRandomPointAroundCircleResult`: `randomRef` renamed to `nodeRef`
 
 ## 0.0.8
 

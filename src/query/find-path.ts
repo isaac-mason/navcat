@@ -35,13 +35,13 @@ export type FindPathResult = {
     startNodeRef: NodeRef | null;
 
     /** the start closest point */
-    startPoint: Vec3;
+    startPosition: Vec3;
 
     /** the end poly node ref */
     endNodeRef: NodeRef | null;
 
     /** the end closest point */
-    endPoint: Vec3;
+    endPosition: Vec3;
 
     /** the node path result */
     nodePath: FindNodePathResult | null;
@@ -87,9 +87,9 @@ export const findPath = (
         straightPathFlags: FindStraightPathResultFlags.NONE,
         path: [],
         startNodeRef: null,
-        startPoint: [0, 0, 0],
+        startPosition: [0, 0, 0],
         endNodeRef: null,
-        endPoint: [0, 0, 0],
+        endPosition: [0, 0, 0],
         nodePath: null,
     };
 
@@ -97,23 +97,23 @@ export const findPath = (
     const startNearestPolyResult = findNearestPoly(_findPathStartNearestPolyResult, navMesh, start, halfExtents, queryFilter);
     if (!startNearestPolyResult.success) return result;
 
-    vec3.copy(result.startPoint, startNearestPolyResult.point);
-    result.startNodeRef = startNearestPolyResult.ref;
+    vec3.copy(result.startPosition, startNearestPolyResult.position);
+    result.startNodeRef = startNearestPolyResult.nodeRef;
 
     /* find end nearest poly */
     const endNearestPolyResult = findNearestPoly(_findPathEndNearestPolyResult, navMesh, end, halfExtents, queryFilter);
     if (!endNearestPolyResult.success) return result;
 
-    vec3.copy(result.endPoint, endNearestPolyResult.point);
-    result.endNodeRef = endNearestPolyResult.ref;
+    vec3.copy(result.endPosition, endNearestPolyResult.position);
+    result.endNodeRef = endNearestPolyResult.nodeRef;
 
     /* find node path */
     const nodePath = findNodePath(
         navMesh,
         result.startNodeRef,
         result.endNodeRef,
-        result.startPoint,
-        result.endPoint,
+        result.startPosition,
+        result.endPosition,
         queryFilter,
     );
 
@@ -126,7 +126,7 @@ export const findPath = (
     }
 
     /* find straight path */
-    const straightPath = findStraightPath(navMesh, result.startPoint, result.endPoint, nodePath.path);
+    const straightPath = findStraightPath(navMesh, result.startPosition, result.endPosition, nodePath.path);
 
     if (!straightPath.success) {
         result.flags = FindPathResultFlags.FIND_STRAIGHT_PATH_FAILED;

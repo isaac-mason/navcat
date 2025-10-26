@@ -53,21 +53,21 @@ enum AppendVertexStatus {
 }
 
 const appendVertex = (
-    point: Vec3,
-    ref: NodeRef | null,
+    position: Vec3,
+    nodeRef: NodeRef | null,
     flags: number,
     outPoints: StraightPathPoint[],
     nodeType: NodeType,
     maxPoints: number | null = null,
 ): AppendVertexStatus => {
-    if (outPoints.length > 0 && vec3.equals(outPoints[outPoints.length - 1].position, point)) {
+    if (outPoints.length > 0 && vec3.equals(outPoints[outPoints.length - 1].position, position)) {
         const prevType = outPoints[outPoints.length - 1].type;
 
         // only update if both points are regular polygon nodes
         // off-mesh connections should always be distinct waypoints
         if (prevType === NodeType.POLY && nodeType === NodeType.POLY) {
             // the vertices are equal, update
-            outPoints[outPoints.length - 1].nodeRef = ref;
+            outPoints[outPoints.length - 1].nodeRef = nodeRef;
             outPoints[outPoints.length - 1].type = nodeType;
 
             return AppendVertexStatus.IN_PROGRESS;
@@ -78,9 +78,9 @@ const appendVertex = (
 
     // append new vertex
     outPoints.push({
-        position: [point[0], point[1], point[2]],
+        position: [position[0], position[1], position[2]],
         type: nodeType,
-        nodeRef: ref,
+        nodeRef: nodeRef,
         flags,
     });
 
@@ -108,7 +108,7 @@ const appendPortals = (
     navMesh: NavMesh,
     startIdx: number,
     endIdx: number,
-    endPos: Vec3,
+    endPosition: Vec3,
     path: NodeRef[],
     outPoints: StraightPathPoint[],
     options: number,
@@ -136,7 +136,7 @@ const appendPortals = (
         }
 
         // append intersection
-        const intersectResult = intersectSegSeg2D(_intersectSegSeg2DResult, startPos, endPos, left, right);
+        const intersectResult = intersectSegSeg2D(_intersectSegSeg2DResult, startPos, endPosition, left, right);
 
         if (!intersectResult.hit) continue;
 
