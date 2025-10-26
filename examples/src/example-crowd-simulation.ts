@@ -12,7 +12,7 @@ import {
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
 } from 'navcat';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { crowd, generateTiledNavMesh, pathCorridor, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
 import {
     createNavMeshHelper,
     createNavMeshOffMeshConnectionsHelper,
@@ -22,17 +22,7 @@ import {
 } from 'navcat/three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
-import {
-    addAgent,
-    type Agent,
-    type AgentParams,
-    createCrowd,
-    CrowdUpdateFlags,
-    requestMoveTarget,
-    updateCrowd,
-} from './common/crowd';
 import { loadGLTF } from './common/load-gltf';
-import { findCorridorCorners } from './common/path-corridor';
 
 const random = createMulberry32Generator(42);
 
@@ -553,7 +543,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 
 const updateAgentVisuals = (
     _agentId: string,
-    agent: Agent,
+    agent: crowd.Agent,
     visuals: AgentVisuals,
     scene: THREE.Scene,
     deltaTime: number,
@@ -610,7 +600,7 @@ const updateAgentVisuals = (
         visuals.targetRotation = targetAngle;
     } else {
         // When velocity is low (like during off-mesh connections), face towards target
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPos, agent.position);
+        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
         const targetDistance = vec3.length(targetDirection);
 
         if (targetDistance > 0.1) {
@@ -638,7 +628,7 @@ const updateAgentVisuals = (
     visuals.catGroup.rotation.y = visuals.currentRotation;
 
     // update target mesh position
-    visuals.targetMesh.position.fromArray(agent.targetPos);
+    visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
 
     // update selection ring position
@@ -646,7 +636,7 @@ const updateAgentVisuals = (
 
     // handle path line visualization
     if (options.showPathLine) {
-        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+        const corners = pathCorridor.findCorners(agent.corridor, navMesh, 3);
 
         if (corners && corners.length > 1) {
             // validate coordinates
@@ -899,32 +889,23 @@ const updateAgentVisuals = (
 createPolyHelpers(navMesh, scene);
 
 /* create crowd and agents */
-const crowd = createCrowd(1);
+const catsCrowd = crowd.create(1);
 
-console.log(crowd);
+console.log(catsCrowd);
 
-const agentParams: AgentParams = {
+const agentParams: crowd.AgentParams = {
     radius: 0.3,
     height: 0.6,
     maxAcceleration: 15.0,
     maxSpeed: 3.5,
     collisionQueryRange: 2,
-    // pathOptimizationRange: 30.0,
     separationWeight: 0.5,
-    updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS | CrowdUpdateFlags.SEPARATION | CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+    updateFlags:
+        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
-    obstacleAvoidance: {
-        velBias: 0.4,
-        weightDesVel: 2.0,
-        weightCurVel: 0.75,
-        weightSide: 0.75,
-        weightToi: 2.5,
-        horizTime: 2.5,
-        gridSize: 33,
-        adaptiveDivs: 7,
-        adaptiveRings: 2,
-        adaptiveDepth: 5,
-    },
+    obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
+    // we will do a custom animation for off-mesh connections
+    autoTraverseOffMeshConnections: false,
 };
 
 // create agents at different positions
@@ -941,7 +922,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     const color = agentColors[i % agentColors.length];
 
     // add agent to crowd
-    const agentId = addAgent(crowd, position, agentParams);
+    const agentId = crowd.addAgent(catsCrowd, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
@@ -994,7 +975,7 @@ const updateSelectedAgentsInfo = () => {
 
     let displayCount = 0;
     for (const agentId of selectedAgents) {
-        const agent = crowd.agents[agentId];
+        const agent = catsCrowd.agents[agentId];
         if (!agent) continue;
 
         const agentColor = agentVisuals[agentId]?.color || 0xffffff;
@@ -1007,7 +988,13 @@ const updateSelectedAgentsInfo = () => {
         html += `<div style="color: #ccc;">Pos: (${agent.position[0].toFixed(2)}, ${agent.position[1].toFixed(2)}, ${agent.position[2].toFixed(2)})</div>`;
 
         // Target Position
-        html += `<div style="color: #ccc;">Target: (${agent.targetPos[0].toFixed(2)}, ${agent.targetPos[1].toFixed(2)}, ${agent.targetPos[2].toFixed(2)})</div>`;
+        html += `<div style="color: #ccc;">Target: (${agent.targetPosition[0].toFixed(2)}, ${agent.targetPosition[1].toFixed(2)}, ${agent.targetPosition[2].toFixed(2)})</div>`;
+
+        // Target Path Is Partial
+        html += `<div style="color: #ccc;">Target Path Is Partial: ${agent.targetPathIsPartial ? 'Yes' : 'No'}</div>`;
+
+        // Is agent at target?
+        html += `<div style="color: #ccc;">At Target: ${crowd.isAgentAtTarget(catsCrowd, agentId, agent.params.radius) ? 'Yes' : 'No'}</div>`;
 
         // Velocity
         const velLength = vec3.length(agent.velocity);
@@ -1043,7 +1030,7 @@ const updateSelectedAgentsInfo = () => {
 };
 
 const scatterCats = () => {
-    for (const agentId in crowd.agents) {
+    for (const agentId in catsCrowd.agents) {
         // skip selected agents
         if (selectedAgents.has(agentId)) continue;
 
@@ -1051,7 +1038,7 @@ const scatterCats = () => {
 
         if (!randomPointResult.success) continue;
 
-        requestMoveTarget(crowd, agentId, randomPointResult.ref, randomPointResult.position);
+        crowd.requestMoveTarget(catsCrowd, agentId, randomPointResult.ref, randomPointResult.position);
     }
 };
 
@@ -1142,7 +1129,7 @@ const worldToScreen = (worldPos: Vec3): THREE.Vector2 => {
 
 // helper to check if agent is in selection box
 const isAgentInSelectionBox = (agentId: string): boolean => {
-    const agent = crowd.agents[agentId];
+    const agent = catsCrowd.agents[agentId];
     if (!agent) return false;
 
     const screenPos = worldToScreen(agent.position);
@@ -1204,7 +1191,7 @@ const onPointerUp = (event: MouseEvent) => {
         }
 
         // select all agents in box
-        for (const agentId in crowd.agents) {
+        for (const agentId in catsCrowd.agents) {
             if (isAgentInSelectionBox(agentId)) {
                 selectAgent(agentId);
             }
@@ -1219,7 +1206,7 @@ const onPointerUp = (event: MouseEvent) => {
 
         // raycast to agent cat models
         const agentMeshes: THREE.Object3D[] = [];
-        for (const agentId in crowd.agents) {
+        for (const agentId in catsCrowd.agents) {
             if (agentVisuals[agentId]) {
                 agentMeshes.push(agentVisuals[agentId].catGroup);
             }
@@ -1230,7 +1217,7 @@ const onPointerUp = (event: MouseEvent) => {
         if (intersects.length > 0) {
             // find which agent was clicked
             let clickedAgentId: string | null = null;
-            for (const agentId in crowd.agents) {
+            for (const agentId in catsCrowd.agents) {
                 if (agentVisuals[agentId] && intersects[0].object.parent === agentVisuals[agentId].catGroup) {
                     clickedAgentId = agentId;
                     break;
@@ -1305,7 +1292,7 @@ const onContextMenu = (event: MouseEvent) => {
 
     // move only selected agents
     for (const agentId of selectedAgents) {
-        requestMoveTarget(crowd, agentId, nearestResult.ref, nearestResult.point);
+        crowd.requestMoveTarget(catsCrowd, agentId, nearestResult.ref, nearestResult.point);
     }
 
     console.log('target position for selected agents:', targetPosition);
@@ -1334,9 +1321,45 @@ function update() {
     }
 
     // update crowd
-    // console.time("update crowd");
-    updateCrowd(crowd, navMesh, clampedDeltaTime);
-    // console.timeEnd("update crowd");
+    crowd.update(catsCrowd, navMesh, clampedDeltaTime);
+
+    // handle custom off-mesh connection animations with arcs
+    for (const agentId in catsCrowd.agents) {
+        const agent = catsCrowd.agents[agentId];
+
+        if (agent.state === crowd.AgentState.OFFMESH && agent.offMeshAnimation) {
+            const anim = agent.offMeshAnimation;
+
+            // progress animation time
+            anim.t += clampedDeltaTime;
+
+            // custom animation duration
+            const customDuration = 0.8; // slightly longer for nice arc
+
+            if (anim.t >= customDuration) {
+                // finish the off-mesh connection
+                crowd.completeOffMeshConnection(catsCrowd, agentId);
+            } else {
+                // animate with a parabolic arc
+                const progress = anim.t / customDuration;
+
+                // linear interpolation for x and z
+                const x = anim.startPos[0] + (anim.endPos[0] - anim.startPos[0]) * progress;
+                const z = anim.startPos[2] + (anim.endPos[2] - anim.startPos[2]) * progress;
+
+                // parabolic arc for y (creates a jump effect)
+                const startY = anim.startPos[1];
+                const endY = anim.endPos[1];
+                const arcHeight = 1.0; // height of the arc
+
+                // parabola: y = -4h * (p - 0.5)^2 + h where h is max height above start
+                const parabola = -4 * arcHeight * (progress - 0.5) ** 2 + arcHeight;
+                const y = startY + (endY - startY) * progress + parabola;
+
+                vec3.set(agent.position, x, y, z);
+            }
+        }
+    }
 
     // update visuals
     clearPolyHelpers();
@@ -1344,11 +1367,11 @@ function update() {
     // collect corridor information for poly helper coloring
     const polyAgentColors = new Map<NodeRef, number[]>();
 
-    const agents = Object.keys(crowd.agents);
+    const agents = Object.keys(catsCrowd.agents);
 
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
-        const agent = crowd.agents[agentId];
+        const agent = catsCrowd.agents[agentId];
         if (agentVisuals[agentId]) {
             // collect corridor data for this agent
             if (guiSettings.showPolyHelpers && agent.corridor.path.length > 0) {

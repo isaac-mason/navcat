@@ -66,17 +66,8 @@ import {
 } from 'navcat/three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
-import {
-    addAgent,
-    type Agent,
-    type AgentParams,
-    createCrowd,
-    CrowdUpdateFlags,
-    requestMoveTarget,
-    updateCrowd,
-} from './common/crowd';
 import { loadGLTF } from './common/load-gltf';
-import { findCorridorCorners } from './common/path-corridor';
+import { crowd, pathCorridor } from 'navcat/blocks';
 
 const random = createMulberry32Generator(42);
 
@@ -767,19 +758,19 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     };
 };
 
-const updateAgentVisuals = (agent: Agent, visuals: AgentVisuals, scene: THREE.Scene, options: AgentVisualsOptions = {}): void => {
+const updateAgentVisuals = (agent: crowd.Agent, visuals: AgentVisuals, scene: THREE.Scene, options: AgentVisualsOptions = {}): void => {
     // Update agent mesh position (capsule debug)
     // CapsuleGeometry is centered, so offset up by (height/2 + radius)
     visuals.mesh.position.fromArray(agent.position);
     visuals.mesh.position.y += agent.params.height / 2 + agent.params.radius;
 
     // update target mesh position
-    visuals.targetMesh.position.fromArray(agent.targetPos);
+    visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
 
     // handle path line visualization
     if (options.showPathLine) {
-        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+        const corners = pathCorridor.findCorners(agent.corridor, navMesh, 3);
 
         if (corners && corners.length > 1) {
             // validate coordinates
@@ -871,7 +862,7 @@ const updateAgentVisuals = (agent: Agent, visuals: AgentVisuals, scene: THREE.Sc
 createPolyHelpers(navMesh, scene);
 
 /* create crowd and agents */
-const crowd = createCrowd(1);
+const mixedCrowd = crowd.create(1);
 
 // small agents can traverse all areas
 const SMALL_AGENT_QUERY_FILTER: QueryFilter = {
@@ -914,30 +905,20 @@ for (let i = 0; i < agentPositions.length; i++) {
     const queryFilter = agentSize === 's' ? SMALL_AGENT_QUERY_FILTER : LARGE_AGENT_QUERY_FILTER;
 
     // add agent to crowd
-    const agentParams: AgentParams = {
+    const agentParams: crowd.AgentParams = {
         radius,
         height: 0.6,
         maxAcceleration: 15.0,
         maxSpeed: 3.5,
         collisionQueryRange: 2,
         separationWeight: 0.5,
-        updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS | CrowdUpdateFlags.SEPARATION | CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+        updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
         queryFilter,
-        obstacleAvoidance: {
-            velBias: 0.4,
-            weightDesVel: 2.0,
-            weightCurVel: 0.75,
-            weightSide: 0.75,
-            weightToi: 2.5,
-            horizTime: 2.5,
-            gridSize: 33,
-            adaptiveDivs: 7,
-            adaptiveRings: 2,
-            adaptiveDepth: 5,
-        },
+        autoTraverseOffMeshConnections: true,
+        obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
     };
 
-    const agentId = addAgent(crowd, position, agentParams);
+    const agentId = crowd.addAgent(mixedCrowd, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
@@ -945,12 +926,12 @@ for (let i = 0; i < agentPositions.length; i++) {
 }
 
 const scatterCats = () => {
-    for (const agentId in crowd.agents) {
+    for (const agentId in mixedCrowd.agents) {
         const randomPointResult = findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, random);
 
         if (!randomPointResult.success) continue;
 
-        requestMoveTarget(crowd, agentId, randomPointResult.ref, randomPointResult.position);
+        crowd.requestMoveTarget(mixedCrowd, agentId, randomPointResult.ref, randomPointResult.position);
     }
 };
 
@@ -988,8 +969,8 @@ const onPointerDown = (event: MouseEvent) => {
 
     if (!nearestResult.success) return;
 
-    for (const agentId in crowd.agents) {
-        requestMoveTarget(crowd, agentId, nearestResult.ref, nearestResult.point);
+    for (const agentId in mixedCrowd.agents) {
+        crowd.requestMoveTarget(mixedCrowd, agentId, nearestResult.ref, nearestResult.point);
     }
 
     console.log('target position:', targetPosition);
@@ -1015,13 +996,13 @@ function update() {
     }
 
     // update crowd
-    updateCrowd(crowd, navMesh, clampedDeltaTime);
+    crowd.update(mixedCrowd, navMesh, clampedDeltaTime);
 
-    const agents = Object.keys(crowd.agents);
+    const agents = Object.keys(mixedCrowd.agents);
 
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
-        const agent = crowd.agents[agentId];
+        const agent = mixedCrowd.agents[agentId];
         if (agentVisuals[agentId]) {
             updateAgentVisuals(agent, agentVisuals[agentId], scene, {
                 showPathLine: guiSettings.showPathLine,

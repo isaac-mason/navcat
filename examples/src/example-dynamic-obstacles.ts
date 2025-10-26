@@ -39,17 +39,8 @@ import {
 import { createNavMeshOffMeshConnectionsHelper, createNavMeshTileHelper, type DebugObject, getPositionsAndIndices } from 'navcat/three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
-import {
-    addAgent,
-    type Agent,
-    type AgentParams,
-    createCrowd,
-    CrowdUpdateFlags,
-    requestMoveTarget,
-    updateCrowd,
-} from './common/crowd';
 import { loadGLTF } from './common/load-gltf';
-import { findCorridorCorners } from './common/path-corridor';
+import { crowd, pathCorridor } from 'navcat/blocks';
 
 /* init rapier */
 await Rapier.init();
@@ -772,7 +763,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 };
 
 const updateAgentVisuals = (
-    agent: Agent,
+    agent: crowd.Agent,
     visuals: AgentVisuals,
     scene: THREE.Scene,
     deltaTime: number,
@@ -822,7 +813,7 @@ const updateAgentVisuals = (
         const targetAngle = Math.atan2(direction[0], direction[2]);
         visuals.targetRotation = targetAngle;
     } else {
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPos, agent.position);
+        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
         const targetDistance = vec3.length(targetDirection);
 
         if (targetDistance > 0.1) {
@@ -849,12 +840,12 @@ const updateAgentVisuals = (
     visuals.group.rotation.y = visuals.currentRotation;
 
     // update target mesh position
-    visuals.targetMesh.position.fromArray(agent.targetPos);
+    visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
 
     // path line visualization
     if (options.showPathLine) {
-        const corners = findCorridorCorners(agent.corridor, navMesh, 3);
+        const corners = pathCorridor.findCorners(agent.corridor, navMesh, 3);
 
         if (corners && corners.length > 1) {
             // validate coordinates
@@ -904,31 +895,21 @@ const updateAgentVisuals = (
 };
 
 /* create crowd and agents */
-const crowd = createCrowd(1);
+const catsCrowd = crowd.create(1);
 
-console.log(crowd);
+console.log(catsCrowd);
 
-const agentParams: AgentParams = {
+const agentParams: crowd.AgentParams = {
     radius: 0.3,
     height: 0.6,
     maxAcceleration: 15.0,
     maxSpeed: 3.5,
     collisionQueryRange: 2,
     separationWeight: 0.5,
-    updateFlags: CrowdUpdateFlags.ANTICIPATE_TURNS | CrowdUpdateFlags.SEPARATION | CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+    updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
-    obstacleAvoidance: {
-        velBias: 0.4,
-        weightDesVel: 2.0,
-        weightCurVel: 0.75,
-        weightSide: 0.75,
-        weightToi: 2.5,
-        horizTime: 2.5,
-        gridSize: 33,
-        adaptiveDivs: 7,
-        adaptiveRings: 2,
-        adaptiveDepth: 5,
-    },
+    autoTraverseOffMeshConnections: true,
+    obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
 };
 
 // create agents at different positions
@@ -943,7 +924,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     const color = agentColors[i % agentColors.length];
 
     // add agent to crowd
-    const agentId = addAgent(crowd, position, agentParams);
+    const agentId = crowd.addAgent(catsCrowd, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
@@ -981,8 +962,8 @@ const onPointerDown = (event: MouseEvent) => {
 
     if (!nearestResult.success) return;
 
-    for (const agentId in crowd.agents) {
-        requestMoveTarget(crowd, agentId, nearestResult.ref, nearestResult.point);
+    for (const agentId in catsCrowd.agents) {
+        crowd.requestMoveTarget(catsCrowd, agentId, nearestResult.ref, nearestResult.point);
     }
 
     console.log('target position:', targetPosition);
@@ -1002,7 +983,7 @@ function update() {
     prevTime = time;
 
     // update crowd
-    updateCrowd(crowd, navMesh, clampedDeltaTime);
+    crowd.update(catsCrowd, navMesh, clampedDeltaTime);
 
     // update physics
     physicsWorld.timestep = clampedDeltaTime;
@@ -1134,7 +1115,7 @@ function update() {
                     const material = child.material as THREE.MeshBasicMaterial;
 
                     const baseColor = 0x222222;
-                    const flashColor = 0x555555;
+                    const flashColor = 0x005500;
 
                     const baseR = (baseColor >> 16) & 0xff;
                     const baseG = (baseColor >> 8) & 0xff;
@@ -1165,11 +1146,11 @@ function update() {
     }
 
     // update agent visuals
-    const agents = Object.keys(crowd.agents);
+    const agents = Object.keys(catsCrowd.agents);
 
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
-        const agent = crowd.agents[agentId];
+        const agent = catsCrowd.agents[agentId];
 
         if (agentVisuals[agentId]) {
             updateAgentVisuals(agent, agentVisuals[agentId], scene, clampedDeltaTime, {
