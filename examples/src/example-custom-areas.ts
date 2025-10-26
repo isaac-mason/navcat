@@ -344,7 +344,7 @@ camera.position.set(-2, 10, 10);
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true;
 
-const navTestModel = await loadGLTF('/models/bridges.glb');
+const navTestModel = await loadGLTF('./models/bridges.glb');
 scene.add(navTestModel.scene);
 
 /* generate navmesh */

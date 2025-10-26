@@ -66,7 +66,7 @@ orbitControls.enableDamping = true;
 orbitControls.target.set(0, 6, 0);
 
 /* load model and navmesh */
-const level = await loadGLTF('/models/tower-big.glb');
+const level = await loadGLTF('./models/tower-big.glb');
 
 console.log('level', level);
 

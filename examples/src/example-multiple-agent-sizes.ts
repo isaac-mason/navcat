@@ -397,7 +397,7 @@ const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true;
 
 /* load level model */
-const levelModel = await loadGLTF('/models/nav-test.glb');
+const levelModel = await loadGLTF('./models/nav-test.glb');
 scene.add(levelModel.scene);
 
 /* generate navmesh */

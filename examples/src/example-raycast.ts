@@ -29,7 +29,7 @@ orbitControls.enableDamping = true;
 orbitControls.target.set(0, 0, 4);
 camera.position.set(0, 5, 8);
 
-const navTestModel = await loadGLTF('/models/nav-test.glb');
+const navTestModel = await loadGLTF('./models/nav-test.glb');
 scene.add(navTestModel.scene);
 
 /* generate navmesh */

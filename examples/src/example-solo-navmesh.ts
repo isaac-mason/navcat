@@ -30,7 +30,7 @@ camera.position.set(-2, 10, 10);
 const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true;
 
-const navTestModel = await loadGLTF('/models/nav-test.glb');
+const navTestModel = await loadGLTF('./models/nav-test.glb');
 scene.add(navTestModel.scene);
 
 /* navmesh generation parameters */

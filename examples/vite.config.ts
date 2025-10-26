@@ -15,6 +15,7 @@ for (const path of htmlFiles) {
 }
 
 export default defineConfig({
+    base: './',
     root: './',
     build: {
         outDir: './dist',

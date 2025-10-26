@@ -62,7 +62,7 @@ camera.position.set(5, 8, 5);
 camera.lookAt(0, 0, 0);
 
 // load level model
-const levelModel = await loadGLTF('/models/game-level.glb');
+const levelModel = await loadGLTF('./models/game-level.glb');
 scene.add(levelModel.scene);
 
 // lighting
@@ -74,7 +74,7 @@ directionalLight.position.set(5, 10, 7.5);
 scene.add(directionalLight);
 
 // character model
-const characterModel = await loadGLTF('/models/character.glb');
+const characterModel = await loadGLTF('./models/character.glb');
 
 /* player setup */
 const playerGroup = new THREE.Group();

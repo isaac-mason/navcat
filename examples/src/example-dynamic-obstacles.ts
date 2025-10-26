@@ -97,11 +97,11 @@ const orbitControls = new OrbitControls(camera, renderer.domElement);
 orbitControls.enableDamping = true;
 
 // load level model
-const levelModel = await loadGLTF('/models/nav-test.glb');
+const levelModel = await loadGLTF('./models/nav-test.glb');
 scene.add(levelModel.scene);
 
 // load cat model for agents
-const catModel = await loadGLTF('/models/cat.gltf');
+const catModel = await loadGLTF('./models/cat.gltf');
 const catAnimations = catModel.animations;
 
 /* get walkable level geometry */
