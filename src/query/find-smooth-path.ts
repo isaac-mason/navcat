@@ -191,7 +191,7 @@ export const findSmoothPath = (
             break;
         }
 
-        const resultPosition = moveAlongSurfaceResult.resultPosition;
+        const resultPosition = moveAlongSurfaceResult.position;
 
         polys = mergeCorridorStartMoved(polys, moveAlongSurfaceResult.visited, 256);
         fixupShortcuts(polys, navMesh);

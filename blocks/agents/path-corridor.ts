@@ -87,7 +87,7 @@ export const movePosition = (corridor: PathCorridor, newPos: Vec3, navMesh: NavM
 
     if (result.success) {
         corridor.path = mergeStartMoved(corridor.path, result.visited);
-        vec3.copy(corridor.position, result.resultPosition);
+        vec3.copy(corridor.position, result.position);
         return true;
     }
 

@@ -129,7 +129,7 @@ export const updateLocalBoundary = (
     }
 
     // store found polygons (limit to max)
-    boundary.polys = neighbourhoodResult.resultRefs.slice(0, MAX_LOCAL_POLYS);
+    boundary.polys = neighbourhoodResult.nodeRefs.slice(0, MAX_LOCAL_POLYS);
 
     // clear existing segments
     boundary.segments.length = 0;

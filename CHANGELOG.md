@@ -17,6 +17,7 @@
     - `FindNearestPolyResult`: `ref` renamed to `nodeRef`
     - `FindRandomPointResult`: `ref` renamed to `nodeRef`
     - `FindRandomPointAroundCircleResult`: `randomRef` renamed to `nodeRef`
+    - `MoveAlongSurfaceResult`: `resultPosition` renamed to `position`, `resultRef` renamed to `nodeRef`
 
 ## 0.0.8
 

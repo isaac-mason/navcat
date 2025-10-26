@@ -1125,8 +1125,8 @@ const _moveAlongSurface_distancePtSegSqr2dResult = createDistancePtSegSqr2dResul
 
 export type MoveAlongSurfaceResult = {
     success: boolean;
-    resultPosition: Vec3;
-    resultRef: NodeRef;
+    position: Vec3;
+    nodeRef: NodeRef;
     visited: NodeRef[];
 };
 
@@ -1159,8 +1159,8 @@ export const moveAlongSurface = (
 ): MoveAlongSurfaceResult => {
     const result: MoveAlongSurfaceResult = {
         success: false,
-        resultPosition: vec3.clone(startPosition),
-        resultRef: startNodeRef,
+        position: vec3.clone(startPosition),
+        nodeRef: startNodeRef,
         visited: [],
     };
 
@@ -1314,11 +1314,11 @@ export const moveAlongSurface = (
 
         result.visited.reverse();
 
-        vec3.copy(result.resultPosition, bestPos);
-        result.resultRef = bestNode.nodeRef;
+        vec3.copy(result.position, bestPos);
+        result.nodeRef = bestNode.nodeRef;
 
         // fixup height with getPolyHeight
-        const tileAndPoly = getTileAndPolyByRef(result.resultRef, navMesh);
+        const tileAndPoly = getTileAndPolyByRef(result.nodeRef, navMesh);
 
         if (tileAndPoly.success) {
             const polyHeightResult = getPolyHeight(
@@ -1326,11 +1326,11 @@ export const moveAlongSurface = (
                 tileAndPoly.tile,
                 tileAndPoly.poly,
                 tileAndPoly.polyIndex,
-                result.resultPosition,
+                result.position,
             );
 
             if (polyHeightResult.success) {
-                result.resultPosition[1] = polyHeightResult.height;
+                result.position[1] = polyHeightResult.height;
             }
         }
     }

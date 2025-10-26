@@ -338,8 +338,8 @@ const movementUpdate = (delta: number) => {
                 DEFAULT_QUERY_FILTER,
             );
 
-            if (moveResult.success && moveResult.resultPosition) {
-                playerGroup.position.fromArray(moveResult.resultPosition);
+            if (moveResult.success && moveResult.position) {
+                playerGroup.position.fromArray(moveResult.position);
             }
         }
 

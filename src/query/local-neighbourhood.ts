@@ -35,8 +35,8 @@ const insertInterval = (intervals: SegmentInterval[], tmin: number, tmax: number
 
 export type FindLocalNeighbourhoodResult = {
     success: boolean;
-    /** polygon references in the local neighbourhood */
-    resultRefs: NodeRef[];
+    /** node references for polygons in the local neighbourhood */
+    nodeRefs: NodeRef[];
     /** search nodes */
     searchNodes: SearchNodePool;
 };
@@ -77,7 +77,7 @@ export const findLocalNeighbourhood = (
 
     const result: FindLocalNeighbourhoodResult = {
         success: false,
-        resultRefs: [],
+        nodeRefs: [],
         searchNodes: nodes,
     };
 
@@ -103,7 +103,7 @@ export const findLocalNeighbourhood = (
     const radiusSqr = radius * radius;
 
     // add start polygon to results
-    result.resultRefs.push(startNodeRef);
+    result.nodeRefs.push(startNodeRef);
 
     // temporary arrays for polygon vertices
     const polyVerticesA = _findLocalNeighbourhoodPolyVerticesA;
@@ -175,8 +175,8 @@ export const findLocalNeighbourhood = (
             }
 
             let overlap = false;
-            for (let j = 0; j < result.resultRefs.length; ++j) {
-                const pastRef = result.resultRefs[j];
+            for (let j = 0; j < result.nodeRefs.length; ++j) {
+                const pastRef = result.nodeRefs[j];
 
                 // connected polys do not overlap
                 let connected = false;
@@ -211,7 +211,7 @@ export const findLocalNeighbourhood = (
             if (overlap) continue;
 
             // this poly is fine, store and advance to the poly
-            result.resultRefs.push(neighbourRef);
+            result.nodeRefs.push(neighbourRef);
 
             // add to stack for further exploration
             stack.push(neighbourNode);
@@ -241,11 +241,11 @@ export type PolyWallSegmentsResult = {
  * wall if the filter results in the neighbor polygon becoming impassable.
  *
  * @param navMesh The navigation mesh
- * @param polyRef The reference ID of the polygon
+ * @param nodeRef The reference ID of the polygon
  * @param filter The query filter to apply
  * @param includePortals Whether to include portal segments in the result
  */
-export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: QueryFilter, includePortals: boolean): PolyWallSegmentsResult => {
+export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: QueryFilter, includePortals: boolean): PolyWallSegmentsResult => {
     const result: PolyWallSegmentsResult = {
         success: false,
         segmentVerts: [],
@@ -253,7 +253,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
     };
 
     // validate input
-    const tileAndPoly = getTileAndPolyByRef(polyRef, navMesh);
+    const tileAndPoly = getTileAndPolyByRef(nodeRef, navMesh);
     if (!tileAndPoly.success || !filter) {
         return result;
     }
@@ -269,7 +269,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, polyRef: NodeRef, filter: 
         // check if this edge has external links (tile boundary)
         if (poly.neis[j] & POLY_NEIS_FLAG_EXT_LINK) {
             // tile border - find all links for this edge
-            const node = getNodeByRef(navMesh, polyRef);
+            const node = getNodeByRef(navMesh, nodeRef);
 
             for (const linkIndex of node.links) {
                 const link = navMesh.links[linkIndex];

@@ -326,8 +326,8 @@ Nav.addTile(navMesh, tile);
     const moveAlongSurfaceResult = Nav.moveAlongSurface(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER);
 
     console.log(moveAlongSurfaceResult.success); // true if the move was successful
-    console.log(moveAlongSurfaceResult.resultPosition); // the resulting position after the move [x, y, z]
-    console.log(moveAlongSurfaceResult.resultRef); // the resulting poly node ref after the move, or 0 if none
+    console.log(moveAlongSurfaceResult.position); // the resulting position after the move [x, y, z]
+    console.log(moveAlongSurfaceResult.nodeRef); // the resulting poly node ref after the move, or 0 if none
     console.log(moveAlongSurfaceResult.visited); // array of node refs that were visited during the move
     /* SNIPPET_END: moveAlongSurface */
 }
