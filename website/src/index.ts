@@ -5,12 +5,12 @@ import {
     DEFAULT_QUERY_FILTER,
     findNearestPoly,
     findRandomPoint,
+    findRandomPointAroundCircle,
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
 } from 'navcat';
 import { crowd, generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 import { createNavMeshHelper, createNavMeshOffMeshConnectionsHelper, getPositionsAndIndices } from 'navcat/three';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
@@ -23,12 +23,11 @@ const container = document.getElementById('root')!;
 
 // scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x202020);
 
 // camera
 const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-camera.position.set(-2, 10, 10);
-camera.lookAt(0, 0, 0);
+camera.position.set(2, 15, 10);
+camera.lookAt(2, 0, 0);
 
 // renderer
 const renderer = new THREE.WebGPURenderer({ antialias: true });
@@ -94,7 +93,6 @@ const cloneCatModel = (color?: number): THREE.Group => {
         return material;
     };
 
-    // Handle SkinnedMesh cloning properly
     const skinnedMeshes: THREE.SkinnedMesh[] = [];
 
     clone.traverse((child) => {
@@ -111,7 +109,6 @@ const cloneCatModel = (color?: number): THREE.Group => {
         }
     });
 
-    // Fix skeleton references for SkinnedMesh
     for (const skinnedMesh of skinnedMeshes) {
         const skeleton = skinnedMesh.skeleton;
         const bones: THREE.Bone[] = [];
@@ -145,7 +142,7 @@ const navMeshInput: SoloNavMeshInput = {
 };
 
 const cellSize = 0.15;
-const cellHeight = 0.15;
+const cellHeight = 0.3;
 
 const walkableRadiusWorld = 0.15;
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
@@ -302,13 +299,9 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 };
 
 const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: AgentVisuals, deltaTime: number): void => {
-    // Update animation mixer
-    visuals.mixer.update(deltaTime);
-
-    // Update cat model position and rotation
     visuals.catGroup.position.fromArray(agent.position);
 
-    // Calculate velocity and determine animation
+    // calculate velocity and determine animation
     const velocity = vec3.length(agent.velocity);
     let targetAnimation: 'idle' | 'walk' | 'run' = 'idle';
 
@@ -318,7 +311,7 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
         targetAnimation = 'walk';
     }
 
-    // Handle animation transitions
+    // handle animation transitions
     if (visuals.currentAnimation !== targetAnimation) {
         const currentAction =
             visuals.currentAnimation === 'idle'
@@ -337,45 +330,38 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
         visuals.currentAnimation = targetAnimation;
     }
 
-    // Rotate cat to face movement direction with lerping
+    // rotate cat to face movement direction with lerping
     const minVelocityThreshold = 1; // minimum velocity to trigger rotation
     const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
 
     if (velocity > minVelocityThreshold) {
-        // Use velocity direction when moving normally
         const direction = vec3.normalize([0, 0, 0], agent.velocity);
         const targetAngle = Math.atan2(direction[0], direction[2]);
         visuals.targetRotation = targetAngle;
     } else if (agent.targetRef) {
-        // Only update rotation when there's a valid target
-        // When velocity is low (like during off-mesh connections), face towards target
         const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
         const targetDistance = vec3.length(targetDirection);
 
         if (targetDistance > 0.5) {
-            // Only rotate if target is far enough away
             const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
             const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
             visuals.targetRotation = targetAngle;
         }
     }
-    // If no target and low velocity, don't update targetRotation (cat stays facing current direction)
 
-    // Lerp current rotation towards target rotation
     let angleDiff = visuals.targetRotation - visuals.currentRotation;
 
-    // Handle angle wrapping (shortest path)
     if (angleDiff > Math.PI) {
         angleDiff -= 2 * Math.PI;
     } else if (angleDiff < -Math.PI) {
         angleDiff += 2 * Math.PI;
     }
 
-    // Apply lerp
     visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
-
-    // Apply rotation to cat
     visuals.catGroup.rotation.y = visuals.currentRotation;
+
+    // update mixer
+    visuals.mixer.update(deltaTime);
 };
 
 /* mouse tracking for raycasting */
@@ -400,6 +386,12 @@ let latestValidTarget = false;
 // Store target quaternion for laser pointer slerp
 const laserPointerTargetQuaternion = new THREE.Quaternion();
 const laserPointerSlerpSpeed = 30.0; // How fast to slerp towards target rotation (faster = more responsive)
+
+// Reusable temp objects to avoid GC pressure
+const _tempWorldPosition = new THREE.Vector3();
+const _tempDirection = new THREE.Vector3();
+const _tempLocalDirection = new THREE.Vector3();
+const _tempQuaternion = new THREE.Quaternion();
 
 // Create laser pointer visuals (will follow camera like first-person weapon)
 // Made of 3 cylinders: black shaft, gray tip, and pressable button
@@ -445,7 +437,7 @@ const laserPointerButtonMaterial = new THREE.MeshStandardMaterial({
 });
 const laserPointerButton = new THREE.Mesh(laserPointerButtonGeometry, laserPointerButtonMaterial);
 
-const buttonRestPositionY = 0.10;
+const buttonRestPositionY = 0.1;
 const buttonPressedPositionY = 0.06; // Press down slightly
 let buttonTargetY = buttonRestPositionY; // Current target for lerping
 
@@ -466,7 +458,7 @@ const updateLaserPointerPosition = () => {
     // Position in bottom right (with some padding)
     const paddingX = 0.8; // More padding from right edge (brings it in)
     const paddingY = 0.5; // More padding from bottom edge (brings it up)
-    const x = (width / 2) - paddingX;
+    const x = width / 2 - paddingX;
     const y = -(height / 2) + paddingY;
     const z = -distance;
 
@@ -557,30 +549,26 @@ window.addEventListener('pointermove', (event) => {
 
     // Rotate laser pointer to point at raycast hit or mouse direction
     // Get the tip's world position (where the laser emits from)
-    const tipWorldPos = new THREE.Vector3();
-    tip.getWorldPosition(tipWorldPos);
-
-    let worldDirection: THREE.Vector3;
+    tip.getWorldPosition(_tempWorldPosition);
 
     if (intersects.length > 0) {
         // Use actual raycast hit point
         const hitPoint = intersects[0].point;
-        worldDirection = new THREE.Vector3().subVectors(hitPoint, tipWorldPos).normalize();
+        _tempDirection.subVectors(hitPoint, _tempWorldPosition).normalize();
     } else {
         // Fallback: point in the direction of the mouse ray
         raycaster.setFromCamera(mouse, camera);
-        const rayDirection = raycaster.ray.direction.clone();
-        worldDirection = rayDirection.normalize();
+        _tempDirection.copy(raycaster.ray.direction).normalize();
     }
 
     // Convert world direction to local direction (relative to camera)
-    const cameraWorldQuaternion = new THREE.Quaternion();
-    camera.getWorldQuaternion(cameraWorldQuaternion);
-    const localDirection = worldDirection.clone().applyQuaternion(cameraWorldQuaternion.clone().invert());
+    camera.getWorldQuaternion(_tempQuaternion);
+    _tempLocalDirection.copy(_tempDirection).applyQuaternion(_tempQuaternion.invert());
 
     // Create a quaternion that rotates from the default direction to the target direction
     // The laser pointer's forward direction is along -Z axis in local space
-    laserPointerTargetQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), localDirection);
+    _tempWorldPosition.set(0, 0, -1);
+    laserPointerTargetQuaternion.setFromUnitVectors(_tempWorldPosition, _tempLocalDirection);
 
     // Note: actual rotation applied in update loop with slerp
 
@@ -643,6 +631,9 @@ const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00, 0xff00ff, 0x00ffff,
 
 const agentVisuals: Record<string, AgentVisuals> = {};
 
+// Track next wander time for each agent (when laser is off)
+const agentNextWanderTime: Record<string, number> = {};
+
 for (let i = 0; i < agentPositions.length; i++) {
     const position = agentPositions[i];
     const color = agentColors[i % agentColors.length];
@@ -653,6 +644,9 @@ for (let i = 0; i < agentPositions.length; i++) {
 
     // create visuals for the agent
     agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius);
+
+    // Initialize with random wander time
+    agentNextWanderTime[agentId] = performance.now() + 1500 + Math.random() * 1500; // 1.5-3 seconds
 }
 
 /* loop */
@@ -694,18 +688,54 @@ function update() {
                 crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
             }
         } else {
-            // Laser is off - reset agents targets
+            // Laser is off - reset agents to slow wandering
             for (const agentId in catsCrowd.agents) {
                 const agent = catsCrowd.agents[agentId];
 
                 agent.params.maxAcceleration = 15.0;
                 agent.params.maxSpeed = 1.5;
-
-                // Reset move target
-                crowd.resetMoveTarget(catsCrowd, agentId);
             }
         }
         lastTargetUpdateTime = time;
+    }
+
+    // When laser is off, have agents wander randomly
+    if (!isPointerDown) {
+        for (const agentId in catsCrowd.agents) {
+            // Check if it's time for this agent to wander
+            if (time >= agentNextWanderTime[agentId]) {
+                const agent = catsCrowd.agents[agentId];
+
+                // First find the nearest poly to the agent's current position
+                const halfExtents: Vec3 = [1, 1, 1];
+                const nearestResult = findNearestPoly(
+                    createFindNearestPolyResult(),
+                    navMesh,
+                    agent.position,
+                    halfExtents,
+                    DEFAULT_QUERY_FILTER,
+                );
+
+                if (nearestResult.success) {
+                    // Find a random point around the agent's current position
+                    const result = findRandomPointAroundCircle(
+                        navMesh,
+                        nearestResult.nodeRef,
+                        nearestResult.position,
+                        4.0, // radius
+                        DEFAULT_QUERY_FILTER,
+                        random,
+                    );
+
+                    if (result.success) {
+                        crowd.requestMoveTarget(catsCrowd, agentId, result.nodeRef, result.position);
+                    }
+                }
+
+                // Set next wander time (1.5 to 3 seconds from now)
+                agentNextWanderTime[agentId] = time + 1500 + Math.random() * 1500;
+            }
+        }
     }
 
     // Slerp laser pointer rotation for smooth aiming
@@ -717,40 +747,33 @@ function update() {
 
     // Update laser beam visibility and visuals based on pointer state
     if (isPointerDown) {
-        const laserTipWorld = new THREE.Vector3();
-        tip.getWorldPosition(laserTipWorld);
+        tip.getWorldPosition(_tempWorldPosition);
 
         if (latestValidTarget && latestIntersects.length > 0) {
             // Use the actual raycast hit point
             const targetPos = latestIntersects[0].point;
 
-            laserBeam.position.copy(laserTipWorld);
-            const direction = new THREE.Vector3().subVectors(targetPos, laserTipWorld);
-            const distance = direction.length();
+            laserBeam.position.copy(_tempWorldPosition);
+            _tempDirection.subVectors(targetPos, _tempWorldPosition);
+            const distance = _tempDirection.length();
 
-            const quaternion = new THREE.Quaternion();
-            quaternion.setFromUnitVectors(
-                new THREE.Vector3(0, 0, 1),
-                direction.normalize()
-            );
-            laserBeam.quaternion.copy(quaternion);
+            _tempLocalDirection.set(0, 0, 1);
+            _tempQuaternion.setFromUnitVectors(_tempLocalDirection, _tempDirection.normalize());
+            laserBeam.quaternion.copy(_tempQuaternion);
             laserBeam.scale.set(1, 1, distance);
             laserBeam.visible = true;
         } else {
             // No navmesh hit - show laser extending far in the direction
-            const rayDirection = raycaster.ray.direction.clone().normalize();
-            const targetPos = laserTipWorld.clone().add(rayDirection.multiplyScalar(1000));
+            _tempDirection.copy(raycaster.ray.direction).normalize().multiplyScalar(1000);
+            _tempLocalDirection.copy(_tempWorldPosition).add(_tempDirection);
 
-            laserBeam.position.copy(laserTipWorld);
-            const direction = new THREE.Vector3().subVectors(targetPos, laserTipWorld);
-            const distance = direction.length();
+            laserBeam.position.copy(_tempWorldPosition);
+            _tempDirection.subVectors(_tempLocalDirection, _tempWorldPosition);
+            const distance = _tempDirection.length();
 
-            const quaternion = new THREE.Quaternion();
-            quaternion.setFromUnitVectors(
-                new THREE.Vector3(0, 0, 1),
-                direction.normalize()
-            );
-            laserBeam.quaternion.copy(quaternion);
+            _tempLocalDirection.set(0, 0, 1);
+            _tempQuaternion.setFromUnitVectors(_tempLocalDirection, _tempDirection.normalize());
+            laserBeam.quaternion.copy(_tempQuaternion);
             laserBeam.scale.set(1, 1, distance);
             laserBeam.visible = true;
         }
