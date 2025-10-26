@@ -313,10 +313,10 @@ export const createNavMeshTileHelper = (tile: NavMeshTile): DebugObject => {
 
 export const createNavMeshPolyHelper = (
     navMesh: NavMesh,
-    polyRef: NodeRef,
+    nodeRef: NodeRef,
     color: [number, number, number] = [0, 0.75, 1],
 ): DebugObject => {
-    const primitives = NavCat.createNavMeshPolyHelper(navMesh, polyRef, color);
+    const primitives = NavCat.createNavMeshPolyHelper(navMesh, nodeRef, color);
     return primitivesToThreeJS(primitives);
 }
 

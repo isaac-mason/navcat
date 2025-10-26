@@ -35,18 +35,20 @@
         "build": "rm -rf ./dist && rollup --config rollup.config.mjs",
         "format": "biome format --write src/.",
         "lint": "biome lint --write src/.",
-        "docs": "cd docs && node ./build.js",
+        "docs:readme": "cd docs && node ./build.js",
+        "docs:typedoc": "typedoc --tsconfig ./tsconfig.json --out ./dist-typedoc ./src",
+        "docs": "node ./docs/build.js",
         "test": "vitest"
     },
     "packageManager": "pnpm@8.15.2+sha1.798034f615aa211c6c2ae00010cc20be5fc102ee",
     "dependencies": {
         "mathcat": "0.0.6"
     },
-    "peerDependencies": { 
+    "peerDependencies": {
         "three": "^0.180.0"
     },
     "peerDependenciesMeta": {
-        "three": {
+        "three": { 
             "optional": true
         }
     },
@@ -54,12 +56,13 @@
         "@biomejs/biome": "^2.2.0",
         "@rollup/plugin-node-resolve": "^16.0.1",
         "@rollup/plugin-typescript": "^12.1.4",
+        "@types/three": "0.180.0",
         "rollup": "^4.46.2",
         "rollup-plugin-copy": "^3.5.0",
         "rollup-plugin-filesize": "^10.0.0",
         "tslib": "^2.8.1",
+        "typedoc": "^0.28.14",
         "typescript": "^5.9.2",
-        "vitest": "^3.2.4",
-        "@types/three": "0.180.0"
+        "vitest": "^3.2.4"
     }
 }

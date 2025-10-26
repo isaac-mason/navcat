@@ -666,7 +666,7 @@ type AgentVisualsOptions = {
 // poly visuals
 type PolyHelper = {
     helper: DebugObject;
-    polyRef: NodeRef;
+    nodeRef: NodeRef;
 };
 
 const polyHelpers = new Map<NodeRef, PolyHelper>();
@@ -703,7 +703,7 @@ const createPolyHelpers = (navMesh: NavMesh, scene: THREE.Scene): void => {
 
             polyHelpers.set(polyRef, {
                 helper,
-                polyRef,
+                nodeRef: polyRef,
             });
         }
     }
