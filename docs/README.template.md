@@ -23,6 +23,12 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - [manablade.com](https://manablade.com)
 - ... add your project!
 
+**Documentation**
+
+This README provides curated explanations, guides, and examples to help you get started with navcat.
+
+Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
+
 **Examples**
 
 <Examples />
