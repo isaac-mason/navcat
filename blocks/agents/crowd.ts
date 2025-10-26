@@ -42,61 +42,34 @@ export enum CrowdUpdateFlags {
 }
 
 export type AgentParams = {
-    /**
-     * Agent radius (in world units).
-     * Used for collision detection and avoidance calculations.
-     */
+    /** Agent radius (in world units), used for collision detection and avoidance calculations */
     radius: number;
 
-    /**
-     * Agent height (in world units).
-     * Used for visualization and spatial queries.
-     */
+    /** Agent height (in world units), used for visualization and spatial queries */
     height: number;
 
-    /**
-     * Maximum acceleration (in world units per second squared).
-     * Controls how quickly an agent can change velocity.
-     */
+    /** Maximum acceleration (in world units per second squared), controls how quickly an agent can change velocity. */
     maxAcceleration: number;
 
-    /**
-     * Maximum speed (in world units per second).
-     * The agent will not exceed this speed.
-     */
+    /** Maximum speed (in world units per second), the agent will not exceed this speed. */
     maxSpeed: number;
 
-    /**
-     * Collision query range (in world units).
-     * Determines how far to look for neighboring agents and obstacles.
-     * Larger values increase computational cost but improve avoidance quality.
-     */
+    /** Collision query range (in world units), determines how far to look for neighboring agents and obstacles. */
     collisionQueryRange: number;
 
-    /**
-     * Separation weight.
-     * Controls the strength of separation behavior from other agents.
-     * Higher values make agents maintain more distance from each other.
-     * Only applies when CrowdUpdateFlags.SEPARATION is enabled.
-     */
+    /** Separation weight, controls the strength of separation behavior from other agents, only applied when the flag CrowdUpdateFlags.SEPARATION is given */
     separationWeight: number;
 
     /**
-     * Combination of CrowdUpdateFlags that control agent behavior.
+     * Flags that control agent behavior
      * @see CrowdUpdateFlags
      */
     updateFlags: number;
 
-    /**
-     * Query filter used for navmesh queries.
-     * Determines which polygons the agent can traverse.
-     */
+    /** Query filter used for navmesh queries, determines which polygons the agent can traverse and the cost of traversal */
     queryFilter: QueryFilter;
 
-    /**
-     * Obstacle avoidance parameters.
-     * Configures the adaptive sampling algorithm for velocity planning.
-     */
+    /** Obstacle avoidance parameters, configures the adaptive sampling algorithm for velocity planning */
     obstacleAvoidance: obstacleAvoidance.ObstacleAvoidanceParams;
 
     /**
@@ -108,38 +81,85 @@ export type AgentParams = {
     autoTraverseOffMeshConnections: boolean;
 };
 
+/** Sensible default obstacle avoidance parameters */
+export const DEFAULT_OBSTACLE_AVOIDANCE_PARAMS: obstacleAvoidance.ObstacleAvoidanceParams = {
+    velBias: 0.4,
+    weightDesVel: 2.0,
+    weightCurVel: 0.75,
+    weightSide: 0.75,
+    weightToi: 2.5,
+    horizTime: 2.5,
+    gridSize: 33,
+    adaptiveDivs: 7,
+    adaptiveRings: 2,
+    adaptiveDepth: 5,
+};
+
 export type Agent = {
+    /** Agent configuration parameters */
     params: AgentParams;
 
-    /** @see AgentState */
-    state: number;
+    /** The current state of the agent */
+    state: AgentState;
 
+    /** Path corridor for navigation */
     corridor: pathCorridor.PathCorridor;
-    boundary: localBoundary.LocalBoundary;
-    slicedQuery: SlicedNodePathQuery;
-    obstacleAvoidanceQuery: obstacleAvoidance.ObstacleAvoidanceQuery;
-    obstacleAvoidanceDebugData: obstacleAvoidance.ObstacleAvoidanceDebugData | undefined;
-    topologyOptTime: number;
 
+    /** Local boundary for obstacle avoidance */
+    boundary: localBoundary.LocalBoundary;
+
+    /** Sliced pathfinding query state */
+    slicedQuery: SlicedNodePathQuery;
+
+    /** Obstacle avoidance query for velocity planning */
+    obstacleAvoidanceQuery: obstacleAvoidance.ObstacleAvoidanceQuery;
+
+    /** Debug data for obstacle avoidance visualization */
+    obstacleAvoidanceDebugData: obstacleAvoidance.ObstacleAvoidanceDebugData | undefined;
+
+    /** Neighboring agents within collision query range */
     neis: Array<{ agentId: string; dist: number }>;
 
+    /** Steering corners extracted from the corridor */
     corners: StraightPathPoint[];
 
+    /** Current position in world space */
     position: Vec3;
+
+    /** Desired speed magnitude */
     desiredSpeed: number;
+
+    /** Desired velocity from steering */
     desiredVelocity: Vec3;
+
+    /** Planned velocity after obstacle avoidance */
     newVelocity: Vec3;
+
+    /** Current velocity */
     velocity: Vec3;
+
+    /** Displacement vector for collision resolution */
     displacement: Vec3;
 
     /** @see AgentTargetState */
     targetState: number;
+
+    /** Target polygon reference */
     targetRef: NodeRef | null;
+
+    /** Target position */
     targetPosition: Vec3;
+
+    /** Whether the agent needs to replan its path to the target */
     targetReplan: boolean;
+
+    /** Time spent pathfinding to current target */
     targetPathfindingTime: number;
+
+    /** True if pathfinding returned a partial result (best-effort path) */
     targetPathIsPartial: boolean;
 
+    /** Off-mesh connection animation state (null when not traversing an off-mesh connection) */
     offMeshAnimation: {
         t: number;
         startPos: Vec3;
@@ -177,6 +197,11 @@ export type Crowd = {
     quickSearchIterations: number;
 };
 
+/**
+ * Creates a new crowd
+ * @param maxAgentRadius the maximum agent radius in the crowd 
+ * @returns the created crowd
+ */
 export const create = (maxAgentRadius: number): Crowd => {
     return {
         agents: {},
@@ -189,6 +214,13 @@ export const create = (maxAgentRadius: number): Crowd => {
     };
 };
 
+/**
+ * Adds an agent to the crowd.
+ * @param crowd the crowd
+ * @param position the initial position of the agent
+ * @param agentParams the parameters for the agent
+ * @returns the ID of the added agent
+ */
 export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams): string => {
     const agentId = String(crowd.agentIdCounter++);
 
@@ -202,7 +234,6 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
         boundary: localBoundary.create(),
         obstacleAvoidanceQuery: obstacleAvoidance.createObstacleAvoidanceQuery(32, 32),
         obstacleAvoidanceDebugData: obstacleAvoidance.createObstacleAvoidanceDebugData(),
-        topologyOptTime: 0,
 
         neis: [],
 
@@ -230,6 +261,12 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
     return agentId;
 };
 
+/**
+ * Removes an agent from the crowd.
+ * @param crowd the crowd
+ * @param agentId the ID of the agent
+ * @returns true if the agent was removed, false otherwise
+ */
 export const removeAgent = (crowd: Crowd, agentId: string): boolean => {
     if (crowd.agents[agentId]) {
         delete crowd.agents[agentId];
@@ -238,6 +275,14 @@ export const removeAgent = (crowd: Crowd, agentId: string): boolean => {
     return false;
 };
 
+/**
+ * Requests a move target for an agent.
+ * @param crowd the crowd
+ * @param agentId the ID of the agent
+ * @param targetRef the target reference
+ * @param targetPos the target position
+ * @returns true if the move target was set, false otherwise
+ */
 export const requestMoveTarget = (crowd: Crowd, agentId: string, targetRef: NodeRef, targetPos: Vec3): boolean => {
     const agent = crowd.agents[agentId];
     if (!agent) return false;
@@ -265,6 +310,13 @@ const requestMoveTargetReplan = (crowd: Crowd, agentId: string, targetRef: NodeR
     return true;
 };
 
+/**
+ * Request a move velocity for an agent.
+ * @param crowd the crowd
+ * @param agentId the ID of the agent
+ * @param velocity the desired velocity
+ * @returns true if the move velocity was set, false otherwise
+ */
 export const requestMoveVelocity = (crowd: Crowd, agentId: string, velocity: Vec3): boolean => {
     const agent = crowd.agents[agentId];
     if (!agent) return false;
@@ -275,6 +327,12 @@ export const requestMoveVelocity = (crowd: Crowd, agentId: string, velocity: Vec
     return true;
 };
 
+/**
+ * Reset the move target for an agent.
+ * @param crowd the crowd
+ * @param agentId the ID of the agent
+ * @returns true if the move target was reset, false otherwise
+ */
 export const resetMoveTarget = (crowd: Crowd, agentId: string): boolean => {
     const agent = crowd.agents[agentId];
     if (!agent) return false;
@@ -980,7 +1038,6 @@ const updateCorridors = (crowd: Crowd, navMesh: NavMesh): void => {
     }
 };
 
-// note: this would typically be replaced with specific animation and off mesh finalisation logic
 const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
     for (const agentId in crowd.agents) {
         const agent = crowd.agents[agentId];
@@ -1020,6 +1077,12 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
     }
 };
 
+/**
+ * Update the crowd simulation.
+ * @param crowd the crowd
+ * @param navMesh the navigation mesh
+ * @param deltaTime the time since the last update
+ */
 export const update = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     // check whether agent paths are still valid
     checkPathValidity(crowd, navMesh, deltaTime);

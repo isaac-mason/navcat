@@ -903,18 +903,7 @@ const agentParams: crowd.AgentParams = {
     updateFlags:
         crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
-    obstacleAvoidance: {
-        velBias: 0.4,
-        weightDesVel: 2.0,
-        weightCurVel: 0.75,
-        weightSide: 0.75,
-        weightToi: 2.5,
-        horizTime: 2.5,
-        gridSize: 33,
-        adaptiveDivs: 7,
-        adaptiveRings: 2,
-        adaptiveDepth: 5,
-    },
+    obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
     // we will do a custom animation for off-mesh connections
     autoTraverseOffMeshConnections: false,
 };

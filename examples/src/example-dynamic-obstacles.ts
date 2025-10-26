@@ -813,7 +813,7 @@ const updateAgentVisuals = (
         const targetAngle = Math.atan2(direction[0], direction[2]);
         visuals.targetRotation = targetAngle;
     } else {
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPos, agent.position);
+        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
         const targetDistance = vec3.length(targetDirection);
 
         if (targetDistance > 0.1) {
@@ -840,7 +840,7 @@ const updateAgentVisuals = (
     visuals.group.rotation.y = visuals.currentRotation;
 
     // update target mesh position
-    visuals.targetMesh.position.fromArray(agent.targetPos);
+    visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
 
     // path line visualization
@@ -909,18 +909,7 @@ const agentParams: crowd.AgentParams = {
     updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
     queryFilter: DEFAULT_QUERY_FILTER,
     autoTraverseOffMeshConnections: true,
-    obstacleAvoidance: {
-        velBias: 0.4,
-        weightDesVel: 2.0,
-        weightCurVel: 0.75,
-        weightSide: 0.75,
-        weightToi: 2.5,
-        horizTime: 2.5,
-        gridSize: 33,
-        adaptiveDivs: 7,
-        adaptiveRings: 2,
-        adaptiveDepth: 5,
-    },
+    obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
 };
 
 // create agents at different positions
@@ -1126,7 +1115,7 @@ function update() {
                     const material = child.material as THREE.MeshBasicMaterial;
 
                     const baseColor = 0x222222;
-                    const flashColor = 0x555555;
+                    const flashColor = 0x005500;
 
                     const baseR = (baseColor >> 16) & 0xff;
                     const baseG = (baseColor >> 8) & 0xff;

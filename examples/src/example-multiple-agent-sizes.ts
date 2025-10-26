@@ -765,7 +765,7 @@ const updateAgentVisuals = (agent: crowd.Agent, visuals: AgentVisuals, scene: TH
     visuals.mesh.position.y += agent.params.height / 2 + agent.params.radius;
 
     // update target mesh position
-    visuals.targetMesh.position.fromArray(agent.targetPos);
+    visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
 
     // handle path line visualization
@@ -915,18 +915,7 @@ for (let i = 0; i < agentPositions.length; i++) {
         updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
         queryFilter,
         autoTraverseOffMeshConnections: true,
-        obstacleAvoidance: {
-            velBias: 0.4,
-            weightDesVel: 2.0,
-            weightCurVel: 0.75,
-            weightSide: 0.75,
-            weightToi: 2.5,
-            horizTime: 2.5,
-            gridSize: 33,
-            adaptiveDivs: 7,
-            adaptiveRings: 2,
-            adaptiveDepth: 5,
-        },
+        obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
     };
 
     const agentId = crowd.addAgent(mixedCrowd, position, agentParams);
