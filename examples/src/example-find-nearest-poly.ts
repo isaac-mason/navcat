@@ -138,17 +138,17 @@ const updateNearestPoly = (point: Vec3) => {
 
     if (!nearestPoly.success) return;
 
-    pointMesh.position.fromArray(nearestPoly.point);
+    pointMesh.position.fromArray(nearestPoly.position);
 
     arrow.setDirection(new THREE.Vector3(0, -1, 0));
     arrow.position.copy(pointMesh.position);
     arrow.position.y += 1.5;
 
     const nearestPolyElement = document.getElementById('nearest-poly')!;
-    nearestPolyElement.textContent = String(nearestPoly.ref);
+    nearestPolyElement.textContent = String(nearestPoly.nodeRef);
 
     // Only recreate poly helper if the poly changed
-    if (currentPolyRef !== nearestPoly.ref) {
+    if (currentPolyRef !== nearestPoly.nodeRef) {
         // Remove old poly helper
         if (polyHelper) {
             scene.remove(polyHelper.object);
@@ -156,11 +156,11 @@ const updateNearestPoly = (point: Vec3) => {
         }
 
         // Create new poly helper
-        polyHelper = createNavMeshPolyHelper(navMesh, nearestPoly.ref, [1, 0.5, 0]);
+        polyHelper = createNavMeshPolyHelper(navMesh, nearestPoly.nodeRef, [1, 0.5, 0]);
         polyHelper.object.position.y += 0.15;
         scene.add(polyHelper.object);
 
-        currentPolyRef = nearestPoly.ref;
+        currentPolyRef = nearestPoly.nodeRef;
     }
 };
 

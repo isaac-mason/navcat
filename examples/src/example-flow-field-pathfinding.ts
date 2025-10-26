@@ -139,12 +139,12 @@ const updateFlowField = (position: Vec3) => {
 
     if (!result.success) return;
 
-    flowFieldTargetPosition = result.point;
+    flowFieldTargetPosition = result.position;
 
-    showFlagAt(result.point);
+    showFlagAt(result.position);
 
     console.time('computeFlowField');
-    flowField = computeUniformCostFlowField(navMesh, result.ref, DEFAULT_QUERY_FILTER, maxIterations);
+    flowField = computeUniformCostFlowField(navMesh, result.nodeRef, DEFAULT_QUERY_FILTER, maxIterations);
     console.timeEnd('computeFlowField');
 
     showFlowFieldArrows(navMesh, flowField);
@@ -172,7 +172,7 @@ function updatePath(position: Vec3) {
     if (!result.success) return;
 
     // Save pathfinding start position
-    pathfindingStartPosition = result.point;
+    pathfindingStartPosition = result.position;
 
     const endResult = findNearestPoly(
         createFindNearestPolyResult(),
@@ -181,14 +181,14 @@ function updatePath(position: Vec3) {
         [1, 1, 1],
         DEFAULT_QUERY_FILTER,
     );
-    const endPt = endResult?.success ? endResult.point : null;
+    const endPt = endResult?.success ? endResult.position : null;
 
     console.time('getNodePathFromFlowField');
-    const polyPath = getNodePathFromFlowField(flowField, result.ref);
+    const polyPath = getNodePathFromFlowField(flowField, result.nodeRef);
     console.timeEnd('getNodePathFromFlowField');
 
     if (polyPath && endPt) {
-        const straightPathResult = findStraightPath(navMesh, result.point, endPt, polyPath);
+        const straightPathResult = findStraightPath(navMesh, result.position, endPt, polyPath);
 
         showPath(
             polyPath,
