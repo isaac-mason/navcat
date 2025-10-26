@@ -57,13 +57,23 @@ window.addEventListener('resize', onWindowResize);
 
 await renderer.init();
 
-/* load level model */
-const levelModel = await loadGLTF('/nav-test.glb');
-scene.add(levelModel.scene);
+/* load models in parallel */
+const [levelModel, catModel] = await Promise.all([
+    loadGLTF('/nav-test.glb'),
+    loadGLTF('/cat.gltf'),
+]);
 
-/* load cat model for agents */
-const catModel = await loadGLTF('/cat.gltf');
+scene.add(levelModel.scene);
 const catAnimations = catModel.animations;
+
+/* hide loading spinner */
+const loadingElement = document.getElementById('loading');
+if (loadingElement) {
+    loadingElement.classList.add('hidden');
+    setTimeout(() => {
+        loadingElement.style.display = 'none';
+    }, 500); // Wait for fade transition to complete
+}
 
 const cloneCatModel = (color?: number): THREE.Group => {
     const clone = catModel.scene.clone(true);
@@ -462,10 +472,10 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
 
     switch (catState.state) {
         case CatState.ALERTED:
-            // Discrete steps: 0-0.66s = ?, 0.66-1.33s = ??, 1.33-2s = ???
-            if (elapsed < 666) {
+            // Discrete steps: 0-0.33s = ?, 0.33-0.66s = ??, 0.66-1s = ???
+            if (elapsed < 333) {
                 material.map = emotionTextures.question1;
-            } else if (elapsed < 1333) {
+            } else if (elapsed < 666) {
                 material.map = emotionTextures.question2;
             } else {
                 material.map = emotionTextures.question3;
@@ -787,8 +797,8 @@ function update() {
                         // Laser turned off -> go to SEARCHING
                         catState.state = CatState.SEARCHING;
                         catState.stateStartTime = time;
-                    } else if (elapsed >= 2000) {
-                        // 2 seconds passed -> go to CHASING
+                    } else if (elapsed >= 1000) {
+                        // 1 second passed -> go to CHASING
                         catState.state = CatState.CHASING;
                         catState.stateStartTime = time;
                         // Randomly select a chasing emoji
