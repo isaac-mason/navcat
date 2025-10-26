@@ -529,6 +529,26 @@ The `navcat/blocks` entrypoint provides presets and building blocks to help you 
 <RenderType type="import('navcat/blocks').TiledNavMeshOptions" />
 <RenderType type="import('navcat/blocks').TiledNavMeshResult" />
 
+### Flood Fill
+
+<RenderType type="import('navcat/blocks').floodFillNavMesh" />
+
+### Crowd Simulation
+
+`navcat/blocks` contains a crowd simulation API that you can use as a starting point for your own agent simulation.
+
+It provides:
+- Simple APIs for adding and removing agents from a crowd, and setting their target position or velocity
+- Logic for splitting agent pathfinding queries over multiple frames
+- Polygon wall and agent obstacle avoidance
+- Support for off-mesh connections, with APIs for inserting your own animation logic for traversing off-mesh connections
+
+For an example of how to use the crowd simulation APIs, see the "Crowd Simulation Example":
+
+<Example id="example-crowd-simulation" />
+
+If your requirements are more complex, you might want to use the `pathCorridor` and `localBoundary` blocks used within `crowd` to build your own agent simulation logic. Because `crowd` isn't part of core, you can eject from it and modify it easily.
+
 ## `navcat/three`
 
 The `navcat/three` entrypoint provides some utilities to help integrate navcat with threejs.

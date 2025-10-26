@@ -217,6 +217,8 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - [`navcat/blocks`](#navcatblocks)
   - [Geometry Utilities](#geometry-utilities)
   - [Generation Presets](#generation-presets)
+  - [Flood Fill](#flood-fill)
+  - [Crowd Simulation](#crowd-simulation)
 - [`navcat/three`](#navcatthree)
   - [Geometry Extraction](#geometry-extraction)
   - [Debug Helpers](#debug-helpers)
@@ -2303,6 +2305,39 @@ export type TiledNavMeshResult = {
     intermediates: TiledNavMeshIntermediates;
 };
 ```
+
+### Flood Fill
+
+```ts
+export function floodFillNavMesh(navMesh: NavMesh, startRefs: NodeRef[]): {
+    reachable: NodeRef[];
+    unreachable: NodeRef[];
+};
+```
+
+### Crowd Simulation
+
+`navcat/blocks` contains a crowd simulation API that you can use as a starting point for your own agent simulation.
+
+It provides:
+- Simple APIs for adding and removing agents from a crowd, and setting their target position or velocity
+- Logic for splitting agent pathfinding queries over multiple frames
+- Polygon wall and agent obstacle avoidance
+- Support for off-mesh connections, with APIs for inserting your own animation logic for traversing off-mesh connections
+
+For an example of how to use the crowd simulation APIs, see the "Crowd Simulation Example":
+
+
+<div align="center">
+  <a href="https://navcat.dev#example-crowd-simulation">
+    <img src="./examples/public/screenshots/example-crowd-simulation.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Crowd Simulation</strong>
+  </a>
+  <p>Example of crowd simulation with agent and wall avoidance</p>
+</div>
+
+
+If your requirements are more complex, you might want to use the `pathCorridor` and `localBoundary` blocks used within `crowd` to build your own agent simulation logic. Because `crowd` isn't part of core, you can eject from it and modify it easily.
 
 ## `navcat/three`
 
