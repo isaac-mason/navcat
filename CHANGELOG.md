@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.0.9 (Unreleased)
+## 0.0.9
 
 - feat: add `floodFillNavMesh` to `navcat/blocks` for finding reachable and unreachable polygon nodes from seed polygons
 - feat: standardize "position", "point", "center", "nodeRef", "ref" naming in APIs and types
