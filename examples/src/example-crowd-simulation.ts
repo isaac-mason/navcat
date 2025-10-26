@@ -600,7 +600,7 @@ const updateAgentVisuals = (
         visuals.targetRotation = targetAngle;
     } else {
         // When velocity is low (like during off-mesh connections), face towards target
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPos, agent.position);
+        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
         const targetDistance = vec3.length(targetDirection);
 
         if (targetDistance > 0.1) {
@@ -628,7 +628,7 @@ const updateAgentVisuals = (
     visuals.catGroup.rotation.y = visuals.currentRotation;
 
     // update target mesh position
-    visuals.targetMesh.position.fromArray(agent.targetPos);
+    visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
 
     // update selection ring position
@@ -999,7 +999,13 @@ const updateSelectedAgentsInfo = () => {
         html += `<div style="color: #ccc;">Pos: (${agent.position[0].toFixed(2)}, ${agent.position[1].toFixed(2)}, ${agent.position[2].toFixed(2)})</div>`;
 
         // Target Position
-        html += `<div style="color: #ccc;">Target: (${agent.targetPos[0].toFixed(2)}, ${agent.targetPos[1].toFixed(2)}, ${agent.targetPos[2].toFixed(2)})</div>`;
+        html += `<div style="color: #ccc;">Target: (${agent.targetPosition[0].toFixed(2)}, ${agent.targetPosition[1].toFixed(2)}, ${agent.targetPosition[2].toFixed(2)})</div>`;
+
+        // Target Path Is Partial
+        html += `<div style="color: #ccc;">Target Path Is Partial: ${agent.targetPathIsPartial ? 'Yes' : 'No'}</div>`;
+
+        // Is agent at target?
+        html += `<div style="color: #ccc;">At Target: ${crowd.isAgentAtTarget(catsCrowd, agentId, agent.params.radius) ? 'Yes' : 'No'}</div>`;
 
         // Velocity
         const velLength = vec3.length(agent.velocity);

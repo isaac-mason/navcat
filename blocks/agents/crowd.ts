@@ -135,9 +135,10 @@ export type Agent = {
     /** @see AgentTargetState */
     targetState: number;
     targetRef: NodeRef | null;
-    targetPos: Vec3;
+    targetPosition: Vec3;
     targetReplan: boolean;
     targetPathfindingTime: number;
+    targetPathIsPartial: boolean;
 
     offMeshAnimation: {
         t: number;
@@ -216,9 +217,10 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
 
         targetState: AgentTargetState.NONE,
         targetRef: null,
-        targetPos: [0, 0, 0],
+        targetPosition: [0, 0, 0],
         targetReplan: false,
         targetPathfindingTime: 0,
+        targetPathIsPartial: false,
 
         offMeshAnimation: null,
     };
@@ -241,10 +243,11 @@ export const requestMoveTarget = (crowd: Crowd, agentId: string, targetRef: Node
     if (!agent) return false;
 
     agent.targetRef = targetRef;
-    vec3.copy(agent.targetPos, targetPos);
+    vec3.copy(agent.targetPosition, targetPos);
 
     agent.targetReplan = false;
     agent.targetState = AgentTargetState.REQUESTING;
+    agent.targetPathIsPartial = false;
 
     return true;
 };
@@ -254,7 +257,7 @@ const requestMoveTargetReplan = (crowd: Crowd, agentId: string, targetRef: NodeR
     if (!agent) return false;
 
     agent.targetRef = targetRef;
-    vec3.copy(agent.targetPos, targetPos);
+    vec3.copy(agent.targetPosition, targetPos);
 
     agent.targetReplan = false;
     agent.targetState = AgentTargetState.REQUESTING;
@@ -266,7 +269,7 @@ export const requestMoveVelocity = (crowd: Crowd, agentId: string, velocity: Vec
     const agent = crowd.agents[agentId];
     if (!agent) return false;
 
-    vec3.copy(agent.targetPos, velocity);
+    vec3.copy(agent.targetPosition, velocity);
     agent.targetState = AgentTargetState.VELOCITY;
 
     return true;
@@ -277,10 +280,11 @@ export const resetMoveTarget = (crowd: Crowd, agentId: string): boolean => {
     if (!agent) return false;
 
     agent.targetRef = null;
-    vec3.set(agent.targetPos, 0, 0, 0);
+    vec3.set(agent.targetPosition, 0, 0, 0);
     vec3.set(agent.desiredVelocity, 0, 0, 0);
     agent.targetReplan = false;
     agent.targetState = AgentTargetState.NONE;
+    agent.targetPathIsPartial = false;
 
     return true;
 };
@@ -345,7 +349,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 const nearestPolyResult = findNearestPoly(
                     _checkPathValidityNearestPolyResult,
                     navMesh,
-                    agent.targetPos,
+                    agent.targetPosition,
                     crowd.agentPlacementHalfExtents,
                     agent.params.queryFilter,
                 );
@@ -358,7 +362,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 } else {
                     // target poly became invalid, update to nearest valid poly
                     agent.targetRef = nearestPolyResult.ref;
-                    vec3.copy(agent.targetPos, nearestPolyResult.point);
+                    vec3.copy(agent.targetPosition, nearestPolyResult.point);
                     replan = true;
                 }
             }
@@ -383,7 +387,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
 
         // try to replan path to goal
         if (replan && agent.targetState !== AgentTargetState.NONE) {
-            requestMoveTargetReplan(crowd, agentId, agent.targetRef, agent.targetPos);
+            requestMoveTargetReplan(crowd, agentId, agent.targetRef, agent.targetPosition);
         }
     }
 };
@@ -420,7 +424,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
                 agent.corridor.path[0],
                 agent.targetRef,
                 agent.position,
-                agent.targetPos,
+                agent.targetPosition,
                 agent.params.queryFilter,
             );
 
@@ -457,13 +461,17 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             // pathfinding failed
             agent.targetState = AgentTargetState.FAILED;
             agent.targetPathfindingTime = 0;
+            agent.targetPathIsPartial = false;
         } else if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0) {
             // pathfinding succeeded
             agent.targetState = AgentTargetState.VALID;
             agent.targetPathfindingTime = 0;
 
+            // Check if this is a partial path (best effort)
+            agent.targetPathIsPartial = (agent.slicedQuery.status & SlicedFindNodePathStatusFlags.PARTIAL_RESULT) !== 0;
+
             const result = finalizeSlicedFindNodePath(navMesh, agent.slicedQuery);
-            pathCorridor.setPath(agent.corridor, agent.targetPos, result.path);
+            pathCorridor.setPath(agent.corridor, agent.targetPosition, result.path);
             localBoundary.resetLocalBoundary(agent.boundary);
         }
     }
@@ -724,7 +732,7 @@ const updateSteering = (crowd: Crowd): void => {
         const agent = crowd.agents[agentId];
 
         if (agent.targetState === AgentTargetState.VELOCITY) {
-            vec3.copy(agent.desiredVelocity, agent.targetPos);
+            vec3.copy(agent.desiredVelocity, agent.targetPosition);
             continue;
         }
 
@@ -1048,4 +1056,36 @@ export const update = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void 
 
     // off mesh connection agent animations
     offMeshConnectionUpdate(crowd, deltaTime);
+};
+
+/**
+ * Check if an agent is at or near the end of their corridor.
+ * Works for both complete and partial paths - if the path is partial,
+ * this checks if the agent reached the best-effort position.
+ *
+ * @param crowd the crowd
+ * @param agentId the agent id
+ * @param threshold distance threshold to consider "at target"
+ * @returns true if the agent is at the end of their path
+ */
+export const isAgentAtTarget = (crowd: Crowd, agentId: string, threshold: number): boolean => {
+    const agent = crowd.agents[agentId];
+    if (!agent) return false;
+
+    // must have a valid target
+    if (agent.targetState !== AgentTargetState.VALID) return false;
+
+    // check if we have corners and the last corner is marked as END
+    if (agent.corners.length === 0) return false;
+
+    const endPoint = agent.corners[agent.corners.length - 1];
+    const isEndOfPath = (endPoint.flags & StraightPathPointFlags.END) !== 0;
+
+    if (!isEndOfPath) return false;
+
+    // check distance to the end point
+    const arrivalThreshold = threshold ?? agent.params.radius;
+    const dist = vec3.distance(agent.position, endPoint.position);
+
+    return dist <= arrivalThreshold;
 };
