@@ -347,7 +347,7 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <RenderType type="import('navcat').moveAlongSurface" />
 
-<Example id="example-move-along-surface" />
+<Example id="example-navmesh-constrained-character-controller" />
 
 <Example id="example-navmesh-constrained-character-controller" />
 

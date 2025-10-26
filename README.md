@@ -34,29 +34,9 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-dynamic-obstacles">
-        <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Dynamic Obstacles
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://navcat.dev#example-multiple-agent-sizes">
-        <img src="./examples/public/screenshots/example-multiple-agent-sizes.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Multiple Agent Sizes
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
       <a href="https://navcat.dev#example-navmesh-constrained-character-controller">
         <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Navmesh Constrained Character Controller
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://navcat.dev#example-flow-field-pathfinding">
-        <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Flow Field Pathfinding
       </a>
     </td>
     <td align="center">
@@ -74,39 +54,25 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-upload-model">
-        <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Upload Model
+      <a href="https://navcat.dev#example-dynamic-obstacles">
+        <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Dynamic Obstacles
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-custom-gltf-navmesh">
-        <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Custom GLTF NavMesh
+      <a href="https://navcat.dev#example-multiple-agent-sizes">
+        <img src="./examples/public/screenshots/example-multiple-agent-sizes.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Multiple Agent Sizes
       </a>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href="https://navcat.dev#example-solo-navmesh">
-        <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Solo NavMesh
+      <a href="https://navcat.dev#example-flow-field-pathfinding">
+        <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Flow Field Pathfinding
       </a>
     </td>
-    <td align="center">
-      <a href="https://navcat.dev#example-tiled-navmesh">
-        <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Tiled NavMesh
-      </a>
-    </td>
-    <td align="center">
-      <a href="https://navcat.dev#example-flood-fill-pruning">
-        <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Flood Fill Pruning
-      </a>
-    </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-path">
         <img src="./examples/public/screenshots/example-find-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -119,12 +85,6 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Smooth Path
       </a>
     </td>
-    <td align="center">
-      <a href="https://navcat.dev#example-off-mesh-connections">
-        <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Off-Mesh Connections
-      </a>
-    </td>
   </tr>
   <tr>
     <td align="center">
@@ -134,9 +94,43 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev#example-move-along-surface">
-        <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Move Along Surface
+      <a href="https://navcat.dev#example-off-mesh-connections">
+        <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Off-Mesh Connections
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-upload-model">
+        <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Upload Model
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://navcat.dev#example-custom-gltf-navmesh">
+        <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Custom GLTF NavMesh
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-solo-navmesh">
+        <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Solo NavMesh
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev#example-tiled-navmesh">
+        <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Tiled NavMesh
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://navcat.dev#example-flood-fill-pruning">
+        <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Flood Fill Pruning
       </a>
     </td>
     <td align="center">
@@ -145,14 +139,14 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Find Nearest Poly
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -165,8 +159,6 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
         Mark Compact Heightfield Areas
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev#example-custom-navmesh-generation">
         <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -1513,11 +1505,11 @@ export function moveAlongSurface(navMesh: NavMesh, startRef: NodeRef, startPosit
 
 
 <div align="center">
-  <a href="https://navcat.dev#example-move-along-surface">
-    <img src="./examples/public/screenshots/example-move-along-surface.png" width="360" height="240" style="object-fit:cover;"/><br/>
-    <strong>Move Along Surface</strong>
+  <a href="https://navcat.dev#example-navmesh-constrained-character-controller">
+    <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="360" height="240" style="object-fit:cover;"/><br/>
+    <strong>Navmesh Constrained Character Controller</strong>
   </a>
-  <p>Example of using moveAlongSurface for navmesh constrained movement</p>
+  <p>Example of a simple character controller constrained to a navmesh</p>
 </div>
 
 
