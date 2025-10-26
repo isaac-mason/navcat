@@ -1513,16 +1513,6 @@ export function moveAlongSurface(navMesh: NavMesh, startNodeRef: NodeRef, startP
 </div>
 
 
-
-<div align="center">
-  <a href="https://navcat.dev#example-navmesh-constrained-character-controller">
-    <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="360" height="240" style="object-fit:cover;"/><br/>
-    <strong>Navmesh Constrained Character Controller</strong>
-  </a>
-  <p>Example of a simple character controller constrained to a navmesh</p>
-</div>
-
-
 ### raycast
 
 ```ts

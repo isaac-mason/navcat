@@ -349,8 +349,6 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <Example id="example-navmesh-constrained-character-controller" />
 
-<Example id="example-navmesh-constrained-character-controller" />
-
 ### raycast
 
 <Snippet source="./snippets/solo-navmesh.ts" select="raycast" />
