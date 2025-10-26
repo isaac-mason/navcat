@@ -1,11 +1,11 @@
 import { getNodeByTileAndPoly, getNodeRefIndex, type NavMesh, type NodeRef } from 'navcat';
 
-export const floodFillNavMesh = (navMesh: NavMesh, startRefs: NodeRef[]): { reachable: NodeRef[]; unreachable: NodeRef[] } => {
+export const floodFillNavMesh = (navMesh: NavMesh, startNodeRefs: NodeRef[]): { reachable: NodeRef[]; unreachable: NodeRef[] } => {
     const visited = new Set<number>();
     const queue: number[] = [];
 
     // initialize queue with all seed points
-    for (const startRef of startRefs) {
+    for (const startRef of startNodeRefs) {
         queue.push(startRef);
     }
 

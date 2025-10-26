@@ -83,7 +83,7 @@ const raycaster = new THREE.Raycaster();
 // poly visuals
 type PolyHelper = {
     helper: DebugObject;
-    polyRef: NodeRef;
+    nodeRef: NodeRef;
 };
 
 const polyHelpers = new Map<NodeRef, PolyHelper>();
@@ -103,7 +103,7 @@ const createPolyHelpers = (navMesh: NavMesh): void => {
 
             polyHelpers.set(node.ref, {
                 helper,
-                polyRef: node.ref,
+                nodeRef: node.ref,
             });
         }
     }
@@ -183,9 +183,9 @@ function applyFloodFillPruning(startRef?: NodeRef) {
     updateNavMeshVisualization();
 }
 
-function floodFillPruneNavMesh(navMesh: NavMesh, startRefs: NodeRef[]) {
+function floodFillPruneNavMesh(navMesh: NavMesh, startNodeRefs: NodeRef[]) {
     // flood fill from startRefs to find reachable and unreachable polygons
-    const { reachable, unreachable } = floodFillNavMesh(navMesh, startRefs);
+    const { reachable, unreachable } = floodFillNavMesh(navMesh, startNodeRefs);
 
     // disable unreachable polygons
     for (const nodeRef of unreachable) {
