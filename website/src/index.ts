@@ -652,7 +652,7 @@ const updateMousePositionAndRaycast = (clientX: number, clientY: number) => {
 
         // console.log('targetPosition', targetPosition);
 
-        const halfExtents: Vec3 = [1, 1, 1];
+        const halfExtents: Vec3 = [5, 5, 5];
         const nearestResult = findNearestPoly(
             createFindNearestPolyResult(),
             navMesh,
@@ -779,7 +779,7 @@ const agentParams: crowd.AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 1 }, () => {
+const agentPositions: Vec3[] = Array.from({ length: 6 }, () => {
     return findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, random).position;
 });
 
