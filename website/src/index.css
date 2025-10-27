@@ -12,7 +12,18 @@ body {
   overscroll-behavior-y: contain;
 }
 
-#root, canvas {
+#root {
+  width: 100%;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  /* Prevent touch callouts on iOS */
+  -webkit-touch-callout: none;
+}
+
+canvas {
   width: 100%;
   height: 100vh;
   position: absolute;
@@ -33,7 +44,12 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 2rem 3rem;
-  z-index: 10;
+  z-index: 100;
+  /* Enable touch on nav */
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
 }
 
 .nav-title {
@@ -61,6 +77,9 @@ body {
   gap: 1rem;
   align-items: center;
   color: #fff;
+  /* Enable touch on links */
+  touch-action: auto !important;
+  pointer-events: auto !important;
 }
 
 .nav-links a {
@@ -70,6 +89,12 @@ body {
   text-decoration: underline;
   color: #cccccc;
   transition: all 0.2s ease;
+  /* Enable touch on individual links */
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
+  cursor: pointer;
 }
 
 .nav-links a:hover {
@@ -82,7 +107,7 @@ body {
   position: fixed;
   bottom: 2rem;
   left: 2rem;
-  z-index: 10;
+  z-index: 100;
   padding: 0.75rem 1.25rem;
   font-family: 'Roboto Mono', monospace;
   font-size: 0.9rem;
@@ -94,6 +119,11 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(4px);
+  /* Enable touch on button */
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
 }
 
 .navmesh-toggle:hover {
@@ -117,7 +147,12 @@ body {
   align-items: center;
   gap: 2rem;
   padding: 2rem 3rem;
-  z-index: 10;
+  z-index: 100;
+  /* Enable touch on footer */
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
 }
 
 .footer-link {
@@ -127,6 +162,12 @@ body {
   text-decoration: none;
   color: #cccccc;
   transition: color 0.2s ease;
+  cursor: pointer;
+  /* Enable touch on footer links */
+  touch-action: auto !important;
+  pointer-events: auto !important;
+  -webkit-user-select: auto !important;
+  user-select: auto !important;
 }
 
 .footer-link:hover {
@@ -194,36 +235,51 @@ body {
   }
 
   .nav-links a {
-    padding: 0.25rem 0.5rem;
+    padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
+    /* Better touch targets - minimum 44x44px */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
     /* Allow touches on links */
     touch-action: auto;
     pointer-events: auto;
+    -webkit-user-select: auto;
+    user-select: auto;
   }
 
   .footer {
+    /* Stack footer content vertically on mobile */
+    flex-direction: column;
     padding: 1rem;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    padding-bottom: 1rem;
     /* Allow touches on footer */
     touch-action: auto;
     pointer-events: auto;
+    -webkit-user-select: auto;
+    user-select: auto;
   }
 
   .footer-link {
     font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
+    padding: 0.5rem 0.75rem;
+    /* Better touch targets - minimum 44x44px */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
     /* Allow touches on links */
     touch-action: auto;
     pointer-events: auto;
+    -webkit-user-select: auto;
+    user-select: auto;
   }
 
   .navmesh-toggle {
-    top: auto;
-    bottom: auto;
-    left: 1rem;
-    right: auto;
-    /* Position above the footer to avoid overlap */
-    top: calc(100vh - 8rem);
+    /* Position centered above the footer on mobile */
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 4.5rem;
     padding: 0.5rem 0.75rem;
     font-size: 0.7rem;
     /* Allow touches on button */

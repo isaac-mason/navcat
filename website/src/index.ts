@@ -78,8 +78,6 @@ levelModel.scene.traverse((child) => {
         child.castShadow = true;
         child.receiveShadow = true;
 
-        console.log(child.userData);
-
         if (child.userData.tape) {
             tapeMeshes.push(child);
         }
@@ -145,12 +143,12 @@ const navMeshInput: SoloNavMeshInput = {
     indices,
 };
 
-const cellSize = 0.15;
+const cellSize = 0.1;
 const cellHeight = 0.2;
 
 const walkableRadiusWorld = 0.1;
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-const walkableClimbWorld = 0.3;
+const walkableClimbWorld = 0.4;
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
 const walkableHeightWorld = 0.5;
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
@@ -196,8 +194,8 @@ const navMesh = navMeshResult.navMesh;
 
 const offMeshConnections: OffMeshConnectionParams[] = [
     {
-        start: [2.2616746399275023, 0, 7],
-        end: [1.8934969476613825, 1.3106290026193235, 5.2878713468261624],
+        start: [-2.6, 0, 6],
+        end: [-2, 1.6, 4.5],
         direction: OffMeshConnectionDirection.BIDIRECTIONAL,
         radius: 0.2,
         flags: 0xffffff,
@@ -319,6 +317,7 @@ type AgentVisuals = {
     currentRotation: number;
     targetRotation: number;
     emotionSprite: THREE.Sprite;
+    currentVisualY: number; // For lerped height correction
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number): AgentVisuals => {
@@ -365,6 +364,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
         currentRotation: 0,
         targetRotation: 0,
         emotionSprite,
+        currentVisualY: position[1], // Initialize with starting Y position
     };
 };
 
@@ -376,18 +376,29 @@ const groundRayDirection = new THREE.Vector3(0, -1, 0);
 const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: AgentVisuals, deltaTime: number): void => {
     visuals.catGroup.position.fromArray(agent.position);
 
-    // Raycast down to snap cat to actual ground mesh
+    // Raycast down to snap cat to actual ground mesh with lerping for smooth stepping
     if (!agent.offMeshAnimation) {
         groundRayOrigin.set(agent.position[0], agent.position[1] + 0.1, agent.position[2]);
         groundRaycaster.set(groundRayOrigin, groundRayDirection);
         const groundIntersects = groundRaycaster.intersectObjects(walkableMeshes, true);
 
-        const rayHitY = groundIntersects[0].point.y;
+        if (groundIntersects.length > 0) {
+            const rayHitY = groundIntersects[0].point.y;
 
-        // if difference not too great
-        if (Math.abs(rayHitY - agent.position[1]) < 1) {
-            visuals.catGroup.position.y = rayHitY;
+            // if difference not too great, lerp to it
+            if (Math.abs(rayHitY - agent.position[1]) < 1) {
+                // Lerp speed - higher = faster adjustment
+                const heightLerpSpeed = 8.0;
+                visuals.currentVisualY += (rayHitY - visuals.currentVisualY) * heightLerpSpeed * deltaTime;
+                visuals.catGroup.position.y = visuals.currentVisualY;
+            } else {
+                // Large height difference - snap immediately and update current Y
+                visuals.currentVisualY = agent.position[1];
+            }
         }
+    } else {
+        // During off-mesh animations, keep visual Y in sync
+        visuals.currentVisualY = visuals.catGroup.position.y;
     }
 
     // calculate velocity and determine animation
@@ -542,7 +553,6 @@ const laserPointer = laserPointerModel.scene.clone();
 // Find the tip and button nodes from the GLTF model
 let tip: THREE.Object3D = laserPointer;
 const laserPointerButton = laserPointer.getObjectByName('Button002');
-console.log('laserPointerButton', laserPointerButton)
 
 laserPointer.traverse((child) => {
     // Look for a tip node - adjust name if needed
@@ -761,8 +771,6 @@ catsCrowd.quickSearchIterations = 20;
 catsCrowd.maxIterationsPerAgent = 100;
 catsCrowd.maxIterationsPerUpdate = 300;
 
-console.log(catsCrowd);
-
 const agentParams: crowd.AgentParams = {
     radius: 0.3,
     height: 0.6,
@@ -796,7 +804,6 @@ for (let i = 0; i < agentPositions.length; i++) {
 
     // add agent to crowd - clone agentParams so each agent has independent params
     const agentId = crowd.addAgent(catsCrowd, position, { ...agentParams });
-    console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
     agentVisuals[agentId] = createAgentVisuals(position, scene, agentParams.radius);
