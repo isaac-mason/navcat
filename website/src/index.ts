@@ -42,10 +42,10 @@ renderer.setPixelRatio(window.devicePixelRatio);
 container.appendChild(renderer.domElement);
 
 // lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
 directionalLight.position.set(5, 10, 5);
 directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.width = 2048;
@@ -555,15 +555,8 @@ const _tempQuaternion = new THREE.Quaternion();
 const laserPointer = laserPointerModel.scene.clone();
 
 // Find the tip and button nodes from the GLTF model
-let tip: THREE.Object3D = laserPointer;
 const laserPointerButton = laserPointer.getObjectByName('Button002');
-
-laserPointer.traverse((child) => {
-    // Look for a tip node - adjust name if needed
-    if (child.name.toLowerCase().includes('tip')) {
-        tip = child;
-    }
-});
+const tip = laserPointer.getObjectByName('Top001')!;
 
 // Store button's rest position for animation
 const buttonRestPosition = new THREE.Vector3();
@@ -633,57 +626,34 @@ const updateMousePositionAndRaycast = (clientX: number, clientY: number) => {
     // Store mouse screen position for camera rotation
     mouseScreenPos.set(mouse.x, mouse.y);
 
-    // raycast
+    // First raycast from camera to find where the cursor is pointing in world space
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(walkableMeshes, true);
+    const cameraIntersects = raycaster.intersectObjects(walkableMeshes, true);
 
-    // rotate laser pointer to point in ray direction
+    // Get the tip position in world space
     tip.getWorldPosition(_tempWorldPosition);
 
-    raycaster.setFromCamera(mouse, camera);
-    _tempDirection.copy(raycaster.ray.direction).normalize();
+    // Calculate target direction from tip to the camera raycast hit point
+    // This will be used to set the target quaternion for smooth rotation
+    if (cameraIntersects.length > 0) {
+        _tempDirection.subVectors(cameraIntersects[0].point, _tempWorldPosition).normalize();
+    } else {
+        // If no hit, use a far point along the camera ray
+        const farPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(1000));
+        _tempDirection.subVectors(farPoint, _tempWorldPosition).normalize();
+    }
 
-    // convert world direction to local direction (relative to camera)
+    // Convert target direction to local space (relative to camera) for laser pointer rotation
     camera.getWorldQuaternion(_tempQuaternion);
     _tempLocalDirection.copy(_tempDirection).applyQuaternion(_tempQuaternion.invert());
 
-    // create a quaternion that rotates from the default direction to the target direction
-    // the laser pointer's forward direction is along -Z axis in local space
-    _tempWorldPosition.set(0, 0, -1);
-    laserPointerTargetQuaternion.setFromUnitVectors(_tempWorldPosition, _tempLocalDirection);
+    // Create target quaternion for the laser pointer to smoothly rotate towards
+    // The laser pointer's forward direction is along -Z axis in local space
+    const defaultForward = new THREE.Vector3(0, 0, -1);
+    laserPointerTargetQuaternion.setFromUnitVectors(defaultForward, _tempLocalDirection);
 
-    // note: actual rotation applied in update loop with slerp
-
-    // store intersects for use in update loop
-    latestIntersects = intersects;
-
-    // check if we have a valid navmesh target
-    latestValidTarget = false;
-
-    if (intersects.length > 0) {
-        const intersectionPoint = intersects[0].point;
-        const targetPosition: Vec3 = [intersectionPoint.x, intersectionPoint.y, intersectionPoint.z];
-
-        // console.log('targetPosition', targetPosition);
-
-        const halfExtents: Vec3 = [5, 5, 5];
-        const nearestResult = findNearestPoly(
-            createFindNearestPolyResult(),
-            navMesh,
-            targetPosition,
-            halfExtents,
-            DEFAULT_QUERY_FILTER,
-        );
-
-        if (nearestResult.success) {
-            lastRaycastTarget = {
-                nodeRef: nearestResult.nodeRef,
-                position: nearestResult.position,
-            };
-
-            latestValidTarget = true;
-        }
-    }
+    // note: actual rotation, raycast, and line updates happen in the update loop
+    // so everything stays in sync with the slerped rotation
 };
 
 // interaction
@@ -798,6 +768,9 @@ const agentNextWanderTime: Record<string, number> = {};
 // track cat state for each agent
 const agentCatState: Record<string, CatStateData> = {};
 
+// track next update time for each agent (for staggered updates)
+const agentNextUpdateTime: Record<string, number> = {};
+
 for (let i = 0; i < agentPositions.length; i++) {
     const position = agentPositions[i];
 
@@ -815,11 +788,13 @@ for (let i = 0; i < agentPositions.length; i++) {
         state: CatState.WANDERING,
         stateStartTime: performance.now(),
     };
+
+    // stagger update times so agents don't all update at once
+    agentNextUpdateTime[agentId] = performance.now() + Math.random() * 500; // random offset 0-0.5s
 }
 
 /* loop */
 let prevTime = performance.now();
-let lastTargetUpdateTime = performance.now();
 const targetUpdateInterval = 500; // 0.5 seconds in milliseconds
 
 function update() {
@@ -830,98 +805,103 @@ function update() {
     const clampedDeltaTime = Math.min(deltaTime, 0.1);
     prevTime = time;
 
-    // Update cat state machine and behavior every 0.5 seconds
-    if (time - lastTargetUpdateTime >= targetUpdateInterval) {
-        for (const agentId in catsCrowd.agents) {
-            const agent = catsCrowd.agents[agentId];
-            const catState = agentCatState[agentId];
-            const elapsed = time - catState.stateStartTime;
-
-            // State machine transitions
-            switch (catState.state) {
-                case CatState.WANDERING:
-                    if (isPointerDown && lastRaycastTarget) {
-                        // Transition to ALERTED whenever laser is on
-                        catState.state = CatState.ALERTED;
-                        catState.stateStartTime = time;
-                    }
-                    break;
-
-                case CatState.ALERTED:
-                    if (!isPointerDown || !lastRaycastTarget) {
-                        // Laser turned off -> go to SEARCHING
-                        catState.state = CatState.SEARCHING;
-                        catState.stateStartTime = time;
-                    } else if (elapsed >= 1000) {
-                        // 1 second passed -> go to CHASING
-                        catState.state = CatState.CHASING;
-                        catState.stateStartTime = time;
-                        // Randomly select a chasing emoji
-                        catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
-                    }
-                    break;
-
-                case CatState.CHASING:
-                    if (!isPointerDown || !lastRaycastTarget) {
-                        // Laser turned off -> go to SEARCHING
-                        catState.state = CatState.SEARCHING;
-                        catState.stateStartTime = time;
-                    }
-                    break;
-
-                case CatState.SEARCHING:
-                    if (isPointerDown && lastRaycastTarget) {
-                        // Laser back on -> go straight to CHASING
-                        catState.state = CatState.CHASING;
-                        catState.stateStartTime = time;
-                        // Randomly select a chasing emoji
-                        catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
-                    } else if (elapsed >= 1000) {
-                        // 1 second passed -> go back to WANDERING
-                        catState.state = CatState.WANDERING;
-                        catState.stateStartTime = time;
-                    }
-                    break;
-            }
-
-            // Update agent speed/acceleration based on state
-            switch (catState.state) {
-                case CatState.WANDERING:
-                    agent.params.maxSpeed = CAT_SPEEDS.WANDERING;
-                    agent.params.maxAcceleration = CAT_ACCELERATION.WANDERING;
-                    break;
-
-                case CatState.ALERTED:
-                    agent.params.maxSpeed = CAT_SPEEDS.ALERTED;
-                    agent.params.maxAcceleration = CAT_ACCELERATION.ALERTED;
-                    if (lastRaycastTarget) {
-                        crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
-                    }
-                    break;
-
-                case CatState.CHASING:
-                    agent.params.maxSpeed = CAT_SPEEDS.CHASING;
-                    agent.params.maxAcceleration = CAT_ACCELERATION.CHASING;
-                    if (lastRaycastTarget) {
-                        crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
-                    }
-                    // Pick a new random chasing emoji every 2 seconds (after the initial ! at 1s)
-                    if (
-                        elapsed >= 1000 &&
-                        Math.floor((elapsed - 1000) / 2000) !== Math.floor((elapsed - 1000 - targetUpdateInterval) / 2000)
-                    ) {
-                        catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
-                    }
-                    break;
-
-                case CatState.SEARCHING:
-                    agent.params.maxSpeed = CAT_SPEEDS.SEARCHING;
-                    agent.params.maxAcceleration = CAT_ACCELERATION.SEARCHING;
-                    // Stay still - don't update target
-                    break;
-            }
+    // Update cat state machine and behavior - staggered per agent
+    for (const agentId in catsCrowd.agents) {
+        // Check if it's time for this agent to update
+        if (time < agentNextUpdateTime[agentId]) {
+            continue;
         }
-        lastTargetUpdateTime = time;
+
+        // Schedule next update for this agent (random 0.3-0.6s)
+        agentNextUpdateTime[agentId] = time + 300 + Math.random() * 300;
+
+        const agent = catsCrowd.agents[agentId];
+        const catState = agentCatState[agentId];
+        const elapsed = time - catState.stateStartTime;
+
+        // State machine transitions
+        switch (catState.state) {
+            case CatState.WANDERING:
+                if (isPointerDown && lastRaycastTarget) {
+                    // Transition to ALERTED whenever laser is on
+                    catState.state = CatState.ALERTED;
+                    catState.stateStartTime = time;
+                }
+                break;
+
+            case CatState.ALERTED:
+                if (!isPointerDown || !lastRaycastTarget) {
+                    // Laser turned off -> go to SEARCHING
+                    catState.state = CatState.SEARCHING;
+                    catState.stateStartTime = time;
+                } else if (elapsed >= 1000) {
+                    // 1 second passed -> go to CHASING
+                    catState.state = CatState.CHASING;
+                    catState.stateStartTime = time;
+                    // Randomly select a chasing emoji
+                    catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
+                }
+                break;
+
+            case CatState.CHASING:
+                if (!isPointerDown || !lastRaycastTarget) {
+                    // Laser turned off -> go to SEARCHING
+                    catState.state = CatState.SEARCHING;
+                    catState.stateStartTime = time;
+                }
+                break;
+
+            case CatState.SEARCHING:
+                if (isPointerDown && lastRaycastTarget) {
+                    // Laser back on -> go straight to CHASING
+                    catState.state = CatState.CHASING;
+                    catState.stateStartTime = time;
+                    // Randomly select a chasing emoji
+                    catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
+                } else if (elapsed >= 1000) {
+                    // 1 second passed -> go back to WANDERING
+                    catState.state = CatState.WANDERING;
+                    catState.stateStartTime = time;
+                }
+                break;
+        }
+
+        // Update agent speed/acceleration based on state
+        switch (catState.state) {
+            case CatState.WANDERING:
+                agent.params.maxSpeed = CAT_SPEEDS.WANDERING;
+                agent.params.maxAcceleration = CAT_ACCELERATION.WANDERING;
+                break;
+
+            case CatState.ALERTED:
+                agent.params.maxSpeed = CAT_SPEEDS.ALERTED;
+                agent.params.maxAcceleration = CAT_ACCELERATION.ALERTED;
+                if (lastRaycastTarget) {
+                    crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
+                }
+                break;
+
+            case CatState.CHASING:
+                agent.params.maxSpeed = CAT_SPEEDS.CHASING;
+                agent.params.maxAcceleration = CAT_ACCELERATION.CHASING;
+                if (lastRaycastTarget) {
+                    crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
+                }
+                // Pick a new random chasing emoji every 2 seconds (after the initial ! at 1s)
+                if (
+                    elapsed >= 1000 &&
+                    Math.floor((elapsed - 1000) / 2000) !== Math.floor((elapsed - 1000 - targetUpdateInterval) / 2000)
+                ) {
+                    catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
+                }
+                break;
+
+            case CatState.SEARCHING:
+                agent.params.maxSpeed = CAT_SPEEDS.SEARCHING;
+                agent.params.maxAcceleration = CAT_ACCELERATION.SEARCHING;
+                // Stay still - don't update target
+                break;
+        }
     }
 
     // Wander logic - only for cats in WANDERING state
@@ -983,6 +963,40 @@ function update() {
 
     // slerp laser pointer rotation for smooth aiming
     laserPointer.quaternion.slerp(laserPointerTargetQuaternion, laserPointerSlerpSpeed * clampedDeltaTime);
+
+    // Perform raycast using the laser pointer's current (slerped) rotation
+    // This keeps the raycast, line, and visual rotation perfectly in sync
+    tip.getWorldPosition(_tempWorldPosition);
+    laserPointer.getWorldQuaternion(_tempQuaternion);
+    const laserForward = new THREE.Vector3(0, 0, -1); // laser's local forward
+    laserForward.applyQuaternion(_tempQuaternion);
+
+    raycaster.set(_tempWorldPosition, laserForward);
+    latestIntersects = raycaster.intersectObjects(walkableMeshes, true);
+
+    // check if we have a valid navmesh target
+    latestValidTarget = false;
+    if (latestIntersects.length > 0) {
+        const intersectionPoint = latestIntersects[0].point;
+        const targetPosition: Vec3 = [intersectionPoint.x, intersectionPoint.y, intersectionPoint.z];
+
+        const halfExtents: Vec3 = [5, 5, 5];
+        const nearestResult = findNearestPoly(
+            createFindNearestPolyResult(),
+            navMesh,
+            targetPosition,
+            halfExtents,
+            DEFAULT_QUERY_FILTER,
+        );
+
+        if (nearestResult.success) {
+            lastRaycastTarget = {
+                nodeRef: nearestResult.nodeRef,
+                position: nearestResult.position,
+            };
+            latestValidTarget = true;
+        }
+    }
 
     // lerp button position for smooth animation
     if (laserPointerButton) {

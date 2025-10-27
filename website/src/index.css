@@ -4,6 +4,10 @@ body {
   overflow: hidden;
   background-color: #222;
   overscroll-behavior-y: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 #root {
