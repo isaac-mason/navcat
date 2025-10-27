@@ -686,7 +686,7 @@ const updateMousePositionAndRaycast = (clientX: number, clientY: number) => {
     }
 };
 
-// Mouse events
+// interaction
 window.addEventListener('pointerdown', () => {
     isPointerDown = true;
     buttonTargetOffset = buttonPressOffset;
@@ -702,11 +702,9 @@ window.addEventListener('pointermove', (event) => {
     updateMousePositionAndRaycast(event.clientX, event.clientY);
 });
 
-// Touch events for mobile
 window.addEventListener(
     'touchstart',
     (event) => {
-        event.preventDefault();
         isPointerDown = true;
         buttonTargetOffset = buttonPressOffset;
 
@@ -721,8 +719,6 @@ window.addEventListener(
 window.addEventListener(
     'touchmove',
     (event) => {
-        event.preventDefault();
-
         if (event.touches.length > 0) {
             const touch = event.touches[0];
             updateMousePositionAndRaycast(touch.clientX, touch.clientY);
@@ -733,8 +729,7 @@ window.addEventListener(
 
 window.addEventListener(
     'touchend',
-    (event) => {
-        event.preventDefault();
+    () => {
         isPointerDown = false;
         buttonTargetOffset = 0;
         laserBeam.visible = false;

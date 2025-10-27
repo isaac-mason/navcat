@@ -423,7 +423,6 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 };
 
 const updateAgentVisuals = (
-    _agentId: string,
     agent: crowd.Agent,
     visuals: AgentVisuals,
     scene: THREE.Scene,
@@ -1180,7 +1179,7 @@ function update() {
                 }
             }
 
-            updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, {
+            updateAgentVisuals(agent, agentVisuals[agentId], scene, {
                 showVelocityVectors: guiSettings.showVelocityVectors,
                 showPolyHelpers: guiSettings.showPolyHelpers,
                 showLocalBoundary: guiSettings.showLocalBoundary,
