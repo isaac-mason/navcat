@@ -85,9 +85,6 @@ importers:
 
   website:
     dependencies:
-      lil-gui:
-        specifier: ^0.21.0
-        version: 0.21.0
       navcat:
         specifier: workspace:*
         version: link:..

@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "lil-gui": "^0.21.0",
     "navcat": "workspace:*",
     "three": "^0.180.0"
   },

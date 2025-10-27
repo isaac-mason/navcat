@@ -26,13 +26,14 @@ const scene = new THREE.Scene();
 
 // camera
 const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-camera.position.set(2, 15, 10);
-camera.lookAt(2, 0, 0);
+camera.position.set(-5, 4, 10);
+camera.lookAt(-2, 0, 0);
 
 // renderer
 const renderer = new THREE.WebGPURenderer({ antialias: true });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
 
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -40,11 +41,21 @@ renderer.setPixelRatio(window.devicePixelRatio);
 container.appendChild(renderer.domElement);
 
 // lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.position.set(5, 5, 5);
+directionalLight.position.set(5, 10, 5);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 50;
+directionalLight.shadow.camera.left = -10;
+directionalLight.shadow.camera.right = 10;
+directionalLight.shadow.camera.top = 10;
+directionalLight.shadow.camera.bottom = -10;
+directionalLight.shadow.bias = -0.001;
 scene.add(directionalLight);
 
 // resize handling
@@ -58,12 +69,26 @@ window.addEventListener('resize', onWindowResize);
 await renderer.init();
 
 /* load models in parallel */
-const [levelModel, catModel] = await Promise.all([
-    loadGLTF('/nav-test.glb'),
-    loadGLTF('/cat.gltf'),
-]);
+const [levelModel, catModel, laserPointerModel] = await Promise.all([loadGLTF('/office.glb'), loadGLTF('/car.glb'), loadGLTF('/laserpointer.glb')]);
+
+/* setup level */
+const tapeMeshes: THREE.Mesh[] = [];
+
+levelModel.scene.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+
+        console.log(child.userData);
+
+        if (child.userData.tape) {
+            tapeMeshes.push(child);
+        }
+    }
+});
 
 scene.add(levelModel.scene);
+
 const catAnimations = catModel.animations;
 
 /* hide loading spinner */
@@ -75,47 +100,17 @@ if (loadingElement) {
     }, 500); // Wait for fade transition to complete
 }
 
-const cloneCatModel = (color?: number): THREE.Group => {
+const cloneCatModel = (): THREE.Group => {
     const clone = catModel.scene.clone(true);
-
-    const patchMaterial = (material: THREE.Material): THREE.Material => {
-        if (
-            color !== undefined &&
-            (material instanceof THREE.MeshLambertMaterial ||
-                material instanceof THREE.MeshStandardMaterial ||
-                material instanceof THREE.MeshPhongMaterial)
-        ) {
-            const clonedMat = material.clone();
-
-            clonedMat.color.setHex(color);
-            clonedMat.color.multiplyScalar(2);
-
-            if (clonedMat instanceof THREE.MeshStandardMaterial) {
-                clonedMat.emissive.setHex(color);
-                clonedMat.emissiveIntensity = 0.1;
-                clonedMat.roughness = 0.3;
-                clonedMat.metalness = 0.1;
-            }
-
-            return clonedMat;
-        }
-
-        return material;
-    };
 
     const skinnedMeshes: THREE.SkinnedMesh[] = [];
 
     clone.traverse((child) => {
         if (child instanceof THREE.SkinnedMesh) {
             skinnedMeshes.push(child);
-        }
 
-        if (child instanceof THREE.Mesh) {
-            if (Array.isArray(child.material)) {
-                child.material = child.material.map(patchMaterial);
-            } else {
-                child.material = patchMaterial(child.material);
-            }
+            child.castShadow = true;
+            child.receiveShadow = true;
         }
     });
 
@@ -152,13 +147,13 @@ const navMeshInput: SoloNavMeshInput = {
 };
 
 const cellSize = 0.15;
-const cellHeight = 0.3;
+const cellHeight = 0.2;
 
-const walkableRadiusWorld = 0.15;
+const walkableRadiusWorld = 0.1;
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-const walkableClimbWorld = 0.5;
+const walkableClimbWorld = 0.3;
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-const walkableHeightWorld = 1;
+const walkableHeightWorld = 0.5;
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 const walkableSlopeAngleDegrees = 45;
 
@@ -166,10 +161,10 @@ const borderSize = 0;
 const minRegionArea = 8;
 const mergeRegionArea = 20;
 
-const maxSimplificationError = 1.3;
-const maxEdgeLength = 12;
+const maxSimplificationError = 1.5;
+const maxEdgeLength = 20;
 
-const maxVerticesPerPoly = 5;
+const maxVerticesPerPoly = 6;
 
 const detailSampleDistanceVoxels = 6;
 const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
@@ -202,44 +197,28 @@ const navMesh = navMeshResult.navMesh;
 
 const offMeshConnections: OffMeshConnectionParams[] = [
     {
-        start: [0.39257542778564014, 3.9164539337158204, 2.7241512942770267],
-        end: [1.2915380743929097, 2.8616158587143867, 3.398593875470379],
-        direction: OffMeshConnectionDirection.START_TO_END,
-        radius: 0.5,
-        flags: 0xffffff,
-        area: 0x000000,
-    },
-    {
-        start: [3.491345350637368, 3.169861227710937, 2.8419154179454473],
-        end: [4.0038066734125435, 0.466454005241394, 1.686211347289651],
-        direction: OffMeshConnectionDirection.START_TO_END,
-        radius: 0.5,
-        flags: 0xffffff,
-        area: 0x000000,
-    },
-    {
-        start: [4.612475330561077, 0.466454005241394, 2.7619018768157435],
-        end: [6.696740007427642, 0.5132029874438654, 2.5838885990777243],
+        start: [2.2616746399275023, 0, 7],
+        end: [1.8934969476613825, 1.3106290026193235, 5.2878713468261624],
         direction: OffMeshConnectionDirection.BIDIRECTIONAL,
-        radius: 0.5,
+        radius: 0.2,
         flags: 0xffffff,
-        area: 0x000000,
+        area: 0,
     },
     {
-        start: [3.8221359252929688, 0.47645399570465086, -4.391971844600165],
-        end: [5.91173484469572, 0.6573111525835266, -4.671632275169128],
+        start: [-3.658154298168996, 0, 3.795235885826708],
+        end: [-5.640291081405719, 1, 2.7],
         direction: OffMeshConnectionDirection.BIDIRECTIONAL,
-        radius: 0.5,
+        radius: 0.2,
         flags: 0xffffff,
-        area: 0x000000,
+        area: 0,
     },
     {
-        start: [8.354324172733968, 0.5340897451517822, -3.2333049546492223],
-        end: [8.461111697936666, 0.8365034207348984, -1.0863215738579806],
-        direction: OffMeshConnectionDirection.START_TO_END,
-        radius: 0.5,
+        start: [1.2, 0, -1.2],
+        end: [2, 1, 1.3],
+        direction: OffMeshConnectionDirection.BIDIRECTIONAL,
+        radius: 0.2,
         flags: 0xffffff,
-        area: 0x000000,
+        area: 0,
     },
 ];
 
@@ -249,9 +228,11 @@ for (const offMeshConnection of offMeshConnections) {
 
 const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
+navMeshHelper.object.visible = false; // Start hidden
 scene.add(navMeshHelper.object);
 
 const offMeshConnectionsHelper = createNavMeshOffMeshConnectionsHelper(navMesh);
+offMeshConnectionsHelper.object.visible = false; // Start hidden
 scene.add(offMeshConnectionsHelper.object);
 
 /* cat state machine */
@@ -283,8 +264,6 @@ const CAT_ACCELERATION = {
     SEARCHING: 0.0,
 };
 
-const CAT_ALERT_RADIUS = 5.0;
-
 const createTextTexture = (text: string, fontSize: number = 64): THREE.CanvasTexture => {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
@@ -311,16 +290,16 @@ const createTextTexture = (text: string, fontSize: number = 64): THREE.CanvasTex
 
 // create all emotion textures
 const emotionTextures = {
-    question1: createTextTexture('?', 64),
-    question2: createTextTexture('??', 64),
+    question1: createTextTexture('?', 30),
+    question2: createTextTexture('??', 50),
     question3: createTextTexture('???', 64),
     exclamation: createTextTexture('!!!', 64),
     sad: createTextTexture(':(', 64),
-    chasing1: createTextTexture('>w<', 48),
-    chasing2: createTextTexture(':3', 56),
-    chasing3: createTextTexture('owo', 48),
-    chasing4: createTextTexture('^_^', 48),
-    chasing5: createTextTexture('>:3', 48),
+    chasing1: createTextTexture('>w<', 64),
+    chasing2: createTextTexture(':3', 64),
+    chasing3: createTextTexture('owo', 64),
+    chasing4: createTextTexture('^_^', 64),
+    chasing5: createTextTexture('>:3', 64),
 };
 
 const chasingTextures = [
@@ -340,15 +319,14 @@ type AgentVisuals = {
     currentAnimation: 'idle' | 'walk' | 'run';
     currentRotation: number;
     targetRotation: number;
-    color: number;
     emotionSprite: THREE.Sprite;
 };
 
-const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number): AgentVisuals => {
-    const catGroup = cloneCatModel(color);
+const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number): AgentVisuals => {
+    const catGroup = cloneCatModel();
     catGroup.position.set(position[0], position[1], position[2]);
 
-    const catScale = radius * 1.5;
+    const catScale = radius * 0.5;
     catGroup.scale.setScalar(catScale);
     scene.add(catGroup);
 
@@ -368,20 +346,14 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 
     idleAction.play();
 
-    const targetGeometry = new THREE.SphereGeometry(0.1);
-    const targetMaterial = new THREE.MeshBasicMaterial({ color });
-    const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
-    scene.add(targetMesh);
-
     // Create emotion sprite (initially hidden)
     const spriteMaterial = new THREE.SpriteMaterial({
         map: emotionTextures.question1,
-        transparent: true,
-        opacity: 0, // start hidden
+        alphaTest: 0.5,
     });
     const emotionSprite = new THREE.Sprite(spriteMaterial);
     emotionSprite.scale.setScalar(2);
-    emotionSprite.position.y = 2; // position above cat
+    emotionSprite.position.y = 5; // position above cat
     catGroup.add(emotionSprite); // parent to cat so it follows
 
     return {
@@ -393,13 +365,31 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
         currentAnimation: 'idle',
         currentRotation: 0,
         targetRotation: 0,
-        color,
         emotionSprite,
     };
 };
 
+// Raycaster for ground snapping
+const groundRaycaster = new THREE.Raycaster();
+const groundRayOrigin = new THREE.Vector3();
+const groundRayDirection = new THREE.Vector3(0, -1, 0);
+
 const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: AgentVisuals, deltaTime: number): void => {
     visuals.catGroup.position.fromArray(agent.position);
+
+    // Raycast down to snap cat to actual ground mesh
+    if (!agent.offMeshAnimation) {
+        groundRayOrigin.set(agent.position[0], agent.position[1] + 0.1, agent.position[2]);
+        groundRaycaster.set(groundRayOrigin, groundRayDirection);
+        const groundIntersects = groundRaycaster.intersectObjects(walkableMeshes, true);
+
+        const rayHitY = groundIntersects[0].point.y;
+
+        // if difference not too great
+        if (Math.abs(rayHitY - agent.position[1]) < 1) {
+            visuals.catGroup.position.y = rayHitY;
+        }
+    }
 
     // calculate velocity and determine animation
     const velocity = vec3.length(agent.velocity);
@@ -411,7 +401,7 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
         targetAnimation = 'walk';
     }
 
-    // handle animation transitions
+    // animation transitions
     if (visuals.currentAnimation !== targetAnimation) {
         const currentAction =
             visuals.currentAnimation === 'idle'
@@ -425,7 +415,7 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
 
         // Cross-fade to new animation
         currentAction.fadeOut(0.3);
-        targetAction.reset().fadeIn(0.3).play();
+        targetAction.reset().fadeIn(0.3).play().setEffectiveTimeScale(2);
 
         visuals.currentAnimation = targetAnimation;
     }
@@ -459,6 +449,7 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
 
     visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
     visuals.catGroup.rotation.y = visuals.currentRotation;
+    // visuals.catGroup.rotation.x = -Math.PI / 2;
 
     // update mixer
     visuals.mixer.update(deltaTime);
@@ -480,19 +471,19 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
             } else {
                 material.map = emotionTextures.question3;
             }
-            material.opacity = 1;
+            sprite.visible = true;
             break;
 
         case CatState.CHASING:
             // Show ! for first 1 second, then keep showing random chasing emojis
             if (elapsed < 1000) {
                 material.map = emotionTextures.exclamation;
-                material.opacity = 1;
+                sprite.visible = true;
             } else {
                 // Show the selected chasing emoji (changes every 2 seconds in state machine)
                 const textureIndex = catState.chasingTextureIndex ?? 0;
                 material.map = chasingTextures[textureIndex];
-                material.opacity = 1;
+                sprite.visible = true;
             }
             break;
 
@@ -500,14 +491,14 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
             // Show :( for 1 second
             if (elapsed < 1000) {
                 material.map = emotionTextures.sad;
-                material.opacity = 1;
+                sprite.visible = true;
             } else {
-                material.opacity = 0;
+                sprite.visible = false;
             }
             break;
 
         case CatState.WANDERING:
-            material.opacity = 0;
+            sprite.visible = false;
             break;
     }
 
@@ -524,6 +515,13 @@ let isPointerDown = false;
 let latestIntersects: THREE.Intersection[] = [];
 let latestValidTarget = false;
 
+// Camera rotation based on mouse position
+const mouseScreenPos = new THREE.Vector2(0, 0); // normalized -1 to 1, center is 0,0
+const baseCameraPosition = new THREE.Vector3();
+const baseCameraLookAt = new THREE.Vector3();
+baseCameraPosition.copy(camera.position);
+baseCameraLookAt.set(0, 0, 0);
+
 // Store target quaternion for laser pointer slerp
 const laserPointerTargetQuaternion = new THREE.Quaternion();
 const laserPointerSlerpSpeed = 30.0; // How fast to slerp towards target rotation (faster = more responsive)
@@ -539,51 +537,28 @@ const _tempQuaternion = new THREE.Quaternion();
 // Oriented to point forward (along Z axis)
 
 // Container group for the laser pointer
-const laserPointer = new THREE.Group();
+// Use the loaded laser pointer GLTF model
+const laserPointer = laserPointerModel.scene.clone();
 
-// 1. Main black shaft (longest part) - rotated to point forward
-const shaftGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 16);
-const shaftMaterial = new THREE.MeshStandardMaterial({
-    color: 0xcccccc,
-    metalness: 0.7,
-    roughness: 0.2,
+// Find the tip and button nodes from the GLTF model
+let tip: THREE.Object3D = laserPointer;
+const laserPointerButton = laserPointer.getObjectByName('Button002');
+console.log('laserPointerButton', laserPointerButton)
+
+laserPointer.traverse((child) => {
+    // Look for a tip node - adjust name if needed
+    if (child.name.toLowerCase().includes('tip')) {
+        tip = child;
+    }
 });
-const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-shaft.rotation.x = Math.PI / 2; // Rotate 90 degrees to point along -Z axis (forward)
-shaft.position.z = 0; // centered
-laserPointer.add(shaft);
 
-// 2. Gray tip (emits the laser) - at the front
-const tipGeometry = new THREE.CylinderGeometry(0.06, 0.08, 0.15, 16);
-const tipMaterial = new THREE.MeshStandardMaterial({
-    color: 0x808080,
-    metalness: 0.8,
-    roughness: 0.2,
-    emissive: 0xffffff,
-    emissiveIntensity: 0.3,
-});
-const tip = new THREE.Mesh(tipGeometry, tipMaterial);
-tip.rotation.x = Math.PI / 2; // Rotate to align with shaft
-tip.position.z = -0.475; // at the front of shaft (negative Z is forward)
-laserPointer.add(tip);
-
-// 3. Button (on top, pressable) - on top of the shaft
-const laserPointerButtonGeometry = new THREE.CylinderGeometry(0.035, 0.035, 0.05, 16);
-const laserPointerButtonMaterial = new THREE.MeshStandardMaterial({
-    color: 0xff3333,
-    metalness: 0.4,
-    roughness: 0.6,
-    emissive: 0xff0000,
-    emissiveIntensity: 0.2,
-});
-const laserPointerButton = new THREE.Mesh(laserPointerButtonGeometry, laserPointerButtonMaterial);
-
-const buttonRestPositionY = 0.1;
-const buttonPressedPositionY = 0.06; // Press down slightly
-let buttonTargetY = buttonRestPositionY; // Current target for lerping
-
-laserPointerButton.position.set(0, buttonRestPositionY, 0.15); // Positioned on top, slightly back from front
-laserPointer.add(laserPointerButton);
+// Store button's rest position for animation
+const buttonRestPosition = new THREE.Vector3();
+if (laserPointerButton) {
+    buttonRestPosition.copy(laserPointerButton.position);
+}
+const buttonPressOffset = 10; // How much to press down (in local Y)
+let buttonTargetOffset = 0; // Current target offset for lerping
 
 const updateLaserPointerPosition = () => {
     const aspect = camera.aspect;
@@ -595,14 +570,22 @@ const updateLaserPointerPosition = () => {
     const height = 2 * Math.tan(vFOV / 2) * distance;
     const width = height * aspect;
 
+    // Check if mobile screen (using viewport width as indicator)
+    const isMobile = window.innerWidth <= 768;
+
     // Position in bottom right (with some padding)
-    const paddingX = 0.8; // More padding from right edge (brings it in)
-    const paddingY = 0.5; // More padding from bottom edge (brings it up)
+    // On mobile, adjust position to be less obtrusive and scale down
+    const paddingX = isMobile ? 0.5 : 0.8; // Less padding on mobile to keep it visible
+    const paddingY = isMobile ? 0.3 : 0.5; // Less padding on mobile
     const x = width / 2 - paddingX;
     const y = -(height / 2) + paddingY;
     const z = -distance;
 
     laserPointer.position.set(x, y, z);
+
+    // Scale down on mobile devices
+    const scale = isMobile ? 0.7 : 1.0;
+    laserPointer.scale.setScalar(scale);
 };
 
 updateLaserPointerPosition();
@@ -622,29 +605,20 @@ laserBeamGeometry.setPositions([0, 0, 0, 0, 0, 1]);
 const laserBeamMaterial = new THREE.Line2NodeMaterial({
     color: 0xff0000,
     linewidth: 5,
-    transparent: true,
-    opacity: 0.8,
 });
 const laserBeam = new Line2(laserBeamGeometry, laserBeamMaterial);
 laserBeam.computeLineDistances();
 laserBeam.visible = false;
 scene.add(laserBeam);
 
-window.addEventListener('pointerdown', () => {
-    isPointerDown = true;
-    buttonTargetY = buttonPressedPositionY;
-});
-
-window.addEventListener('pointerup', () => {
-    isPointerDown = false;
-    buttonTargetY = buttonRestPositionY;
-    laserBeam.visible = false;
-});
-
-window.addEventListener('pointermove', (event) => {
+// Helper function to update mouse position and perform raycasting
+const updateMousePositionAndRaycast = (clientX: number, clientY: number) => {
     const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Store mouse screen position for camera rotation
+    mouseScreenPos.set(mouse.x, mouse.y);
 
     // raycast
     raycaster.setFromCamera(mouse, camera);
@@ -677,6 +651,8 @@ window.addEventListener('pointermove', (event) => {
         const intersectionPoint = intersects[0].point;
         const targetPosition: Vec3 = [intersectionPoint.x, intersectionPoint.y, intersectionPoint.z];
 
+        // console.log('targetPosition', targetPosition);
+
         const halfExtents: Vec3 = [1, 1, 1];
         const nearestResult = findNearestPoly(
             createFindNearestPolyResult(),
@@ -695,10 +671,96 @@ window.addEventListener('pointermove', (event) => {
             latestValidTarget = true;
         }
     }
+};
+
+// Mouse events
+window.addEventListener('pointerdown', () => {
+    isPointerDown = true;
+    buttonTargetOffset = buttonPressOffset;
 });
+
+window.addEventListener('pointerup', () => {
+    isPointerDown = false;
+    buttonTargetOffset = 0;
+    laserBeam.visible = false;
+});
+
+window.addEventListener('pointermove', (event) => {
+    updateMousePositionAndRaycast(event.clientX, event.clientY);
+});
+
+// Touch events for mobile
+window.addEventListener(
+    'touchstart',
+    (event) => {
+        event.preventDefault();
+        isPointerDown = true;
+        buttonTargetOffset = buttonPressOffset;
+
+        if (event.touches.length > 0) {
+            const touch = event.touches[0];
+            updateMousePositionAndRaycast(touch.clientX, touch.clientY);
+        }
+    },
+    { passive: false },
+);
+
+window.addEventListener(
+    'touchmove',
+    (event) => {
+        event.preventDefault();
+
+        if (event.touches.length > 0) {
+            const touch = event.touches[0];
+            updateMousePositionAndRaycast(touch.clientX, touch.clientY);
+        }
+    },
+    { passive: false },
+);
+
+window.addEventListener(
+    'touchend',
+    (event) => {
+        event.preventDefault();
+        isPointerDown = false;
+        buttonTargetOffset = 0;
+        laserBeam.visible = false;
+    },
+    { passive: false },
+);
+
+// Toggle navmesh visibility function
+const toggleNavMesh = () => {
+    const isVisible = !navMeshHelper.object.visible;
+    navMeshHelper.object.visible = isVisible;
+    offMeshConnectionsHelper.object.visible = isVisible;
+
+    // Update button text
+    const button = document.getElementById('navmesh-toggle');
+    if (button) {
+        button.textContent = isVisible ? 'Hide NavMesh [H]' : 'Show NavMesh [H]';
+    }
+};
+
+// Keyboard handler for toggling navmesh visibility
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'h' || event.key === 'H') {
+        toggleNavMesh();
+    }
+});
+
+// Button click handler
+const navMeshButton = document.getElementById('navmesh-toggle');
+if (navMeshButton) {
+    navMeshButton.addEventListener('click', toggleNavMesh);
+}
 
 /* create crowd and agents */
 const catsCrowd = crowd.create(1);
+
+catsCrowd.quickSearchIterations = 20;
+catsCrowd.maxIterationsPerAgent = 100;
+catsCrowd.maxIterationsPerUpdate = 300;
 
 console.log(catsCrowd);
 
@@ -718,11 +780,9 @@ const agentParams: crowd.AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 10 }, () => {
+const agentPositions: Vec3[] = Array.from({ length: 1 }, () => {
     return findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, random).position;
 });
-
-const agentColors = [0x0000ff, 0x00ff00, 0xff0000, 0xffff00, 0xff00ff, 0x00ffff, 0xffa500, 0x800080, 0xffc0cb, 0x90ee90];
 
 const agentVisuals: Record<string, AgentVisuals> = {};
 
@@ -734,14 +794,13 @@ const agentCatState: Record<string, CatStateData> = {};
 
 for (let i = 0; i < agentPositions.length; i++) {
     const position = agentPositions[i];
-    const color = agentColors[i % agentColors.length];
 
     // add agent to crowd - clone agentParams so each agent has independent params
     const agentId = crowd.addAgent(catsCrowd, position, { ...agentParams });
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
-    agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius);
+    agentVisuals[agentId] = createAgentVisuals(position, scene, agentParams.radius);
 
     // initialize with random wander time
     agentNextWanderTime[agentId] = performance.now() + 1500 + Math.random() * 1500; // 1.5-3 seconds
@@ -773,20 +832,11 @@ function update() {
             const catState = agentCatState[agentId];
             const elapsed = time - catState.stateStartTime;
 
-            // Calculate distance to laser pointer target
-            let distanceToLaser = Infinity;
-            if (isPointerDown && lastRaycastTarget) {
-                const dx = agent.position[0] - lastRaycastTarget.position[0];
-                const dy = agent.position[1] - lastRaycastTarget.position[1];
-                const dz = agent.position[2] - lastRaycastTarget.position[2];
-                distanceToLaser = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            }
-
             // State machine transitions
             switch (catState.state) {
                 case CatState.WANDERING:
-                    if (isPointerDown && lastRaycastTarget && distanceToLaser < CAT_ALERT_RADIUS) {
-                        // Transition to ALERTED
+                    if (isPointerDown && lastRaycastTarget) {
+                        // Transition to ALERTED whenever laser is on
                         catState.state = CatState.ALERTED;
                         catState.stateStartTime = time;
                     }
@@ -815,8 +865,8 @@ function update() {
                     break;
 
                 case CatState.SEARCHING:
-                    if (isPointerDown && lastRaycastTarget && distanceToLaser < CAT_ALERT_RADIUS) {
-                        // Laser back on nearby -> go straight to CHASING
+                    if (isPointerDown && lastRaycastTarget) {
+                        // Laser back on -> go straight to CHASING
                         catState.state = CatState.CHASING;
                         catState.stateStartTime = time;
                         // Randomly select a chasing emoji
@@ -907,12 +957,34 @@ function update() {
         }
     }
 
+    // lerp camera rotation based on mouse position
+    const cameraRotationAmount = 0.15; // how much the camera rotates (in radians)
+    const cameraLerpSpeed = 2.0; // how fast to lerp to target rotation
+
+    // Calculate target look position based on mouse
+    const targetLookAt = new THREE.Vector3(
+        baseCameraLookAt.x + mouseScreenPos.x * cameraRotationAmount * 10,
+        baseCameraLookAt.y + mouseScreenPos.y * cameraRotationAmount * 5,
+        baseCameraLookAt.z,
+    );
+
+    // Get current look direction and lerp towards target
+    const currentLookAt = new THREE.Vector3();
+    camera.getWorldDirection(currentLookAt);
+    currentLookAt.multiplyScalar(10).add(camera.position); // extend direction to point
+
+    currentLookAt.lerp(targetLookAt, cameraLerpSpeed * clampedDeltaTime);
+    camera.lookAt(currentLookAt);
+
     // slerp laser pointer rotation for smooth aiming
     laserPointer.quaternion.slerp(laserPointerTargetQuaternion, laserPointerSlerpSpeed * clampedDeltaTime);
 
     // lerp button position for smooth animation
-    const buttonLerpSpeed = 20.0; // Fast lerp
-    laserPointerButton.position.y += (buttonTargetY - laserPointerButton.position.y) * buttonLerpSpeed * clampedDeltaTime;
+    if (laserPointerButton) {
+        const buttonLerpSpeed = 20.0; // Fast lerp
+        const targetY = buttonRestPosition.y - buttonTargetOffset;
+        laserPointerButton.position.y += (targetY - laserPointerButton.position.y) * buttonLerpSpeed * clampedDeltaTime;
+    }
 
     // update laser beam visibility and visuals based on pointer state
     if (isPointerDown) {
@@ -1000,6 +1072,12 @@ function update() {
             updateAgentVisuals(agentId, agent, agentVisuals[agentId], clampedDeltaTime);
             updateEmotionSprite(agentVisuals[agentId], agentCatState[agentId], time);
         }
+    }
+
+    // Animate tape meshes with slight rotation
+    const rotationSpeed = 0.5; // radians per second
+    for (let i = 0; i < tapeMeshes.length; i++) {
+        tapeMeshes[i].rotation.y += rotationSpeed * clampedDeltaTime;
     }
 
     renderer.render(scene, camera);

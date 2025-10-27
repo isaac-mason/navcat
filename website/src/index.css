@@ -3,6 +3,13 @@ body {
   font-family: 'Roboto Mono', monospace;
   overflow: hidden;
   background-color: #222;
+  /* Prevent mobile touch behaviors */
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  /* Prevent pull-to-refresh on mobile */
+  overscroll-behavior-y: contain;
 }
 
 #root, canvas {
@@ -12,6 +19,8 @@ body {
   top: 0;
   left: 0;
   z-index: 0;
+  /* Prevent touch callouts on iOS */
+  -webkit-touch-callout: none;
 }
 
 /* Top Navigation */
@@ -66,6 +75,35 @@ body {
 .nav-links a:hover {
   background: #ffffff;
   color: #000000;
+}
+
+/* NavMesh Toggle Button */
+.navmesh-toggle {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  z-index: 10;
+  padding: 0.75rem 1.25rem;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+  text-transform: lowercase;
+  color: #cccccc;
+  background-color: rgba(34, 34, 34, 0.8);
+  border: 1px solid #666666;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.navmesh-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #000000;
+  border-color: #ffffff;
+}
+
+.navmesh-toggle:active {
+  transform: scale(0.95);
 }
 
 /* Bottom Footer */
@@ -135,8 +173,11 @@ body {
   .nav {
     flex-direction: column;
     align-items: flex-start;
-    padding: 1.5rem 1.5rem;
-    gap: 1rem;
+    padding: 1rem 1rem;
+    gap: 0.75rem;
+    /* Allow touches on navigation */
+    touch-action: auto;
+    pointer-events: auto;
   }
 
   .nav-title {
@@ -144,7 +185,7 @@ body {
   }
 
   .nav-subtitle {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
   }
 
   .nav-links {
@@ -152,18 +193,38 @@ body {
     gap: 0.75rem;
   }
 
-  .nav-link {
-    padding: 0.5rem 1rem;
-    font-size: 0.8rem;
+  .nav-links a {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    /* Allow touches on links */
+    touch-action: auto;
+    pointer-events: auto;
   }
 
   .footer {
-    padding: 1.5rem;
-    gap: 1rem;
+    padding: 1rem;
+    gap: 0.75rem;
+    /* Allow touches on footer */
+    touch-action: auto;
+    pointer-events: auto;
   }
 
   .footer-link {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    /* Allow touches on links */
+    touch-action: auto;
+    pointer-events: auto;
+  }
+
+  .navmesh-toggle {
+    bottom: 1rem;
+    left: 1rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    /* Allow touches on button */
+    touch-action: auto;
+    pointer-events: auto;
   }
 }
 
