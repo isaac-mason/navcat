@@ -11,10 +11,9 @@ import {
 } from 'navcat';
 import { crowd, generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 import { createNavMeshHelper, createNavMeshOffMeshConnectionsHelper, getPositionsAndIndices } from 'navcat/three';
-import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
-import * as THREE from 'three/webgpu';
+import * as THREE from 'three';
 import { loadGLTF } from './load-gltf';
+import { Line2, LineGeometry, LineMaterial } from 'three/examples/jsm/Addons.js';
 
 const random = createMulberry32Generator(42);
 
@@ -23,6 +22,7 @@ const container = document.getElementById('root')!;
 
 // scene
 const scene = new THREE.Scene();
+scene.background = new THREE.Color("#222222");
 
 // camera
 const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
@@ -30,10 +30,11 @@ camera.position.set(-5, 4, 10);
 camera.lookAt(-2, 0, 0);
 
 // renderer
-const renderer = new THREE.WebGPURenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -50,9 +51,9 @@ directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.width = 2048;
 directionalLight.shadow.mapSize.height = 2048;
 directionalLight.shadow.camera.near = 0.5;
-directionalLight.shadow.camera.far = 50;
-directionalLight.shadow.camera.left = -10;
-directionalLight.shadow.camera.right = 10;
+directionalLight.shadow.camera.far = 30;
+directionalLight.shadow.camera.left = -30;
+directionalLight.shadow.camera.right = 30;
 directionalLight.shadow.camera.top = 10;
 directionalLight.shadow.camera.bottom = -10;
 directionalLight.shadow.bias = -0.001;
@@ -65,8 +66,6 @@ function onWindowResize() {
     renderer.setSize(container.clientWidth, container.clientHeight);
 }
 window.addEventListener('resize', onWindowResize);
-
-await renderer.init();
 
 /* load models in parallel */
 const [levelModel, catModel, laserPointerModel] = await Promise.all([loadGLTF('/office.glb'), loadGLTF('/car.glb'), loadGLTF('/laserpointer.glb')]);
@@ -602,7 +601,7 @@ scene.add(camera);
 /* laser */
 const laserBeamGeometry = new LineGeometry();
 laserBeamGeometry.setPositions([0, 0, 0, 0, 0, 1]);
-const laserBeamMaterial = new THREE.Line2NodeMaterial({
+const laserBeamMaterial = new LineMaterial({
     color: 0xff0000,
     linewidth: 5,
 });

@@ -218,10 +218,14 @@ body {
   }
 
   .navmesh-toggle {
-    bottom: 1rem;
+    top: auto;
+    bottom: auto;
     left: 1rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.75rem;
+    right: auto;
+    /* Position above the footer to avoid overlap */
+    top: calc(100vh - 8rem);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.7rem;
     /* Allow touches on button */
     touch-action: auto;
     pointer-events: auto;
