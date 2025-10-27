@@ -33,7 +33,6 @@ const guiSettings = {
     showLocalBoundary: false,
     showObstacleSegments: false,
     showPathLine: false,
-    showCapsuleDebug: false,
     showObstacleAvoidanceDebug: false,
     debugAgentIndex: 0,
     periodicScatter: true,
@@ -45,7 +44,6 @@ gui.add(guiSettings, 'showPolyHelpers').name('Show Poly Helpers');
 gui.add(guiSettings, 'showLocalBoundary').name('Show Local Boundary');
 gui.add(guiSettings, 'showObstacleSegments').name('Show Obstacle Segments');
 gui.add(guiSettings, 'showPathLine').name('Show Path Line');
-gui.add(guiSettings, 'showCapsuleDebug').name('Show Capsule Debug');
 gui.add(guiSettings, 'showObstacleAvoidanceDebug').name('Show Obstacle Avoidance Debug');
 gui.add(guiSettings, 'debugAgentIndex', 0, 9, 1).name('Debug Agent Index');
 gui.add(guiSettings, 'periodicScatter').name('Periodic Scatter');
@@ -101,74 +99,6 @@ orbitControls.mouseButtons = {
 /* load level model */
 const levelModel = await loadGLTF('./models/nav-test.glb');
 scene.add(levelModel.scene);
-
-/* load cat model for agents */
-const catModel = await loadGLTF('./models/cat.gltf');
-const catAnimations = catModel.animations;
-
-// Helper function to clone GLTF scene properly
-const cloneCatModel = (color?: number): THREE.Group => {
-    const clone = catModel.scene.clone(true);
-
-    const patchMaterial = (material: THREE.Material): THREE.Material => {
-        if (
-            color !== undefined &&
-            (material instanceof THREE.MeshLambertMaterial ||
-                material instanceof THREE.MeshStandardMaterial ||
-                material instanceof THREE.MeshPhongMaterial)
-        ) {
-            const clonedMat = material.clone();
-
-            clonedMat.color.setHex(color);
-            clonedMat.color.multiplyScalar(2);
-
-            if (clonedMat instanceof THREE.MeshStandardMaterial) {
-                clonedMat.emissive.setHex(color);
-                clonedMat.emissiveIntensity = 0.1;
-                clonedMat.roughness = 0.3;
-                clonedMat.metalness = 0.1;
-            }
-
-            return clonedMat;
-        }
-
-        return material;
-    };
-
-    // Handle SkinnedMesh cloning properly
-    const skinnedMeshes: THREE.SkinnedMesh[] = [];
-
-    clone.traverse((child) => {
-        if (child instanceof THREE.SkinnedMesh) {
-            skinnedMeshes.push(child);
-        }
-
-        if (child instanceof THREE.Mesh) {
-            if (Array.isArray(child.material)) {
-                child.material = child.material.map(patchMaterial);
-            } else {
-                child.material = patchMaterial(child.material);
-            }
-        }
-    });
-
-    // Fix skeleton references for SkinnedMesh
-    for (const skinnedMesh of skinnedMeshes) {
-        const skeleton = skinnedMesh.skeleton;
-        const bones: THREE.Bone[] = [];
-
-        for (const bone of skeleton.bones) {
-            const foundBone = clone.getObjectByName(bone.name);
-            if (foundBone instanceof THREE.Bone) {
-                bones.push(foundBone);
-            }
-        }
-
-        skinnedMesh.bind(new THREE.Skeleton(bones, skeleton.boneInverses));
-    }
-
-    return clone;
-};
 
 /* generate navmesh */
 const walkableMeshes: THREE.Mesh[] = [];
@@ -296,14 +226,6 @@ scene.add(offMeshConnectionsHelper.object);
 /* Visuals */
 type AgentVisuals = {
     mesh: THREE.Mesh; // capsule debug mesh
-    catGroup: THREE.Group; // cat model group
-    mixer: THREE.AnimationMixer; // animation mixer for cat
-    idleAction: THREE.AnimationAction;
-    walkAction: THREE.AnimationAction;
-    runAction: THREE.AnimationAction;
-    currentAnimation: 'idle' | 'walk' | 'run';
-    currentRotation: number; // current Y rotation for lerping
-    targetRotation: number; // target Y rotation
     color: number;
 
     targetMesh: THREE.Mesh;
@@ -327,7 +249,6 @@ type AgentVisualsOptions = {
     showVelocityVectors?: boolean;
     showPathLine?: boolean;
     showPolyHelpers?: boolean;
-    showCapsuleDebug?: boolean;
     showObstacleAvoidanceDebug?: boolean;
 };
 
@@ -430,46 +351,14 @@ const mixColors = (colors: number[]): number => {
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
-    // Create capsule debug mesh (initially hidden)
+    // capsule
     const geometry = new THREE.CapsuleGeometry(radius, height, 4, 8);
     const material = new THREE.MeshLambertMaterial({ color });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(position[0], position[1] + radius, position[2]);
-    mesh.visible = false; // initially hidden
     scene.add(mesh);
 
-    // Create cat model instance by properly cloning the scene
-    const catGroup = cloneCatModel(color);
-    catGroup.position.set(position[0], position[1], position[2]);
-    // Scale the cat to match agent size approximately (cat model is quite large)
-    const catScale = radius * 1.5; // larger scale to be more visible
-    catGroup.scale.setScalar(catScale);
-    scene.add(catGroup);
-
-    // Set up animation mixer for this specific cat instance
-    const mixer = new THREE.AnimationMixer(catGroup);
-
-    // Find and create animation actions using the original animations but for this mixer
-    const idleClip = catAnimations.find((clip) => clip.name === 'Idle');
-    const walkClip = catAnimations.find((clip) => clip.name === 'Walk');
-    const runClip = catAnimations.find((clip) => clip.name === 'Run');
-
-    if (!idleClip || !walkClip || !runClip) {
-        throw new Error('Missing required animations in cat model');
-    }
-
-    const idleAction = mixer.clipAction(idleClip);
-    const walkAction = mixer.clipAction(walkClip);
-    const runAction = mixer.clipAction(runClip);
-
-    // Set up animation properties
-    idleAction.loop = THREE.LoopRepeat;
-    walkAction.loop = THREE.LoopRepeat;
-    runAction.loop = THREE.LoopRepeat;
-
-    // Start with idle animation
-    idleAction.play();
-
+    // target mesh
     const targetGeometry = new THREE.SphereGeometry(0.1);
     const targetMaterial = new THREE.MeshBasicMaterial({ color });
     const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
@@ -520,14 +409,6 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
 
     return {
         mesh,
-        catGroup,
-        mixer,
-        idleAction,
-        walkAction,
-        runAction,
-        currentAnimation: 'idle',
-        currentRotation: 0,
-        targetRotation: 0,
         color,
         targetMesh,
         pathLine: null,
@@ -546,86 +427,11 @@ const updateAgentVisuals = (
     agent: crowd.Agent,
     visuals: AgentVisuals,
     scene: THREE.Scene,
-    deltaTime: number,
     options: AgentVisualsOptions = {},
 ): void => {
-    // Update animation mixer
-    visuals.mixer.update(deltaTime);
-
-    // Update agent mesh position (capsule debug)
+    // update agent mesh position
     visuals.mesh.position.fromArray(agent.position);
     visuals.mesh.position.y += agent.params.height / 2;
-    visuals.mesh.visible = options.showCapsuleDebug ?? false;
-
-    // Update cat model position and rotation
-    visuals.catGroup.position.fromArray(agent.position);
-
-    // Calculate velocity and determine animation
-    const velocity = vec3.length(agent.velocity);
-    let targetAnimation: 'idle' | 'walk' | 'run' = 'idle';
-
-    if (velocity > 2.5) {
-        targetAnimation = 'run';
-    } else if (velocity > 0.1) {
-        targetAnimation = 'walk';
-    }
-
-    // Handle animation transitions
-    if (visuals.currentAnimation !== targetAnimation) {
-        const currentAction =
-            visuals.currentAnimation === 'idle'
-                ? visuals.idleAction
-                : visuals.currentAnimation === 'walk'
-                  ? visuals.walkAction
-                  : visuals.runAction;
-
-        const targetAction =
-            targetAnimation === 'idle' ? visuals.idleAction : targetAnimation === 'walk' ? visuals.walkAction : visuals.runAction;
-
-        // Cross-fade to new animation
-        currentAction.fadeOut(0.3);
-        targetAction.reset().fadeIn(0.3).play();
-
-        visuals.currentAnimation = targetAnimation;
-    }
-
-    // Rotate cat to face movement direction with lerping
-    const minVelocityThreshold = 0.1; // minimum velocity to trigger rotation
-    const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
-
-    if (velocity > minVelocityThreshold) {
-        // Use velocity direction when moving normally
-        const direction = vec3.normalize([0, 0, 0], agent.velocity);
-        const targetAngle = Math.atan2(direction[0], direction[2]);
-        visuals.targetRotation = targetAngle;
-    } else {
-        // When velocity is low (like during off-mesh connections), face towards target
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
-        const targetDistance = vec3.length(targetDirection);
-
-        if (targetDistance > 0.1) {
-            // Only rotate if target is far enough away
-            const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
-            const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
-            visuals.targetRotation = targetAngle;
-        }
-    }
-
-    // Lerp current rotation towards target rotation
-    let angleDiff = visuals.targetRotation - visuals.currentRotation;
-
-    // Handle angle wrapping (shortest path)
-    if (angleDiff > Math.PI) {
-        angleDiff -= 2 * Math.PI;
-    } else if (angleDiff < -Math.PI) {
-        angleDiff += 2 * Math.PI;
-    }
-
-    // Apply lerp
-    visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
-
-    // Apply rotation to cat
-    visuals.catGroup.rotation.y = visuals.currentRotation;
 
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPosition);
@@ -889,9 +695,9 @@ const updateAgentVisuals = (
 createPolyHelpers(navMesh, scene);
 
 /* create crowd and agents */
-const catsCrowd = crowd.create(1);
+const agents = crowd.create(1);
 
-console.log(catsCrowd);
+console.log(agents);
 
 const agentParams: crowd.AgentParams = {
     radius: 0.3,
@@ -922,7 +728,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     const color = agentColors[i % agentColors.length];
 
     // add agent to crowd
-    const agentId = crowd.addAgent(catsCrowd, position, agentParams);
+    const agentId = crowd.addAgent(agents, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
@@ -975,7 +781,7 @@ const updateSelectedAgentsInfo = () => {
 
     let displayCount = 0;
     for (const agentId of selectedAgents) {
-        const agent = catsCrowd.agents[agentId];
+        const agent = agents.agents[agentId];
         if (!agent) continue;
 
         const agentColor = agentVisuals[agentId]?.color || 0xffffff;
@@ -994,7 +800,7 @@ const updateSelectedAgentsInfo = () => {
         html += `<div style="color: #ccc;">Target Path Is Partial: ${agent.targetPathIsPartial ? 'Yes' : 'No'}</div>`;
 
         // Is agent at target?
-        html += `<div style="color: #ccc;">At Target: ${crowd.isAgentAtTarget(catsCrowd, agentId, agent.params.radius) ? 'Yes' : 'No'}</div>`;
+        html += `<div style="color: #ccc;">At Target: ${crowd.isAgentAtTarget(agents, agentId, agent.params.radius) ? 'Yes' : 'No'}</div>`;
 
         // Velocity
         const velLength = vec3.length(agent.velocity);
@@ -1029,8 +835,8 @@ const updateSelectedAgentsInfo = () => {
     selectedAgentsInfoDiv.innerHTML = html;
 };
 
-const scatterCats = () => {
-    for (const agentId in catsCrowd.agents) {
+const scatter = () => {
+    for (const agentId in agents.agents) {
         // skip selected agents
         if (selectedAgents.has(agentId)) continue;
 
@@ -1038,11 +844,11 @@ const scatterCats = () => {
 
         if (!randomPointResult.success) continue;
 
-        crowd.requestMoveTarget(catsCrowd, agentId, randomPointResult.nodeRef, randomPointResult.position);
+        crowd.requestMoveTarget(agents, agentId, randomPointResult.nodeRef, randomPointResult.position);
     }
 };
 
-scatterCats();
+scatter();
 
 // mouse interaction for setting agent targets
 const raycaster = new THREE.Raycaster();
@@ -1129,7 +935,7 @@ const worldToScreen = (worldPos: Vec3): THREE.Vector2 => {
 
 // helper to check if agent is in selection box
 const isAgentInSelectionBox = (agentId: string): boolean => {
-    const agent = catsCrowd.agents[agentId];
+    const agent = agents.agents[agentId];
     if (!agent) return false;
 
     const screenPos = worldToScreen(agent.position);
@@ -1191,7 +997,7 @@ const onPointerUp = (event: MouseEvent) => {
         }
 
         // select all agents in box
-        for (const agentId in catsCrowd.agents) {
+        for (const agentId in agents.agents) {
             if (isAgentInSelectionBox(agentId)) {
                 selectAgent(agentId);
             }
@@ -1204,11 +1010,11 @@ const onPointerUp = (event: MouseEvent) => {
         const normalizedMouse = getNormalizedMouse(event);
         raycaster.setFromCamera(normalizedMouse, camera);
 
-        // raycast to agent cat models
+        // raycast to agent models
         const agentMeshes: THREE.Object3D[] = [];
-        for (const agentId in catsCrowd.agents) {
+        for (const agentId in agents.agents) {
             if (agentVisuals[agentId]) {
-                agentMeshes.push(agentVisuals[agentId].catGroup);
+                agentMeshes.push(agentVisuals[agentId].mesh);
             }
         }
 
@@ -1217,21 +1023,12 @@ const onPointerUp = (event: MouseEvent) => {
         if (intersects.length > 0) {
             // find which agent was clicked
             let clickedAgentId: string | null = null;
-            for (const agentId in catsCrowd.agents) {
-                if (agentVisuals[agentId] && intersects[0].object.parent === agentVisuals[agentId].catGroup) {
+
+            for (const agentId in agents.agents) {
+                if (agentVisuals[agentId] && intersects[0].object === agentVisuals[agentId].mesh) {
                     clickedAgentId = agentId;
                     break;
                 }
-                // check if it's a child of the cat group
-                let obj = intersects[0].object;
-                while (obj.parent) {
-                    if (obj.parent === agentVisuals[agentId].catGroup) {
-                        clickedAgentId = agentId;
-                        break;
-                    }
-                    obj = obj.parent;
-                }
-                if (clickedAgentId) break;
             }
 
             if (clickedAgentId) {
@@ -1292,7 +1089,7 @@ const onContextMenu = (event: MouseEvent) => {
 
     // move only selected agents
     for (const agentId of selectedAgents) {
-        crowd.requestMoveTarget(catsCrowd, agentId, nearestResult.nodeRef, nearestResult.position);
+        crowd.requestMoveTarget(agents, agentId, nearestResult.nodeRef, nearestResult.position);
     }
 
     console.log('target position for selected agents:', targetPosition);
@@ -1314,18 +1111,18 @@ function update() {
     const clampedDeltaTime = Math.min(deltaTime, 0.1);
     prevTime = time;
 
-    // check if we should scatter cats (if periodic scatter is enabled)
+    // check if we should scatter (if periodic scatter is enabled)
     if (guiSettings.periodicScatter && time - lastScatterTime > scatterTimeoutMs) {
-        scatterCats();
+        scatter();
         lastScatterTime = time;
     }
 
     // update crowd
-    crowd.update(catsCrowd, navMesh, clampedDeltaTime);
+    crowd.update(agents, navMesh, clampedDeltaTime);
 
     // handle custom off-mesh connection animations with arcs
-    for (const agentId in catsCrowd.agents) {
-        const agent = catsCrowd.agents[agentId];
+    for (const agentId in agents.agents) {
+        const agent = agents.agents[agentId];
 
         if (agent.state === crowd.AgentState.OFFMESH && agent.offMeshAnimation) {
             const anim = agent.offMeshAnimation;
@@ -1338,7 +1135,7 @@ function update() {
 
             if (anim.t >= customDuration) {
                 // finish the off-mesh connection
-                crowd.completeOffMeshConnection(catsCrowd, agentId);
+                crowd.completeOffMeshConnection(agents, agentId);
             } else {
                 // animate with a parabolic arc
                 const progress = anim.t / customDuration;
@@ -1367,11 +1164,10 @@ function update() {
     // collect corridor information for poly helper coloring
     const polyAgentColors = new Map<NodeRef, number[]>();
 
-    const agents = Object.keys(catsCrowd.agents);
-
-    for (let i = 0; i < agents.length; i++) {
-        const agentId = agents[i];
-        const agent = catsCrowd.agents[agentId];
+    const agentIds = Object.keys(agents.agents);
+    for (let i = 0; i < agentIds.length; i++) {
+        const agentId = agentIds[i];
+        const agent = agents.agents[agentId];
         if (agentVisuals[agentId]) {
             // collect corridor data for this agent
             if (guiSettings.showPolyHelpers && agent.corridor.path.length > 0) {
@@ -1384,13 +1180,12 @@ function update() {
                 }
             }
 
-            updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, clampedDeltaTime, {
+            updateAgentVisuals(agentId, agent, agentVisuals[agentId], scene, {
                 showVelocityVectors: guiSettings.showVelocityVectors,
                 showPolyHelpers: guiSettings.showPolyHelpers,
                 showLocalBoundary: guiSettings.showLocalBoundary,
                 showObstacleSegments: guiSettings.showObstacleSegments,
                 showPathLine: guiSettings.showPathLine,
-                showCapsuleDebug: guiSettings.showCapsuleDebug,
                 showObstacleAvoidanceDebug: guiSettings.showObstacleAvoidanceDebug && i === guiSettings.debugAgentIndex,
             });
         }
