@@ -242,6 +242,7 @@ enum CatState {
     ALERTED = 'alerted',
     CHASING = 'chasing',
     SEARCHING = 'searching',
+    SPINNING = 'spinning',
 }
 
 type CatStateData = {
@@ -250,7 +251,6 @@ type CatStateData = {
     chasingTextureIndex?: number;
 };
 
-// Speed constants for each state
 const CAT_SPEEDS = {
     WANDERING: 1.5,
     ALERTED: 2.0,
@@ -301,6 +301,9 @@ const emotionTextures = {
     chasing3: createTextTexture('owo', 64),
     chasing4: createTextTexture('^_^', 64),
     chasing5: createTextTexture('>:3', 64),
+    spinning1: createTextTexture('ooo', 64),
+    spinning2: createTextTexture('eee', 64),
+    spinning3: createTextTexture('aaa', 64),
 };
 
 const chasingTextures = [
@@ -309,6 +312,12 @@ const chasingTextures = [
     emotionTextures.chasing3,
     emotionTextures.chasing4,
     emotionTextures.chasing5,
+];
+
+const spinningTextures = [
+    emotionTextures.spinning1,
+    emotionTextures.spinning2,
+    emotionTextures.spinning3,
 ];
 
 type AgentVisuals = {
@@ -322,6 +331,7 @@ type AgentVisuals = {
     targetRotation: number;
     emotionSprite: THREE.Sprite;
     currentVisualY: number; // For lerped height correction
+    spinEndTime: number; // Time when cat should stop spinning (0 = not spinning)
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number): AgentVisuals => {
@@ -345,10 +355,11 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
     const runClip = catAnimations.find((clip) => clip.name === 'Run')!;
     const runAction = mixer.clipAction(runClip);
     runAction.loop = THREE.LoopRepeat;
+    runAction.timeScale = 1.5;
 
     idleAction.play();
 
-    // Create emotion sprite (initially hidden)
+    // create emotion sprite (initially hidden)
     const spriteMaterial = new THREE.SpriteMaterial({
         map: emotionTextures.question1,
         alphaTest: 0.5,
@@ -368,11 +379,11 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
         currentRotation: 0,
         targetRotation: 0,
         emotionSprite,
-        currentVisualY: position[1], // Initialize with starting Y position
+        currentVisualY: position[1],
+        spinEndTime: 0,
     };
 };
 
-// Raycaster for ground snapping
 const groundRaycaster = new THREE.Raycaster();
 const groundRayOrigin = new THREE.Vector3();
 const groundRayDirection = new THREE.Vector3(0, -1, 0);
@@ -380,7 +391,7 @@ const groundRayDirection = new THREE.Vector3(0, -1, 0);
 const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: AgentVisuals, deltaTime: number): void => {
     visuals.catGroup.position.fromArray(agent.position);
 
-    // Raycast down to snap cat to actual ground mesh with lerping for smooth stepping
+    // height adjustment via raycast
     if (!agent.offMeshAnimation) {
         groundRayOrigin.set(agent.position[0], agent.position[1] + 0.1, agent.position[2]);
         groundRaycaster.set(groundRayOrigin, groundRayDirection);
@@ -401,7 +412,7 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
             }
         }
     } else {
-        // During off-mesh animations, keep visual Y in sync
+        // during off-mesh animations, keep visual Y in sync
         visuals.currentVisualY = visuals.catGroup.position.y;
     }
 
@@ -434,36 +445,64 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
         visuals.currentAnimation = targetAnimation;
     }
 
-    // rotate cat to face movement direction with lerping
-    const minVelocityThreshold = 1; // minimum velocity to trigger rotation
-    const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
+    // check if laser is directly hitting this cat
+    if (laserHitAgentIds.has(_agentId)) {
+        // laser is hitting the cat - start spinning for 1 second
+        const currentTime = performance.now() / 1000; // Convert to seconds
+        visuals.spinEndTime = currentTime + 1.0; // Spin for 1 second
+    }
 
-    if (velocity > minVelocityThreshold) {
-        const direction = vec3.normalize([0, 0, 0], agent.velocity);
-        const targetAngle = Math.atan2(direction[0], direction[2]);
-        visuals.targetRotation = targetAngle;
-    } else if (agent.targetRef) {
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
-        const targetDistance = vec3.length(targetDirection);
+    // check if cat should be spinning
+    const currentTime = performance.now() / 1000;
+    const isSpinning = currentTime < visuals.spinEndTime;
 
-        if (targetDistance > 0.5) {
-            const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
-            const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
-            visuals.targetRotation = targetAngle;
+    if (isSpinning) {
+        // spin quickly - no lerping, just direct rotation
+        const spinSpeed = 15.0; // radians per second
+        visuals.currentRotation += spinSpeed * deltaTime;
+
+        // normalize currentRotation to [-PI, PI] to prevent it from growing unbounded
+        while (visuals.currentRotation > Math.PI) {
+            visuals.currentRotation -= 2 * Math.PI;
         }
+        while (visuals.currentRotation < -Math.PI) {
+            visuals.currentRotation += 2 * Math.PI;
+        }
+
+        // keep targetRotation synced so when we stop spinning, we start lerping from current position
+        visuals.targetRotation = visuals.currentRotation;
+    } else {
+        // rotate cat to face movement direction with lerping
+        const minVelocityThreshold = 1; // minimum velocity to trigger rotation
+        const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
+
+        if (velocity > minVelocityThreshold) {
+            const direction = vec3.normalize([0, 0, 0], agent.velocity);
+            const targetAngle = Math.atan2(direction[0], direction[2]);
+            visuals.targetRotation = targetAngle;
+        } else if (agent.targetRef) {
+            const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
+            const targetDistance = vec3.length(targetDirection);
+
+            if (targetDistance > 0.5) {
+                const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
+                const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
+                visuals.targetRotation = targetAngle;
+            }
+        }
+
+        let angleDiff = visuals.targetRotation - visuals.currentRotation;
+
+        if (angleDiff > Math.PI) {
+            angleDiff -= 2 * Math.PI;
+        } else if (angleDiff < -Math.PI) {
+            angleDiff += 2 * Math.PI;
+        }
+
+        visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
     }
 
-    let angleDiff = visuals.targetRotation - visuals.currentRotation;
-
-    if (angleDiff > Math.PI) {
-        angleDiff -= 2 * Math.PI;
-    } else if (angleDiff < -Math.PI) {
-        angleDiff += 2 * Math.PI;
-    }
-
-    visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
     visuals.catGroup.rotation.y = visuals.currentRotation;
-    // visuals.catGroup.rotation.x = -Math.PI / 2;
 
     // update mixer
     visuals.mixer.update(deltaTime);
@@ -477,7 +516,7 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
 
     switch (catState.state) {
         case CatState.ALERTED:
-            // Discrete steps: 0-0.33s = ?, 0.33-0.66s = ??, 0.66-1s = ???
+            // discrete steps: 0-0.33s = ?, 0.33-0.66s = ??, 0.66-1s = ???
             if (elapsed < 333) {
                 material.map = emotionTextures.question1;
             } else if (elapsed < 666) {
@@ -489,12 +528,12 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
             break;
 
         case CatState.CHASING:
-            // Show ! for first 1 second, then keep showing random chasing emojis
+            // show ! for first 1 second, then keep showing random chasing emojis
             if (elapsed < 1000) {
                 material.map = emotionTextures.exclamation;
                 sprite.visible = true;
             } else {
-                // Show the selected chasing emoji (changes every 2 seconds in state machine)
+                // show the selected chasing emoji (changes every 2 seconds in state machine)
                 const textureIndex = catState.chasingTextureIndex ?? 0;
                 material.map = chasingTextures[textureIndex];
                 sprite.visible = true;
@@ -502,7 +541,7 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
             break;
 
         case CatState.SEARCHING:
-            // Show :( for 1 second
+            // show :( for 1 second
             if (elapsed < 1000) {
                 material.map = emotionTextures.sad;
                 sprite.visible = true;
@@ -510,6 +549,15 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
                 sprite.visible = false;
             }
             break;
+
+        case CatState.SPINNING: {
+            // cycle through spinning emotion sprites quickly
+            const cycleSpeed = 5.0; // cycles per second
+            const textureIndex = Math.floor(time / 1000 * cycleSpeed) % spinningTextures.length;
+            material.map = spinningTextures[textureIndex];
+            sprite.visible = true;
+            break;
+        }
 
         case CatState.WANDERING:
             sprite.visible = false;
@@ -528,6 +576,9 @@ let isPointerDown = false;
 // Store latest raycast data for use in update loop
 let latestIntersects: THREE.Intersection[] = [];
 let latestValidTarget = false;
+
+// Track which agent IDs are currently being hit by the laser
+let laserHitAgentIds = new Set<string>();
 
 // Camera rotation based on mouse position
 const mouseScreenPos = new THREE.Vector2(0, 0); // normalized -1 to 1, center is 0,0
@@ -811,6 +862,21 @@ function update() {
         const agent = catsCrowd.agents[agentId];
         const catState = agentCatState[agentId];
         const elapsed = time - catState.stateStartTime;
+        const visuals = agentVisuals[agentId];
+
+        // Check if cat should be spinning (takes priority over other states)
+        const currentTime = performance.now() / 1000;
+        const isSpinning = currentTime < visuals.spinEndTime;
+
+        if (isSpinning && catState.state !== CatState.SPINNING) {
+            // Transition to SPINNING
+            catState.state = CatState.SPINNING;
+            catState.stateStartTime = time;
+        } else if (!isSpinning && catState.state === CatState.SPINNING) {
+            // Spinning ended - go back to WANDERING
+            catState.state = CatState.WANDERING;
+            catState.stateStartTime = time;
+        }
 
         // State machine transitions
         switch (catState.state) {
@@ -894,6 +960,14 @@ function update() {
                 agent.maxAcceleration = CAT_ACCELERATION.SEARCHING;
                 // Stay still - don't update target
                 break;
+
+            case CatState.SPINNING:
+                // Keep moving with current velocity while spinning
+                agent.maxSpeed = CAT_SPEEDS.CHASING;
+                agent.maxAcceleration = CAT_ACCELERATION.CHASING;
+                // Use requestMoveVelocity to continue moving in current direction
+                crowd.requestMoveVelocity(catsCrowd, agentId, agent.velocity);
+                break;
         }
     }
 
@@ -966,6 +1040,31 @@ function update() {
 
     raycaster.set(_tempWorldPosition, laserForward);
     latestIntersects = raycaster.intersectObjects(walkableMeshes, true);
+
+    // Raycast against cat meshes to see if laser is hitting any cats
+    laserHitAgentIds.clear();
+    if (isPointerDown) {
+        const catMeshes: THREE.Object3D[] = [];
+        for (const visuals of Object.values(agentVisuals)) {
+            catMeshes.push(visuals.catGroup);
+        }
+        const catIntersects = raycaster.intersectObjects(catMeshes, true);
+
+        // Find which cat was hit (if any) by matching the intersection object to a cat group
+        for (const intersection of catIntersects) {
+            let hitObject = intersection.object;
+            // Traverse up to find the cat group
+            while (hitObject.parent) {
+                for (const [agentId, visuals] of Object.entries(agentVisuals)) {
+                    if (hitObject === visuals.catGroup) {
+                        laserHitAgentIds.add(agentId);
+                        break;
+                    }
+                }
+                hitObject = hitObject.parent;
+            }
+        }
+    }
 
     // check if we have a valid navmesh target
     latestValidTarget = false;
