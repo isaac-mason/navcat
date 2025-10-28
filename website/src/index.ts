@@ -707,31 +707,24 @@ window.addEventListener(
     { passive: false },
 );
 
-// Toggle navmesh visibility function
+// nav mesh visibility toggle
+const toggleNavMeshButton = document.getElementById('navmesh-toggle')!;
+
 const toggleNavMesh = () => {
     const isVisible = !navMeshHelper.object.visible;
     navMeshHelper.object.visible = isVisible;
     offMeshConnectionsHelper.object.visible = isVisible;
 
-    // Update button text
-    const button = document.getElementById('navmesh-toggle');
-    if (button) {
-        button.textContent = isVisible ? 'Hide NavMesh [H]' : 'Show NavMesh [H]';
-    }
+    toggleNavMeshButton.textContent = isVisible ? 'Hide NavMesh [H]' : 'Show NavMesh [H]';
 };
 
-// Keyboard handler for toggling navmesh visibility
 window.addEventListener('keydown', (event) => {
     if (event.key === 'h' || event.key === 'H') {
         toggleNavMesh();
     }
 });
 
-// Button click handler
-const navMeshButton = document.getElementById('navmesh-toggle');
-if (navMeshButton) {
-    navMeshButton.addEventListener('click', toggleNavMesh);
-}
+toggleNavMeshButton.addEventListener('click', toggleNavMesh);
 
 /* create crowd and agents */
 const catsCrowd = crowd.create(1);
@@ -1082,10 +1075,10 @@ function update() {
         }
     }
 
-    const agents = Object.keys(catsCrowd.agents);
+    const agentIds = Object.keys(catsCrowd.agents);
 
-    for (let i = 0; i < agents.length; i++) {
-        const agentId = agents[i];
+    for (let i = 0; i < agentIds.length; i++) {
+        const agentId = agentIds[i];
         const agent = catsCrowd.agents[agentId];
         if (agentVisuals[agentId]) {
             updateAgentVisuals(agentId, agent, agentVisuals[agentId], clampedDeltaTime);
