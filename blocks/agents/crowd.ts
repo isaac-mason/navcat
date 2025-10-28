@@ -707,7 +707,7 @@ export const completeOffMeshConnection = (crowd: Crowd, agentId: string): boolea
     return true;
 };
 
-const _direction = vec3.create();
+const _calcStraightSteerDirection_direction = vec3.create();
 
 /**
  * Calculate straight steering direction (no anticipation).
@@ -719,13 +719,17 @@ const calcStraightSteerDirection = (agent: Agent, corners: StraightPathPoint[]):
         return;
     }
 
-    const direction = vec3.subtract(_direction, corners[0].position, agent.position);
+    const direction = vec3.subtract(_calcStraightSteerDirection_direction, corners[0].position, agent.position);
     direction[1] = 0; // Keep movement on XZ plane
     vec3.normalize(direction, direction);
 
     const speed = agent.params.maxSpeed;
     vec3.scale(agent.desiredVelocity, direction, speed);
 };
+
+const _calcSmoothSteerDirection_dir0 = vec3.create();
+const _calcSmoothSteerDirection_dir1 = vec3.create();
+const _calcSmoothSteerDirection_direction = vec3.create();
 
 /**
  * Calculate smooth steering direction (with anticipation).
@@ -742,9 +746,8 @@ const calcSmoothSteerDirection = (agent: Agent, corners: StraightPathPoint[]): v
     const p0 = corners[ip0].position;
     const p1 = corners[ip1].position;
 
-    const dir0 = vec3.subtract(_direction, p0, agent.position);
-    const dir1 = vec3.create();
-    vec3.subtract(dir1, p1, agent.position);
+    const dir0 = vec3.subtract(_calcSmoothSteerDirection_dir0, p0, agent.position);
+    const dir1 = vec3.subtract(_calcSmoothSteerDirection_dir1, p1, agent.position);
     dir0[1] = 0;
     dir1[1] = 0;
 
@@ -755,7 +758,7 @@ const calcSmoothSteerDirection = (agent: Agent, corners: StraightPathPoint[]): v
         vec3.scale(dir1, dir1, 1.0 / len1);
     }
 
-    const direction = vec3.create();
+    const direction = _calcSmoothSteerDirection_direction;
     direction[0] = dir0[0] - dir1[0] * len0 * 0.5;
     direction[1] = 0;
     direction[2] = dir0[2] - dir1[2] * len0 * 0.5;
@@ -784,6 +787,9 @@ const getDistanceToGoal = (agent: Agent, range: number) => {
 
     return Math.min(range, dist);
 };
+
+const _updateSteering_separationDisp = vec3.create();
+const _updateSteering_separationDiff = vec3.create();
 
 const updateSteering = (crowd: Crowd): void => {
     for (const agentId in crowd.agents) {
@@ -817,14 +823,15 @@ const updateSteering = (crowd: Crowd): void => {
             const separationWeight = agent.params.separationWeight;
 
             let w = 0;
-            const disp = vec3.create();
+            const disp = _updateSteering_separationDisp;
+            vec3.set(disp, 0, 0, 0);
 
             for (let j = 0; j < agent.neis.length; j++) {
                 const neiId = agent.neis[j].agentId;
                 const nei = crowd.agents[neiId];
                 if (!nei) continue;
 
-                const diff = vec3.subtract(vec3.create(), agent.position, nei.position);
+                const diff = vec3.subtract(_updateSteering_separationDiff, agent.position, nei.position);
                 diff[1] = 0; // ignore Y axis
 
                 const distSqr = vec3.squaredLength(diff);
@@ -941,6 +948,8 @@ const integrate = (crowd: Crowd, deltaTime: number): void => {
     }
 };
 
+const _handleCollisions_diff = vec3.create();
+
 const handleCollisions = (crowd: Crowd): void => {
     const COLLISION_RESOLVE_FACTOR = 0.7;
 
@@ -966,7 +975,7 @@ const handleCollisions = (crowd: Crowd): void => {
                 const nei = crowd.agents[neiAgentId];
                 if (!nei) continue;
 
-                const diff = vec3.subtract(vec3.create(), agent.position, nei.position);
+                const diff = vec3.subtract(_handleCollisions_diff, agent.position, nei.position);
                 diff[1] = 0; // ignore Y axis
 
                 const distSqr = vec3.squaredLength(diff);
