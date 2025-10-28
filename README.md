@@ -29,6 +29,10 @@ This README provides curated explanations, guides, and examples to help you get 
 
 Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
 
+**Changelog**
+
+See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each version.
+
 **Examples**
 
 <table>
@@ -74,6 +78,12 @@ Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
   </tr>
   <tr>
     <td align="center">
+      <a href="https://navcat.dev/examples#example-crowd-simulation-stress-test">
+        <img src="./examples/public/screenshots/example-crowd-simulation-stress-test.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Crowd Simulation Stress Test
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev/examples#example-flow-field-pathfinding">
         <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flow Field Pathfinding
@@ -85,14 +95,14 @@ Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
         Find Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -105,14 +115,14 @@ Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
         Off-Mesh Connections
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-upload-model">
         <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Upload Model
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -125,14 +135,14 @@ Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
         Solo NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -145,14 +155,14 @@ Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
         Find Nearest Poly
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -165,6 +175,8 @@ Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
         Mark Compact Heightfield Areas
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-navmesh-generation">
         <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>

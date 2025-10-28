@@ -29,6 +29,10 @@ This README provides curated explanations, guides, and examples to help you get 
 
 Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
 
+**Changelog**
+
+See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each version.
+
 **Examples**
 
 <Examples />
