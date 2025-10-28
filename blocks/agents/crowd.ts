@@ -530,7 +530,9 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             );
 
             // quick search
-            updateSlicedFindNodePath(navMesh, agent.slicedQuery, crowd.quickSearchIterations);
+            if (crowd.quickSearchIterations > 0) {
+                updateSlicedFindNodePath(navMesh, agent.slicedQuery, crowd.quickSearchIterations);
+            }
 
             agent.targetState = AgentTargetState.PATHFINDING;
             agent.targetPathfindingTime = 0;
