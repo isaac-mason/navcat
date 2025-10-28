@@ -531,8 +531,7 @@ export enum SlicedFindNodePathStatusFlags {
     SUCCESS = 2,
     PARTIAL_RESULT = 4,
     FAILURE = 8,
-    OUT_OF_NODES = 16,
-    INVALID_PARAM = 32,
+    INVALID_PARAM = 16,
 }
 
 export enum SlicedFindNodePathInitFlags {
