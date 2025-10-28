@@ -30,17 +30,6 @@ export const NODE_FLAG_CLOSED = 0x02;
 /** parent of the node is not adjacent. Found using raycast. */
 export const NODE_FLAG_PARENT_DETACHED = 0x04;
 
-/** `${poly ref}:{search node state}` */
-export type SearchNodeRef = `${NodeRef}:${number}`;
-
-export const serSearchNodeRef = (nodeRef: NodeRef, state: number): SearchNodeRef => `${nodeRef}:${state}`;
-
-export const desSearchNodeRef = (searchNodeRef: SearchNodeRef): [NodeRef, number] => {
-    const [nodeRef, state] = searchNodeRef.split(':') as [string, string];
-
-    return [parseInt(nodeRef, 10), parseInt(state, 10)];
-};
-
 export type SearchNode = {
     /** the position of the node */
     position: Vec3;
@@ -1640,9 +1629,9 @@ export type FindRandomPointResult = {
 /**
  * Finds a random point on the navigation mesh.
  *
- * @param navMesh - The navigation mesh
- * @param filter - Query filter to apply to polygons
- * @param rand - Function that returns random values [0,1]
+ * @param navMesh The navigation mesh
+ * @param filter Query filter to apply to polygons
+ * @param rand Function that returns random values between [0,1]
  * @returns The result object with success flag, random point, and polygon reference
  */
 export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () => number): FindRandomPointResult => {
@@ -1762,12 +1751,12 @@ export type FindRandomPointAroundCircleResult = {
  * then selects a random polygon weighted by area, and finally generates
  * a random point within that polygon.
  *
- * @param navMesh - The navigation mesh
- * @param startNodeRef - Reference to the polygon to start the search from
- * @param position - Center position of the search circle
- * @param maxRadius - Maximum radius of the search circle
- * @param filter - Query filter to apply to polygons
- * @param rand - Function that returns random values [0,1]
+ * @param navMesh The navigation mesh
+ * @param startNodeRef Reference to the polygon to start the search from
+ * @param position Center position of the search circle
+ * @param maxRadius Maximum radius of the search circle
+ * @param filter Query filter to apply to polygons
+ * @param rand Function that returns random values [0,1]
  * @returns The result object with success flag, random point, and polygon reference
  */
 export const findRandomPointAroundCircle = (
