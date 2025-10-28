@@ -6,6 +6,7 @@
 - feat: flatten crowdAgent.params properties onto crowdAgent
 - feat: add option for whether to collect obstacle avoidance debug info, saving on computation and memory allocation
 - feat: obstacle avoidance code optimisations, avoid allocating objects in hot paths 
+- feat: in crowd update don't call updateSlicedFindNodePath if quickSearchIterations is zero
 
 ## 0.0.9
 
