@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.0.10 (Unreleased)
+
+- feat: make some crowd addAgent parameters optional with defaults
+- feat: flatten crowdAgent.params properties onto crowdAgent
+- feat: add option for whether to collect obstacle avoidance debug info, saving on computation and memory allocation
+- feat: obstacle avoidance code optimisations, avoid allocating objects in hot paths 
+
 ## 0.0.9
 
 - feat: add `floodFillNavMesh` to `navcat/blocks` for finding reachable and unreachable polygon nodes from seed polygons

@@ -762,7 +762,7 @@ const updateAgentVisuals = (agent: crowd.Agent, visuals: AgentVisuals, scene: TH
     // Update agent mesh position (capsule debug)
     // CapsuleGeometry is centered, so offset up by (height/2 + radius)
     visuals.mesh.position.fromArray(agent.position);
-    visuals.mesh.position.y += agent.params.height / 2 + agent.params.radius;
+    visuals.mesh.position.y += agent.height / 2 + agent.radius;
 
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPosition);

@@ -222,7 +222,7 @@ const vdist2D = (a: Vec3, b: Vec3): number => {
 /**
  * Helper function to calculate squared distance from point to segment in 2D.
  */
-const distancePtSegSqr2D = (pt: Vec3, p: Vec3, q: Vec3): { distSqr: number; t: number } => {
+const distancePtSegSqr2D = (pt: Vec3, p: Vec3, q: Vec3): number => {
     const pqx = q[0] - p[0];
     const pqz = q[2] - p[2];
     const dx = pt[0] - p[0];
@@ -240,8 +240,10 @@ const distancePtSegSqr2D = (pt: Vec3, p: Vec3, q: Vec3): { distSqr: number; t: n
     const distX = pt[0] - nearestX;
     const distZ = pt[2] - nearestZ;
 
-    return { distSqr: distX * distX + distZ * distZ, t };
+    return distX * distX + distZ * distZ;
 };
+
+const _sweepCircleCircle_s = vec3.create();
 
 /**
  * Sweep test between two circles.
@@ -252,28 +254,53 @@ const sweepCircleCircle = (
     v: Vec3,
     c1: Vec3,
     r1: number,
-): { hit: boolean; tmin: number; tmax: number } => {
+    out: { hit: boolean; tmin: number; tmax: number },
+): void => {
     const EPS = 0.0001;
-    
-    const s: Vec3 = [c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2]];
-    const r = r0 + r1;
-    const c = vdot2D(s, s) - r * r;
-    const a = vdot2D(v, v);
-    
-    if (a < EPS) return { hit: false, tmin: 0, tmax: 0 }; // not moving
 
-    // Overlap, calc time to exit.
-    const b = vdot2D(v, s);
+    const s = _sweepCircleCircle_s;
+    const sx = c1[0] - c0[0];
+    const sz = c1[2] - c0[2];
+    s[0] = sx;
+    s[1] = 0;  // Not used, but keep vector valid
+    s[2] = sz;
+    
+    const r = r0 + r1;
+    
+    // vdot2D(s, s)
+    const sSqr = sx * sx + sz * sz;
+    const c = sSqr - r * r;
+    
+    // vdot2D(v, v)
+    const a = v[0] * v[0] + v[2] * v[2];
+    
+    if (a < EPS) {
+        out.hit = false;
+        out.tmin = 0;
+        out.tmax = 0;
+        return;
+    }
+
+    // vdot2D(v, s)
+    const b = v[0] * sx + v[2] * sz;
     const d = b * b - a * c;
-    if (d < 0.0) return { hit: false, tmin: 0, tmax: 0 }; // no intersection
+    
+    if (d < 0.0) {
+        out.hit = false;
+        out.tmin = 0;
+        out.tmax = 0;
+        return;
+    }
 
     const invA = 1.0 / a;
     const rd = Math.sqrt(d);
-    const tmin = (b - rd) * invA;
-    const tmax = (b + rd) * invA;
-    
-    return { hit: true, tmin, tmax };
+    out.hit = true;
+    out.tmin = (b - rd) * invA;
+    out.tmax = (b + rd) * invA;
 };
+
+const _intersectRaySegment_v = vec3.create();
+const _intersectRaySegment_w = vec3.create();
 
 /**
  * Ray-segment intersection test.
@@ -283,40 +310,64 @@ const intersectRaySegment = (
     u: Vec3,
     bp: Vec3,
     bq: Vec3,
-): { hit: boolean; t: number } => {
-    const v: Vec3 = [bq[0] - bp[0], bq[1] - bp[1], bq[2] - bp[2]];
-    const w: Vec3 = [ap[0] - bp[0], ap[1] - bp[1], ap[2] - bp[2]];
+    out: { hit: boolean; t: number },
+): void => {
+    const v = _intersectRaySegment_v;
+    v[0] = bq[0] - bp[0];
+    v[1] = bq[1] - bp[1];
+    v[2] = bq[2] - bp[2];
+    
+    const w = _intersectRaySegment_w;
+    w[0] = ap[0] - bp[0];
+    w[1] = ap[1] - bp[1];
+    w[2] = ap[2] - bp[2];
     
     const d = vperp2D(u, v);
-    if (Math.abs(d) < 1e-6) return { hit: false, t: 0 };
+    if (Math.abs(d) < 1e-6) {
+        out.hit = false;
+        out.t = 0;
+        return;
+    }
     
     const invD = 1.0 / d;
     const t = vperp2D(v, w) * invD;
-    if (t < 0 || t > 1) return { hit: false, t: 0 };
+    if (t < 0 || t > 1) {
+        out.hit = false;
+        out.t = 0;
+        return;
+    }
     
     const s = vperp2D(u, w) * invD;
-    if (s < 0 || s > 1) return { hit: false, t: 0 };
+    if (s < 0 || s > 1) {
+        out.hit = false;
+        out.t = 0;
+        return;
+    }
     
-    return { hit: true, t };
+    out.hit = true;
+    out.t = t;
 };
+
+const _prepareObstacles_orig = vec3.create();
+const _prepareObstacles_dv = vec3.create();
 
 /**
  * Prepares obstacles for sampling by calculating side information.
  */
 const prepareObstacles = (query: ObstacleAvoidanceQuery, pos: Vec3, dvel: Vec3): void => {
-    // Prepare circular obstacles
+    // prepare circular obstacles
     for (let i = 0; i < query.circleCount; i++) {
         const cir = query.circles[i];
-        // Side calculation
+        
+        // side calculation
         const pa = pos;
         const pb = cir.p;
 
-        const orig: Vec3 = [0, 0, 0];
+        const orig = vec3.set(_prepareObstacles_orig, 0, 0, 0);
         vec3.sub(cir.dp, pb, pa);
         vec3.normalize(cir.dp, cir.dp);
         
-        const dv: Vec3 = [0, 0, 0];
-        vec3.sub(dv, cir.dvel, dvel);
+        const dv = vec3.sub(_prepareObstacles_dv, cir.dvel, dvel);
 
         const a = triArea2D(orig, cir.dp, dv);
         if (a < 0.01) {
@@ -336,7 +387,7 @@ const prepareObstacles = (query: ObstacleAvoidanceQuery, pos: Vec3, dvel: Vec3):
         
         // Precalc if the agent is really close to the segment
         const r = 0.01;
-        const { distSqr } = distancePtSegSqr2D(pos, seg.p, seg.q);
+        const distSqr = distancePtSegSqr2D(pos, seg.p, seg.q);
         seg.touch = distSqr < r * r;
     }
 };
@@ -360,6 +411,8 @@ const copyParams = (dest: ObstacleAvoidanceParams, src: ObstacleAvoidanceParams)
 const _vab = vec3.create();
 const _sdir = vec3.create();
 const _snorm = vec3.create();
+const _sweepResult = { hit: false, tmin: 0, tmax: 0 };
+const _intersectionResult = { hit: false, t: 0 };
 
 /**
  * Process a velocity sample and calculate its penalty.
@@ -377,49 +430,52 @@ const processSample = (
 ): number => {
     const params = query.params;
     
-    // Penalty for straying away from desired and current velocities
+    // penalty for straying away from desired and current velocities
     const vpen = params.weightDesVel * (vdist2D(vcand, dvel) * query.invVmax);
     const vcpen = params.weightCurVel * (vdist2D(vcand, vel) * query.invVmax);
 
-    // Find threshold hit time to bail out based on early out penalty
+    // find threshold hit time to bail out based on early out penalty
     const minPen = minPenalty - vpen - vcpen;
     const tThreshold = (params.weightToi / minPen - 0.1) * params.horizTime;
     if (tThreshold - params.horizTime > -Number.EPSILON) {
         return minPenalty; // already too much
     }
 
-    // Find min time of impact and exit amongst all obstacles
+    // find min time of impact and exit amongst all obstacles
     let tmin = params.horizTime;
     let side = 0;
     let nside = 0;
 
-    // Check circular obstacles
+    // check circular obstacles
     for (let i = 0; i < query.circleCount; i++) {
         const cir = query.circles[i];
         // RVO (Reciprocal Velocity Obstacles)
+        // vec3.scale(vab, vcand, 2);
+        // vec3.sub(vab, vab, vel);
+        // vec3.sub(vab, vab, cir.vel);
         const vab = _vab;
-        vec3.scale(vab, vcand, 2);
-        vec3.sub(vab, vab, vel);
-        vec3.sub(vab, vab, cir.vel);
+        vab[0] = vcand[0] * 2 - vel[0] - cir.vel[0];
+        vab[1] = vcand[1] * 2 - vel[1] - cir.vel[1];
+        vab[2] = vcand[2] * 2 - vel[2] - cir.vel[2];
 
-        // Side bias
+        // side bias
         side += Math.max(0, Math.min(1, Math.min(vdot2D(cir.dp, vab) * 0.5 + 0.5, vdot2D(cir.np, vab) * 2)));
         nside++;
 
-        const sweep = sweepCircleCircle(pos, rad, vab, cir.p, cir.rad);
-        if (!sweep.hit) continue;
+        sweepCircleCircle(pos, rad, vab, cir.p, cir.rad, _sweepResult);
+        if (!_sweepResult.hit) continue;
 
-        let htmin = sweep.tmin;
-        const htmax = sweep.tmax;
+        let htmin = _sweepResult.tmin;
+        const htmax = _sweepResult.tmax;
 
-        // Handle overlapping obstacles
+        // handle overlapping obstacles
         if (htmin < 0.0 && htmax > 0.0) {
-            // Avoid more when overlapped
+            // avoid more when overlapped
             htmin = -htmin * 0.5;
         }
 
         if (htmin >= 0.0) {
-            // The closest obstacle is somewhere ahead of us
+            // the closest obstacle is somewhere ahead of us
             if (htmin < tmin) {
                 tmin = htmin;
                 if (tmin < tThreshold) {
@@ -429,31 +485,31 @@ const processSample = (
         }
     }
 
-    // Check segment obstacles
+    // check segment obstacles
     for (let i = 0; i < query.segmentCount; i++) {
         const seg = query.segments[i];
         let htmin = 0;
 
         if (seg.touch) {
-            // Special case when agent is very close to segment
+            // special case when agent is very close to segment
             const sdir = vec3.set(_sdir, seg.q[0] - seg.p[0], seg.q[1] - seg.p[1], seg.q[2] - seg.p[2]);
             const snorm = vec3.set(_snorm, -sdir[2], sdir[1], sdir[0]);
 
-            // If the velocity is pointing towards the segment, no collision.
+            // if the velocity is pointing towards the segment, no collision.
             if (vdot2D(snorm, vcand) < 0.0) continue;
             
-            // Else immediate collision.
+            // else immediate collision.
             htmin = 0.0;
         } else {
-            const intersection = intersectRaySegment(pos, vcand, seg.p, seg.q);
-            if (!intersection.hit) continue;
-            htmin = intersection.t;
+            intersectRaySegment(pos, vcand, seg.p, seg.q, _intersectionResult);
+            if (!_intersectionResult.hit) continue;
+            htmin = _intersectionResult.t;
         }
 
-        // Avoid less when facing walls
+        // avoid less when facing walls
         htmin *= 2.0;
 
-        // Track nearest obstacle
+        // track nearest obstacle
         if (htmin < tmin) {
             tmin = htmin;
             if (tmin < tThreshold) {
@@ -462,7 +518,7 @@ const processSample = (
         }
     }
 
-    // Normalize side bias
+    // normalize side bias
     if (nside > 0) {
         side /= nside;
     }
@@ -472,7 +528,7 @@ const processSample = (
 
     const penalty = vpen + vcpen + spen + tpen;
 
-    // Store debug info
+    // store debug info
     if (debug) {
         debug.samples.push({
             vel: vec3.clone(vcand),
@@ -487,6 +543,8 @@ const processSample = (
 
     return penalty;
 };
+
+const _sampleVelocityGrid_vcand = vec3.create();
 
 /**
  * Sample velocity using grid-based approach.
@@ -521,16 +579,19 @@ export const sampleVelocityGrid = (
 
     let minPenalty = Number.MAX_VALUE;
     let ns = 0;
+    
+    // pre-compute vmax squared for bounds checking
+    const vmaxPlusHalfCs = vmax + cs / 2;
+    const vmaxSqr = vmaxPlusHalfCs * vmaxPlusHalfCs;
 
     for (let y = 0; y < params.gridSize; ++y) {
         for (let x = 0; x < params.gridSize; ++x) {
-            const vcand: Vec3 = [
-                cvx + x * cs - half,
-                0,
-                cvz + y * cs - half,
-            ];
+            const vcand = _sampleVelocityGrid_vcand;
+            vcand[0] = cvx + x * cs - half;
+            vcand[1] = 0;
+            vcand[2] = cvz + y * cs - half;
 
-            if (vcand[0] * vcand[0] + vcand[2] * vcand[2] > (vmax + cs / 2) * (vmax + cs / 2)) {
+            if (vcand[0] * vcand[0] + vcand[2] * vcand[2] > vmaxSqr) {
                 continue;
             }
 
@@ -569,6 +630,12 @@ const rotate2D = (dest: Vec3, v: Vec3, ang: number): void => {
     dest[1] = v[1];
 };
 
+const _sampleVelocityAdaptive_ddir = vec3.create();
+const _sampleVelocityAdaptive_ddir2 = vec3.create();
+const _sampleVelocityAdaptive_res = vec3.create();
+const _sampleVelocityAdaptive_bvel = vec3.create();
+const _sampleVelocityAdaptive_vcand = vec3.create();
+
 /**
  * Sample velocity using adaptive approach.
  */
@@ -594,7 +661,7 @@ export const sampleVelocityAdaptive = (
         resetObstacleAvoidanceDebugData(debug);
     }
 
-    // Build sampling pattern aligned to desired velocity
+    // build sampling pattern aligned to desired velocity
     const pat = query.pattern;
     let npat = 0;
 
@@ -606,20 +673,22 @@ export const sampleVelocityAdaptive = (
     const ca = Math.cos(da);
     const sa = Math.sin(da);
 
-    // Desired direction - use pre-allocated vectors to avoid cloning
-    const ddir: Vec3 = [dvel[0], dvel[1], dvel[2]];
+    // desired direction - use pre-allocated vectors to avoid cloning
+    const ddir = _sampleVelocityAdaptive_ddir;
+    vec3.copy(ddir, dvel);
     normalize2D(ddir);
-    const ddir2: Vec3 = [0, 0, 0];
+    
+    const ddir2 = _sampleVelocityAdaptive_ddir2;
     rotate2D(ddir2, ddir, da * 0.5); // rotated by da/2
 
-    // Always add sample at zero
+    // always add sample at zero
     pat[npat * 2] = 0;
     pat[npat * 2 + 1] = 0;
     npat++;
 
     for (let j = 0; j < nrings; ++j) {
         const r = (nrings - j) / nrings;
-        // Use pattern similar to C++: ddir[(j%2)*3] selects between ddir and ddir2
+        // use pattern similar to C++: ddir[(j%2)*3] selects between ddir and ddir2
         const baseDir = j % 2 === 0 ? ddir : ddir2;
         
         pat[npat * 2] = baseDir[0] * r;
@@ -649,27 +718,38 @@ export const sampleVelocityAdaptive = (
         }
     }
 
-    // Start sampling
+    // start sampling
     let cr = vmax * (1.0 - query.params.velBias);
-    const res: Vec3 = [dvel[0] * query.params.velBias, 0, dvel[2] * query.params.velBias];
+    const res = _sampleVelocityAdaptive_res;
+    res[0] = dvel[0] * query.params.velBias;
+    res[1] = 0;
+    res[2] = dvel[2] * query.params.velBias;
+    
     let ns = 0;
+    
+    // pre-compute vmax squared for bounds checking
+    const vmaxPlusEpsilon = vmax + 0.001;
+    const vmaxSqr = vmaxPlusEpsilon * vmaxPlusEpsilon;
 
     for (let k = 0; k < depth; ++k) {
         let minPenalty = Number.MAX_VALUE;
-        const bvel: Vec3 = [0, 0, 0];
+        const bvel = _sampleVelocityAdaptive_bvel;
+        vec3.set(bvel, 0, 0, 0);
+        
+        // Cache cr / 10 for this depth iteration
+        const crOverTen = cr * 0.1;
 
         for (let i = 0; i < npat; ++i) {
-            const vcand: Vec3 = [
-                res[0] + pat[i * 2] * cr,
-                0,
-                res[2] + pat[i * 2 + 1] * cr,
-            ];
+            const vcand = _sampleVelocityAdaptive_vcand;
+            vcand[0] = res[0] + pat[i * 2] * cr;
+            vcand[1] = 0;
+            vcand[2] = res[2] + pat[i * 2 + 1] * cr;
 
-            if (vcand[0] * vcand[0] + vcand[2] * vcand[2] > (vmax + 0.001) * (vmax + 0.001)) {
+            if (vcand[0] * vcand[0] + vcand[2] * vcand[2] > vmaxSqr) {
                 continue;
             }
 
-            const penalty = processSample(query, vcand, cr / 10, pos, rad, vel, dvel, minPenalty, debug);
+            const penalty = processSample(query, vcand, crOverTen, pos, rad, vel, dvel, minPenalty, debug);
             ns++;
             
             if (penalty < minPenalty) {

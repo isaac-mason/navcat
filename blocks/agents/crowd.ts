@@ -69,16 +69,25 @@ export type AgentParams = {
     /** Query filter used for navmesh queries, determines which polygons the agent can traverse and the cost of traversal */
     queryFilter: QueryFilter;
 
-    /** Obstacle avoidance parameters, configures the adaptive sampling algorithm for velocity planning */
-    obstacleAvoidance: obstacleAvoidance.ObstacleAvoidanceParams;
+    /**
+     * Obstacle avoidance parameters, configures the adaptive sampling algorithm for velocity planning
+     * @default @see DEFAULT_OBSTACLE_AVOIDANCE_PARAMS
+     **/
+    obstacleAvoidance?: obstacleAvoidance.ObstacleAvoidanceParams;
 
     /**
      * If true, agents will automatically traverse off-mesh connections with a linear interpolation.
      * If false, the agent will enter OFFMESH state and populate offMeshAnimation data,
-     * but the application must manually animate and call completeOffMeshConnection when done.
+     * but the animation must be implemented externally, and completeOffMeshConnection must be called when done.
      * @default true
      */
-    autoTraverseOffMeshConnections: boolean;
+    autoTraverseOffMeshConnections?: boolean;
+
+    /**
+     * Whether to collect debug data for obstacle avoidance visualization.
+     * @default false
+     */
+    debugObstacleAvoidance?: boolean;
 };
 
 /** Sensible default obstacle avoidance parameters */
@@ -96,8 +105,35 @@ export const DEFAULT_OBSTACLE_AVOIDANCE_PARAMS: obstacleAvoidance.ObstacleAvoida
 };
 
 export type Agent = {
-    /** Agent configuration parameters */
-    params: AgentParams;
+    /** The agent radius */
+    radius: number;
+
+    /** The agent height */
+    height: number;
+
+    /** The agent maximum acceleration */
+    maxAcceleration: number;
+
+    /** The agent maximum speed */
+    maxSpeed: number;
+
+    /** The agent collision query range */
+    collisionQueryRange: number;
+
+    /** The agent separation weight */
+    separationWeight: number;
+
+    /** The agent update flags */
+    updateFlags: number;
+
+    /** The agent query filter */
+    queryFilter: QueryFilter;
+
+    /** The agent obstacle avoidance parameters */
+    obstacleAvoidance: obstacleAvoidance.ObstacleAvoidanceParams;
+
+    /** Whether the agent automatically traverses off-mesh connections */
+    autoTraverseOffMeshConnections: boolean;
 
     /** The current state of the agent */
     state: AgentState;
@@ -225,15 +261,22 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
     const agentId = String(crowd.agentIdCounter++);
 
     const agent: Agent = {
-        params: agentParams,
-
+        radius: agentParams.radius,
+        height: agentParams.height,
+        maxAcceleration: agentParams.maxAcceleration,
+        maxSpeed: agentParams.maxSpeed,
+        collisionQueryRange: agentParams.collisionQueryRange,
+        separationWeight: agentParams.separationWeight,
+        updateFlags: agentParams.updateFlags,
+        queryFilter: agentParams.queryFilter,
+        obstacleAvoidance: agentParams.obstacleAvoidance ?? DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
+        autoTraverseOffMeshConnections: agentParams.autoTraverseOffMeshConnections ?? true,
         state: AgentState.WALKING,
-
         corridor: pathCorridor.create(),
         slicedQuery: createSlicedNodePathQuery(),
         boundary: localBoundary.create(),
         obstacleAvoidanceQuery: obstacleAvoidance.createObstacleAvoidanceQuery(32, 32),
-        obstacleAvoidanceDebugData: obstacleAvoidance.createObstacleAvoidanceDebugData(),
+        obstacleAvoidanceDebugData: agentParams.debugObstacleAvoidance ? obstacleAvoidance.createObstacleAvoidanceDebugData() : undefined,
 
         neis: [],
 
@@ -372,7 +415,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 navMesh,
                 agent.position,
                 crowd.agentPlacementHalfExtents,
-                agent.params.queryFilter,
+                agent.queryFilter,
             );
 
             if (!nearestPolyResult.success) {
@@ -401,7 +444,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
             if (
                 agent.targetRef === null ||
                 !isValidNodeRef(navMesh, agent.targetRef) ||
-                !agent.params.queryFilter.passFilter(agent.targetRef, navMesh)
+                !agent.queryFilter.passFilter(agent.targetRef, navMesh)
             ) {
                 // current target is not valid, try to reposition
                 const nearestPolyResult = findNearestPoly(
@@ -409,7 +452,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                     navMesh,
                     agent.targetPosition,
                     crowd.agentPlacementHalfExtents,
-                    agent.params.queryFilter,
+                    agent.queryFilter,
                 );
 
                 if (!nearestPolyResult.success) {
@@ -427,7 +470,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
         }
 
         // if nearby corridor is not valid, replan
-        const corridorValid = pathCorridor.corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.params.queryFilter);
+        const corridorValid = pathCorridor.corridorIsValid(agent.corridor, CHECK_LOOKAHEAD, navMesh, agent.queryFilter);
         if (!corridorValid) {
             replan = true;
         }
@@ -483,7 +526,7 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
                 agent.targetRef,
                 agent.position,
                 agent.targetPosition,
-                agent.params.queryFilter,
+                agent.queryFilter,
             );
 
             // quick search
@@ -536,25 +579,102 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
 };
 
 const updateNeighbours = (crowd: Crowd): void => {
+    // uniform grid spatial partitioning, rebuilt each frame
+
+    // find bounds and determine max query range
+    let minX = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxZ = -Infinity;
+    let maxQueryRange = 0;
+
+    const agentIds: string[] = [];
+
     for (const agentId in crowd.agents) {
         const agent = crowd.agents[agentId];
         agent.neis.length = 0;
-        const queryRangeSqr = agent.params.collisionQueryRange * agent.params.collisionQueryRange;
 
-        for (const otherAgentId in crowd.agents) {
-            const other = crowd.agents[otherAgentId];
+        if (agent.state !== AgentState.WALKING) continue;
 
-            if (other === agent || other.state !== AgentState.WALKING) {
-                continue;
-            }
+        agentIds.push(agentId);
 
-            const dx = agent.position[0] - other.position[0];
-            const dy = agent.position[1] - other.position[1];
-            const dz = agent.position[2] - other.position[2];
-            const distSqr = dx * dx + dy * dy + dz * dz;
+        const x = agent.position[0];
+        const z = agent.position[2];
 
-            if (distSqr < queryRangeSqr) {
-                agent.neis.push({ agentId: otherAgentId, dist: distSqr });
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minZ = Math.min(minZ, z);
+        maxZ = Math.max(maxZ, z);
+
+        maxQueryRange = Math.max(maxQueryRange, agent.collisionQueryRange);
+    }
+
+    if (agentIds.length === 0) return;
+
+    // grid cell size = max query range (each agent checks its cell + surrounding 8 cells)
+    const cellSize = maxQueryRange;
+    if (cellSize < 0.01) return; // safety check
+
+    const gridWidth = Math.ceil((maxX - minX) / cellSize) + 1;
+    const gridHeight = Math.ceil((maxZ - minZ) / cellSize) + 1;
+
+    // build grid - flat array with direct indexing (faster than Map)
+    const gridSize = gridWidth * gridHeight;
+    const grid: (string[] | undefined)[] = new Array(gridSize);
+
+    // insert agents into grid
+    for (const agentId of agentIds) {
+        const agent = crowd.agents[agentId];
+    
+        const x = agent.position[0];
+        const z = agent.position[2];
+        const ix = Math.floor((x - minX) / cellSize);
+        const iz = Math.floor((z - minZ) / cellSize);
+        const key = iz * gridWidth + ix;
+
+        let cell = grid[key];
+        if (!cell) {
+            cell = [];
+            grid[key] = cell;
+        }
+        cell.push(agentId);
+    }
+
+    // query neighbors using grid
+    for (const agentId of agentIds) {
+        const agent = crowd.agents[agentId];
+        const queryRangeSqr = agent.collisionQueryRange * agent.collisionQueryRange;
+
+        const x = agent.position[0];
+        const z = agent.position[2];
+        const ix = Math.floor((x - minX) / cellSize);
+        const iz = Math.floor((z - minZ) / cellSize);
+
+        // check 3x3 grid around agent (including own cell)
+        for (let dz = -1; dz <= 1; dz++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const checkZ = iz + dz;
+                const checkX = ix + dx;
+
+                if (checkX < 0 || checkX >= gridWidth || checkZ < 0 || checkZ >= gridHeight) continue;
+
+                const cellKey = checkZ * gridWidth + checkX;
+                const cell = grid[cellKey];
+
+                if (!cell) continue;
+
+                for (const otherAgentId of cell) {
+                    if (otherAgentId === agentId) continue;
+
+                    const other = crowd.agents[otherAgentId];
+
+                    const dx = agent.position[0] - other.position[0];
+                    const dy = agent.position[1] - other.position[1];
+                    const dz = agent.position[2] - other.position[2];
+                    const distSqr = dx * dx + dy * dy + dz * dz;
+
+                    if (distSqr < queryRangeSqr) {
+                        agent.neis.push({ agentId: otherAgentId, dist: distSqr });
+                    }
+                }
             }
         }
     }
@@ -568,20 +688,20 @@ const updateLocalBoundaries = (crowd: Crowd, navMesh: NavMesh): void => {
         }
 
         // update boundary if agent has moved significantly or if boundary is invalid
-        const updateThreshold = agent.params.collisionQueryRange * 0.25;
+        const updateThreshold = agent.collisionQueryRange * 0.25;
         const movedDistance = vec3.distance(agent.position, agent.boundary.center);
 
         if (
             movedDistance > updateThreshold ||
-            !localBoundary.isLocalBoundaryValid(agent.boundary, navMesh, agent.params.queryFilter)
+            !localBoundary.isLocalBoundaryValid(agent.boundary, navMesh, agent.queryFilter)
         ) {
             localBoundary.updateLocalBoundary(
                 agent.boundary,
                 agent.corridor.path[0],
                 agent.position,
-                agent.params.collisionQueryRange,
+                agent.collisionQueryRange,
                 navMesh,
-                agent.params.queryFilter,
+                agent.queryFilter,
             );
         }
     }
@@ -650,7 +770,7 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
             continue;
         }
 
-        const triggerRadius = agent.params.radius * 2.25;
+        const triggerRadius = agent.radius * 2.25;
 
         if (agentIsOverOffMeshConnection(agent, triggerRadius)) {
             const offMeshConnectionNode = agent.corners[agent.corners.length - 1].nodeRef;
@@ -667,7 +787,7 @@ const updateOffMeshConnectionTriggers = (crowd: Crowd, navMesh: NavMesh): void =
             // otherwise, still populate the data but the user must call completeOffMeshConnection manually
             agent.offMeshAnimation = {
                 t: 0,
-                duration: agent.params.autoTraverseOffMeshConnections ? 0.5 : -1,
+                duration: agent.autoTraverseOffMeshConnections ? 0.5 : -1,
                 startPosition: vec3.clone(agent.position),
                 endPosition: vec3.clone(result.endPosition),
                 nodeRef: result.offMeshNodeRef,
@@ -723,7 +843,7 @@ const calcStraightSteerDirection = (agent: Agent, corners: StraightPathPoint[]):
     direction[1] = 0; // Keep movement on XZ plane
     vec3.normalize(direction, direction);
 
-    const speed = agent.params.maxSpeed;
+    const speed = agent.maxSpeed;
     vec3.scale(agent.desiredVelocity, direction, speed);
 };
 
@@ -765,7 +885,7 @@ const calcSmoothSteerDirection = (agent: Agent, corners: StraightPathPoint[]): v
 
     vec3.normalize(direction, direction);
 
-    const speed = agent.params.maxSpeed;
+    const speed = agent.maxSpeed;
     vec3.scale(agent.desiredVelocity, direction, speed);
 };
 
@@ -800,7 +920,7 @@ const updateSteering = (crowd: Crowd): void => {
             continue;
         }
 
-        const anticipateTurns = (agent.params.updateFlags & CrowdUpdateFlags.ANTICIPATE_TURNS) !== 0;
+        const anticipateTurns = (agent.updateFlags & CrowdUpdateFlags.ANTICIPATE_TURNS) !== 0;
 
         // calculate steering direction
         if (anticipateTurns) {
@@ -810,17 +930,17 @@ const updateSteering = (crowd: Crowd): void => {
         }
 
         // calculate speed scale, handles slowdown at the end of the path
-        const slowDownRadius = agent.params.radius * 2;
+        const slowDownRadius = agent.radius * 2;
         const speedScale = getDistanceToGoal(agent, slowDownRadius) / slowDownRadius;
 
-        agent.desiredSpeed = agent.params.maxSpeed;
+        agent.desiredSpeed = agent.maxSpeed;
         vec3.scale(agent.desiredVelocity, agent.desiredVelocity, speedScale);
 
         // separation
-        if ((agent.params.updateFlags & CrowdUpdateFlags.SEPARATION) !== 0) {
-            const separationDist = agent.params.collisionQueryRange;
+        if ((agent.updateFlags & CrowdUpdateFlags.SEPARATION) !== 0) {
+            const separationDist = agent.collisionQueryRange;
             const invSeparationDist = 1.0 / separationDist;
-            const separationWeight = agent.params.separationWeight;
+            const separationWeight = agent.separationWeight;
 
             let w = 0;
             const disp = _updateSteering_separationDisp;
@@ -867,7 +987,7 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
 
         if (agent.state !== AgentState.WALKING) continue;
 
-        if (agent.params.updateFlags & CrowdUpdateFlags.OBSTACLE_AVOIDANCE) {
+        if (agent.updateFlags & CrowdUpdateFlags.OBSTACLE_AVOIDANCE) {
             // reset obstacle query
             obstacleAvoidance.resetObstacleAvoidanceQuery(agent.obstacleAvoidanceQuery);
 
@@ -877,7 +997,7 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
                 obstacleAvoidance.addCircleObstacle(
                     agent.obstacleAvoidanceQuery,
                     neighborAgent.position,
-                    neighborAgent.params.radius,
+                    neighborAgent.radius,
                     neighborAgent.velocity,
                     neighborAgent.desiredVelocity,
                 );
@@ -900,19 +1020,16 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
             }
 
             // sample safe velocity using adaptive sampling
-            // pass debug data if available
-            const debugData = agent.obstacleAvoidanceDebugData;
-
             obstacleAvoidance.sampleVelocityAdaptive(
                 agent.obstacleAvoidanceQuery,
                 agent.position,
-                agent.params.radius,
-                agent.params.maxSpeed,
+                agent.radius,
+                agent.maxSpeed,
                 agent.velocity,
                 agent.desiredVelocity,
-                agent.params.obstacleAvoidance,
+                agent.obstacleAvoidance,
                 agent.newVelocity,
-                debugData,
+                agent.obstacleAvoidanceDebugData,
             );
         } else {
             // not using obstacle avoidance, set newVelocity to desiredVelocity
@@ -929,7 +1046,7 @@ const integrate = (crowd: Crowd, deltaTime: number): void => {
         if (agent.state !== AgentState.WALKING) continue;
 
         // fake dynamic constraint - limit acceleration
-        const maxDelta = agent.params.maxAcceleration * deltaTime;
+        const maxDelta = agent.maxAcceleration * deltaTime;
         const dv = vec3.subtract(_integrateDv, agent.newVelocity, agent.velocity);
         const ds = vec3.length(dv);
 
@@ -979,7 +1096,7 @@ const handleCollisions = (crowd: Crowd): void => {
                 diff[1] = 0; // ignore Y axis
 
                 const distSqr = vec3.squaredLength(diff);
-                const combinedRadius = agent.params.radius + nei.params.radius;
+                const combinedRadius = agent.radius + nei.radius;
 
                 if (distSqr > combinedRadius * combinedRadius) {
                     continue;
@@ -1035,7 +1152,7 @@ const updateCorridors = (crowd: Crowd, navMesh: NavMesh): void => {
         if (agent.state !== AgentState.WALKING) continue;
 
         // move along navmesh
-        pathCorridor.movePosition(agent.corridor, agent.position, navMesh, agent.params.queryFilter);
+        pathCorridor.movePosition(agent.corridor, agent.position, navMesh, agent.queryFilter);
 
         // get valid constrained position back
         vec3.copy(agent.position, agent.corridor.position);
@@ -1057,7 +1174,7 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
 
         // only auto-update if autoTraverseOffMeshConnections is enabled
         // otherwise, the user is responsible for animation and calling completeOffMeshConnection
-        if (!agent.params.autoTraverseOffMeshConnections) {
+        if (!agent.autoTraverseOffMeshConnections) {
             continue;
         }
 
@@ -1156,7 +1273,7 @@ export const isAgentAtTarget = (crowd: Crowd, agentId: string, threshold: number
     if (!isEndOfPath) return false;
 
     // check distance to the end point
-    const arrivalThreshold = threshold ?? agent.params.radius;
+    const arrivalThreshold = threshold ?? agent.radius;
     const dist = vec3.distance(agent.position, endPosition.position);
 
     return dist <= arrivalThreshold;

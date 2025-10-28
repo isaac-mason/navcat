@@ -29,6 +29,11 @@
         "description": "Example of crowd simulation with agents of multiple sizes",
         "tags": ["movement", "agent", "sizes"]
     },
+    "example-crowd-simulation-stress-test": {
+        "title": "Crowd Simulation Stress Test",
+        "description": "Stress test example of crowd simulation with a large number of agents",
+        "tags": ["movement", "agent"]
+    },
     "example-flow-field-pathfinding": {
         "title": "Flow Field Pathfinding",
         "description": "Example of flow field pathfinding on a navmesh",

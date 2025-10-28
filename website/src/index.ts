@@ -150,7 +150,7 @@ const navMeshInput: SoloNavMeshInput = {
 const cellSize = 0.1;
 const cellHeight = 0.2;
 
-const walkableRadiusWorld = 0.2;
+const walkableRadiusWorld = 0.1;
 const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
 const walkableClimbWorld = 0.4;
 const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
@@ -869,21 +869,21 @@ function update() {
         // Update agent speed/acceleration based on state
         switch (catState.state) {
             case CatState.WANDERING:
-                agent.params.maxSpeed = CAT_SPEEDS.WANDERING;
-                agent.params.maxAcceleration = CAT_ACCELERATION.WANDERING;
+                agent.maxSpeed = CAT_SPEEDS.WANDERING;
+                agent.maxAcceleration = CAT_ACCELERATION.WANDERING;
                 break;
 
             case CatState.ALERTED:
-                agent.params.maxSpeed = CAT_SPEEDS.ALERTED;
-                agent.params.maxAcceleration = CAT_ACCELERATION.ALERTED;
+                agent.maxSpeed = CAT_SPEEDS.ALERTED;
+                agent.maxAcceleration = CAT_ACCELERATION.ALERTED;
                 if (lastRaycastTarget) {
                     crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
                 }
                 break;
 
             case CatState.CHASING:
-                agent.params.maxSpeed = CAT_SPEEDS.CHASING;
-                agent.params.maxAcceleration = CAT_ACCELERATION.CHASING;
+                agent.maxSpeed = CAT_SPEEDS.CHASING;
+                agent.maxAcceleration = CAT_ACCELERATION.CHASING;
                 if (lastRaycastTarget) {
                     crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
                 }
@@ -897,8 +897,8 @@ function update() {
                 break;
 
             case CatState.SEARCHING:
-                agent.params.maxSpeed = CAT_SPEEDS.SEARCHING;
-                agent.params.maxAcceleration = CAT_ACCELERATION.SEARCHING;
+                agent.maxSpeed = CAT_SPEEDS.SEARCHING;
+                agent.maxAcceleration = CAT_ACCELERATION.SEARCHING;
                 // Stay still - don't update target
                 break;
         }

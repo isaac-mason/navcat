@@ -430,7 +430,7 @@ const updateAgentVisuals = (
 ): void => {
     // update agent mesh position
     visuals.mesh.position.fromArray(agent.position);
-    visuals.mesh.position.y += agent.params.height / 2;
+    visuals.mesh.position.y += agent.height / 2;
 
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPosition);
@@ -602,7 +602,7 @@ const updateAgentVisuals = (
             const circleGeometry = new THREE.BufferGeometry();
             const circlePoints: THREE.Vector3[] = [];
             const segments = 32;
-            const maxSpeed = agent.params.maxSpeed;
+            const maxSpeed = agent.maxSpeed;
 
             for (let i = 0; i <= segments; i++) {
                 const theta = (i / segments) * Math.PI * 2;
@@ -799,7 +799,7 @@ const updateSelectedAgentsInfo = () => {
         html += `<div style="color: #ccc;">Target Path Is Partial: ${agent.targetPathIsPartial ? 'Yes' : 'No'}</div>`;
 
         // Is agent at target?
-        html += `<div style="color: #ccc;">At Target: ${crowd.isAgentAtTarget(agents, agentId, agent.params.radius) ? 'Yes' : 'No'}</div>`;
+        html += `<div style="color: #ccc;">At Target: ${crowd.isAgentAtTarget(agents, agentId, agent.radius) ? 'Yes' : 'No'}</div>`;
 
         // Velocity
         const velLength = vec3.length(agent.velocity);
