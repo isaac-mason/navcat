@@ -550,7 +550,6 @@ export type SlicedNodePathQuery = {
 
 /**
  * Creates a new sliced path query object with default values.
- *
  * @returns A new sliced path query ready for initialization
  */
 export const createSlicedNodePathQuery = (): SlicedNodePathQuery => ({
@@ -569,7 +568,6 @@ export const createSlicedNodePathQuery = (): SlicedNodePathQuery => ({
 
 /**
  * Initializes a sliced path query.
- *
  * @param navMesh The navigation mesh
  * @param query The sliced path query to initialize
  * @param startNodeRef The reference ID of the starting node
