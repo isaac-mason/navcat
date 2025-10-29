@@ -1,9 +1,9 @@
 # CHANGELOG
 
-## 0.0.10 (Unreleased)
+## 0.0.10
 
-- feat: make some crowd addAgent parameters optional with defaults
-- feat: flatten crowdAgent.params properties onto crowdAgent
+- feat: make some `crowd.addAgent` parameters optional with defaults
+- feat: flatten `CrowdAgent` `params` properties onto `CrowdAgent` type
 - feat: add option for whether to collect obstacle avoidance debug info, saving on computation and memory allocation
 - feat: obstacle avoidance code optimisations, avoid allocating objects in hot paths 
 - feat: add topology optimization and visibility optimization update flags to crowd, following DetourCrowd algorithm
