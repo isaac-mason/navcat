@@ -95,8 +95,9 @@ navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
 /* move along surface */
-let start: Vec3 = [-3.94, 0.26, 4.71];
-let end: Vec3 = [2.52, 2.39, -2.2];
+let start: Vec3 =[-3.641054110753002, 1.3775759935379028, 2.7671564887530034]
+let end: Vec3 = [-2.857031378804761, 0.2670568953640924, 3.088813745131878]
+
 const halfExtents: Vec3 = [1, 1, 1];
 
 type Visual = { object: THREE.Object3D; dispose: () => void };

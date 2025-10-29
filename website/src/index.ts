@@ -302,7 +302,7 @@ const emotionTextures = {
     chasing4: createTextTexture('^_^', 64),
     chasing5: createTextTexture('>:3', 64),
     spinning1: createTextTexture('ooo', 64),
-    spinning2: createTextTexture('eee', 64),
+    spinning2: createTextTexture('iii', 64),
     spinning3: createTextTexture('aaa', 64),
 };
 
@@ -322,7 +322,9 @@ type AgentVisuals = {
     idleAction: THREE.AnimationAction;
     walkAction: THREE.AnimationAction;
     runAction: THREE.AnimationAction;
-    currentAnimation: 'idle' | 'walk' | 'run';
+    spinAction: THREE.AnimationAction;
+    fallAction: THREE.AnimationAction;
+    currentAnimation: 'idle' | 'walk' | 'run' | 'spin' | 'fall';
     currentRotation: number;
     targetRotation: number;
     emotionSprite: THREE.Sprite;
@@ -331,6 +333,8 @@ type AgentVisuals = {
     idleWeight: number;
     walkWeight: number;
     runWeight: number;
+    spinWeight: number;
+    fallWeight: number;
     spinStartTimeForSpawn: number | null; // null = not spinning
 };
 
@@ -365,6 +369,20 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
     runAction.setEffectiveWeight(0); // Start at 0 weight
     runAction.play();
 
+    const spinClip = catAnimations.find((clip) => clip.name === 'Spin')!;
+    const spinAction = mixer.clipAction(spinClip);
+    spinAction.loop = THREE.LoopRepeat;
+    spinAction.setEffectiveTimeScale(2);
+    spinAction.setEffectiveWeight(0); // Start at 0 weight
+    spinAction.play();
+
+    const fallClip = catAnimations.find((clip) => clip.name === 'Fall')!;
+    const fallAction = mixer.clipAction(fallClip);
+    fallAction.loop = THREE.LoopRepeat;
+    fallAction.setEffectiveTimeScale(2);
+    fallAction.setEffectiveWeight(0); // Start at 0 weight
+    fallAction.play();
+
     // create emotion sprite (initially hidden)
     const spriteMaterial = new THREE.SpriteMaterial({
         map: emotionTextures.question1,
@@ -381,6 +399,8 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
         idleAction,
         walkAction,
         runAction,
+        spinAction,
+        fallAction,
         currentAnimation: 'idle',
         currentRotation: 0,
         targetRotation: 0,
@@ -390,6 +410,8 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
         idleWeight: 1,
         walkWeight: 0,
         runWeight: 0,
+        spinWeight: 0,
+        fallWeight: 0,
         spinStartTimeForSpawn: null,
     };
 };
@@ -426,15 +448,37 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
         visuals.currentVisualY = visuals.catGroup.position.y;
     }
 
+    // check if laser is directly hitting this cat
+    if (laserHitAgentIds.has(_agentId)) {
+        // laser is hitting the cat - start spinning for 1 second
+        const currentTime = performance.now() / 1000; // Convert to seconds
+        visuals.spinEndTime = currentTime + 1.0; // Spin for 1 second
+    }
+
+    // check if cat should be spinning
+    const currentTime = performance.now() / 1000;
+    const isSpinning = currentTime < visuals.spinEndTime;
+
+    // check if cat is on off-mesh connection
+    const isOffMesh = agent.state === crowd.AgentState.OFFMESH;
+
     // calculate velocity and determine target animation weights
     const velocity = vec3.length(agent.velocity);
 
-    // set target weights based on velocity
+    // set target weights based on velocity, spinning state, and off-mesh state
     let targetIdleWeight = 0;
     let targetWalkWeight = 0;
     let targetRunWeight = 0;
+    let targetSpinWeight = 0;
+    let targetFallWeight = 0;
 
-    if (velocity > 2.5) {
+    if (isOffMesh) {
+        // while on off-mesh connection, use fall animation exclusively
+        targetFallWeight = 1;
+    } else if (isSpinning) {
+        // while spinning, use spin animation exclusively
+        targetSpinWeight = 1;
+    } else if (velocity > 2.5) {
         targetRunWeight = 1;
     } else if (velocity > 0.4) {
         targetWalkWeight = 1;
@@ -447,31 +491,28 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
     visuals.idleWeight += (targetIdleWeight - visuals.idleWeight) * weightLerpSpeed * deltaTime;
     visuals.walkWeight += (targetWalkWeight - visuals.walkWeight) * weightLerpSpeed * deltaTime;
     visuals.runWeight += (targetRunWeight - visuals.runWeight) * weightLerpSpeed * deltaTime;
+    visuals.spinWeight += (targetSpinWeight - visuals.spinWeight) * weightLerpSpeed * deltaTime;
+    visuals.fallWeight += (targetFallWeight - visuals.fallWeight) * weightLerpSpeed * deltaTime;
 
     // apply weights to animation actions
     visuals.idleAction.setEffectiveWeight(visuals.idleWeight);
     visuals.walkAction.setEffectiveWeight(visuals.walkWeight);
     visuals.runAction.setEffectiveWeight(visuals.runWeight);
+    visuals.spinAction.setEffectiveWeight(visuals.spinWeight);
+    visuals.fallAction.setEffectiveWeight(visuals.fallWeight);
 
     // update currentAnimation for reference (based on highest weight)
-    if (visuals.runWeight > visuals.walkWeight && visuals.runWeight > visuals.idleWeight) {
+    if (visuals.fallWeight > 0.5) {
+        visuals.currentAnimation = 'fall';
+    } else if (visuals.spinWeight > 0.5) {
+        visuals.currentAnimation = 'spin';
+    } else if (visuals.runWeight > visuals.walkWeight && visuals.runWeight > visuals.idleWeight) {
         visuals.currentAnimation = 'run';
     } else if (visuals.walkWeight > visuals.idleWeight) {
         visuals.currentAnimation = 'walk';
     } else {
         visuals.currentAnimation = 'idle';
     }
-
-    // check if laser is directly hitting this cat
-    if (laserHitAgentIds.has(_agentId)) {
-        // laser is hitting the cat - start spinning for 1 second
-        const currentTime = performance.now() / 1000; // Convert to seconds
-        visuals.spinEndTime = currentTime + 1.0; // Spin for 1 second
-    }
-
-    // check if cat should be spinning
-    const currentTime = performance.now() / 1000;
-    const isSpinning = currentTime < visuals.spinEndTime;
 
     if (isSpinning) {
         // spin quickly - no lerping, just direct rotation
@@ -800,7 +841,7 @@ const agentParams: crowd.AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 5 }, () => {
+const agentPositions: Vec3[] = Array.from({ length: 20 }, () => {
     return findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, random).position;
 });
 
