@@ -1,10 +1,14 @@
 import { type Vec3, vec2, vec3 } from 'mathcat';
 import {
     createFindNearestPolyResult,
+    createGetClosestPointOnPolyResult,
     createSlicedNodePathQuery,
     finalizeSlicedFindNodePath,
+    finalizeSlicedFindNodePathPartial,
     findNearestPoly,
+    getClosestPointOnPoly,
     initSlicedFindNodePath,
+    INVALID_NODE_REF,
     isValidNodeRef,
     type NavMesh,
     type NodeRef,
@@ -31,7 +35,8 @@ export enum AgentTargetState {
     FAILED,
     VALID,
     REQUESTING,
-    PATHFINDING,
+    WAITING_FOR_QUEUE,
+    WAITING_FOR_PATH,
     VELOCITY,
 }
 
@@ -39,6 +44,8 @@ export enum CrowdUpdateFlags {
     ANTICIPATE_TURNS = 1,
     OBSTACLE_AVOIDANCE = 2,
     SEPARATION = 4,
+    OPTIMIZE_VIS = 8,
+    OPTIMIZE_TOPO = 16,
 }
 
 export type AgentParams = {
@@ -56,6 +63,12 @@ export type AgentParams = {
 
     /** Collision query range (in world units), determines how far to look for neighboring agents and obstacles. */
     collisionQueryRange: number;
+
+    /** 
+     * Path visibility optimization range (in world units), the maximum distance to raycast for path shortcuts. 
+     * @default radius * 30.0
+     */
+    pathOptimizationRange?: number;
 
     /** Separation weight, controls the strength of separation behavior from other agents, only applied when the flag CrowdUpdateFlags.SEPARATION is given */
     separationWeight: number;
@@ -119,6 +132,9 @@ export type Agent = {
 
     /** The agent collision query range */
     collisionQueryRange: number;
+
+    /** The agent path visibility optimization range */
+    pathOptimizationRange: number;
 
     /** The agent separation weight */
     separationWeight: number;
@@ -195,6 +211,9 @@ export type Agent = {
     /** True if pathfinding returned a partial result (best-effort path) */
     targetPathIsPartial: boolean;
 
+    /** Time since last topology optimization (seconds) */
+    topologyOptTime: number;
+
     /** Off-mesh connection animation state (null when not traversing an off-mesh connection) */
     offMeshAnimation: {
         t: number;
@@ -227,7 +246,8 @@ export type Crowd = {
 
     /**
      * Initial quick search iterations when pathfinding request starts.
-     * Helps find short paths immediately.
+     * Helps find short paths immediately, and is used as the initial partial corridor to
+     * start moving towards the target while the full path is still being computed.
      * @default 20
      */
     quickSearchIterations: number;
@@ -257,7 +277,7 @@ export const create = (maxAgentRadius: number): Crowd => {
  * @param agentParams the parameters for the agent
  * @returns the ID of the added agent
  */
-export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams): string => {
+export const addAgent = (crowd: Crowd, navMesh: NavMesh, position: Vec3, agentParams: AgentParams): string => {
     const agentId = String(crowd.agentIdCounter++);
 
     const agent: Agent = {
@@ -266,6 +286,7 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
         maxAcceleration: agentParams.maxAcceleration,
         maxSpeed: agentParams.maxSpeed,
         collisionQueryRange: agentParams.collisionQueryRange,
+        pathOptimizationRange: agentParams.pathOptimizationRange ?? agentParams.radius * 30.0,
         separationWeight: agentParams.separationWeight,
         updateFlags: agentParams.updateFlags,
         queryFilter: agentParams.queryFilter,
@@ -296,10 +317,35 @@ export const addAgent = (crowd: Crowd, position: Vec3, agentParams: AgentParams)
         targetPathfindingTime: 0,
         targetPathIsPartial: false,
 
+        topologyOptTime: 0,
+
         offMeshAnimation: null,
     };
 
     crowd.agents[agentId] = agent;
+
+    // find nearest position on navmesh and place the agent there
+    const nearestPolyResult = createFindNearestPolyResult();
+    findNearestPoly(nearestPolyResult, navMesh, position, crowd.agentPlacementHalfExtents, agent.queryFilter);
+    
+    let nearestPos = position;
+    let nearestRef = INVALID_NODE_REF;
+    
+    if (nearestPolyResult.success) {
+        nearestPos = nearestPolyResult.position;
+        nearestRef = nearestPolyResult.nodeRef;
+    }
+    
+    // reset corridor with the found (or invalid) reference
+    vec3.copy(agent.position, nearestPos);
+    pathCorridor.reset(agent.corridor, nearestRef, nearestPos);
+    
+    // set agent state based on whether we found a valid polygon
+    if (nearestRef !== INVALID_NODE_REF) {
+        agent.state = AgentState.WALKING;
+    } else {
+        agent.state = AgentState.INVALID;
+    }
 
     return agentId;
 };
@@ -333,9 +379,11 @@ export const requestMoveTarget = (crowd: Crowd, agentId: string, targetRef: Node
     agent.targetRef = targetRef;
     vec3.copy(agent.targetPosition, targetPos);
 
-    agent.targetReplan = false;
+    // if the agent already has a corridor path, this is a replan
+    agent.targetReplan = agent.corridor.path.length > 0;
     agent.targetState = AgentTargetState.REQUESTING;
     agent.targetPathIsPartial = false;
+    agent.targetPathfindingTime = 0; // Reset timer for new request
 
     return true;
 };
@@ -347,7 +395,7 @@ const requestMoveTargetReplan = (crowd: Crowd, agentId: string, targetRef: NodeR
     agent.targetRef = targetRef;
     vec3.copy(agent.targetPosition, targetPos);
 
-    agent.targetReplan = false;
+    agent.targetReplan = true;
     agent.targetState = AgentTargetState.REQUESTING;
 
     return true;
@@ -408,8 +456,18 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
         // first check that the current location is valid
         const agentNodeRef = agent.corridor.path[0];
 
-        if (!agentNodeRef || !isValidNodeRef(navMesh, agentNodeRef)) {
+        if (!isValidNodeRef(navMesh, agentNodeRef)) {
             // current location is invalid, try to reposition
+            console.warn(`Agent ${agentId} has invalid current node ref, repositioning`, {
+                agentNodeRef,
+                corridorPath: agent.corridor.path,
+                corridorPosition: agent.corridor.position,
+                agentPosition: agent.position,
+                velocity: agent.velocity,
+                state: agent.state,
+                targetState: agent.targetState,
+            });
+
             const nearestPolyResult = findNearestPoly(
                 _checkPathValidityNearestPolyResult,
                 navMesh,
@@ -420,14 +478,16 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
 
             if (!nearestPolyResult.success) {
                 // could not find location in navmesh, set agent state to invalid
+                console.error(`Agent ${agentId} could not find valid position on navmesh, marking as INVALID`);
                 agent.state = AgentState.INVALID;
-                pathCorridor.reset(agent.corridor, 0, agent.position);
+                pathCorridor.reset(agent.corridor, INVALID_NODE_REF, agent.position);
                 localBoundary.resetLocalBoundary(agent.boundary);
 
                 continue;
             }
 
-            pathCorridor.fixPathStart(agent.corridor, nearestPolyResult.nodeRef, agent.position);
+            // Fix: Use nearestPolyResult.position (which is ON the navmesh) instead of agent.position
+            pathCorridor.fixPathStart(agent.corridor, nearestPolyResult.nodeRef, nearestPolyResult.position);
             localBoundary.resetLocalBoundary(agent.boundary);
             vec3.copy(agent.position, nearestPolyResult.position);
 
@@ -459,7 +519,7 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                     // could not find location in navmesh, set agent state to invalid
                     agent.targetState = AgentTargetState.NONE;
                     agent.targetRef = null;
-                    pathCorridor.reset(agent.corridor, 0, agent.position);
+                    pathCorridor.reset(agent.corridor, INVALID_NODE_REF, agent.position);
                 } else {
                     // target poly became invalid, update to nearest valid poly
                     agent.targetRef = nearestPolyResult.nodeRef;
@@ -494,10 +554,10 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
 };
 
 const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
-    // first, update pathfinding time for all agents in PATHFINDING state
+    // first, update pathfinding time for all agents in WAITING_FOR_PATH state
     for (const agentId in crowd.agents) {
         const agent = crowd.agents[agentId];
-        if (agent.targetState === AgentTargetState.PATHFINDING) {
+        if (agent.targetState === AgentTargetState.WAITING_FOR_PATH) {
             agent.targetPathfindingTime += deltaTime;
         }
     }
@@ -530,15 +590,81 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             );
 
             // quick search
-            if (crowd.quickSearchIterations > 0) {
-                updateSlicedFindNodePath(navMesh, agent.slicedQuery, crowd.quickSearchIterations);
+            updateSlicedFindNodePath(navMesh, agent.slicedQuery, crowd.quickSearchIterations);
+
+            // finalize the partial path from quick search
+            const partialResult = agent.targetReplan
+                ? finalizeSlicedFindNodePathPartial(navMesh, agent.slicedQuery, agent.corridor.path)
+                : finalizeSlicedFindNodePath(navMesh, agent.slicedQuery);
+
+            const reqPath = partialResult.path;
+            const reqPathCount = reqPath.length;
+            let reqPos = vec3.clone(agent.targetPosition);
+
+            // if we got a path from the quick search
+            if (reqPathCount > 0) {
+                // check if this is a partial path (didn't reach target)
+                if (reqPath[reqPathCount - 1] !== agent.targetRef) {
+                    // partial path - constrain target position inside the last polygon
+                    const closestPointResult = createGetClosestPointOnPolyResult();
+                    const closestPoint = getClosestPointOnPoly(closestPointResult, navMesh, reqPath[reqPathCount - 1], agent.targetPosition);
+                    
+                    if (closestPoint.success) {
+                        reqPos = closestPoint.position;
+                    } else {
+                        // failed to constrain position, fall back to current position
+                        reqPos = vec3.clone(agent.position);
+                        reqPath[0] = agent.corridor.path[0];
+                        reqPath.length = 1;
+                    }
+                }
+            } else {
+                // could not find any path, start the request from current location
+                reqPos = vec3.clone(agent.position);
+                reqPath[0] = agent.corridor.path[0];
+                reqPath.length = 1;
             }
 
-            agent.targetState = AgentTargetState.PATHFINDING;
-            agent.targetPathfindingTime = 0;
-        }
+            // immediately set the corridor with the partial path
+            pathCorridor.setPath(agent.corridor, reqPos, reqPath);
+            localBoundary.resetLocalBoundary(agent.boundary);
+            agent.targetPathIsPartial = false;
 
-        if (agent.targetState === AgentTargetState.PATHFINDING) {
+            // check if we reached the target with the quick search
+            if (reqPathCount > 0 && reqPath[reqPathCount - 1] === agent.targetRef) {
+                // reached target - we're done!
+                agent.targetState = AgentTargetState.VALID;
+                agent.targetPathfindingTime = 0;
+            } else {
+                // partial path - queue for full pathfinding
+                agent.targetState = AgentTargetState.WAITING_FOR_QUEUE;
+            }
+        }
+    }
+
+    // process agents in WAITING_FOR_QUEUE - transition all waiting agents to full pathfinding
+    for (const agentId in crowd.agents) {
+        const agent = crowd.agents[agentId];
+        
+        if (agent.targetState === AgentTargetState.WAITING_FOR_QUEUE) {
+            // initialize the full pathfinding query once when entering WAITING_FOR_PATH
+            // start from the last polygon in the corridor (where partial path ended)
+            const corridorPath = agent.corridor.path;
+            const startRef = corridorPath[corridorPath.length - 1];
+            
+            initSlicedFindNodePath(
+                navMesh,
+                agent.slicedQuery,
+                startRef,
+                agent.targetRef!,
+                agent.corridor.target,
+                agent.targetPosition,
+                agent.queryFilter,
+            );
+            
+            agent.targetState = AgentTargetState.WAITING_FOR_PATH;
+            pathfindingAgents.push(agentId);
+        } else if (agent.targetState === AgentTargetState.WAITING_FOR_PATH) {
             pathfindingAgents.push(agentId);
         }
     }
@@ -566,16 +692,99 @@ const updateMoveRequests = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): 
             agent.targetPathfindingTime = 0;
             agent.targetPathIsPartial = false;
         } else if ((agent.slicedQuery.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0) {
-            // pathfinding succeeded
-            agent.targetState = AgentTargetState.VALID;
-            agent.targetPathfindingTime = 0;
-
-            // Check if this is a partial path (best effort)
+            // pathfinding succeeded - now we need to merge the result with the current corridor
+            
+            // check if this is a partial path (best effort)
             agent.targetPathIsPartial = (agent.slicedQuery.status & SlicedFindNodePathStatusFlags.PARTIAL_RESULT) !== 0;
 
             const result = finalizeSlicedFindNodePath(navMesh, agent.slicedQuery);
-            pathCorridor.setPath(agent.corridor, agent.targetPosition, result.path);
-            localBoundary.resetLocalBoundary(agent.boundary);
+            const newPath = result.path;
+            
+            const currentPath = agent.corridor.path;
+            const currentPathCount = currentPath.length;
+            
+            let valid = true;
+            let targetPos = vec3.clone(agent.targetPosition);
+            
+            // the agent might have moved whilst the pathfinding request was being processed,
+            // so the path may have changed. We assume that the end of the current path is at
+            // the same location where the pathfinding request was issued.
+
+            // the last polygon in the current corridor should be the same as the first polygon
+            // in the new pathfinding result.
+            if (currentPathCount > 0 && newPath.length > 0) {
+                if (currentPath[currentPathCount - 1] !== newPath[0]) {
+                    valid = false;
+                }
+            }
+            
+            if (valid) {
+                let mergedPath: number[] = [];
+                
+                // merge the current corridor path with the new pathfinding result
+                if (currentPathCount > 1) {
+                    // copy the current path (excluding the last polygon, which is the start of the new path)
+                    mergedPath = currentPath.slice(0, currentPathCount - 1);
+                    
+                    // append the new path
+                    mergedPath.push(...newPath);
+                    
+                    // remove trackbacks (A -> B -> A sequences)
+                    for (let j = 0; j < mergedPath.length; j++) {
+                        if (j - 1 >= 0 && j + 1 < mergedPath.length) {
+                            if (mergedPath[j - 1] === mergedPath[j + 1]) {
+                                // found a trackback: remove the middle and next element
+                                mergedPath.splice(j - 1, 2);
+                                j -= 2;
+                            }
+                        }
+                    }
+                } else {
+                    // current path is just the start polygon, use the new path directly
+                    mergedPath = [...newPath];
+                }
+                
+                // check if this is a partial path - constrain target position if needed
+                if (mergedPath.length > 0 && mergedPath[mergedPath.length - 1] !== agent.targetRef) {
+                    // partial path - constrain target position to the last polygon
+                    const lastPoly = mergedPath[mergedPath.length - 1];
+                    const closestPointResult = createGetClosestPointOnPolyResult();
+                    const closestPoint = getClosestPointOnPoly(closestPointResult, navMesh, lastPoly, agent.targetPosition);
+                    
+                    if (closestPoint.success) {
+                        targetPos = closestPoint.position;
+                    } else {
+                        valid = false;
+                    }
+                }
+                
+                if (valid) {
+                    pathCorridor.setPath(agent.corridor, targetPos, mergedPath);
+                    localBoundary.resetLocalBoundary(agent.boundary);
+                    agent.targetState = AgentTargetState.VALID;
+                    agent.targetPathfindingTime = 0; // Reset on success
+                } else {
+                    // something went wrong with constraining the target position
+                    // retry if target is still valid
+                    if (agent.targetRef !== null) {
+                        agent.targetState = AgentTargetState.REQUESTING;
+                        // Keep targetPathfindingTime so agent maintains priority when retrying
+                    } else {
+                        agent.targetState = AgentTargetState.FAILED;
+                        agent.targetPathfindingTime = 0; // Reset on failure
+                    }
+                }
+            } else {
+                // paths don't connect - the agent has moved too far from where pathfinding started
+                // retry pathfinding from the new position if target is still valid
+                if (agent.targetRef !== null) {
+                    agent.targetState = AgentTargetState.REQUESTING;
+                    // keep targetPathfindingTime so agent maintains priority when retrying
+                } else {
+                    agent.targetState = AgentTargetState.FAILED;
+                    agent.targetPathfindingTime = 0; // Reset on failure
+                }
+            }
         }
     }
 };
@@ -737,7 +946,12 @@ const updateCorners = (crowd: Crowd, navMesh: NavMesh): void => {
 
         agent.corners = corners;
 
-        // todo: raycast to check for shortcuts
+        // check to see if the corner after the next corner is directly visible, and short cut to there
+        if ((agent.updateFlags & CrowdUpdateFlags.OPTIMIZE_VIS) !== 0 && agent.corners.length > 0) {
+            const targetIndex = Math.min(1, agent.corners.length - 1);
+            const target = agent.corners[targetIndex].position;
+            pathCorridor.optimizePathVisibility(agent.corridor, target, agent.pathOptimizationRange, navMesh, agent.queryFilter);
+        }
     }
 };
 
@@ -1205,6 +1419,54 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
     }
 };
 
+const updateTopologyOptimization = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
+    const OPT_TIME_THR = 0.5; // seconds
+    const OPT_MAX_AGENTS = 1;
+    
+    const queue: Array<{ agentId: string; time: number }> = [];
+    
+    for (const agentId in crowd.agents) {
+        const agent = crowd.agents[agentId];
+        
+        if (agent.state !== AgentState.WALKING) continue;
+        if (agent.targetState === AgentTargetState.NONE || agent.targetState === AgentTargetState.VELOCITY) continue;
+        if ((agent.updateFlags & CrowdUpdateFlags.OPTIMIZE_TOPO) === 0) continue;
+        
+        agent.topologyOptTime += deltaTime;
+        
+        if (agent.topologyOptTime >= OPT_TIME_THR) {
+            // Insert into queue based on greatest time (longest waiting gets priority)
+            if (queue.length === 0) {
+                queue.push({ agentId, time: agent.topologyOptTime });
+            } else if (agent.topologyOptTime <= queue[queue.length - 1].time) {
+                if (queue.length < OPT_MAX_AGENTS) {
+                    queue.push({ agentId, time: agent.topologyOptTime });
+                }
+            } else {
+                // Find insertion point (sorted by topologyOptTime descending)
+                let insertIdx = 0;
+                for (let i = 0; i < queue.length; i++) {
+                    if (agent.topologyOptTime >= queue[i].time) {
+                        insertIdx = i;
+                        break;
+                    }
+                }
+                queue.splice(insertIdx, 0, { agentId, time: agent.topologyOptTime });
+                // Trim to max size
+                if (queue.length > OPT_MAX_AGENTS) {
+                    queue.length = OPT_MAX_AGENTS;
+                }
+            }
+        }
+    }
+    
+    for (const item of queue) {
+        const agent = crowd.agents[item.agentId];
+        pathCorridor.optimizePathTopology(agent.corridor, navMesh, agent.queryFilter);
+        agent.topologyOptTime = 0;
+    }
+};
+
 /**
  * Update the crowd simulation.
  * @param crowd the crowd
@@ -1214,6 +1476,9 @@ const offMeshConnectionUpdate = (crowd: Crowd, deltaTime: number): void => {
 export const update = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     // check whether agent paths are still valid
     checkPathValidity(crowd, navMesh, deltaTime);
+
+    // optimize path topology for agents periodically
+    updateTopologyOptimization(crowd, navMesh, deltaTime);
 
     // handle move requests since last update
     updateMoveRequests(crowd, navMesh, deltaTime);

@@ -373,7 +373,11 @@ const agentParams: crowd.AgentParams = {
     collisionQueryRange: 2,
     separationWeight: 0.5,
     updateFlags:
-        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS |
+        crowd.CrowdUpdateFlags.SEPARATION |
+        crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE |
+        crowd.CrowdUpdateFlags.OPTIMIZE_TOPO |
+        crowd.CrowdUpdateFlags.OPTIMIZE_VIS,
     queryFilter: DEFAULT_QUERY_FILTER,
 };
 
@@ -393,7 +397,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     const color = agentColors[i % agentColors.length];
 
     // add agent to crowd
-    const agentId = crowd.addAgent(agents, position, agentParams);
+    const agentId = crowd.addAgent(agents, navMesh, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent (just stores instanceId and color)

@@ -314,11 +314,7 @@ const chasingTextures = [
     emotionTextures.chasing5,
 ];
 
-const spinningTextures = [
-    emotionTextures.spinning1,
-    emotionTextures.spinning2,
-    emotionTextures.spinning3,
-];
+const spinningTextures = [emotionTextures.spinning1, emotionTextures.spinning2, emotionTextures.spinning3];
 
 type AgentVisuals = {
     catGroup: THREE.Group;
@@ -330,8 +326,12 @@ type AgentVisuals = {
     currentRotation: number;
     targetRotation: number;
     emotionSprite: THREE.Sprite;
-    currentVisualY: number; // For lerped height correction
-    spinEndTime: number; // Time when cat should stop spinning (0 = not spinning)
+    currentVisualY: number;
+    spinEndTime: number;
+    idleWeight: number;
+    walkWeight: number;
+    runWeight: number;
+    spinStartTimeForSpawn: number | null; // null = not spinning
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number): AgentVisuals => {
@@ -347,17 +347,23 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
     const idleClip = catAnimations.find((clip) => clip.name === 'Idle')!;
     const idleAction = mixer.clipAction(idleClip);
     idleAction.loop = THREE.LoopRepeat;
+    idleAction.setEffectiveTimeScale(2);
+    idleAction.setEffectiveWeight(1); // Start with idle at full weight
+    idleAction.play();
 
     const walkClip = catAnimations.find((clip) => clip.name === 'Walk')!;
     const walkAction = mixer.clipAction(walkClip);
     walkAction.loop = THREE.LoopRepeat;
+    walkAction.setEffectiveTimeScale(2);
+    walkAction.setEffectiveWeight(0); // Start at 0 weight
+    walkAction.play();
 
     const runClip = catAnimations.find((clip) => clip.name === 'Run')!;
     const runAction = mixer.clipAction(runClip);
     runAction.loop = THREE.LoopRepeat;
-    runAction.timeScale = 1.5;
-
-    idleAction.play();
+    runAction.setEffectiveTimeScale(2);
+    runAction.setEffectiveWeight(0); // Start at 0 weight
+    runAction.play();
 
     // create emotion sprite (initially hidden)
     const spriteMaterial = new THREE.SpriteMaterial({
@@ -381,6 +387,10 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
         emotionSprite,
         currentVisualY: position[1],
         spinEndTime: 0,
+        idleWeight: 1,
+        walkWeight: 0,
+        runWeight: 0,
+        spinStartTimeForSpawn: null,
     };
 };
 
@@ -402,12 +412,12 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
 
             // if difference not too great, lerp to it
             if (Math.abs(rayHitY - agent.position[1]) < 1) {
-                // Lerp speed - higher = faster adjustment
+                // lerp speed - higher = faster adjustment
                 const heightLerpSpeed = 8.0;
                 visuals.currentVisualY += (rayHitY - visuals.currentVisualY) * heightLerpSpeed * deltaTime;
                 visuals.catGroup.position.y = visuals.currentVisualY;
             } else {
-                // Large height difference - snap immediately and update current Y
+                // large height difference - snap immediately and update current Y
                 visuals.currentVisualY = agent.position[1];
             }
         }
@@ -416,33 +426,40 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
         visuals.currentVisualY = visuals.catGroup.position.y;
     }
 
-    // calculate velocity and determine animation
+    // calculate velocity and determine target animation weights
     const velocity = vec3.length(agent.velocity);
-    let targetAnimation: 'idle' | 'walk' | 'run' = 'idle';
+
+    // set target weights based on velocity
+    let targetIdleWeight = 0;
+    let targetWalkWeight = 0;
+    let targetRunWeight = 0;
 
     if (velocity > 2.5) {
-        targetAnimation = 'run';
+        targetRunWeight = 1;
     } else if (velocity > 0.4) {
-        targetAnimation = 'walk';
+        targetWalkWeight = 1;
+    } else {
+        targetIdleWeight = 1;
     }
 
-    // animation transitions
-    if (visuals.currentAnimation !== targetAnimation) {
-        const currentAction =
-            visuals.currentAnimation === 'idle'
-                ? visuals.idleAction
-                : visuals.currentAnimation === 'walk'
-                  ? visuals.walkAction
-                  : visuals.runAction;
+    // lerp animation weights towards target weights for smooth transitions
+    const weightLerpSpeed = 5.0; // higher = faster transitions
+    visuals.idleWeight += (targetIdleWeight - visuals.idleWeight) * weightLerpSpeed * deltaTime;
+    visuals.walkWeight += (targetWalkWeight - visuals.walkWeight) * weightLerpSpeed * deltaTime;
+    visuals.runWeight += (targetRunWeight - visuals.runWeight) * weightLerpSpeed * deltaTime;
 
-        const targetAction =
-            targetAnimation === 'idle' ? visuals.idleAction : targetAnimation === 'walk' ? visuals.walkAction : visuals.runAction;
+    // apply weights to animation actions
+    visuals.idleAction.setEffectiveWeight(visuals.idleWeight);
+    visuals.walkAction.setEffectiveWeight(visuals.walkWeight);
+    visuals.runAction.setEffectiveWeight(visuals.runWeight);
 
-        // Cross-fade to new animation
-        currentAction.fadeOut(0.3);
-        targetAction.reset().fadeIn(0.3).play().setEffectiveTimeScale(2);
-
-        visuals.currentAnimation = targetAnimation;
+    // update currentAnimation for reference (based on highest weight)
+    if (visuals.runWeight > visuals.walkWeight && visuals.runWeight > visuals.idleWeight) {
+        visuals.currentAnimation = 'run';
+    } else if (visuals.walkWeight > visuals.idleWeight) {
+        visuals.currentAnimation = 'walk';
+    } else {
+        visuals.currentAnimation = 'idle';
     }
 
     // check if laser is directly hitting this cat
@@ -553,7 +570,7 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
         case CatState.SPINNING: {
             // cycle through spinning emotion sprites quickly
             const cycleSpeed = 5.0; // cycles per second
-            const textureIndex = Math.floor(time / 1000 * cycleSpeed) % spinningTextures.length;
+            const textureIndex = Math.floor((time / 1000) * cycleSpeed) % spinningTextures.length;
             material.map = spinningTextures[textureIndex];
             sprite.visible = true;
             break;
@@ -567,80 +584,63 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
     material.needsUpdate = true;
 };
 
-/* mouse tracking for raycasting */
+/* interaction */
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 let lastRaycastTarget: { nodeRef: number; position: Vec3 } | null = null;
 let isPointerDown = false;
 
-// Store latest raycast data for use in update loop
 let latestIntersects: THREE.Intersection[] = [];
 let latestValidTarget = false;
 
-// Track which agent IDs are currently being hit by the laser
-let laserHitAgentIds = new Set<string>();
+const laserHitAgentIds = new Set<string>();
 
-// Camera rotation based on mouse position
 const mouseScreenPos = new THREE.Vector2(0, 0); // normalized -1 to 1, center is 0,0
 const baseCameraPosition = new THREE.Vector3();
 const baseCameraLookAt = new THREE.Vector3();
 baseCameraPosition.copy(camera.position);
 baseCameraLookAt.set(0, 0, 0);
 
-// Store target quaternion for laser pointer slerp
 const laserPointerTargetQuaternion = new THREE.Quaternion();
-const laserPointerSlerpSpeed = 30.0; // How fast to slerp towards target rotation (faster = more responsive)
+const laserPointerSlerpSpeed = 30.0;
 
-// Reusable temp objects to avoid GC pressure
 const _tempWorldPosition = new THREE.Vector3();
 const _tempDirection = new THREE.Vector3();
 const _tempLocalDirection = new THREE.Vector3();
 const _tempQuaternion = new THREE.Quaternion();
 
-// Create laser pointer visuals (will follow camera like first-person weapon)
-// Made of 3 cylinders: black shaft, gray tip, and pressable button
-// Oriented to point forward (along Z axis)
-
-// Container group for the laser pointer
-// Use the loaded laser pointer GLTF model
 const laserPointer = laserPointerModel.scene.clone();
-
-// Find the tip and button nodes from the GLTF model
-const laserPointerButton = laserPointer.getObjectByName('Button002');
-const tip = laserPointer.getObjectByName('Top001')!;
-
-// Store button's rest position for animation
-const buttonRestPosition = new THREE.Vector3();
-if (laserPointerButton) {
-    buttonRestPosition.copy(laserPointerButton.position);
-}
-const buttonPressOffset = 10; // How much to press down (in local Y)
-let buttonTargetOffset = 0; // Current target offset for lerping
+const laserPointerButton = laserPointer.getObjectByName('Button002')!;
+const laserPointerTip = laserPointer.getObjectByName('Top001')!;
+const laserPointerButtonRestPosition = new THREE.Vector3();
+laserPointerButtonRestPosition.copy(laserPointerButton.position);
+const laserPointerButtonPressOffset = 10; // how much to press down (in local Y)
+let laserPointerButtonTargetOffset = 0; // current target offset for lerping
 
 const updateLaserPointerPosition = () => {
     const aspect = camera.aspect;
-    const fov = camera.fov * (Math.PI / 180); // Convert to radians
-    const distance = 2; // Distance from camera
+    const fov = camera.fov * (Math.PI / 180); // convert to radians
+    const distance = 2; // distance from camera
 
-    // Calculate visible dimensions at this distance
+    // calculate visible dimensions at this distance
     const vFOV = fov;
     const height = 2 * Math.tan(vFOV / 2) * distance;
     const width = height * aspect;
 
-    // Check if mobile screen (using viewport width as indicator)
+    // check if mobile screen (using viewport width as indicator)
     const isMobile = window.innerWidth <= 768;
 
-    // Position in bottom right (with some padding)
-    // On mobile, adjust position to be less obtrusive and scale down
-    const paddingX = isMobile ? 0.5 : 0.8; // Less padding on mobile to keep it visible
-    const paddingY = isMobile ? 0.3 : 0.5; // Less padding on mobile
+    // position in bottom right (with some padding)
+    // on mobile, adjust position to be less obtrusive and scale down
+    const paddingX = isMobile ? 0.5 : 0.8; // less padding on mobile to keep it visible
+    const paddingY = isMobile ? 0.3 : 0.5; // less padding on mobile
     const x = width / 2 - paddingX;
     const y = -(height / 2) + paddingY;
     const z = -distance;
 
     laserPointer.position.set(x, y, z);
 
-    // Scale down on mobile devices
+    // scale down on mobile devices
     const scale = isMobile ? 0.7 : 1.0;
     laserPointer.scale.setScalar(scale);
 };
@@ -656,50 +656,48 @@ window.addEventListener('resize', () => {
 camera.add(laserPointer);
 scene.add(camera);
 
-/* laser */
 const laserBeamGeometry = new LineGeometry();
 laserBeamGeometry.setPositions([0, 0, 0, 0, 0, 1]);
 const laserBeamMaterial = new LineMaterial({
     color: 0xff0000,
-    linewidth: 5,
+    linewidth: 4,
 });
 const laserBeam = new Line2(laserBeamGeometry, laserBeamMaterial);
 laserBeam.computeLineDistances();
 laserBeam.visible = false;
 scene.add(laserBeam);
 
-// Helper function to update mouse position and perform raycasting
 const updateMousePositionAndRaycast = (clientX: number, clientY: number) => {
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
 
-    // Store mouse screen position for camera rotation
+    // store mouse screen position for camera rotation
     mouseScreenPos.set(mouse.x, mouse.y);
 
-    // First raycast from camera to find where the cursor is pointing in world space
+    // first raycast from camera to find where the cursor is pointing in world space
     raycaster.setFromCamera(mouse, camera);
     const cameraIntersects = raycaster.intersectObjects(walkableMeshes, true);
 
-    // Get the tip position in world space
-    tip.getWorldPosition(_tempWorldPosition);
+    // get the tip position in world space
+    laserPointerTip.getWorldPosition(_tempWorldPosition);
 
-    // Calculate target direction from tip to the camera raycast hit point
-    // This will be used to set the target quaternion for smooth rotation
+    // calculate target direction from tip to the camera raycast hit point
+    // this will be used to set the target quaternion for smooth rotation
     if (cameraIntersects.length > 0) {
         _tempDirection.subVectors(cameraIntersects[0].point, _tempWorldPosition).normalize();
     } else {
-        // If no hit, use a far point along the camera ray
+        // if no hit, use a far point along the camera ray
         const farPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(1000));
         _tempDirection.subVectors(farPoint, _tempWorldPosition).normalize();
     }
 
-    // Convert target direction to local space (relative to camera) for laser pointer rotation
+    // convert target direction to local space (relative to camera) for laser pointer rotation
     camera.getWorldQuaternion(_tempQuaternion);
     _tempLocalDirection.copy(_tempDirection).applyQuaternion(_tempQuaternion.invert());
 
-    // Create target quaternion for the laser pointer to smoothly rotate towards
-    // The laser pointer's forward direction is along -Z axis in local space
+    // create target quaternion for the laser pointer to smoothly rotate towards
+    // the laser pointer's forward direction is along -Z axis in local space
     const defaultForward = new THREE.Vector3(0, 0, -1);
     laserPointerTargetQuaternion.setFromUnitVectors(defaultForward, _tempLocalDirection);
 
@@ -707,15 +705,14 @@ const updateMousePositionAndRaycast = (clientX: number, clientY: number) => {
     // so everything stays in sync with the slerped rotation
 };
 
-// interaction
 window.addEventListener('pointerdown', () => {
     isPointerDown = true;
-    buttonTargetOffset = buttonPressOffset;
+    laserPointerButtonTargetOffset = laserPointerButtonPressOffset;
 });
 
 window.addEventListener('pointerup', () => {
     isPointerDown = false;
-    buttonTargetOffset = 0;
+    laserPointerButtonTargetOffset = 0;
     laserBeam.visible = false;
 });
 
@@ -727,7 +724,7 @@ window.addEventListener(
     'touchstart',
     (event) => {
         isPointerDown = true;
-        buttonTargetOffset = buttonPressOffset;
+        laserPointerButtonTargetOffset = laserPointerButtonPressOffset;
 
         if (event.touches.length > 0) {
             const touch = event.touches[0];
@@ -752,13 +749,12 @@ window.addEventListener(
     'touchend',
     () => {
         isPointerDown = false;
-        buttonTargetOffset = 0;
+        laserPointerButtonTargetOffset = 0;
         laserBeam.visible = false;
     },
     { passive: false },
 );
 
-// nav mesh visibility toggle
 const toggleNavMeshButton = document.getElementById('navmesh-toggle')!;
 
 const toggleNavMesh = () => {
@@ -781,8 +777,8 @@ toggleNavMeshButton.addEventListener('click', toggleNavMesh);
 const catsCrowd = crowd.create(1);
 
 catsCrowd.quickSearchIterations = 20;
-catsCrowd.maxIterationsPerAgent = 100;
-catsCrowd.maxIterationsPerUpdate = 300;
+catsCrowd.maxIterationsPerAgent = 1000;
+catsCrowd.maxIterationsPerUpdate = 30000;
 
 const agentParams: crowd.AgentParams = {
     radius: 0.3,
@@ -792,7 +788,11 @@ const agentParams: crowd.AgentParams = {
     collisionQueryRange: 2,
     separationWeight: 0.5,
     updateFlags:
-        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS |
+        crowd.CrowdUpdateFlags.SEPARATION |
+        crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE |
+        crowd.CrowdUpdateFlags.OPTIMIZE_TOPO |
+        crowd.CrowdUpdateFlags.OPTIMIZE_VIS,
     queryFilter: DEFAULT_QUERY_FILTER,
     obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
     // we will do a custom animation for off-mesh connections
@@ -800,7 +800,7 @@ const agentParams: crowd.AgentParams = {
 };
 
 // create agents at different positions
-const agentPositions: Vec3[] = Array.from({ length: 6 }, () => {
+const agentPositions: Vec3[] = Array.from({ length: 5 }, () => {
     return findRandomPoint(navMesh, DEFAULT_QUERY_FILTER, random).position;
 });
 
@@ -815,26 +815,22 @@ const agentCatState: Record<string, CatStateData> = {};
 // track next update time for each agent (for staggered updates)
 const agentNextUpdateTime: Record<string, number> = {};
 
-for (let i = 0; i < agentPositions.length; i++) {
-    const position = agentPositions[i];
-
-    // add agent to crowd - clone agentParams so each agent has independent params
-    const agentId = crowd.addAgent(catsCrowd, position, { ...agentParams });
-
-    // create visuals for the agent
+// helper function to spawn a new cat at a position
+const spawnCat = (position: Vec3): string => {
+    const agentId = crowd.addAgent(catsCrowd, navMesh, position, { ...agentParams });
     agentVisuals[agentId] = createAgentVisuals(position, scene, agentParams.radius);
-
-    // initialize with random wander time
-    agentNextWanderTime[agentId] = performance.now() + 1500 + Math.random() * 1500; // 1.5-3 seconds
-
-    // initialize cat state as wandering
+    agentNextWanderTime[agentId] = performance.now() + 1500 + Math.random() * 1500;
     agentCatState[agentId] = {
         state: CatState.WANDERING,
         stateStartTime: performance.now(),
     };
+    agentNextUpdateTime[agentId] = performance.now() + Math.random() * 500;
+    return agentId;
+};
 
-    // stagger update times so agents don't all update at once
-    agentNextUpdateTime[agentId] = performance.now() + Math.random() * 500; // random offset 0-0.5s
+// spawn initial cats
+for (let i = 0; i < agentPositions.length; i++) {
+    spawnCat(agentPositions[i]);
 }
 
 /* loop */
@@ -847,16 +843,17 @@ function update() {
     const time = performance.now();
     const deltaTime = (time - prevTime) / 1000;
     const clampedDeltaTime = Math.min(deltaTime, 0.1);
+
     prevTime = time;
 
-    // Update cat state machine and behavior - staggered per agent
+    // update cat state machine and behavior - staggered per agent
     for (const agentId in catsCrowd.agents) {
-        // Check if it's time for this agent to update
+        // check if it's time for this agent to update
         if (time < agentNextUpdateTime[agentId]) {
             continue;
         }
 
-        // Schedule next update for this agent (random 0.3-0.6s)
+        // schedule next update for this agent (random 0.3-0.6s)
         agentNextUpdateTime[agentId] = time + 300 + Math.random() * 300;
 
         const agent = catsCrowd.agents[agentId];
@@ -864,25 +861,25 @@ function update() {
         const elapsed = time - catState.stateStartTime;
         const visuals = agentVisuals[agentId];
 
-        // Check if cat should be spinning (takes priority over other states)
+        // check if cat should be spinning (takes priority over other states)
         const currentTime = performance.now() / 1000;
         const isSpinning = currentTime < visuals.spinEndTime;
 
         if (isSpinning && catState.state !== CatState.SPINNING) {
-            // Transition to SPINNING
+            // transition to SPINNING
             catState.state = CatState.SPINNING;
             catState.stateStartTime = time;
         } else if (!isSpinning && catState.state === CatState.SPINNING) {
-            // Spinning ended - go back to WANDERING
+            // spinning ended - go back to WANDERING
             catState.state = CatState.WANDERING;
             catState.stateStartTime = time;
         }
 
-        // State machine transitions
+        // state machine transitions
         switch (catState.state) {
             case CatState.WANDERING:
                 if (isPointerDown && lastRaycastTarget) {
-                    // Transition to ALERTED whenever laser is on
+                    // transition to ALERTED whenever laser is on
                     catState.state = CatState.ALERTED;
                     catState.stateStartTime = time;
                 }
@@ -890,21 +887,21 @@ function update() {
 
             case CatState.ALERTED:
                 if (!isPointerDown || !lastRaycastTarget) {
-                    // Laser turned off -> go to SEARCHING
+                    // laser turned off -> go to SEARCHING
                     catState.state = CatState.SEARCHING;
                     catState.stateStartTime = time;
                 } else if (elapsed >= 1000) {
                     // 1 second passed -> go to CHASING
                     catState.state = CatState.CHASING;
                     catState.stateStartTime = time;
-                    // Randomly select a chasing emoji
+                    // randomly select a chasing emoji
                     catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
                 }
                 break;
 
             case CatState.CHASING:
                 if (!isPointerDown || !lastRaycastTarget) {
-                    // Laser turned off -> go to SEARCHING
+                    // laser turned off -> go to SEARCHING
                     catState.state = CatState.SEARCHING;
                     catState.stateStartTime = time;
                 }
@@ -912,10 +909,10 @@ function update() {
 
             case CatState.SEARCHING:
                 if (isPointerDown && lastRaycastTarget) {
-                    // Laser back on -> go straight to CHASING
+                    // laser back on -> go straight to CHASING
                     catState.state = CatState.CHASING;
                     catState.stateStartTime = time;
-                    // Randomly select a chasing emoji
+                    // randomly select a chasing emoji
                     catState.chasingTextureIndex = Math.floor(Math.random() * chasingTextures.length);
                 } else if (elapsed >= 1000) {
                     // 1 second passed -> go back to WANDERING
@@ -925,7 +922,7 @@ function update() {
                 break;
         }
 
-        // Update agent speed/acceleration based on state
+        // update agent speed/acceleration based on state
         switch (catState.state) {
             case CatState.WANDERING:
                 agent.maxSpeed = CAT_SPEEDS.WANDERING;
@@ -946,7 +943,7 @@ function update() {
                 if (lastRaycastTarget) {
                     crowd.requestMoveTarget(catsCrowd, agentId, lastRaycastTarget.nodeRef, lastRaycastTarget.position);
                 }
-                // Pick a new random chasing emoji every 2 seconds (after the initial ! at 1s)
+                // pick a new random chasing emoji every 2 seconds (after the initial ! at 1s)
                 if (
                     elapsed >= 1000 &&
                     Math.floor((elapsed - 1000) / 2000) !== Math.floor((elapsed - 1000 - targetUpdateInterval) / 2000)
@@ -958,14 +955,14 @@ function update() {
             case CatState.SEARCHING:
                 agent.maxSpeed = CAT_SPEEDS.SEARCHING;
                 agent.maxAcceleration = CAT_ACCELERATION.SEARCHING;
-                // Stay still - don't update target
+                // stay still - don't update target
                 break;
 
             case CatState.SPINNING:
-                // Keep moving with current velocity while spinning
+                // keep moving with current velocity while spinning
                 agent.maxSpeed = CAT_SPEEDS.CHASING;
                 agent.maxAcceleration = CAT_ACCELERATION.CHASING;
-                // Use requestMoveVelocity to continue moving in current direction
+                // use requestMoveVelocity to continue moving in current direction
                 crowd.requestMoveVelocity(catsCrowd, agentId, agent.velocity);
                 break;
         }
@@ -1013,14 +1010,14 @@ function update() {
     const cameraRotationAmount = 0.15; // how much the camera rotates (in radians)
     const cameraLerpSpeed = 2.0; // how fast to lerp to target rotation
 
-    // Calculate target look position based on mouse
+    // calculate target look position based on mouse
     const targetLookAt = new THREE.Vector3(
         baseCameraLookAt.x + mouseScreenPos.x * cameraRotationAmount * 10,
         baseCameraLookAt.y + mouseScreenPos.y * cameraRotationAmount * 5,
         baseCameraLookAt.z,
     );
 
-    // Get current look direction and lerp towards target
+    // get current look direction and lerp towards target
     const currentLookAt = new THREE.Vector3();
     camera.getWorldDirection(currentLookAt);
     currentLookAt.multiplyScalar(10).add(camera.position); // extend direction to point
@@ -1031,9 +1028,9 @@ function update() {
     // slerp laser pointer rotation for smooth aiming
     laserPointer.quaternion.slerp(laserPointerTargetQuaternion, laserPointerSlerpSpeed * clampedDeltaTime);
 
-    // Perform raycast using the laser pointer's current (slerped) rotation
-    // This keeps the raycast, line, and visual rotation perfectly in sync
-    tip.getWorldPosition(_tempWorldPosition);
+    // perform raycast using the laser pointer's current (slerped) rotation
+    // this keeps the raycast, line, and visual rotation perfectly in sync
+    laserPointerTip.getWorldPosition(_tempWorldPosition);
     laserPointer.getWorldQuaternion(_tempQuaternion);
     const laserForward = new THREE.Vector3(0, 0, -1); // laser's local forward
     laserForward.applyQuaternion(_tempQuaternion);
@@ -1041,7 +1038,10 @@ function update() {
     raycaster.set(_tempWorldPosition, laserForward);
     latestIntersects = raycaster.intersectObjects(walkableMeshes, true);
 
-    // Raycast against cat meshes to see if laser is hitting any cats
+    // get the distance to the first walkable mesh hit (if any)
+    const firstWalkableMeshDistance = latestIntersects.length > 0 ? latestIntersects[0].distance : Infinity;
+
+    // raycast against cat meshes to see if laser is hitting any cats
     laserHitAgentIds.clear();
     if (isPointerDown) {
         const catMeshes: THREE.Object3D[] = [];
@@ -1050,10 +1050,14 @@ function update() {
         }
         const catIntersects = raycaster.intersectObjects(catMeshes, true);
 
-        // Find which cat was hit (if any) by matching the intersection object to a cat group
+        // find which cat was hit, but only if it's closer than the first walkable mesh
         for (const intersection of catIntersects) {
+            // skip if this cat is behind the level geometry
+            if (intersection.distance >= firstWalkableMeshDistance) {
+                continue;
+            }
+
             let hitObject = intersection.object;
-            // Traverse up to find the cat group
             while (hitObject.parent) {
                 for (const [agentId, visuals] of Object.entries(agentVisuals)) {
                     if (hitObject === visuals.catGroup) {
@@ -1093,13 +1097,13 @@ function update() {
     // lerp button position for smooth animation
     if (laserPointerButton) {
         const buttonLerpSpeed = 20.0; // Fast lerp
-        const targetY = buttonRestPosition.y - buttonTargetOffset;
+        const targetY = laserPointerButtonRestPosition.y - laserPointerButtonTargetOffset;
         laserPointerButton.position.y += (targetY - laserPointerButton.position.y) * buttonLerpSpeed * clampedDeltaTime;
     }
 
     // update laser beam visibility and visuals based on pointer state
     if (isPointerDown) {
-        tip.getWorldPosition(_tempWorldPosition);
+        laserPointerTip.getWorldPosition(_tempWorldPosition);
 
         if (latestValidTarget && latestIntersects.length > 0) {
             // use the actual raycast hit point
@@ -1185,7 +1189,37 @@ function update() {
         }
     }
 
-    // Animate tape meshes with slight rotation
+    // spawning cats from spinning cats
+    const SPIN_SPAWN_DURATION = 3_000;
+    for (const agentId of agentIds) {
+        const visuals = agentVisuals[agentId];
+        const agent = catsCrowd.agents[agentId];
+        const catState = agentCatState[agentId];
+        if (!visuals || !agent || !catState) continue;
+
+        const isSpinning = catState.state === CatState.SPINNING;
+
+        if (isSpinning) {
+            // start tracking spin time if not already
+            if (visuals.spinStartTimeForSpawn === null) {
+                visuals.spinStartTimeForSpawn = time;
+            } else {
+                // check if spin duration exceeded
+                const spinDuration = time - visuals.spinStartTimeForSpawn;
+                if (spinDuration >= SPIN_SPAWN_DURATION) {
+                    // spawn new cat at this cat's position
+                    spawnCat([...agent.position] as Vec3);
+                    // reset timer to allow spawning again after another 3 seconds
+                    visuals.spinStartTimeForSpawn = time;
+                }
+            }
+        } else {
+            // not spinning - reset timer
+            visuals.spinStartTimeForSpawn = null;
+        }
+    }
+
+    // animate tape meshes with slight rotation
     const rotationSpeed = 0.5; // radians per second
     for (let i = 0; i < tapeMeshes.length; i++) {
         tapeMeshes[i].rotation.y += rotationSpeed * clampedDeltaTime;

@@ -46,8 +46,8 @@ navMeshFolder
     .name('Generate NavMesh');
 
 const playerFolder = gui.addFolder('Player Speed');
-playerFolder.add(guiSettings, 'walkingSpeed', 0.1, 2, 0.1).name('Walking Speed');
-playerFolder.add(guiSettings, 'runningSpeed', 0.5, 3, 0.1).name('Running Speed');
+playerFolder.add(guiSettings, 'walkingSpeed', 0.1, 50, 0.1).name('Walking Speed');
+playerFolder.add(guiSettings, 'runningSpeed', 0.1, 50, 0.1).name('Running Speed');
 
 const cameraFolder = gui.addFolder('Camera');
 cameraFolder.add(guiSettings, 'offsetBehind', 5, 30, 1).name('Offset Behind');

@@ -14,6 +14,9 @@ export enum NodeType {
  */
 export type NodeRef = number;
 
+/** Invalid node reference constant */
+export const INVALID_NODE_REF = -1;
+
 const TYPE_BITS = 1;
 const NODE_INDEX_BITS = 31;
 const SEQUENCE_BITS = 20;

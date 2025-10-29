@@ -36,7 +36,12 @@ import {
     removeTile,
     WALKABLE_AREA,
 } from 'navcat';
-import { createNavMeshOffMeshConnectionsHelper, createNavMeshTileHelper, type DebugObject, getPositionsAndIndices } from 'navcat/three';
+import {
+    createNavMeshOffMeshConnectionsHelper,
+    createNavMeshTileHelper,
+    type DebugObject,
+    getPositionsAndIndices,
+} from 'navcat/three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
@@ -906,7 +911,12 @@ const agentParams: crowd.AgentParams = {
     maxSpeed: 3.5,
     collisionQueryRange: 2,
     separationWeight: 0.5,
-    updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+    updateFlags:
+        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS |
+        crowd.CrowdUpdateFlags.SEPARATION |
+        crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE |
+        crowd.CrowdUpdateFlags.OPTIMIZE_TOPO |
+        crowd.CrowdUpdateFlags.OPTIMIZE_VIS,
     queryFilter: DEFAULT_QUERY_FILTER,
     autoTraverseOffMeshConnections: true,
     obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
@@ -924,7 +934,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     const color = agentColors[i % agentColors.length];
 
     // add agent to crowd
-    const agentId = crowd.addAgent(catsCrowd, position, agentParams);
+    const agentId = crowd.addAgent(catsCrowd, navMesh, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent

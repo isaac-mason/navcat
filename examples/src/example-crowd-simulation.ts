@@ -36,17 +36,55 @@ const guiSettings = {
     showObstacleAvoidanceDebug: false,
     debugAgentIndex: 0,
     periodicScatter: true,
+    // crowd update flags (initially all on)
+    anticipateTurns: true,
+    obstacleAvoidance: true,
+    separation: true,
+    optimizeVis: true,
+    optimizeTopo: true,
 };
 
 const gui = new GUI();
-gui.add(guiSettings, 'showVelocityVectors').name('Show Velocity Vectors');
-gui.add(guiSettings, 'showPolyHelpers').name('Show Poly Helpers');
-gui.add(guiSettings, 'showLocalBoundary').name('Show Local Boundary');
-gui.add(guiSettings, 'showObstacleSegments').name('Show Obstacle Segments');
-gui.add(guiSettings, 'showPathLine').name('Show Path Line');
-gui.add(guiSettings, 'showObstacleAvoidanceDebug').name('Show Obstacle Avoidance Debug');
-gui.add(guiSettings, 'debugAgentIndex', 0, 9, 1).name('Debug Agent Index');
-gui.add(guiSettings, 'periodicScatter').name('Periodic Scatter');
+
+// visualization folder
+const visualizationFolder = gui.addFolder('Visualization');
+visualizationFolder.add(guiSettings, 'showVelocityVectors').name('Show Velocity Vectors');
+visualizationFolder.add(guiSettings, 'showPolyHelpers').name('Show Poly Helpers');
+visualizationFolder.add(guiSettings, 'showLocalBoundary').name('Show Local Boundary');
+visualizationFolder.add(guiSettings, 'showObstacleSegments').name('Show Obstacle Segments');
+visualizationFolder.add(guiSettings, 'showPathLine').name('Show Path Line');
+visualizationFolder.add(guiSettings, 'showObstacleAvoidanceDebug').name('Show Obstacle Avoidance Debug');
+visualizationFolder.add(guiSettings, 'debugAgentIndex', 0, 9, 1).name('Debug Agent Index');
+visualizationFolder.open();
+
+// behavior folder
+const behaviorFolder = gui.addFolder('Behavior');
+behaviorFolder.add(guiSettings, 'periodicScatter').name('Periodic Scatter');
+behaviorFolder.open();
+
+// crowd update flags folder
+const crowdFlagsFolder = gui.addFolder('Crowd Update Flags');
+
+const updateAllAgentFlags = () => {
+    let flags = 0;
+    if (guiSettings.anticipateTurns) flags |= crowd.CrowdUpdateFlags.ANTICIPATE_TURNS;
+    if (guiSettings.obstacleAvoidance) flags |= crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE;
+    if (guiSettings.separation) flags |= crowd.CrowdUpdateFlags.SEPARATION;
+    if (guiSettings.optimizeVis) flags |= crowd.CrowdUpdateFlags.OPTIMIZE_VIS;
+    if (guiSettings.optimizeTopo) flags |= crowd.CrowdUpdateFlags.OPTIMIZE_TOPO;
+    
+    // update all agents
+    for (const agentId in agents.agents) {
+        agents.agents[agentId].updateFlags = flags;
+    }
+};
+
+crowdFlagsFolder.add(guiSettings, 'anticipateTurns').name('Anticipate Turns').onChange(updateAllAgentFlags);
+crowdFlagsFolder.add(guiSettings, 'obstacleAvoidance').name('Obstacle Avoidance').onChange(updateAllAgentFlags);
+crowdFlagsFolder.add(guiSettings, 'separation').name('Separation').onChange(updateAllAgentFlags);
+crowdFlagsFolder.add(guiSettings, 'optimizeVis').name('Optimize Visibility').onChange(updateAllAgentFlags);
+crowdFlagsFolder.add(guiSettings, 'optimizeTopo').name('Optimize Topology').onChange(updateAllAgentFlags);
+crowdFlagsFolder.open();
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -706,7 +744,11 @@ const agentParams: crowd.AgentParams = {
     collisionQueryRange: 2,
     separationWeight: 0.5,
     updateFlags:
-        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+        crowd.CrowdUpdateFlags.ANTICIPATE_TURNS |
+        crowd.CrowdUpdateFlags.SEPARATION |
+        crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE |
+        crowd.CrowdUpdateFlags.OPTIMIZE_TOPO |
+        crowd.CrowdUpdateFlags.OPTIMIZE_VIS,
     queryFilter: DEFAULT_QUERY_FILTER,
     obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
     // we will do a custom animation for off-mesh connections
@@ -727,7 +769,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     const color = agentColors[i % agentColors.length];
 
     // add agent to crowd
-    const agentId = crowd.addAgent(agents, position, agentParams);
+    const agentId = crowd.addAgent(agents, navMesh, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent

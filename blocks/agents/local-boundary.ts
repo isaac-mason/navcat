@@ -112,7 +112,7 @@ export const updateLocalBoundary = (
     navMesh: NavMesh,
     filter: QueryFilter,
 ): void => {
-    if (!nodeRef) {
+    if (!isValidNodeRef(navMesh, nodeRef)) {
         resetLocalBoundary(boundary);
         return;
     }

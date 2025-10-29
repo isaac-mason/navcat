@@ -15,7 +15,7 @@ import {
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
 } from './nav-mesh';
-import { getNodeRefIndex, getNodeRefSequence, getNodeRefType, MAX_SEQUENCE, type NodeRef, NodeType, serNodeRef } from './node';
+import { getNodeRefIndex, getNodeRefSequence, getNodeRefType, INVALID_NODE_REF, MAX_SEQUENCE, type NodeRef, NodeType, serNodeRef } from './node';
 
 /**
  * Creates a new empty navigation mesh.
@@ -76,6 +76,10 @@ export const getNodeByTileAndPoly = (navMesh: NavMesh, tile: NavMeshTile, polyIn
  * @returns true if the node reference is valid, false otherwise
  */
 export const isValidNodeRef = (navMesh: NavMesh, nodeRef: NodeRef): boolean => {
+    if (nodeRef === INVALID_NODE_REF) {
+        return false;
+    }
+
     const nodeType = getNodeRefType(nodeRef);
 
     if (nodeType === NodeType.POLY) {

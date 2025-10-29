@@ -758,7 +758,12 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     };
 };
 
-const updateAgentVisuals = (agent: crowd.Agent, visuals: AgentVisuals, scene: THREE.Scene, options: AgentVisualsOptions = {}): void => {
+const updateAgentVisuals = (
+    agent: crowd.Agent,
+    visuals: AgentVisuals,
+    scene: THREE.Scene,
+    options: AgentVisualsOptions = {},
+): void => {
     // Update agent mesh position (capsule debug)
     // CapsuleGeometry is centered, so offset up by (height/2 + radius)
     visuals.mesh.position.fromArray(agent.position);
@@ -912,13 +917,18 @@ for (let i = 0; i < agentPositions.length; i++) {
         maxSpeed: 3.5,
         collisionQueryRange: 2,
         separationWeight: 0.5,
-        updateFlags: crowd.CrowdUpdateFlags.ANTICIPATE_TURNS | crowd.CrowdUpdateFlags.SEPARATION | crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE,
+        updateFlags:
+            crowd.CrowdUpdateFlags.ANTICIPATE_TURNS |
+            crowd.CrowdUpdateFlags.SEPARATION |
+            crowd.CrowdUpdateFlags.OBSTACLE_AVOIDANCE |
+            crowd.CrowdUpdateFlags.OPTIMIZE_TOPO |
+            crowd.CrowdUpdateFlags.OPTIMIZE_VIS,
         queryFilter,
         autoTraverseOffMeshConnections: true,
         obstacleAvoidance: crowd.DEFAULT_OBSTACLE_AVOIDANCE_PARAMS,
     };
 
-    const agentId = crowd.addAgent(mixedCrowd, position, agentParams);
+    const agentId = crowd.addAgent(mixedCrowd, navMesh, position, agentParams);
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent

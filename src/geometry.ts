@@ -34,6 +34,7 @@ export const pointInPoly = (point: Vec3, vertices: number[], nVertices: number):
     let inside = false;
     const x = point[0];
     const z = point[2];
+
     for (let l = nVertices, i = 0, j = l - 1; i < l; j = i++) {
         const xj = vertices[j * 3],
             zj = vertices[j * 3 + 2],
@@ -79,6 +80,7 @@ export const pointInPoly = (point: Vec3, vertices: number[], nVertices: number):
             return true;
         }
     }
+
     return inside;
 };
 

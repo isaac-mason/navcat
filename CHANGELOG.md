@@ -6,7 +6,12 @@
 - feat: flatten crowdAgent.params properties onto crowdAgent
 - feat: add option for whether to collect obstacle avoidance debug info, saving on computation and memory allocation
 - feat: obstacle avoidance code optimisations, avoid allocating objects in hot paths 
-- feat: in crowd update don't call updateSlicedFindNodePath if quickSearchIterations is zero
+- feat: add topology optimization and visibility optimization update flags to crowd, following DetourCrowd algorithm
+- feat: use `finalizeSlicedFindNodePathPartial` after crowd quick search so agents start moving faster, following DetourCrowd implementation
+  - agents move faster at the expense of a small chance they start moving in a suboptimal direction initially
+- feat: introduce `INVALID_NODE_REF` (-1) constant
+- fix: use `INVALID_NODE_REF` (-1) instead of `0` for invalid node refs in crowd, path corridor, local boundary logic
+- feat: add `navMesh` argument to crowd.addAgent, initialize the agent's corridor on adding to the crowd
 
 ## 0.0.9
 

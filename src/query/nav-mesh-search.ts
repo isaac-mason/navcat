@@ -1149,7 +1149,7 @@ export const moveAlongSurface = (
         visited: [],
     };
 
-    if (!isValidNodeRef(navMesh, startNodeRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition) || !filter) {
+    if (!isValidNodeRef(navMesh, startNodeRef) || !vec3.finite(startPosition) || !vec3.finite(endPosition)) {
         return result;
     }
 

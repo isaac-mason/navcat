@@ -1,15 +1,22 @@
 import type { Vec3 } from 'mathcat';
 import { vec3 } from 'mathcat';
 import {
+    createSlicedNodePathQuery,
+    finalizeSlicedFindNodePathPartial,
     findStraightPath,
     getNodeByRef,
+    initSlicedFindNodePath,
+    INVALID_NODE_REF,
     isValidNodeRef,
     moveAlongSurface,
     type NavMesh,
     type NodeRef,
     NodeType,
     type QueryFilter,
+    raycast,
+    SlicedFindNodePathStatusFlags,
     type StraightPathPoint,
+    updateSlicedFindNodePath,
 } from 'navcat';
 
 export type PathCorridor = {
@@ -80,6 +87,55 @@ export const mergeStartMoved = (currentPath: NodeRef[], visited: NodeRef[]): Nod
     return newPath;
 };
 
+export const mergeStartShortcut = (currentPath: NodeRef[], visited: NodeRef[]): NodeRef[] => {
+    if (visited.length === 0) return currentPath;
+
+    let furthestPath = -1;
+    let furthestVisited = -1;
+
+    // find furthest common polygon
+    for (let i = currentPath.length - 1; i >= 0; i--) {
+        for (let j = visited.length - 1; j >= 0; j--) {
+            if (currentPath[i] === visited[j]) {
+                furthestPath = i;
+                furthestVisited = j;
+                break;
+            }
+        }
+        if (furthestPath !== -1) break;
+    }
+
+    // if no intersection found, just return current path
+    if (furthestPath === -1 || furthestVisited === -1) {
+        return currentPath;
+    }
+
+    // concatenate paths
+    const req = furthestVisited;
+    if (req <= 0) {
+        return currentPath;
+    }
+
+    const orig = furthestPath;
+    const size = Math.max(0, currentPath.length - orig);
+
+    const newPath: NodeRef[] = [];
+
+    // store visited polygons (not reversed like mergeStartMoved)
+    for (let i = 0; i < req; i++) {
+        newPath[i] = visited[i];
+    }
+
+    // add remaining current path
+    if (size > 0) {
+        for (let i = 0; i < size; i++) {
+            newPath[req + i] = currentPath[orig + i];
+        }
+    }
+
+    return newPath;
+};
+
 export const movePosition = (corridor: PathCorridor, newPos: Vec3, navMesh: NavMesh, filter: QueryFilter): boolean => {
     if (corridor.path.length === 0) return false;
 
@@ -87,7 +143,9 @@ export const movePosition = (corridor: PathCorridor, newPos: Vec3, navMesh: NavM
 
     if (result.success) {
         corridor.path = mergeStartMoved(corridor.path, result.visited);
+
         vec3.copy(corridor.position, result.position);
+
         return true;
     }
 
@@ -143,9 +201,9 @@ export const findCorners = (
 };
 
 export const corridorIsValid = (corridor: PathCorridor, maxLookAhead: number, navMesh: NavMesh, filter: QueryFilter) => {
-    // check all nodes are still valid and pass query filter
     const n = Math.min(corridor.path.length, maxLookAhead);
-
+    
+    // check nodes are still valid and pass query filter
     for (let i = 0; i < n; i++) {
         const nodeRef = corridor.path[i];
         if (!isValidNodeRef(navMesh, nodeRef) || !filter.passFilter(nodeRef, navMesh)) {
@@ -163,11 +221,11 @@ export const fixPathStart = (corridor: PathCorridor, safeRef: NodeRef, safePos: 
         const lastPoly = corridor.path[corridor.path.length - 1];
         corridor.path[2] = lastPoly;
         corridor.path[0] = safeRef;
-        corridor.path[1] = 0;
+        corridor.path[1] = INVALID_NODE_REF;
         corridor.path.length = 3;
     } else {
         corridor.path[0] = safeRef;
-        corridor.path[1] = 0;
+        corridor.path[1] = INVALID_NODE_REF;
     }
 
     return true;
@@ -213,14 +271,124 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshNodeRef
     const endPosition = onStart ? offMeshConnection.end : offMeshConnection.start;
     const endNodeRef = onStart ? offMeshConnectionAttachment.endPolyNode : offMeshConnectionAttachment.startPolyNode;
 
-    // update corridor position to the end position
     vec3.copy(corridor.position, endPosition);
 
-    return { 
+    return {
         startPosition: onStart ? offMeshConnection.start : offMeshConnection.end,
-        endPosition, 
-        endNodeRef, 
-        prevNodeRef, 
-        offMeshNodeRef, 
+        endPosition,
+        endNodeRef,
+        prevNodeRef,
+        offMeshNodeRef,
     };
+};
+
+/**
+ * Attempts to optimize the path using a local area search (partial replanning).
+ * 
+ * Inaccurate locomotion or dynamic obstacle avoidance can force the agent position significantly 
+ * outside the original corridor. Over time this can result in the formation of a non-optimal corridor.
+ * This function will use a local area path search to try to re-optimize the corridor.
+ * 
+ * The more inaccurate the agent movement, the more beneficial this function becomes. 
+ * Simply adjust the frequency of the call to match the needs of the agent.
+ * 
+ * @param corridor the path corridor
+ * @param navMesh the navigation mesh
+ * @param filter the query filter
+ * @returns true if the path was optimized, false otherwise
+ */
+export const optimizePathTopology = (corridor: PathCorridor, navMesh: NavMesh, filter: QueryFilter): boolean => {
+    if (corridor.path.length < 3) {
+        return false;
+    }
+
+    const MAX_ITER = 32;
+    
+    const query = createSlicedNodePathQuery();
+    
+    // do a local area search from start to end
+    initSlicedFindNodePath(
+        navMesh,
+        query,
+        corridor.path[0],
+        corridor.path[corridor.path.length - 1],
+        corridor.position,
+        corridor.target,
+        filter,
+    );
+    
+    updateSlicedFindNodePath(navMesh, query, MAX_ITER);
+    
+    const result = finalizeSlicedFindNodePathPartial(navMesh, query, corridor.path);
+    
+    if ((query.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0 && result.path.length > 0) {
+        // merge the optimized path with the corridor using shortcut merge
+        corridor.path = mergeStartShortcut(corridor.path, result.path);
+        return true;
+    }
+
+    return false;
+};
+
+const _optimizePathVisibility_goal = vec3.create();
+const _optimizePathVisibility_delta = vec3.create();
+
+/**
+ * Attempts to optimize the path if the specified point is visible from the current position.
+ * 
+ * Inaccurate locomotion or dynamic obstacle avoidance can force the agent position significantly 
+ * outside the original corridor. Over time this can result in the formation of a non-optimal corridor.
+ * Non-optimal paths can also form near the corners of tiles.
+ * 
+ * This function uses an efficient local visibility search to try to optimize the corridor 
+ * between the current position and the target.
+ * 
+ * The corridor will change only if the target is visible from the current position and moving 
+ * directly toward the point is better than following the existing path.
+ * 
+ * The more inaccurate the agent movement, the more beneficial this function becomes. 
+ * Simply adjust the frequency of the call to match the needs of the agent.
+ * 
+ * This function is not suitable for long distance searches.
+ * 
+ * @param corridor the path corridor
+ * @param next the point to search toward
+ * @param pathOptimizationRange the maximum range to search
+ * @param navMesh the navigation mesh
+ * @param filter the query filter
+ */
+export const optimizePathVisibility = (
+    corridor: PathCorridor, 
+    next: Vec3, 
+    pathOptimizationRange: number, 
+    navMesh: NavMesh, 
+    filter: QueryFilter
+): void => {
+    if (corridor.path.length === 0) {
+        return;
+    }
+
+    // Clamp the ray to max distance.
+    const goal = vec3.copy(_optimizePathVisibility_goal, next);
+    const dx = goal[0] - corridor.position[0];
+    const dz = goal[2] - corridor.position[2];
+    let dist = Math.sqrt(dx * dx + dz * dz);
+
+    // If too close to the goal, do not try to optimize.
+    if (dist < 0.01) {
+        return;
+    }
+
+    // Overshoot a little. This helps to optimize open fields in tiled meshes.
+    dist = Math.min(dist + 0.01, pathOptimizationRange);
+
+    // Adjust ray length.
+    const delta = vec3.subtract(_optimizePathVisibility_delta, goal, corridor.position);
+    vec3.scaleAndAdd(goal, corridor.position, delta, pathOptimizationRange / dist);
+
+    const result = raycast(navMesh, corridor.path[0], corridor.position, goal, filter);
+    
+    if (result.path.length > 1 && result.t > 0.99) {
+        corridor.path = mergeStartShortcut(corridor.path, result.path);
+    }
 };

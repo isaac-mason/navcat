@@ -3,6 +3,7 @@ import {
     getNodeRefIndex,
     getNodeRefSequence,
     getNodeRefType,
+    INVALID_NODE_REF,
     MAX_NODE_INDEX,
     MAX_SEQUENCE,
     NodeType,
@@ -95,5 +96,38 @@ describe('node ref', () => {
         expect(getNodeRefType(nodeRef)).toBe(type);
         expect(getNodeRefIndex(nodeRef)).toBe(nodeIndex);
         expect(getNodeRefSequence(nodeRef)).toBe(sequence);
+    });
+
+    test('INVALID_NODE_REF equals -1', () => {
+        expect(INVALID_NODE_REF).toBe(-1);
+    });
+
+    test('INVALID_NODE_REF is distinct from valid node refs', () => {
+        // Ensure -1 doesn't collide with any valid serialized node ref
+        const validNodeRefs = [
+            serNodeRef(NodeType.POLY, 0, 0),
+            serNodeRef(NodeType.POLY, 1, 1),
+            serNodeRef(NodeType.POLY, MAX_NODE_INDEX, MAX_SEQUENCE),
+            serNodeRef(NodeType.OFFMESH, 0, 0),
+            serNodeRef(NodeType.OFFMESH, MAX_NODE_INDEX, MAX_SEQUENCE),
+        ];
+
+        for (const validNodeRef of validNodeRefs) {
+            expect(validNodeRef).not.toBe(INVALID_NODE_REF);
+        }
+    });
+
+    test('deserializing INVALID_NODE_REF does not throw', () => {
+        expect(() => getNodeRefType(INVALID_NODE_REF)).not.toThrow();
+        expect(() => getNodeRefIndex(INVALID_NODE_REF)).not.toThrow();
+        expect(() => getNodeRefSequence(INVALID_NODE_REF)).not.toThrow();
+
+        const type = getNodeRefType(INVALID_NODE_REF);
+        const index = getNodeRefIndex(INVALID_NODE_REF);
+        const sequence = getNodeRefSequence(INVALID_NODE_REF);
+
+        expect(type).toBe(1);
+        expect(index).toBe(2147483647);
+        expect(sequence).toBe(1048575);
     });
 });

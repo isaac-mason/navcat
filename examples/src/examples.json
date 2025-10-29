@@ -108,5 +108,10 @@
         "title": "Custom NavMesh Generation",
         "description": "Example of generating a navmesh with a custom approach",
         "tags": ["navmesh", "custom"]
+    },
+    "example-move-along-surface": {
+        "title": "Move Along Surface",
+        "description": "Example of moving along the surface of a navmesh",
+        "tags": ["movement"]
     }
 }
