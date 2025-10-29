@@ -183,6 +183,12 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Custom NavMesh Generation
       </a>
     </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-move-along-surface">
+        <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Move Along Surface
+      </a>
+    </td>
   </tr>
 </table>
 
@@ -1722,9 +1728,9 @@ console.log(randomPoint.nodeRef); // the poly node ref that the random point is 
 /**
  * Finds a random point on the navigation mesh.
  *
- * @param navMesh - The navigation mesh
- * @param filter - Query filter to apply to polygons
- * @param rand - Function that returns random values [0,1]
+ * @param navMesh The navigation mesh
+ * @param filter Query filter to apply to polygons
+ * @param rand Function that returns random values between [0,1]
  * @returns The result object with success flag, random point, and polygon reference
  */
 export function findRandomPoint(navMesh: NavMesh, filter: QueryFilter, rand: () => number): FindRandomPointResult;
@@ -1780,12 +1786,12 @@ if (centerNode.success) {
  * then selects a random polygon weighted by area, and finally generates
  * a random point within that polygon.
  *
- * @param navMesh - The navigation mesh
- * @param startNodeRef - Reference to the polygon to start the search from
- * @param position - Center position of the search circle
- * @param maxRadius - Maximum radius of the search circle
- * @param filter - Query filter to apply to polygons
- * @param rand - Function that returns random values [0,1]
+ * @param navMesh The navigation mesh
+ * @param startNodeRef Reference to the polygon to start the search from
+ * @param position Center position of the search circle
+ * @param maxRadius Maximum radius of the search circle
+ * @param filter Query filter to apply to polygons
+ * @param rand Function that returns random values [0,1]
  * @returns The result object with success flag, random point, and polygon reference
  */
 export function findRandomPointAroundCircle(navMesh: NavMesh, startNodeRef: NodeRef, position: Vec3, maxRadius: number, filter: QueryFilter, rand: () => number): FindRandomPointAroundCircleResult;
