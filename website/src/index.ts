@@ -112,6 +112,7 @@ const cloneCatModel = (): THREE.Group => {
 
             child.castShadow = true;
             child.receiveShadow = true;
+            console.log(child.geometry.attributes)
         }
     });
 
@@ -321,8 +322,7 @@ type AgentVisuals = {
     mixer: THREE.AnimationMixer;
     idleAction: THREE.AnimationAction;
     walkAction: THREE.AnimationAction;
-    runAction: THREE.AnimationAction;
-    currentAnimation: 'idle' | 'walk' | 'run';
+    currentAnimation: 'idle' | 'walk';
     currentRotation: number;
     targetRotation: number;
     emotionSprite: THREE.Sprite;
@@ -330,7 +330,7 @@ type AgentVisuals = {
     spinEndTime: number;
     idleWeight: number;
     walkWeight: number;
-    runWeight: number;
+    walkTimeScale: number;
     spinStartTimeForSpawn: number | null; // null = not spinning
 };
 
@@ -358,13 +358,6 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
     walkAction.setEffectiveWeight(0); // Start at 0 weight
     walkAction.play();
 
-    const runClip = catAnimations.find((clip) => clip.name === 'Run')!;
-    const runAction = mixer.clipAction(runClip);
-    runAction.loop = THREE.LoopRepeat;
-    runAction.setEffectiveTimeScale(2);
-    runAction.setEffectiveWeight(0); // Start at 0 weight
-    runAction.play();
-
     // create emotion sprite (initially hidden)
     const spriteMaterial = new THREE.SpriteMaterial({
         map: emotionTextures.question1,
@@ -380,7 +373,6 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
         mixer,
         idleAction,
         walkAction,
-        runAction,
         currentAnimation: 'idle',
         currentRotation: 0,
         targetRotation: 0,
@@ -389,7 +381,7 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, radius: number):
         spinEndTime: 0,
         idleWeight: 1,
         walkWeight: 0,
-        runWeight: 0,
+        walkTimeScale: 2,
         spinStartTimeForSpawn: null,
     };
 };
@@ -429,34 +421,38 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
     // calculate velocity and determine target animation weights
     const velocity = vec3.length(agent.velocity);
 
-    // set target weights based on velocity
+    // set target weights and walk speed based on velocity
     let targetIdleWeight = 0;
     let targetWalkWeight = 0;
-    let targetRunWeight = 0;
+    let targetWalkTimeScale = 2;
 
     if (velocity > 2.5) {
-        targetRunWeight = 1;
-    } else if (velocity > 0.4) {
+        // running - use walk animation at double speed
         targetWalkWeight = 1;
+        targetWalkTimeScale = 4;
+    } else if (velocity > 0.4) {
+        // walking - use walk animation at normal speed
+        targetWalkWeight = 1;
+        targetWalkTimeScale = 2;
     } else {
+        // idle
         targetIdleWeight = 1;
+        targetWalkTimeScale = 2;
     }
 
     // lerp animation weights towards target weights for smooth transitions
     const weightLerpSpeed = 5.0; // higher = faster transitions
     visuals.idleWeight += (targetIdleWeight - visuals.idleWeight) * weightLerpSpeed * deltaTime;
     visuals.walkWeight += (targetWalkWeight - visuals.walkWeight) * weightLerpSpeed * deltaTime;
-    visuals.runWeight += (targetRunWeight - visuals.runWeight) * weightLerpSpeed * deltaTime;
+    visuals.walkTimeScale += (targetWalkTimeScale - visuals.walkTimeScale) * weightLerpSpeed * deltaTime;
 
     // apply weights to animation actions
     visuals.idleAction.setEffectiveWeight(visuals.idleWeight);
     visuals.walkAction.setEffectiveWeight(visuals.walkWeight);
-    visuals.runAction.setEffectiveWeight(visuals.runWeight);
+    visuals.walkAction.setEffectiveTimeScale(visuals.walkTimeScale);
 
     // update currentAnimation for reference (based on highest weight)
-    if (visuals.runWeight > visuals.walkWeight && visuals.runWeight > visuals.idleWeight) {
-        visuals.currentAnimation = 'run';
-    } else if (visuals.walkWeight > visuals.idleWeight) {
+    if (visuals.walkWeight > visuals.idleWeight) {
         visuals.currentAnimation = 'walk';
     } else {
         visuals.currentAnimation = 'idle';
@@ -530,16 +526,18 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
     const material = sprite.material as THREE.SpriteMaterial;
 
     const elapsed = time - catState.stateStartTime;
+    
+    let newTexture: THREE.CanvasTexture | null = null;
 
     switch (catState.state) {
         case CatState.ALERTED:
             // discrete steps: 0-0.33s = ?, 0.33-0.66s = ??, 0.66-1s = ???
             if (elapsed < 333) {
-                material.map = emotionTextures.question1;
+                newTexture = emotionTextures.question1;
             } else if (elapsed < 666) {
-                material.map = emotionTextures.question2;
+                newTexture = emotionTextures.question2;
             } else {
-                material.map = emotionTextures.question3;
+                newTexture = emotionTextures.question3;
             }
             sprite.visible = true;
             break;
@@ -547,12 +545,12 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
         case CatState.CHASING:
             // show ! for first 1 second, then keep showing random chasing emojis
             if (elapsed < 1000) {
-                material.map = emotionTextures.exclamation;
+                newTexture = emotionTextures.exclamation;
                 sprite.visible = true;
             } else {
                 // show the selected chasing emoji (changes every 2 seconds in state machine)
                 const textureIndex = catState.chasingTextureIndex ?? 0;
-                material.map = chasingTextures[textureIndex];
+                newTexture = chasingTextures[textureIndex];
                 sprite.visible = true;
             }
             break;
@@ -560,7 +558,7 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
         case CatState.SEARCHING:
             // show :( for 1 second
             if (elapsed < 1000) {
-                material.map = emotionTextures.sad;
+                newTexture = emotionTextures.sad;
                 sprite.visible = true;
             } else {
                 sprite.visible = false;
@@ -571,7 +569,7 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
             // cycle through spinning emotion sprites quickly
             const cycleSpeed = 5.0; // cycles per second
             const textureIndex = Math.floor((time / 1000) * cycleSpeed) % spinningTextures.length;
-            material.map = spinningTextures[textureIndex];
+            newTexture = spinningTextures[textureIndex];
             sprite.visible = true;
             break;
         }
@@ -581,7 +579,11 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
             break;
     }
 
-    material.needsUpdate = true;
+    // only update texture if it changed (important for Safari)
+    if (newTexture && material.map !== newTexture) {
+        material.map = newTexture;
+        material.needsUpdate = true;
+    }
 };
 
 /* interaction */
