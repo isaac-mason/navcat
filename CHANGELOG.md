@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.1.0
+
+- initial alpha release!
+  - no changes from v0.0.11, just a version bump to mark the first release
+  - from here forward, in the leadup to a v1 release, breaking API changes will be released as minor version bumps
+
 ## 0.0.11
 
 - feat: documentation improvements
