@@ -15,7 +15,16 @@ import {
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
 } from './nav-mesh';
-import { getNodeRefIndex, getNodeRefSequence, getNodeRefType, INVALID_NODE_REF, MAX_SEQUENCE, type NodeRef, NodeType, serNodeRef } from './node';
+import {
+    getNodeRefIndex,
+    getNodeRefSequence,
+    getNodeRefType,
+    INVALID_NODE_REF,
+    MAX_SEQUENCE,
+    type NodeRef,
+    NodeType,
+    serNodeRef,
+} from './node';
 
 /**
  * Creates a new empty navigation mesh.
@@ -563,12 +572,7 @@ const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSeg
  * @param point the point to find the closest point to
  * @returns whether the operation was successful
  */
-export const getClosestPointOnPolyBoundary = (
-    out: Vec3,
-    navMesh: NavMesh,
-    nodeRef: NodeRef,
-    point: Vec3,
-): boolean => {
+export const getClosestPointOnPolyBoundary = (out: Vec3, navMesh: NavMesh, nodeRef: NodeRef, point: Vec3): boolean => {
     const tileAndPoly = getTileAndPolyByRef(nodeRef, navMesh);
 
     if (!tileAndPoly.success || !vec3.finite(point) || !out) {
@@ -1578,7 +1582,7 @@ export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: n
  * Returns whether the off mesh connection with the given ID is currently connected to the navmesh.
  * An off mesh connection may be disconnected if the start or end positions have no valid polygons nearby to connect to.
  * @param navMesh the navmesh
- * @param offMeshConnectionId the ID of the off mesh connection 
+ * @param offMeshConnectionId the ID of the off mesh connection
  * @returns whether the off mesh connection is connected
  */
 export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnectionId: number): boolean => {
@@ -1593,6 +1597,14 @@ export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnection
     return isValidNodeRef(navMesh, startPolyNode) && isValidNodeRef(navMesh, endPolyNode);
 };
 
+/**
+ * A query filter used in navigation queries.
+ *
+ * This allows for customization of what nodes are considered traversable, and
+ * the cost of traversing between nodes.
+ *
+ * If you are getting started, you can use the built-in @see DEFAULT_QUERY_FILTER or @see ANY_QUERY_FILTER
+ */
 export type QueryFilter = {
     /**
      * Checks if a NavMesh node passes the filter.
@@ -1637,17 +1649,21 @@ export type DefaultQueryFilter = QueryFilter & {
     excludeFlags: number;
 };
 
-export const DEFAULT_QUERY_FILTER = {
-    includeFlags: 0xffffffff,
-    excludeFlags: 0,
-    getCost(pa, pb, _navMesh, _prevRef, _curRef, _nextRef) {
-        // use the distance between the two points as the cost
-        return vec3.distance(pa, pb);
-    },
-    passFilter(nodeRef, navMesh) {
-        // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
-        const { flags } = getNodeByRef(navMesh, nodeRef);
+export const createDefaultQueryFilter = (): DefaultQueryFilter => {
+    return {
+        includeFlags: 0xffffffff,
+        excludeFlags: 0,
+        getCost(pa, pb, _navMesh, _prevRef, _curRef, _nextRef) {
+            // use the distance between the two points as the cost
+            return vec3.distance(pa, pb);
+        },
+        passFilter(nodeRef, navMesh) {
+            // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
+            const { flags } = getNodeByRef(navMesh, nodeRef);
 
-        return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
-    },
-} satisfies DefaultQueryFilter;
+            return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
+        },
+    };
+};
+
+export const DEFAULT_QUERY_FILTER = createDefaultQueryFilter();

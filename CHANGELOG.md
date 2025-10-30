@@ -4,6 +4,7 @@
 
 - feat: documentation improvements
 - feat: isOffMeshConnectionConnected jsdoc improvements
+- feat: add `createDefaultQueryFilter`, for creating a default query filter object that can have `includeFlags` and `excludeFlags` modified
 
 ## 0.0.10
 
