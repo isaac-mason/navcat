@@ -22,7 +22,7 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 
 This README provides curated explanations, guides, and examples to help you get started with navcat.
 
-Also see the [API documentation at navcat.dev/docs](https://navcat.dev/docs/).
+API documentation can be found at [navcat.dev/docs](https://navcat.dev/docs).
 
 **Changelog**
 
