@@ -241,21 +241,19 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
   - [Custom Query Filters and Custom Area Types](#custom-query-filters-and-custom-area-types)
   - [Off-Mesh Connections](#off-mesh-connections)
 - [Advanced Navigation Mesh APIs](#advanced-navigation-mesh-apis)
-  - [isValidNodeRef](#isvalidnoderef)
-  - [getNodeByRef](#getnodebyref)
-  - [getNodeByTileAndPoly](#getnodebytileandpoly)
-  - [getPolyHeight](#getpolyheight)
-  - [getClosestPointOnPoly](#getclosestpointonpoly)
-  - [getClosestPointOnDetailEdges](#getclosestpointondetailedges)
-  - [getPortalPoints](#getportalpoints)
-  - [queryPolygons](#querypolygons)
-  - [queryPolygonsInTile](#querypolygonsintile)
+  - [`isValidNodeRef`](#isvalidnoderef)
+  - [`getNodeByRef`](#getnodebyref)
+  - [`getNodeByTileAndPoly`](#getnodebytileandpoly)
+  - [`getPolyHeight`](#getpolyheight)
+  - [`getClosestPointOnPoly`](#getclosestpointonpoly)
+  - [`getClosestPointOnDetailEdges`](#getclosestpointondetailedges)
+  - [`getPortalPoints`](#getportalpoints)
+  - [`queryPolygons`](#querypolygons)
+  - [`queryPolygonsInTile`](#querypolygonsintile)
 - [Using Externally Created Navigation Meshes](#using-externally-created-navigation-meshes)
 - [Saving and Loading NavMeshes](#saving-and-loading-navmeshes)
 - [Debug Utilities](#debug-utilities)
 - [`navcat/three`](#navcatthree)
-  - [Geometry Extraction](#geometry-extraction)
-  - [Debug Helpers](#debug-helpers)
 - [Community](#community)
 - [Acknowledgements](#acknowledgements)
 
@@ -1947,7 +1945,7 @@ export function isOffMeshConnectionConnected(navMesh: NavMesh, offMeshConnection
 
 This section covers lower-level APIs for working with the navigation mesh structure. Most users won't need these for everyday pathfinding, but they're useful for advanced use cases like understanding the navmesh internals, building custom pathfinding algorithms, or debugging.
 
-### isValidNodeRef
+### `isValidNodeRef`
 
 ```ts
 const nodeRef: Nav.NodeRef = 0;
@@ -1967,7 +1965,7 @@ console.log(isValid);
 export function isValidNodeRef(navMesh: NavMesh, nodeRef: NodeRef): boolean;
 ```
 
-### getNodeByRef
+### `getNodeByRef`
 
 ```ts
 const node = Nav.getNodeByRef(navMesh, nodeRef);
@@ -1985,7 +1983,7 @@ console.log(node);
 export function getNodeByRef(navMesh: NavMesh, nodeRef: NodeRef);
 ```
 
-### getNodeByTileAndPoly
+### `getNodeByTileAndPoly`
 
 ```ts
 const node = Nav.getNodeByTileAndPoly(navMesh, tile, polyIndex);
@@ -2003,7 +2001,7 @@ console.log(node);
 export function getNodeByTileAndPoly(navMesh: NavMesh, tile: NavMeshTile, polyIndex: number);
 ```
 
-### getPolyHeight
+### `getPolyHeight`
 
 ```ts
 const position: Nav.Vec3 = [1, 0, 1];
@@ -2041,7 +2039,7 @@ if (nearestPoly.success) {
 export function getPolyHeight(result: GetPolyHeightResult, tile: NavMeshTile, poly: NavMeshPoly, polyIndex: number, pos: Vec3): GetPolyHeightResult;
 ```
 
-### getClosestPointOnPoly
+### `getClosestPointOnPoly`
 
 ```ts
 const polyRef = findNearestPolyResult.nodeRef;
@@ -2066,7 +2064,7 @@ console.log(getClosestPointOnPolyResult.position); // the closest point on the p
 export function getClosestPointOnPoly(result: GetClosestPointOnPolyResult, navMesh: NavMesh, nodeRef: NodeRef, position: Vec3): GetClosestPointOnPolyResult;
 ```
 
-### getClosestPointOnDetailEdges
+### `getClosestPointOnDetailEdges`
 
 ```ts
 const position: Nav.Vec3 = [1, 0, 1];
@@ -2113,7 +2111,7 @@ console.log(closestPoint); // the closest point on the detail edges in world spa
 export function getClosestPointOnDetailEdges(outClosestPoint: Vec3, tile: NavMeshTile, poly: NavMeshPoly, polyIndex: number, pos: Vec3, onlyBoundary: boolean): number;
 ```
 
-### getPortalPoints
+### `getPortalPoints`
 
 ```ts
 const startNodeRef: Nav.NodeRef = 0; // example poly node ref, usually retrieved from a pathfinding call
@@ -2137,7 +2135,7 @@ console.log('right:', right);
 export function getPortalPoints(navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: NodeRef, outLeft: Vec3, outRight: Vec3): boolean;
 ```
 
-### queryPolygons
+### `queryPolygons`
 
 ```ts
 // find all polys within a box area
@@ -2155,7 +2153,7 @@ console.log(queryPolygonsResult); // array of node refs that overlap the box are
 export function queryPolygons(navMesh: NavMesh, bounds: Box3, filter: QueryFilter): NodeRef[];
 ```
 
-### queryPolygonsInTile
+### `queryPolygonsInTile`
 
 ```ts
 const tile = Object.values(navMesh.tiles)[0]; // example tile
@@ -2300,6 +2298,8 @@ The `navcat/three` entrypoint provides some utilities to help integrate navcat w
 
 Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract geometry from a threejs mesh for navmesh generation, and how to use `createNavMeshHelper` to visualize the generated navmesh in threejs.
 
+You can find a full list of threejs-specific utilities in the API docs: https://navcat.dev/docs/modules/navcat_three.html
+
 ```ts
 import { DEFAULT_QUERY_FILTER, findPath, type Vec3 } from 'navcat';
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
@@ -2408,82 +2408,6 @@ if (path.nodePath) {
     const searchNodesHelper = createSearchNodesHelper(path.nodePath.nodes);
     scene.add(searchNodesHelper.object);
 }
-```
-
-### Geometry Extraction
-
-```ts
-export function getPositionsAndIndices(meshes: Mesh[]): [
-    positions: number[],
-    indices: number[]
-];
-```
-
-### Debug Helpers
-
-```ts
-export function createTriangleAreaIdsHelper(input: {
-    positions: ArrayLike<number>;
-    indices: ArrayLike<number>;
-}, triAreaIds: ArrayLike<number>): DebugObject;
-```
-```ts
-export function createHeightfieldHelper(heightfield: Heightfield): DebugObject;
-```
-```ts
-export function createCompactHeightfieldSolidHelper(compactHeightfield: CompactHeightfield): DebugObject;
-```
-```ts
-export function createCompactHeightfieldDistancesHelper(compactHeightfield: CompactHeightfield): DebugObject;
-```
-```ts
-export function createCompactHeightfieldRegionsHelper(compactHeightfield: CompactHeightfield): DebugObject;
-```
-```ts
-export function createRawContoursHelper(contourSet: ContourSet): DebugObject;
-```
-```ts
-export function createSimplifiedContoursHelper(contourSet: ContourSet): DebugObject;
-```
-```ts
-export function createPolyMeshHelper(polyMesh: PolyMesh): DebugObject;
-```
-```ts
-export function createPolyMeshDetailHelper(polyMeshDetail: PolyMeshDetail): DebugObject;
-```
-```ts
-export function createNavMeshHelper(navMesh: NavMesh): DebugObject;
-```
-```ts
-export function createNavMeshTileHelper(tile: NavMeshTile): DebugObject;
-```
-```ts
-export function createNavMeshPolyHelper(navMesh: NavMesh, nodeRef: NodeRef, color: [
-    number,
-    number,
-    number
-] = [0, 0.75, 1]): DebugObject;
-```
-```ts
-export function createNavMeshTileBvTreeHelper(navMeshTile: NavMeshTile): DebugObject;
-```
-```ts
-export function createNavMeshLinksHelper(navMesh: NavMesh): DebugObject;
-```
-```ts
-export function createNavMeshBvTreeHelper(navMesh: NavMesh): DebugObject;
-```
-```ts
-export function createNavMeshTilePortalsHelper(navMeshTile: NavMeshTile): DebugObject;
-```
-```ts
-export function createNavMeshPortalsHelper(navMesh: NavMesh): DebugObject;
-```
-```ts
-export function createSearchNodesHelper(nodePool: SearchNodePool): DebugObject;
-```
-```ts
-export function createNavMeshOffMeshConnectionsHelper(navMesh: NavMesh): DebugObject;
 ```
 
 ## Community

@@ -561,55 +561,55 @@ To see a live example, see the "Off-Mesh Connections Example":
 
 This section covers lower-level APIs for working with the navigation mesh structure. Most users won't need these for everyday pathfinding, but they're useful for advanced use cases like understanding the navmesh internals, building custom pathfinding algorithms, or debugging.
 
-### isValidNodeRef
+### `isValidNodeRef`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="isValidNodeRef" />
 
 <RenderType type="import('navcat').isValidNodeRef" />
 
-### getNodeByRef
+### `getNodeByRef`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="getNodeByRef" />
 
 <RenderType type="import('navcat').getNodeByRef" />
 
-### getNodeByTileAndPoly
+### `getNodeByTileAndPoly`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="getNodeByTileAndPoly" />
 
 <RenderType type="import('navcat').getNodeByTileAndPoly" />
 
-### getPolyHeight
+### `getPolyHeight`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="getPolyHeight" />
 
 <RenderType type="import('navcat').getPolyHeight" />
 
-### getClosestPointOnPoly
+### `getClosestPointOnPoly`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="getClosestPointOnPoly" />
 
 <RenderType type="import('navcat').getClosestPointOnPoly" />
 
-### getClosestPointOnDetailEdges
+### `getClosestPointOnDetailEdges`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="getClosestPointOnDetailEdges" />
 
 <RenderType type="import('navcat').getClosestPointOnDetailEdges" />
 
-### getPortalPoints
+### `getPortalPoints`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="getPortalPoints" />
 
 <RenderType type="import('navcat').getPortalPoints" />
 
-### queryPolygons
+### `queryPolygons`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="queryPolygons" />
 
 <RenderType type="import('navcat').queryPolygons" />
 
-### queryPolygonsInTile
+### `queryPolygonsInTile`
 
 <Snippet source="./snippets/solo-navmesh.ts" select="queryPolygonsInTile" />
 
@@ -657,33 +657,9 @@ The `navcat/three` entrypoint provides some utilities to help integrate navcat w
 
 Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract geometry from a threejs mesh for navmesh generation, and how to use `createNavMeshHelper` to visualize the generated navmesh in threejs.
 
+You can find a full list of threejs-specific utilities in the API docs: https://navcat.dev/docs/modules/navcat_three.html
+
 <Snippet source="./snippets/threejs.ts" select="quickstart" />
-
-### Geometry Extraction
-
-<RenderType type="import('navcat/three').getPositionsAndIndices" />
-
-### Debug Helpers
-
-<RenderType type="import('navcat/three').createTriangleAreaIdsHelper" />
-<RenderType type="import('navcat/three').createHeightfieldHelper" />
-<RenderType type="import('navcat/three').createCompactHeightfieldSolidHelper" />
-<RenderType type="import('navcat/three').createCompactHeightfieldDistancesHelper" />
-<RenderType type="import('navcat/three').createCompactHeightfieldRegionsHelper" />
-<RenderType type="import('navcat/three').createRawContoursHelper" />
-<RenderType type="import('navcat/three').createSimplifiedContoursHelper" />
-<RenderType type="import('navcat/three').createPolyMeshHelper" />
-<RenderType type="import('navcat/three').createPolyMeshDetailHelper" />
-<RenderType type="import('navcat/three').createNavMeshHelper" />
-<RenderType type="import('navcat/three').createNavMeshTileHelper" />
-<RenderType type="import('navcat/three').createNavMeshPolyHelper" />
-<RenderType type="import('navcat/three').createNavMeshTileBvTreeHelper" />
-<RenderType type="import('navcat/three').createNavMeshLinksHelper" />
-<RenderType type="import('navcat/three').createNavMeshBvTreeHelper" />
-<RenderType type="import('navcat/three').createNavMeshTilePortalsHelper" />
-<RenderType type="import('navcat/three').createNavMeshPortalsHelper" />
-<RenderType type="import('navcat/three').createSearchNodesHelper" />
-<RenderType type="import('navcat/three').createNavMeshOffMeshConnectionsHelper" />
 
 ## Community
 
