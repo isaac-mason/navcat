@@ -112,7 +112,6 @@ const cloneCatModel = (): THREE.Group => {
 
             child.castShadow = true;
             child.receiveShadow = true;
-            console.log(child.geometry.attributes)
         }
     });
 
@@ -427,11 +426,9 @@ const updateAgentVisuals = (_agentId: string, agent: crowd.Agent, visuals: Agent
     let targetWalkTimeScale = 2;
 
     if (velocity > 2.5) {
-        // running - use walk animation at double speed
         targetWalkWeight = 1;
         targetWalkTimeScale = 4;
     } else if (velocity > 0.4) {
-        // walking - use walk animation at normal speed
         targetWalkWeight = 1;
         targetWalkTimeScale = 2;
     } else {
@@ -579,7 +576,7 @@ const updateEmotionSprite = (visuals: AgentVisuals, catState: CatStateData, time
             break;
     }
 
-    // only update texture if it changed (important for Safari)
+    // only update texture if it changed
     if (newTexture && material.map !== newTexture) {
         material.map = newTexture;
         material.needsUpdate = true;
