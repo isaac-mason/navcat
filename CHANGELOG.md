@@ -3,6 +3,7 @@
 ## 0.0.11 (Unreleased)
 
 - feat: documentation improvements
+- feat: isOffMeshConnectionConnected jsdoc improvements
 
 ## 0.0.10
 

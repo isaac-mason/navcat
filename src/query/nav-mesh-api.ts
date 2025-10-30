@@ -559,7 +559,7 @@ const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSeg
  * Gets the closest point on the boundary of a polygon to a given point
  * @param out the output closest point
  * @param navMesh the navigation mesh
- * @param nodeRef the polygon reference
+ * @param nodeRef the polygon node reference
  * @param point the point to find the closest point to
  * @returns whether the operation was successful
  */
@@ -1574,16 +1574,23 @@ export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: n
     delete navMesh.offMeshConnections[offMeshConnection.id];
 };
 
+/**
+ * Returns whether the off mesh connection with the given ID is currently connected to the navmesh.
+ * An off mesh connection may be disconnected if the start or end positions have no valid polygons nearby to connect to.
+ * @param navMesh the navmesh
+ * @param offMeshConnectionId the ID of the off mesh connection 
+ * @returns whether the off mesh connection is connected
+ */
 export const isOffMeshConnectionConnected = (navMesh: NavMesh, offMeshConnectionId: number): boolean => {
     const offMeshConnectionState = navMesh.offMeshConnectionAttachments[offMeshConnectionId];
 
     // no off mesh connection state, not connected
     if (!offMeshConnectionState) return false;
 
-    const { startPolyNode: startPolyRef, endPolyNode: endPolyRef } = offMeshConnectionState;
+    const { startPolyNode, endPolyNode } = offMeshConnectionState;
 
-    // valid if both the start and end poly refs are valid
-    return isValidNodeRef(navMesh, startPolyRef) && isValidNodeRef(navMesh, endPolyRef);
+    // valid if both the start and end poly node refs are valid
+    return isValidNodeRef(navMesh, startPolyNode) && isValidNodeRef(navMesh, endPolyNode);
 };
 
 export type QueryFilter = {
