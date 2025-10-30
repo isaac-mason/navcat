@@ -732,7 +732,7 @@ const startNode = Nav.findNearestPoly(
 );
 
 // raycastWithCosts calculates path costs and requires the previous polygon reference
-const prevRef = 0; // 0 if no previous polygon
+const prevRef = 0; // example
 const raycastResult = Nav.raycastWithCosts(navMesh, startNode.nodeRef, start, end, Nav.DEFAULT_QUERY_FILTER, prevRef);
 
 console.log(raycastResult.t); // the normalized distance along the ray where an obstruction was found, or 1.0 if none
