@@ -18,11 +18,6 @@ navcat is a javascript navigation mesh construction and querying library for 3D 
 - Tiny - ~40 kB minified + gzipped, and highly tree-shakeable
 - Works with any javascript engine/library - Babylon.js, PlayCanvas, Three.js, or your own engine
 
-**Used in**
-
-- [manablade.com](https://manablade.com)
-- ... add your project!
-
 **Documentation**
 
 This README provides curated explanations, guides, and examples to help you get started with navcat.
@@ -40,6 +35,29 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
 ## Table of Contents
 
 <TOC />
+
+## What is a Navigation Mesh?
+
+A navigation mesh (or navmesh) is a simplified representation of a 3D environment that is used for pathfinding and AI navigation in video games and simulations. It consists of interconnected polygons that define walkable areas within the environment. These polygons are connected by edges and off-mesh connections, allowing agents (characters) to move from one polygon to another.
+
+![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
+
+## Can navcat be integrated with my engine/library?
+
+navcat is agnostic of rendering or game engine library, so it will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
+
+If you are using threejs, you may make use of the utilities in the `navcat/three` entrypoint, see the [navcat/three docs](#navcatthree). Integrations for other engines may be added in future.
+
+navcat adheres to the OpenGL conventions:
+
+- Uses the right-handed coordinate system
+- Indices should be in counter-clockwise winding order
+
+If you are importing a navmesh created externally, note that navmesh poly vertices must be indexed / must share vertices between adjacent polygons.
+
+If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
+
+The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
 
 ## Quick Start
 
@@ -69,52 +87,210 @@ Below is a quick summary of the navmesh generation parameters used above, and ho
 | `detailSampleDistance`      | Distance between height samples (affects vertical detail).                                                        | `cellSize * 4–8`, e.g. `0.9`                 |
 | `detailSampleMaxError`      | Allowed height deviation when simplifying detail mesh.                                                            | `cellHeight * 1–2`, e.g. `0.25`              |
 
-## Introduction
 
-### What is a navigation mesh?
+## Navigation Mesh Querying
 
-A navigation mesh (or navmesh) is a simplified representation of a 3D environment that is used for pathfinding and AI navigation in video games and simulations. It consists of interconnected polygons that define walkable areas within the environment. These polygons are connected by edges and off-mesh connections, allowing agents (characters) to move from one polygon to another.
+This section covers the main features you'll use for navigation mesh querying, including pathfinding, agent simulation, and spatial queries on your navigation mesh. For lower-level querying APIs and navmesh internals, see the [Advanced Navigation Mesh APIs](#advanced-navigation-mesh-apis) section.
 
-![./docs/1-whats-a-navmesh](./docs/1-whats-a-navmesh.png)
+### `findPath`
 
-### Can navcat be integrated with XYZ?
+The `findPath` function is a convenience wrapper around `findNearestPoly`, `findNodePath`, and `findStraightPath` to get a path between two points on the navigation mesh.
 
-navcat is agnostic of rendering or game engine library, so it will work well with any javascript engine - Babylon.js, PlayCanvas, Three.js, or your own engine.
+**When to use:** This is the simplest way to find a complete path. Use this for one-off pathfinding queries, or when you aren't steering agents along a path and re-querying frequently.
 
-If you are using threejs, you may make use of the utilities in the `navcat/three` entrypoint, see the [navcat/three docs](#navcatthree). Integrations for other engines may be added in future.
+<Snippet source="./snippets/solo-navmesh.ts" select="findPath" />
 
-navcat adheres to the OpenGL conventions:
+<RenderType type="import('navcat').findPath" />
 
-- Uses the right-handed coordinate system
-- Indices should be in counter-clockwise winding order
+<ApiDocsLink name="findPath" />
 
-If you are importing a navmesh created externally, note that navmesh poly vertices must be indexed / must share vertices between adjacent polygons.
+<ExamplesTable ids="example-find-path" />
 
-If your environment uses a different coordinate system, you will need to transform coordinates going into and out of navcat.
+### `findSmoothPath`
 
-The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
+Combines `findNodePath`, `findStraightPath`, and `moveAlongSurface` to produce a smooth path that respects the navmesh surface.
+
+**When to use:** Use this when you want a smooth path that follows the navmesh surface without sharp corners, and you need it infrequently (e.g. for visual previews, not for many agents per frame).
+
+<RenderType type="import('navcat').findSmoothPath" />
+
+<ApiDocsLink name="findSmoothPath" />
+
+<ExamplesTable ids="example-find-smooth-path" />
+
+### `findNodePath`
+
+Finds a path through the navigation mesh as a sequence of polygon and offmesh connection node references.
+
+**When to use:** Use this when you want to cache a node path and recalculate the straight path multiple times (e.g., for dynamic agent movement where the start position changes but the destination stays the same). This is more efficient than calling `findPath` repeatedly.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findNodePath" />
+
+<RenderType type="import('navcat').findNodePath" />
+
+<ApiDocsLink name="findNodePath" />
+
+### `findStraightPath`
+
+Performs "string pulling" to convert a sequence of nodes into a series of waypoints that form the actual path an agent should follow.
+
+**When to use:** Call this after `findNodePath` to get the actual waypoint positions. You might recalculate this frequently while keeping the same node path, or when implementing custom path following behavior.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findStraightPath" />
+
+<RenderType type="import('navcat').findStraightPath" />
+
+<ApiDocsLink name="findStraightPath" />
+
+### `moveAlongSurface`
+
+Moves along a navmesh from a start position toward an end position along the navmesh surface, constrained to walkable areas.
+
+This should be called with small movement deltas (e.g., per frame) to move an agent while respecting the navmesh boundaries.
+
+**When to use:** Perfect for simple character controllers where you want to constrain movement to the navmesh without full pathfinding. Ideal for local movement, sliding along walls, or implementing custom movement logic that respects the navmesh.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="moveAlongSurface" />
+
+<RenderType type="import('navcat').moveAlongSurface" />
+
+<ApiDocsLink name="moveAlongSurface" />
+
+<ExamplesTable ids="example-navmesh-constrained-character-controller,example-move-along-surface" />
+
+### `raycast` & `raycastWithCosts`
+
+Casts a ray along the navmesh surface to check for walkability and detect obstacles.
+
+**When to use:** Check line-of-sight between positions, validate if a straight path exists, or detect walls/obstacles. Avoid using this for long rays; it's best suited for short-range checks given its two dimensional nature.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="raycast" />
+
+<RenderType type="import('navcat').raycast" />
+
+<Snippet source="./snippets/solo-navmesh.ts" select="raycastWithCosts" />
+
+<RenderType type="import('navcat').raycastWithCosts" />
+
+<ApiDocsLink name="raycast" />
+
+<ApiDocsLink name="raycastWithCosts" />
+
+<ExamplesTable ids="example-raycast" />
+
+### `findNearestPoly`
+
+Finds the nearest polygon on the navmesh to a given world position.
+
+**When to use:** This is often your first step - use it to "snap" world positions onto the navmesh before pathfinding or querying. Essential when placing agents, checking if a position is on the navmesh, or converting world coordinates to navmesh coordinates.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findNearestPoly" />
+
+<RenderType type="import('navcat').findNearestPoly" />
+
+<ApiDocsLink name="findNearestPoly" />
+
+<ExamplesTable ids="example-find-nearest-poly" />
+
+### `findRandomPoint`
+
+Finds a random walkable point anywhere on the navmesh.
+
+**When to use:** Spawn points, random patrol destinations, procedural NPC placement, or testing. Great for open-world scenarios where agents need random destinations across the entire navigable area.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findRandomPoint" />
+
+<RenderType type="import('navcat').findRandomPoint" />
+
+<ApiDocsLink name="findRandomPoint" />
+
+<ExamplesTable ids="example-find-random-point" />
+
+### `findRandomPointAroundCircle`
+
+Finds a random walkable point within a circular radius around a center position.
+
+**When to use:** Local randomization like scatter formations, patrol areas around a point, or finding nearby positions. Perfect for "move near target" AI behaviors or creating natural-looking patrol patterns.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="findRandomPointAroundCircle" />
+
+<RenderType type="import('navcat').findRandomPointAroundCircle" />
+
+<ApiDocsLink name="findRandomPointAroundCircle" />
+
+<ExamplesTable ids="example-find-random-point-around-circle" />
+
+## Crowd Simulation
+
+The `crowd` API in `navcat/blocks` provides a high-level agent simulation system built on top of navcat's pathfinding and local steering capabilities.
+
+For simple use cases you can use it directly, and for more advanced use cases you might copy it into your project and modify it as needed.
+
+- Agent management: add/remove agents, set target positions or velocities
+- Frame-distributed pathfinding to maintain performance with many agents
+- Agent-to-agent and wall avoidance
+- Off-mesh connection support with animation hooks
+
+It internally makes use of other `navcat/blocks` APIs like `pathCorridor`, `localBoundary`, and `obstacleAvoidance` to manage agent node corridors and handle obstacle avoidance.
+
+See the docs for API specifics:
+- `crowd`: https://navcat.dev/docs/modules/navcat_blocks.crowd.html
+- `pathCorridor`: https://navcat.dev/docs/modules/navcat_blocks.pathCorridor.html
+- `localBoundary`: https://navcat.dev/docs/modules/navcat_blocks.localBoundary.html
+- `obstacleAvoidance`: https://navcat.dev/docs/modules/navcat_blocks.obstacleAvoidance.html
+
+And see the below for interactive examples:
+
+<ExamplesTable ids="example-crowd-simulation,example-crowd-simulation-stress-test" />
 
 ## Navigation Mesh Generation
 
-If you want to get started quickly and don't require deep customization, you can use the presets in `navcat/blocks`. See the [quick start](#quick-start) section above for a minimal example.
+### Overview
 
-If you'd like to understand how to tweak navmesh generation parameters, or you want to eject from the presets and have more control over the generation process, read on!
+Navigation mesh generation is the process of transforming 3D geometry into a graph of walkable polygons. This graph is then used for pathfinding and navigation queries.
 
-### The navcat navigation mesh structure
+#### The Structure of a Navigation Mesh
 
-In navcat, a navigation mesh can contain multiple "tiles", where each tile contains a set of polygons and a detail mesh. A navigation mesh can either have one tile that covers the entire area, or multiple tiles can be added in a grid for more advanced use cases.
+A navigation mesh is organized into one or more **tiles**. Each tile contains walkable polygons and height detail information. For most projects, a single tile covering your entire level is perfect. For larger or dynamic worlds, you can split the navmesh into a grid of tiles.
 
-As tiles are added and removed from a navmesh, a global graph of `nodes` and `links` is maintained to represent the entire navigation mesh, which is used for pathfinding and navigation queries.
+Behind the scenes, navcat maintains a graph of **nodes** (representing polygons) and **links** (representing connections between polygons). This graph is what powers pathfinding - when you query for a path, navcat searches this graph to find the route.
 
-Each `node` represents either a polygon in the navigation mesh or an off-mesh connection. Many APIs will accept a `NodeRef` to identify a specific polygon or off-mesh connection in the navigation mesh.
+If you want to dig deeper into the internal structure (useful for advanced cases like building custom pathfinding algorithms), the navigation mesh data is fully accessible. Check out the "Flow Field Pathfinding" example to see custom graph traversal in action.
 
-The `NodeRef` is a packed number that encodes the node type (polygon or off-mesh connection), the node index (index in the `navMesh.nodes` array), and a sequence number which handles invalidation of node references when tiles or off mesh connections are removed and re-added.
+#### Single-Tile vs Tiled Navigation Meshes
 
-Each `link` represents a connection between two nodes, either between two polygons if they share an edge, or between a polygon and an off-mesh connection.
+Most projects should start with a **single-tile navmesh** - it's simpler and covers the majority of use cases.
 
-The navigation mesh data is transparent enough that you can write your own logic to traverse the navigation mesh graph if you need to, like in the "Flow Field Pathfinding" example.
+Consider using **tiled navmeshes** when you need:
+- Dynamic updates (rebuild only affected tiles when geometry changes)
+- Memory management (stream tiles in/out based on player location)
+- Parallel generation (generate tiles independently)
+- Large worlds (tiled navmesh generation can give better results over large areas)
 
-### Navigation mesh generation process
+For smaller, static scenes, a single-tile navmesh is simpler and sufficient.
+
+How you want to manage tiles is up to you. You can create and add all navmesh tiles for a level at once, or you can create and add/remove tiles dynamically at runtime.
+
+If you remove and re-add tiles at given coordinates, note that the node references for polygons will become invalidated. Any custom pathfinding logic you write that references polygons will need to call `isValidNodeRef` to check if a node reference is still valid before using it.
+
+### Generation Presets
+
+The `navcat/blocks` entrypoint provides `generateSoloNavMesh` and `generateTiledNavMesh` presets that bundle together the common steps of the navigation mesh generation process into easy-to-use functions.
+
+If your use case is simple, you can use these presets to get started quickly. As your use case becomes more complex, you can eject from these presets by copying the functions (that are separate from navcat core) into your project and modifying them as needed.
+
+You can find API docs for these blocks in the API docs:
+
+- https://navcat.dev/docs/functions/navcat_blocks.generateSoloNavMesh.html
+- https://navcat.dev/docs/functions/navcat_blocks.generateTiledNavMesh.html
+
+See the Solo NavMesh and Tiled NavMesh examples for interactive examples of using these presets:
+
+<ExamplesTable ids="example-solo-navmesh,example-tiled-navmesh" />
+
+### Generation Process: Deep Dive
+
+This section provides a deep-dive into how navigation mesh generation works. Understanding this process is useful for tuning parameters to get the best results for your specific environment and agent requirements.
 
 The core of the navigation mesh generation approach is based on the [recastnavigation library](https://github.com/recastnavigation/recastnavigation)'s voxelization-based approach.
 
@@ -133,11 +309,7 @@ If you want an interactive example / starter, see the examples:
 - [./examples/src/example-solo-navmesh.ts](./examples/src/example-solo-navmesh.ts)
 - [./blocks/generate-solo-nav-mesh.ts](./blocks/generate-solo-nav-mesh.ts)
 
-If you are looking for a minimal snippet to copy & paste into your project to quick-start, see below. The sections following the snippet provides a step-by-step breakdown of the process with images and explanations.
-
-<Snippet source="./snippets/solo-navmesh.ts" select="generationFull" />
-
-### 0. Input and setup
+#### 0. Input and setup
 
 The input to the navigation mesh generation process is a set of 3D triangles that define the environment. These triangles should represent the collision surfaces in the environment, and shouldn't include any non-collidable decorative geometry that shouldn't affect navigation.
 
@@ -151,7 +323,7 @@ The navigation mesh generation process emits diagnostic messages, warnings, and 
 
 <RenderType type="import('navcat').BuildContextState" />
 
-### 1. Mark walkable triangles
+#### 1. Mark walkable triangles
 
 The first step is to filter the input triangles to find the walkable triangles. This is done by checking the slope of each triangle against a maximum walkable slope angle. Triangles that are walkable are marked with the `WALKABLE_AREA` (`1`) area type.
 
@@ -163,7 +335,7 @@ The first step is to filter the input triangles to find the walkable triangles. 
 
 <RenderType type="import('navcat').createTriangleAreaIdsHelper" />
 
-### 2. Rasterize triangles into a heightfield, do filtering with the heightfield
+#### 2. Rasterize triangles into a heightfield, do filtering with the heightfield
 
 The walkable triangles are then voxelized into a heightfield, taking the triangle's "walkability" into each span.
 
@@ -195,7 +367,7 @@ The heightfield resolution is configurable, and greatly affects the fidelity of 
 
 <RenderType type="import('navcat').createHeightfieldHelper" />
 
-### 3. Build compact heightfield, erode walkable area, mark areas
+#### 3. Build compact heightfield, erode walkable area, mark areas
 
 The heightfield is then compacted to only represent the top walkable surfaces.
 
@@ -219,7 +391,7 @@ The compact heightfield is generally eroded by the agent radius to ensure that t
 
 <RenderType type="import('navcat').createCompactHeightfieldSolidHelper" />
 
-### 4. Build compact heightfield regions
+#### 4. Build compact heightfield regions
 
 The compact heightfield is then analyzed to identify distinct walkable regions. These regions are used to create the final navigation mesh.
 
@@ -243,7 +415,7 @@ Some of the region generation algorithms compute a distance field to identify re
 
 <RenderType type="import('navcat').createCompactHeightfieldRegionsHelper" />
 
-### 5. Build contours from compact heightfield regions
+#### 5. Build contours from compact heightfield regions
 
 Contours are generated around the edges of the regions. These contours are simplified to reduce the number of vertices while maintaining the overall shape.
 
@@ -263,7 +435,7 @@ Contours are generated around the edges of the regions. These contours are simpl
 
 <RenderType type="import('navcat').createSimplifiedContoursHelper" />
 
-### 6. Build polygon mesh from contours, build detail mesh
+#### 6. Build polygon mesh from contours, build detail mesh
 
 From the simplified contours, a polygon mesh is created. This mesh consists of convex polygons that represent the walkable areas.
 
@@ -285,7 +457,7 @@ A "detail triangle mesh" is also generated to capture more accurate height infor
 
 <RenderType type="import('navcat').createPolyMeshHelper" />
 
-### 7. Convert build-time poly mesh and poly mesh detail to runtime navmesh tile format
+#### 7. Convert build-time poly mesh and poly mesh detail to runtime navmesh tile format
 
 Next, we do a post-processing step on the poly mesh and the poly mesh detail to prepare them for use in the navigation mesh.
 
@@ -303,7 +475,7 @@ This step involes computing adjacency information for the polygons, and mapping 
 
 <RenderType type="import('navcat').createPolyMeshDetailHelper" />
 
-### 8. Assemble the navigation mesh
+#### 8. Assemble the navigation mesh
 
 Finally, the polygon mesh and detail mesh are combined to create a navigation mesh tile. This tile can be used for pathfinding and navigation queries.
 
@@ -321,17 +493,57 @@ Finally, the polygon mesh and detail mesh are combined to create a navigation me
 
 <RenderType type="import('navcat').createNavMeshHelper" />
 
-## Navigation Mesh Querying
+### Post-Processing
 
-### findPath
+A common post-processing step after generating a navigation mesh is to flood-fill the navmesh from given "seed points" that represent valid starting locations, to exclude any isolated or unreachable areas. This is useful when generating navmeshes for complex environments where some inside of walls or on top of ceilings may be marked as walkable by the generation process, but are not actually reachable by agents for your use case.
 
-The `findPath` function is a convenience wrapper around `findNearestPoly`, `findNodePath`, and `findStraightPath` to get a path between two points on the navigation mesh.
+The `navcat/blocks` entrypoint provides a `floodFillNavMesh` utility that helps with this process.
 
-<Snippet source="./snippets/solo-navmesh.ts" select="findPath" />
+You can see the "Flood Fill Pruning" example to see how to use this utility:
 
-<RenderType type="import('navcat').findPath" />
+<RenderType type="import('navcat/blocks').floodFillNavMesh" />
 
-<Example id="example-find-path" />
+<ExamplesTable ids="example-flood-fill-pruning" />
+
+### Custom Query Filters and Custom Area Types
+
+Most navigation mesh querying APIs accept a `queryFilter` parameter that allows you to customize how the query is performed.
+
+You can provide a cost calculation function to modify the cost of traversing polygons, and you can provide a filter function to include/exclude polygons based on their area and flags.
+
+<RenderSource type="import('navcat').QueryFilter" />
+
+<RenderSource type="import('navcat').DEFAULT_QUERY_FILTER" />
+
+Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
+
+You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
+
+<ExamplesTable ids="example-custom-areas" />
+
+<ExamplesTable ids="example-multiple-agent-sizes" />
+
+### Off-Mesh Connections
+
+Off-mesh connections enable navigation between non-adjacent areas by representing special traversal actions like jumping gaps, climbing ladders, teleporting, or opening doors.
+
+**When to use:** Add off-mesh connections when your environment has gaps, vertical transitions, or special traversal mechanics that can't be represented by the standard navmesh polygons. The pathfinding system will automatically consider these connections when finding paths.
+
+<Snippet source="./snippets/solo-navmesh.ts" select="offMeshConnections" />
+
+To see a live example, see the "Off-Mesh Connections Example":
+
+<ExamplesTable ids="example-off-mesh-connections" />
+
+<RenderType type="import('navcat').addOffMeshConnection" />
+
+<RenderType type="import('navcat').removeOffMeshConnection" />
+
+<RenderType type="import('navcat').isOffMeshConnectionConnected" />
+
+## Advanced Navigation Mesh APIs
+
+This section covers lower-level APIs for working with the navigation mesh structure. Most users won't need these for everyday pathfinding, but they're useful for advanced use cases like understanding the navmesh internals, building custom pathfinding algorithms, or debugging.
 
 ### isValidNodeRef
 
@@ -351,69 +563,11 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <RenderType type="import('navcat').getNodeByTileAndPoly" />
 
-### findNearestPoly
-
-<Snippet source="./snippets/solo-navmesh.ts" select="findNearestPoly" />
-
-<RenderType type="import('navcat').findNearestPoly" />
-
-<Example id="example-find-nearest-poly" />
-
-### findNodePath
-
-<Snippet source="./snippets/solo-navmesh.ts" select="findNodePath" />
-
-<RenderType type="import('navcat').findNodePath" />
-
-### findStraightPath
-
-<Snippet source="./snippets/solo-navmesh.ts" select="findStraightPath" />
-
-<RenderType type="import('navcat').findStraightPath" />
-
-### moveAlongSurface
-
-<Snippet source="./snippets/solo-navmesh.ts" select="moveAlongSurface" />
-
-<RenderType type="import('navcat').moveAlongSurface" />
-
-<Example id="example-navmesh-constrained-character-controller" />
-
-### raycast
-
-<Snippet source="./snippets/solo-navmesh.ts" select="raycast" />
-
-<RenderType type="import('navcat').raycast" />
-
-<Example id="example-raycast" />
-
-### raycastWithCosts
-
-<Snippet source="./snippets/solo-navmesh.ts" select="raycastWithCosts" />
-
-<RenderType type="import('navcat').raycastWithCosts" />
-
 ### getPolyHeight
 
 <Snippet source="./snippets/solo-navmesh.ts" select="getPolyHeight" />
 
 <RenderType type="import('navcat').getPolyHeight" />
-
-### findRandomPoint
-
-<Snippet source="./snippets/solo-navmesh.ts" select="findRandomPoint" />
-
-<RenderType type="import('navcat').findRandomPoint" />
-
-<Example id="example-find-random-point" />
-
-### findRandomPointAroundCircle
-
-<Snippet source="./snippets/solo-navmesh.ts" select="findRandomPointAroundCircle" />
-
-<RenderType type="import('navcat').findRandomPointAroundCircle" />
-
-<Example id="example-find-random-point-around-circle" />
 
 ### getClosestPointOnPoly
 
@@ -445,77 +599,17 @@ The `findPath` function is a convenience wrapper around `findNearestPoly`, `find
 
 <RenderType type="import('navcat').queryPolygonsInTile" />
 
-## Custom Query Filters and Custom Area Types
-
-Most navigation mesh querying APIs accept a `queryFilter` parameter that allows you to customize how the query is performed.
-
-You can provide a cost calculation function to modify the cost of traversing polygons, and you can provide a filter function to include/exclude polygons based on their area and flags.
-
-<RenderSource type="import('navcat').QueryFilter" />
-
-<RenderSource type="import('navcat').DEFAULT_QUERY_FILTER" />
-
-Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
-
-You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
-
-<Example id="example-custom-areas" />
-
-<Example id="example-off-mesh-connections" />
-
-<Example id="example-multiple-agent-sizes" />
-
-## Agent / Crowd Simulation
-
-This library provides tools for you to simulate agents / crowds navigating the navmesh, but it deliberately does not do everything for you.
-
-Agent simulation varies greatly between use cases, with lots of different approaches to steering, collision avoidance, velocity control, off mesh connection animation, etc.
-
-Instead of providing an abstraction for agent simulation, navcat provides a set of tools, and a "starting point" in the "Crowd Simulation Example". You can copy/paste this into your project and maintain full control over customizing the simulation to your needs.
-
-<Example id="example-crowd-simulation" />
-
-## Off-Mesh Connections
-
-Off-mesh connections are used for navigation that isn't just traversal between adjacent polygons. They can represent actions like jumping, climbing, or using a door, the details of how they are created and represented in animation are up to you.
-
-<Snippet source="./snippets/solo-navmesh.ts" select="offMeshConnections" />
-
-To see a live example, see the "Off-Mesh Connections Example":
-
-<Example id="example-off-mesh-connections" />
-
-<RenderType type="import('navcat').addOffMeshConnection" />
-
-<RenderType type="import('navcat').removeOffMeshConnection" />
-
-<RenderType type="import('navcat').isOffMeshConnectionConnected" />
-
-## Tiled Navigation Meshes
-
-navcat's navigation mesh structure is tile-based, so it is possible to either create a navigation mesh with one tile that covers the entire area, or to create a tiled navigation mesh with multiple tiles that each cover a portion of the area.
-
-Tiled navigation meshes are more complex to work with, but they support larger environments, and enable advanced use cases like re-baking, navmesh data-streaming.
-
-To see an example of creating a tiled navigation mesh, see the "Tiled NavMesh Example":
-
-<Example id="example-tiled-navmesh" />
-
-How you want to manage tiles is up to you. You can create all the tiles at once, or create and add/remove tiles dynamically at runtime.
-
-If you remove and re-add tiles at given coordinates, note that the node references for polygons will become invalidated. Any custom pathfinding logic you write that references polygons will need to call `isValidNodeRef` to check if a node reference is still valid before using it.
-
-## BYO Navigation Meshes
+## Using Externally Created Navigation Meshes
 
 Although this library provides a robust method of generating navigation meshes from 3D geometry, you can also bring your own navigation meshes if you author them manually, or generate them with another tool.
 
 You can pass any external polygon data to the `polygonsToNavMeshTilePolys` utility to convert it into the navcat runtime navigation mesh tile format.
 
-You can also use `polysToTileDetailMesh` to generate a detail mesh for your polygons, or you can provide your own detail mesh if you have height data for your polygons.
+You can also use `polysToTileDetailMesh` to generate a detail mesh for your polygons, or you can provide your own detail triangle mesh if you have height data for your polygons.
 
 See the "Custom GLTF NavMesh" Example to see how to use an "externally generated" navigation mesh with navcat:
 
-<Example id="example-custom-gltf-navmesh" />
+<ExamplesTable ids="example-custom-gltf-navmesh" />
 
 ## Saving and Loading NavMeshes
 
@@ -538,46 +632,6 @@ If you are using threejs, or want a reference of how to implement debug renderin
 <RenderSource type="import('navcat').DebugPoints" />
 
 <RenderSource type="import('navcat').DebugBoxes" />
-
-## `navcat/blocks`
-
-The `navcat/blocks` entrypoint provides presets and building blocks to help you get started quickly.
-
-### Geometry Utilities
-
-<RenderType type="import('navcat/blocks').mergePositionsAndIndices" />
-
-### Generation Presets
-
-<RenderType type="import('navcat/blocks').generateSoloNavMesh" />
-<RenderType type="import('navcat/blocks').SoloNavMeshInput" />
-<RenderType type="import('navcat/blocks').SoloNavMeshOptions" />
-<RenderType type="import('navcat/blocks').SoloNavMeshResult" />
-
-<RenderType type="import('navcat/blocks').generateTiledNavMesh" />
-<RenderType type="import('navcat/blocks').TiledNavMeshInput" />
-<RenderType type="import('navcat/blocks').TiledNavMeshOptions" />
-<RenderType type="import('navcat/blocks').TiledNavMeshResult" />
-
-### Flood Fill
-
-<RenderType type="import('navcat/blocks').floodFillNavMesh" />
-
-### Crowd Simulation
-
-`navcat/blocks` contains a crowd simulation API that you can use as a starting point for your own agent simulation.
-
-It provides:
-- Simple APIs for adding and removing agents from a crowd, and setting their target position or velocity
-- Logic for splitting agent pathfinding queries over multiple frames
-- Polygon wall and agent obstacle avoidance
-- Support for off-mesh connections, with APIs for inserting your own animation logic for traversing off-mesh connections
-
-For an example of how to use the crowd simulation APIs, see the "Crowd Simulation Example":
-
-<Example id="example-crowd-simulation" />
-
-If your requirements are more complex, you might want to use the `pathCorridor` and `localBoundary` blocks used within `crowd` to build your own agent simulation logic. Because `crowd` isn't part of core, you can eject from it and modify it easily.
 
 ## `navcat/three`
 
@@ -612,6 +666,19 @@ Below is a snippet demonstrating how to use `getPositionsAndIndices` to extract 
 <RenderType type="import('navcat/three').createNavMeshPortalsHelper" />
 <RenderType type="import('navcat/three').createSearchNodesHelper" />
 <RenderType type="import('navcat/three').createNavMeshOffMeshConnectionsHelper" />
+
+## Community
+
+**Used in**
+
+- [manablade.com](https://manablade.com)
+- ... add your project!
+
+**WebGameDev Discord**
+
+Join the WebGameDev Discord to discuss navcat with other users and contributors, ask questions, and share your projects!
+
+https://www.webgamedev.com/discord
 
 ## Acknowledgements
 

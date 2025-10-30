@@ -81,6 +81,12 @@ const headingRegex = /^(#{2,6})\s+(.*)$/gm;
 for (const match of readmeText.matchAll(headingRegex)) {
     const level = match[1].length - 1; // level 2-6 becomes 1-5
     const title = match[2].trim();
+    
+    // Skip "Table of Contents" heading
+    if (title === 'Table of Contents') {
+        continue;
+    }
+    
     const anchor = title
             .toLowerCase()
             .replace(/[^\w\s-]/g, '') // remove non-alphanumeric characters except spaces and hyphens
@@ -150,6 +156,50 @@ readmeText = readmeText.replace(exampleRegex, (fullMatch, exampleId) => {
 </div>
 `;
     return exampleHtml;
+});
+
+/* <ApiDocsLink name="findPath" /> */
+const apiDocsLinkRegex = /<ApiDocsLink\s+name=["'](.+?)["']\s*\/>/g;
+readmeText = readmeText.replace(apiDocsLinkRegex, (fullMatch, functionName) => {
+    return `**[\`${functionName}\` API Documentation →](https://navcat.dev/docs/functions/navcat.${functionName}.html)**`;
+});
+
+/* <ExamplesTable ids="example-find-path,example-find-smooth-path" /> */
+const examplesTableRegex = /<ExamplesTable\s+ids=["'](.+?)["']\s*\/>/g;
+readmeText = readmeText.replace(examplesTableRegex, (fullMatch, exampleIdsStr) => {
+    const examplesJsonPath = path.join(path.dirname(new URL(import.meta.url).pathname), '../examples/src/examples.json');
+    
+    if (!fs.existsSync(examplesJsonPath)) {
+        console.warn(`Examples JSON file not found: ${examplesJsonPath}`);
+        return fullMatch;
+    }
+    
+    const exampleIds = exampleIdsStr.split(',').map(id => id.trim());
+    const examplesData = JSON.parse(fs.readFileSync(examplesJsonPath, 'utf-8'));
+    const validExamples = exampleIds.filter(id => examplesData[id]);
+    
+    if (validExamples.length === 0) {
+        console.warn(`No valid examples found for ids: ${exampleIdsStr}`);
+        return fullMatch;
+    }
+    
+    const tableCells = validExamples.map(id => {
+        const example = examplesData[id];
+        const title = example.title || id;
+        const imgSrc = `./examples/public/screenshots/${id}.png`;
+        return `  <td align="center">
+    <a href="https://navcat.dev/examples#${id}">
+      <img src="${imgSrc}" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>${title}</strong>
+    </a>
+  </td>`;
+    }).join('\n');
+    
+    return `<table>
+  <tr>
+${tableCells}
+  </tr>
+</table>`;
 });
 
 /* <RenderType type="import('navcat').TypeName" /> */
