@@ -1,5 +1,11 @@
 ![./docs/cover.png](./docs/cover.png)
 
+
+[![Version](https://img.shields.io/npm/v/navcat?style=for-the-badge)](https://www.npmjs.com/package/navcat)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/isaac-mason/navcat/main.yml?style=for-the-badge)
+[![Downloads](https://img.shields.io/npm/dt/navcat.svg?style=for-the-badge)](https://www.npmjs.com/package/navcat)
+
+
 ```bash
 > npm install navcat
 ```
@@ -7,6 +13,8 @@
 # navcat
 
 navcat is a javascript navigation mesh construction and querying library for 3D floor-based navigation.
+
+navcat is ideal for use in games, simulations, and creative websites that require pathfinding and AI navigation in complex 3D environments.
 
 **Features**
 
@@ -24,9 +32,19 @@ This README provides curated explanations, guides, and examples to help you get 
 
 API documentation can be found at [navcat.dev/docs](https://navcat.dev/docs).
 
+**Installation**
+
+navcat is available on npm:
+
+```bash
+npm install navcat
+```
+
 **Changelog**
 
 See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each version.
+
+> **_NOTE:_** This library is under active development. In the leadup to a v1 release, you can expect APIs to improve and change in minor versions.
 
 **Examples**
 
@@ -59,7 +77,7 @@ If your environment uses a different coordinate system, you will need to transfo
 
 The examples use threejs for rendering, but the core navcat APIs are completely agnostic of any rendering or game engine libraries.
 
-## Quick Start
+## Quick Start / Minimal Example
 
 Below is a minimal example of using the presets in `navcat/blocks` to generate a navigation mesh, and then using APIs in `navcat` to find a path on the generated navmesh.
 
