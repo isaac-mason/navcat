@@ -14,16 +14,15 @@
 
 navcat is a javascript navigation mesh construction and querying library for 3D floor-based navigation.
 
-navcat is ideal for use in games, simulations, and creative websites that require pathfinding and AI navigation in complex 3D environments.
+navcat is ideal for use in games, simulations, and creative websites that require navigation in complex 3D environments.
 
 **Features**
 
 - Navigation mesh generation from 3D geometry
 - Navigation mesh querying
 - Single and multi-tile navigation mesh support
-- Pure javascript - no wasm
 - Fully JSON serializable data structures
-- Tiny - ~40 kB minified + gzipped, and highly tree-shakeable
+- Pure javascript, written to be highly tree-shakeable
 - Works with any javascript engine/library - Babylon.js, PlayCanvas, Three.js, or your own engine
 
 **Documentation**

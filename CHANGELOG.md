@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.0.11 (Unreleased)
+
+- feat: documentation improvements
+
 ## 0.0.10
 
 - feat: make some `crowd.addAgent` parameters optional with defaults
