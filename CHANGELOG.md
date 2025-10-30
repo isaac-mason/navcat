@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.0.11 (Unreleased)
+## 0.0.11
 
 - feat: documentation improvements
 - feat: isOffMeshConnectionConnected jsdoc improvements
