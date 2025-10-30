@@ -519,9 +519,7 @@ Many simple use cases can get far with using the default query `Nav.DEFAULT_QUER
 
 You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
 
-<ExamplesTable ids="example-custom-areas" />
-
-<ExamplesTable ids="example-multiple-agent-sizes" />
+<ExamplesTable ids="example-custom-areas,example-multiple-agent-sizes" />
 
 ### Off-Mesh Connections
 
@@ -619,7 +617,9 @@ Because the navigation mesh is a normal JSON-serializable object, you can easily
 
 navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
 
-If you are using threejs, or want a reference of how to implement debug rendering, see the debug rendering code from the examples: [./examples/src/common/debug.ts](./examples/src/common/debug.ts)
+If you are using threejs, you can use the `navcat/three` entrypoint's debug helpers to create threejs objects for visualization, see the [navcat/three section](#navcatthree) below.
+
+If you are using a different library, you write your own functions to visualize the debug primitives below.
 
 <Snippet source="./snippets/solo-navmesh.ts" select="debug" />
 

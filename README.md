@@ -1823,11 +1823,6 @@ You can reference the "Custom Areas" example to see how to mark areas with diffe
       <strong>Custom Areas</strong>
     </a>
   </td>
-  </tr>
-</table>
-
-<table>
-  <tr>
   <td align="center">
     <a href="https://navcat.dev/examples#example-multiple-agent-sizes">
       <img src="./examples/public/screenshots/example-multiple-agent-sizes.png" width="200" height="133" style="object-fit:cover;"/><br/>
@@ -2186,7 +2181,9 @@ Because the navigation mesh is a normal JSON-serializable object, you can easily
 
 navcat provides graphics-library agnostic debug drawing functions to help visualize the navmesh and related data structures.
 
-If you are using threejs, or want a reference of how to implement debug rendering, see the debug rendering code from the examples: [./examples/src/common/debug.ts](./examples/src/common/debug.ts)
+If you are using threejs, you can use the `navcat/three` entrypoint's debug helpers to create threejs objects for visualization, see the [navcat/three section](#navcatthree) below.
+
+If you are using a different library, you write your own functions to visualize the debug primitives below.
 
 ```ts
 const triangleAreaIdsHelper = Nav.createTriangleAreaIdsHelper({ positions, indices }, triAreaIds);
