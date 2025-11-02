@@ -75,13 +75,14 @@ export type SoloNavMeshResult = {
 };
 
 export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMeshOptions): SoloNavMeshResult {
+    /* 1. create build context, gather inputs and options */
+
     const ctx = BuildContext.create();
 
     BuildContext.start(ctx, 'navmesh generation');
 
     const { positions, indices } = input;
 
-    /* 0. define generation parameters */
     const {
         cellSize,
         cellHeight,
@@ -102,11 +103,10 @@ export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMes
         detailSampleMaxError,
     } = options;
 
-    /* 1. input positions and indices are already provided */
+    /* 2. mark walkable triangles */
 
     BuildContext.start(ctx, 'mark walkable triangles');
 
-    /* 2. mark walkable triangles */
     const triAreaIds = new Uint8Array(indices.length / 3).fill(0);
     markWalkableTriangles(positions, indices, triAreaIds, walkableSlopeAngleDegrees);
 
