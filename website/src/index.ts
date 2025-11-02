@@ -6,10 +6,11 @@ import {
     findNearestPoly,
     findRandomPoint,
     findRandomPointAroundCircle,
+    getNodeByRef,
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
 } from 'navcat';
-import { crowd, generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
+import { crowd, floodFillNavMesh, generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 import { createNavMeshHelper, createNavMeshOffMeshConnectionsHelper, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
 import { Line2, LineGeometry, LineMaterial } from 'three/examples/jsm/Addons.js';
@@ -225,6 +226,15 @@ const offMeshConnections: OffMeshConnectionParams[] = [
 
 for (const offMeshConnection of offMeshConnections) {
     addOffMeshConnection(navMesh, offMeshConnection);
+}
+
+// flood fill from a known good start poly, disable unreachable polys
+const seedPolyResult = findNearestPoly(createFindNearestPolyResult(), navMesh, [-3, 0, 6], [0.5, 0.5, 0.5], DEFAULT_QUERY_FILTER);
+const { unreachable } = floodFillNavMesh(navMesh, [seedPolyResult.nodeRef]);
+
+for (const unreachableNodeRef of unreachable) {
+    const node = getNodeByRef(navMesh, unreachableNodeRef);
+    node.flags = 0;
 }
 
 const navMeshHelper = createNavMeshHelper(navMesh);
