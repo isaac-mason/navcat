@@ -1,5 +1,5 @@
 import { DEFAULT_QUERY_FILTER, findPath, getTileAndPolyByRef, type NavMesh, type NodeRef, type QueryFilter } from 'navcat';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { computeRunupDistance, estimateRunupTime, solveLaunch } from './ballistic';
 import type { AgentKinodynamics, KinematicSurface, TemporalActionEdge } from './types';
 

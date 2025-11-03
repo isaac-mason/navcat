@@ -1,5 +1,5 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import type { KinematicSurface } from '../temporal/types';
 
 export type PlatformPath =

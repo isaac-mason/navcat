@@ -1,10 +1,6 @@
+import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 import {
     addOffMeshConnection,
-    generateSoloNavMesh,
-    type SoloNavMeshInput,
-    type SoloNavMeshOptions,
-} from 'navcat/blocks';
-import {
     DEFAULT_QUERY_FILTER,
     createFindNearestPolyResult,
     findNearestPoly,
@@ -12,7 +8,7 @@ import {
     type NodeRef,
     OffMeshConnectionDirection,
 } from 'navcat';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 
 export type EndlessNavEnvironment = {
     navMesh: NavMesh;

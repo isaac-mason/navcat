@@ -1,5 +1,5 @@
 import { DEFAULT_QUERY_FILTER, createFindNearestPolyResult, findNearestPoly, type NavMesh } from 'navcat';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { synthesizeTemporalActions } from './synthesizer';
 import type { AgentKinodynamics, KinematicSurface, TemporalPlan, TemporalPlanStep } from './types';
 

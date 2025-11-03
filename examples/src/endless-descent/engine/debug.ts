@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import type { TemporalPlan, TemporalPlanActionStep } from '../temporal/types';
 
 export class DebugDraw {

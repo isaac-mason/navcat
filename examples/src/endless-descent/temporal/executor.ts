@@ -1,5 +1,5 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { createFindNearestPolyResult, findNearestPoly } from 'navcat';
 import type { NavMesh } from 'navcat';
 import type { CrowdController } from '../engine/crowd';
