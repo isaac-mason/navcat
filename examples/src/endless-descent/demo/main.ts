@@ -1,7 +1,8 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import { findRandomPoint } from 'navcat';
+import { vec3, type Vec3 } from 'mathcat';
+import { DEFAULT_QUERY_FILTER, findRandomPoint, findRandomPointAroundCircle } from 'navcat';
+import { createNavMeshHelper, createNavMeshLinksHelper, createNavMeshOffMeshConnectionsHelper, createNavMeshPortalsHelper } from 'navcat/three';
 import * as THREE from 'three/webgpu';
-import { DEFAULT_QUERY_FILTER } from 'navcat';
 import { setupScene } from './scene';
 import { buildEndlessNavEnvironment } from '../engine/nav';
 import { createCrowdController, getAgentPosition } from '../engine/crowd';
@@ -19,6 +20,37 @@ await Rapier.init();
 const world = new Rapier.World({ x: 0, y: -9.81, z: 0 });
 
 const navEnv = buildEndlessNavEnvironment(scene);
+// Debug: log nav environment basics
+console.log('[EndlessDescent] roofRef:', navEnv.roofRef, 'goalRegion:', navEnv.goalRegion);
+
+const sampleRoofSpawn = (): Vec3 => {
+    if (navEnv.roofRef !== 0) {
+        const around = findRandomPointAroundCircle(
+            navEnv.navMesh,
+            navEnv.roofRef,
+            [navEnv.roofCenter.x, navEnv.roofCenter.y, navEnv.roofCenter.z],
+            4.5,
+            DEFAULT_QUERY_FILTER,
+            Math.random,
+        );
+        if (around.success) {
+            return around.position;
+        }
+    }
+
+    for (let attempt = 0; attempt < 50; attempt++) {
+        const randomPoint = findRandomPoint(navEnv.navMesh, DEFAULT_QUERY_FILTER, Math.random);
+        if (randomPoint.success && randomPoint.position[1] > navEnv.roofCenter.y - 1) {
+            return randomPoint.position;
+        }
+    }
+
+    const fallback = vec3.create();
+    fallback[0] = navEnv.roofCenter.x;
+    fallback[1] = navEnv.roofCenter.y;
+    fallback[2] = navEnv.roofCenter.z;
+    return fallback;
+};
 
 const crowdParams = {
     radius: 0.3,
@@ -101,22 +133,125 @@ const surfaces = (): KinematicSurface[] => [...platformsManager.surfaces(), grou
 const executor = new TemporalExecutor(kin, crowdController, world, navEnv.navMesh);
 
 const agentGeometry = new THREE.CapsuleGeometry(0.3, 0.8, 4, 8);
-const agentMaterial = new THREE.MeshStandardMaterial({ color: 0xf5deb3 });
+const agentMaterial = new THREE.MeshStandardMaterial({ color: 0xffc87a });
 
 const agentRuntimes: AgentRuntime[] = [];
 for (let i = 0; i < 40; i++) {
-    const spawn = findRandomPoint(navEnv.navMesh, DEFAULT_QUERY_FILTER, Math.random);
-    if (!spawn.success) continue;
+    const spawnPosition = sampleRoofSpawn();
     const mesh = new THREE.Mesh(agentGeometry, agentMaterial.clone());
     mesh.castShadow = true;
-    mesh.position.set(spawn.position[0], spawn.position[1], spawn.position[2]);
+    mesh.position.set(spawnPosition[0], spawnPosition[1], spawnPosition[2]);
     scene.add(mesh);
-    const crowdId = crowdController.spawnAgent(spawn.position);
+    const crowdId = crowdController.spawnAgent(spawnPosition);
     const runtime = executor.addAgent(mesh, crowdId);
     agentRuntimes.push(runtime);
 }
 
 const debugDraw = new DebugDraw(scene);
+
+// Create helpers with diagnostics
+const navMeshHelper = createNavMeshHelper(navEnv.navMesh);
+navMeshHelper.object.position.y += 0.2;
+navMeshHelper.object.renderOrder = 999;
+navMeshHelper.object.traverse((child: any) => {
+    if (child instanceof THREE.Mesh) {
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        for (const mat of materials) {
+            if (!mat) continue;
+            if ('color' in mat) {
+                mat.color.setHex(0x00aaff);
+            }
+            mat.transparent = true;
+            mat.opacity = 0.7;
+            mat.depthWrite = false;
+            mat.depthTest = false;
+        }
+    }
+});
+scene.add(navMeshHelper.object);
+console.log('[EndlessDescent] NavMeshHelper added:', {
+    visible: navMeshHelper.object.visible,
+    children: navMeshHelper.object.children.length,
+});
+
+// NavMesh Links helper (hidden by default; toggled via GUI)
+const navMeshLinksHelper = createNavMeshLinksHelper(navEnv.navMesh);
+navMeshLinksHelper.object.renderOrder = 1000;
+navMeshLinksHelper.object.visible = false;
+scene.add(navMeshLinksHelper.object);
+console.log('[EndlessDescent] NavMeshLinksHelper added:', {
+    visible: navMeshLinksHelper.object.visible,
+});
+
+// OffMesh Connections helper (hidden by default; toggled via GUI)
+const offMeshHelper = createNavMeshOffMeshConnectionsHelper(navEnv.navMesh);
+offMeshHelper.object.renderOrder = 1000;
+offMeshHelper.object.visible = false;
+scene.add(offMeshHelper.object);
+console.log('[EndlessDescent] OffMeshConnectionsHelper added:', {
+    visible: offMeshHelper.object.visible,
+});
+
+// Portals helper (hidden by default; toggled via GUI)
+const portalsHelper = createNavMeshPortalsHelper(navEnv.navMesh);
+portalsHelper.object.renderOrder = 1000;
+portalsHelper.object.visible = false;
+scene.add(portalsHelper.object);
+console.log('[EndlessDescent] PortalsHelper added:', {
+    visible: portalsHelper.object.visible,
+});
+
+// Platforms footprint overlay
+const platformsOverlay = new THREE.Group();
+platformsOverlay.renderOrder = 1001;
+scene.add(platformsOverlay);
+
+function rebuildPlatformsOverlay(time: number) {
+    platformsOverlay.clear();
+    for (const s of surfaces()) {
+        const fp = s.footprintAt(time);
+        if (!fp || fp.length === 0) continue;
+        const closed = [...fp, fp[0]];
+        const geom = new THREE.BufferGeometry().setFromPoints(
+            closed.map((p) => new THREE.Vector3(p.x, p.y + 0.02, p.z)),
+        );
+        const mat = new THREE.LineBasicMaterial({ color: 0x7df9ff, transparent: true, opacity: 0.7, linewidth: 1 });
+        const line = new THREE.Line(geom, mat);
+        line.renderOrder = 1001;
+        platformsOverlay.add(line);
+    }
+}
+
+const debugConfig = {
+    navMesh: true,
+    navMeshLinks: false,
+    navMeshPortals: false,
+    offMeshConnections: false,
+    platforms: true,
+};
+
+const debugFolder = gui.addFolder('NavMesh');
+debugFolder.add(debugConfig, 'navMesh').name('NavMesh').onChange((value: boolean) => {
+    console.log('[EndlessDescent] Toggle NavMesh:', value);
+    navMeshHelper.object.visible = value;
+});
+debugFolder.add(debugConfig, 'navMeshLinks').name('NavMesh Links').onChange((value: boolean) => {
+    console.log('[EndlessDescent] Toggle NavMesh Links:', value);
+    navMeshLinksHelper.object.visible = value;
+});
+debugFolder.add(debugConfig, 'navMeshPortals').name('NavMesh Portals').onChange((value: boolean) => {
+    console.log('[EndlessDescent] Toggle NavMesh Portals:', value);
+    portalsHelper.object.visible = value;
+});
+debugFolder.add(debugConfig, 'offMeshConnections').name('OffMesh Connections').onChange((value: boolean) => {
+    console.log('[EndlessDescent] Toggle OffMesh Connections:', value);
+    offMeshHelper.object.visible = value;
+});
+debugFolder.add(debugConfig, 'platforms').name('Platforms').onChange((value: boolean) => {
+    console.log('[EndlessDescent] Toggle Platforms overlay:', value);
+    platformsOverlay.visible = value;
+});
+debugFolder.open();
 
 const kinFolder = gui.addFolder('Kinodynamics');
 kinFolder.add(kin, 'runMax', 2, 12, 0.1);
@@ -125,6 +260,34 @@ kinFolder.add(kin, 'jumpVMax', 2, 12, 0.1);
 kinFolder.add(kin, 'lookahead', 2, 10, 0.1);
 kinFolder.add(kin, 'ledgeSamples', 1, 12, 1);
 kinFolder.open();
+
+// Actions
+const actions = {
+    resetCrowd: () => {
+        const now = performance.now() / 1000;
+        console.log('[EndlessDescent] Reset crowd');
+        for (const agent of agentRuntimes) {
+            if (agent.body) {
+                world.removeRigidBody(agent.body);
+                agent.body = null;
+            }
+            if (agent.crowdId) {
+                crowdController.removeAgent(agent.crowdId);
+                agent.crowdId = null;
+            }
+            const spawn = sampleRoofSpawn();
+            agent.mesh.position.set(spawn[0], spawn[1], spawn[2]);
+            const newId = crowdController.spawnAgent(spawn);
+            agent.crowdId = newId;
+            agent.plan = null;
+            agent.stepIndex = 0;
+            agent.nextReplanTime = now;
+        }
+    },
+};
+const actionsFolder = gui.addFolder('Actions');
+actionsFolder.add(actions, 'resetCrowd').name('Reset Crowd');
+actionsFolder.open();
 
 let lastTime = performance.now() / 1000;
 
@@ -154,6 +317,7 @@ function animate() {
 
     world.step();
     platformsManager.update(time);
+    if (debugConfig.platforms) rebuildPlatformsOverlay(time);
     crowdController.update(dt);
     updateAgentsPlans(time);
     executor.update(time, dt);

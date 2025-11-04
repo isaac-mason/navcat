@@ -64,17 +64,34 @@ function sampleEdgePoints(edge: BoundaryEdge, samples: number): THREE.Vector3[] 
     return points;
 }
 
+function pointToSegmentDistanceXZ(a: THREE.Vector3, b: THREE.Vector3, p: THREE.Vector3): number {
+    const ax = a.x;
+    const az = a.z;
+    const bx = b.x;
+    const bz = b.z;
+    const px = p.x;
+    const pz = p.z;
+
+    const abx = bx - ax;
+    const abz = bz - az;
+    const apx = px - ax;
+    const apz = pz - az;
+    const abLenSq = abx * abx + abz * abz;
+
+    const t = abLenSq === 0 ? 0 : Math.max(0, Math.min(1, (apx * abx + apz * abz) / abLenSq));
+    const cx = ax + abx * t;
+    const cz = az + abz * t;
+
+    return Math.hypot(px - cx, pz - cz);
+}
+
 function computeLandingMargin(footprint: THREE.Vector3[], landing: THREE.Vector3): number {
-    if (footprint.length < 3) return 0;
+    if (footprint.length < 2) return 0;
     let min = Infinity;
     for (let i = 0; i < footprint.length; i++) {
         const a = footprint[i];
         const b = footprint[(i + 1) % footprint.length];
-        const edge = new THREE.Vector2(b.x - a.x, b.z - a.z);
-        const normal = new THREE.Vector2(-edge.y, edge.x).normalize();
-        const point = new THREE.Vector2(landing.x - a.x, landing.z - a.z);
-        const distance = normal.dot(point);
-        min = Math.min(min, distance);
+        min = Math.min(min, pointToSegmentDistanceXZ(a, b, landing));
     }
     return min;
 }
@@ -111,7 +128,7 @@ function filterSurfacesByCone(
     lookahead: number,
 ): KinematicSurface[] {
     const maxDistance = 60;
-    const coneCos = Math.cos(THREE.MathUtils.degToRad(80));
+    const coneCos = Math.cos(THREE.MathUtils.degToRad(100));
     const list: KinematicSurface[] = [];
     for (const surface of surfaces) {
         for (let t = now; t <= now + lookahead; t += lookahead / 4) {
@@ -173,6 +190,8 @@ export function synthesizeTemporalActions({
             const pathPoints = pathResult.path.map((p) => new THREE.Vector3(p.position[0], p.position[1], p.position[2]));
             if (pathPoints.length === 0) continue;
             const dWalk = computePathLength(pathPoints);
+            const runupSegmentLength = launchPoint.distanceTo(runupStart);
+            const totalAvailableDistance = dWalk + runupSegmentLength;
 
             const candidateSurfaces = filterSurfacesByCone(surfaces, launchPoint, edge.inward, now, kin.lookahead);
             for (const surface of candidateSurfaces) {
@@ -191,7 +210,7 @@ export function synthesizeTemporalActions({
                             if (launchPoint.y - landing.y > kin.safeDrop) continue;
 
                             const runupDistance = computeRunupDistance(horizontalSpeed, 0, kin.runAccel);
-                            if (runupDistance > dWalk + 2) continue;
+                            if (runupDistance > totalAvailableDistance - 0.5) continue;
 
                             const walkTime = dWalk / Math.max(kin.walkSpeed, 0.01);
                             const runupTime = estimateRunupTime(horizontalSpeed, 0, kin.runAccel);
