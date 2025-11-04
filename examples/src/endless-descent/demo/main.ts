@@ -18,6 +18,53 @@ const { scene, camera, renderer, controls, gui } = await setupScene(container);
 
 await Rapier.init();
 const world = new Rapier.World({ x: 0, y: -9.81, z: 0 });
+const characterController = world.createCharacterController(0.01);
+characterController.setUp({ x: 0, y: 1, z: 0 });
+characterController.setMaxSlopeClimbAngle((45 * Math.PI) / 180);
+characterController.setMinSlopeSlideAngle((30 * Math.PI) / 180);
+characterController.enableAutostep(0.5, 0.2, true);
+characterController.enableSnapToGround(0.5);
+characterController.setApplyImpulsesToDynamicBodies(true);
+
+const physicsDebugState = { enabled: false };
+const physicsDebugGeometry = new THREE.BufferGeometry();
+const physicsDebugMaterial = new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+});
+const physicsDebugLines = new THREE.LineSegments(physicsDebugGeometry, physicsDebugMaterial);
+physicsDebugLines.renderOrder = 1002;
+physicsDebugLines.visible = false;
+scene.add(physicsDebugLines);
+
+const clearPhysicsDebug = () => {
+    physicsDebugGeometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    physicsDebugGeometry.setAttribute('color', new THREE.Float32BufferAttribute([], 3));
+    physicsDebugGeometry.setDrawRange(0, 0);
+};
+
+const updatePhysicsDebug = () => {
+    const { vertices, colors } = world.debugRender();
+
+    if (!vertices || vertices.length === 0) {
+        clearPhysicsDebug();
+        return;
+    }
+
+    physicsDebugGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+    const colorCount = colors.length / 4;
+    const rgb = new Float32Array(colorCount * 3);
+    for (let i = 0, j = 0; i < colors.length; i += 4) {
+        rgb[j++] = colors[i];
+        rgb[j++] = colors[i + 1];
+        rgb[j++] = colors[i + 2];
+    }
+    physicsDebugGeometry.setAttribute('color', new THREE.Float32BufferAttribute(rgb, 3));
+    physicsDebugGeometry.setDrawRange(0, vertices.length / 3);
+};
 
 const navEnv = buildEndlessNavEnvironment(scene);
 // Debug: log nav environment basics
@@ -130,7 +177,7 @@ const groundSurface: KinematicSurface = {
 
 const surfaces = (): KinematicSurface[] => [...platformsManager.surfaces(), groundSurface];
 
-const executor = new TemporalExecutor(kin, crowdController, world, navEnv.navMesh);
+const executor = new TemporalExecutor(kin, crowdController, world, navEnv.navMesh, characterController);
 
 const agentGeometry = new THREE.CapsuleGeometry(0.3, 0.8, 4, 8);
 const agentMaterial = new THREE.MeshStandardMaterial({ color: 0xffc87a });
@@ -143,7 +190,7 @@ for (let i = 0; i < 40; i++) {
     mesh.position.set(spawnPosition[0], spawnPosition[1], spawnPosition[2]);
     scene.add(mesh);
     const crowdId = crowdController.spawnAgent(spawnPosition);
-    const runtime = executor.addAgent(mesh, crowdId);
+    const runtime = executor.addAgent(mesh, crowdId, spawnPosition);
     agentRuntimes.push(runtime);
 }
 
@@ -251,6 +298,15 @@ debugFolder.add(debugConfig, 'platforms').name('Platforms').onChange((value: boo
     console.log('[EndlessDescent] Toggle Platforms overlay:', value);
     platformsOverlay.visible = value;
 });
+debugFolder.add(physicsDebugState, 'enabled').name('Physics Debug').onChange((value: boolean) => {
+    console.log('[EndlessDescent] Toggle Physics Debug:', value);
+    physicsDebugLines.visible = value;
+    if (!value) {
+        clearPhysicsDebug();
+    } else {
+        updatePhysicsDebug();
+    }
+});
 debugFolder.open();
 
 const kinFolder = gui.addFolder('Kinodynamics');
@@ -267,20 +323,12 @@ const actions = {
         const now = performance.now() / 1000;
         console.log('[EndlessDescent] Reset crowd');
         for (const agent of agentRuntimes) {
-            if (agent.body) {
-                world.removeRigidBody(agent.body);
-                agent.body = null;
-            }
             if (agent.crowdId) {
                 crowdController.removeAgent(agent.crowdId);
-                agent.crowdId = null;
             }
             const spawn = sampleRoofSpawn();
-            agent.mesh.position.set(spawn[0], spawn[1], spawn[2]);
             const newId = crowdController.spawnAgent(spawn);
-            agent.crowdId = newId;
-            agent.plan = null;
-            agent.stepIndex = 0;
+            executor.resetAgent(agent, spawn, newId);
             agent.nextReplanTime = now;
         }
     },
@@ -318,17 +366,13 @@ function animate() {
     world.step();
     platformsManager.update(time);
     if (debugConfig.platforms) rebuildPlatformsOverlay(time);
+    executor.syncCrowdToPhysics();
     crowdController.update(dt);
     updateAgentsPlans(time);
     executor.update(time, dt);
 
-    for (const agent of agentRuntimes) {
-        if (agent.crowdId) {
-            const pos = getAgentPosition(crowdController, agent.crowdId);
-            if (pos) {
-                agent.mesh.position.set(pos[0], pos[1], pos[2]);
-            }
-        }
+    if (physicsDebugState.enabled) {
+        updatePhysicsDebug();
     }
 
     controls.update();

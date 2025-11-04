@@ -45,3 +45,17 @@ export function setAgentVelocity(controller: CrowdController, agentId: string, v
     agent.velocity[1] = velocity[1];
     agent.velocity[2] = velocity[2];
 }
+
+export function setAgentPosition(controller: CrowdController, agentId: string, position: Vec3): void {
+    const agent = controller.handle.agents[agentId];
+    if (!agent) return;
+    agent.position[0] = position[0];
+    agent.position[1] = position[1];
+    agent.position[2] = position[2];
+}
+
+export function getAgentNewVelocity(controller: CrowdController, agentId: string): Vec3 | null {
+    const agent = controller.handle.agents[agentId];
+    if (!agent) return null;
+    return agent.newVelocity;
+}
