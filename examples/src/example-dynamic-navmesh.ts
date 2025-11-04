@@ -14,7 +14,6 @@ import {
     buildTile,
     calculateGridSize,
     calculateMeshBounds,
-    type CompactHeightfield,
     ContourBuildFlags,
     createFindNearestPolyResult,
     createHeightfield,
@@ -25,9 +24,7 @@ import {
     filterLowHangingWalkableObstacles,
     filterWalkableLowHeightSpans,
     findNearestPoly,
-    markCylinderArea,
     markWalkableTriangles,
-    NULL_AREA,
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
     polyMeshDetailToTileDetailMesh,
@@ -52,13 +49,71 @@ await Rapier.init();
 
 /* controls */
 const guiSettings = {
-    showPathLine: false,
-    showRapierDebug: false,
+    showPathLine: true,
+    showRapierDebug: true,
+};
+
+const navMeshConfig = {
+    cellSize: 0.15,
+    cellHeight: 0.15,
+    tileSizeVoxels: 32,
+    walkableRadiusWorld: 0.15,
+    walkableClimbWorld: 0.5,
+    walkableHeightWorld: 1.0,
+    walkableSlopeAngleDegrees: 45,
+    borderSize: 4,
+    minRegionArea: 8,
+    mergeRegionArea: 20,
+    maxSimplificationError: 1.3,
+    maxEdgeLength: 12,
+    maxVerticesPerPoly: 5,
+    detailSampleDistance: 6,
+    detailSampleMaxError: 1,
+    tileRebuildThrottleMs: 1000,
 };
 
 const gui = new GUI();
 gui.add(guiSettings, 'showPathLine').name('Show Path Line');
 gui.add(guiSettings, 'showRapierDebug').name('Show Rapier Debug');
+
+const navMeshFolder = gui.addFolder('NavMesh');
+navMeshFolder.add(navMeshConfig, 'cellSize', 0.05, 1, 0.01).name('Cell Size');
+navMeshFolder.add(navMeshConfig, 'cellHeight', 0.05, 1, 0.01).name('Cell Height');
+navMeshFolder.add(navMeshConfig, 'tileSizeVoxels', 8, 128, 1).name('Tile Size (voxels)');
+
+const navMeshAgentFolder = navMeshFolder.addFolder('Agent');
+navMeshAgentFolder.add(navMeshConfig, 'walkableRadiusWorld', 0, 2, 0.01).name('Radius');
+navMeshAgentFolder.add(navMeshConfig, 'walkableClimbWorld', 0, 2, 0.01).name('Climb');
+navMeshAgentFolder.add(navMeshConfig, 'walkableHeightWorld', 0, 2, 0.01).name('Height');
+navMeshAgentFolder.add(navMeshConfig, 'walkableSlopeAngleDegrees', 0, 90, 1).name('Slope (deg)');
+
+const navMeshRegionFolder = navMeshFolder.addFolder('Region');
+navMeshRegionFolder.add(navMeshConfig, 'borderSize', 0, 10, 1).name('Border Size');
+navMeshRegionFolder.add(navMeshConfig, 'minRegionArea', 0, 50, 1).name('Min Region Area');
+navMeshRegionFolder.add(navMeshConfig, 'mergeRegionArea', 0, 50, 1).name('Merge Region Area');
+
+const navMeshContourFolder = navMeshFolder.addFolder('Contour');
+navMeshContourFolder.add(navMeshConfig, 'maxSimplificationError', 0.1, 10, 0.1).name('Max Simplification Error');
+navMeshContourFolder.add(navMeshConfig, 'maxEdgeLength', 0, 50, 1).name('Max Edge Length');
+
+const navMeshPolyFolder = navMeshFolder.addFolder('PolyMesh');
+navMeshPolyFolder.add(navMeshConfig, 'maxVerticesPerPoly', 3, 12, 1).name('Max Vertices/Poly');
+
+const navMeshDetailFolder = navMeshFolder.addFolder('Detail');
+navMeshDetailFolder.add(navMeshConfig, 'detailSampleDistance', 0, 16, 1).name('Sample Distance (voxels)');
+navMeshDetailFolder.add(navMeshConfig, 'detailSampleMaxError', 0, 16, 1).name('Max Error (voxels)');
+
+const navMeshActions = {
+    rebuildAll: () => rebuildAllTiles(true),
+};
+
+navMeshFolder.add(navMeshActions, 'rebuildAll').name('Rebuild All Tiles');
+navMeshFolder
+    .add(navMeshConfig, 'tileRebuildThrottleMs', 0, 5000, 100)
+    .name('Tile Rebuild Throttle (ms)')
+    .onChange(() => {
+        TILE_REBUILD_THROTTLE_MS.current = Math.max(0, navMeshConfig.tileRebuildThrottleMs);
+    });
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -113,55 +168,141 @@ const catAnimations = catModel.animations;
 
 /* get walkable level geometry */
 const walkableMeshes: THREE.Mesh[] = [];
+const raycastTargets: THREE.Object3D[] = [];
 
 scene.traverse((object) => {
     if (object instanceof THREE.Mesh) {
         walkableMeshes.push(object);
+        raycastTargets.push(object);
     }
 });
 
 const [levelPositions, levelIndices] = getPositionsAndIndices(walkableMeshes);
 
-/* navmesh generation config */
-const cellSize = 0.15;
-const cellHeight = 0.15;
-
-const tileSizeVoxels = 32;
-const tileSizeWorld = tileSizeVoxels * cellSize;
-
-const walkableRadiusWorld = 0.15;
-const walkableRadiusVoxels = Math.ceil(walkableRadiusWorld / cellSize);
-const walkableClimbWorld = 0.5;
-const walkableClimbVoxels = Math.ceil(walkableClimbWorld / cellHeight);
-const walkableHeightWorld = 1;
-const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
-const walkableSlopeAngleDegrees = 45;
-
-const borderSize = 4;
-const minRegionArea = 8;
-const mergeRegionArea = 20;
-
-const maxSimplificationError = 1.3;
-const maxEdgeLength = 12;
-
-const maxVerticesPerPoly = 5;
-
-const detailSampleDistanceVoxels = 6;
-const detailSampleDistance = detailSampleDistanceVoxels < 0.9 ? 0 : cellSize * detailSampleDistanceVoxels;
-
-const detailSampleMaxErrorVoxels = 1;
-const detailSampleMaxError = cellHeight * detailSampleMaxErrorVoxels;
-
-// calculate bounds and grid size
+/* navmesh generation state */
 const meshBounds = calculateMeshBounds(box3.create(), levelPositions, levelIndices);
-const gridSize = calculateGridSize(vec2.create(), meshBounds, cellSize);
+
+let tileSizeWorld = 0;
+let walkableRadiusVoxels = 0;
+let walkableClimbVoxels = 0;
+let walkableHeightVoxels = 0;
+let detailSampleDistance = 0;
+let detailSampleMaxError = 0;
+
+let gridSize = vec2.create();
+let tileWidth = 0;
+let tileHeight = 0;
+
+const tileBoundsCache = new Map<string, [Vec3, Vec3]>();
+const tileExpandedBoundsCache = new Map<string, [Vec3, Vec3]>();
+const tileStaticTriangles = new Map<string, number[]>();
+
+const tileKey = (x: number, y: number) => `${x}_${y}`;
+
+const updateNavMeshDerivedValues = () => {
+    tileSizeWorld = navMeshConfig.tileSizeVoxels * navMeshConfig.cellSize;
+    walkableRadiusVoxels = Math.max(0, Math.ceil(navMeshConfig.walkableRadiusWorld / navMeshConfig.cellSize));
+    walkableClimbVoxels = Math.max(0, Math.ceil(navMeshConfig.walkableClimbWorld / navMeshConfig.cellHeight));
+    walkableHeightVoxels = Math.max(0, Math.ceil(navMeshConfig.walkableHeightWorld / navMeshConfig.cellHeight));
+
+    detailSampleDistance =
+        navMeshConfig.detailSampleDistance < 0.9 ? 0 : navMeshConfig.cellSize * navMeshConfig.detailSampleDistance;
+    detailSampleMaxError = navMeshConfig.cellHeight * navMeshConfig.detailSampleMaxError;
+
+    gridSize = calculateGridSize(vec2.create(), meshBounds, navMeshConfig.cellSize);
+    tileWidth = Math.max(1, Math.floor((gridSize[0] + navMeshConfig.tileSizeVoxels - 1) / navMeshConfig.tileSizeVoxels));
+    tileHeight = Math.max(1, Math.floor((gridSize[1] + navMeshConfig.tileSizeVoxels - 1) / navMeshConfig.tileSizeVoxels));
+
+    navMesh.tileWidth = tileSizeWorld;
+    navMesh.tileHeight = tileSizeWorld;
+    navMesh.origin = meshBounds[0];
+};
+
+const rebuildStaticTileCaches = () => {
+    tileBoundsCache.clear();
+    tileExpandedBoundsCache.clear();
+    tileStaticTriangles.clear();
+
+    const borderOffset = navMeshConfig.borderSize * navMeshConfig.cellSize;
+    const triangle = triangle3.create();
+
+    for (let tx = 0; tx < tileWidth; tx++) {
+        for (let ty = 0; ty < tileHeight; ty++) {
+            const min: Vec3 = [
+                meshBounds[0][0] + tx * tileSizeWorld,
+                meshBounds[0][1],
+                meshBounds[0][2] + ty * tileSizeWorld,
+            ];
+            const max: Vec3 = [
+                meshBounds[0][0] + (tx + 1) * tileSizeWorld,
+                meshBounds[1][1],
+                meshBounds[0][2] + (ty + 1) * tileSizeWorld,
+            ];
+            const bounds: [Vec3, Vec3] = [min, max];
+            const key = tileKey(tx, ty);
+            tileBoundsCache.set(key, bounds);
+
+            const expandedMin: Vec3 = [min[0] - borderOffset, min[1], min[2] - borderOffset];
+            const expandedMax: Vec3 = [max[0] + borderOffset, max[1], max[2] + borderOffset];
+            const expandedBounds: [Vec3, Vec3] = [expandedMin, expandedMax];
+            tileExpandedBoundsCache.set(key, expandedBounds);
+
+            const expandedBox = expandedBounds as any;
+            const trianglesInBox: number[] = [];
+
+            for (let i = 0; i < levelIndices.length; i += 3) {
+                const a = levelIndices[i];
+                const b = levelIndices[i + 1];
+                const c = levelIndices[i + 2];
+
+                vec3.fromBuffer(triangle[0], levelPositions, a * 3);
+                vec3.fromBuffer(triangle[1], levelPositions, b * 3);
+                vec3.fromBuffer(triangle[2], levelPositions, c * 3);
+
+                if (box3.intersectsTriangle3(expandedBox, triangle)) {
+                    trianglesInBox.push(a, b, c);
+                }
+            }
+
+            tileStaticTriangles.set(key, trianglesInBox);
+        }
+    }
+};
+
+const scratchVec3 = new THREE.Vector3();
+
+const extractMeshWorldTriangles = (mesh: THREE.Mesh) => {
+    const geometry = mesh.geometry as THREE.BufferGeometry;
+    if (!geometry) return null;
+
+    const positionAttr = geometry.getAttribute('position');
+    if (!positionAttr) return null;
+
+    mesh.updateMatrixWorld();
+
+    const positions = new Float32Array(positionAttr.count * 3);
+    for (let i = 0; i < positionAttr.count; i++) {
+        scratchVec3.set(positionAttr.getX(i), positionAttr.getY(i), positionAttr.getZ(i));
+        scratchVec3.applyMatrix4(mesh.matrixWorld);
+        positions[i * 3 + 0] = scratchVec3.x;
+        positions[i * 3 + 1] = scratchVec3.y;
+        positions[i * 3 + 2] = scratchVec3.z;
+    }
+
+    const indexAttr = geometry.getIndex();
+    let indices: number[];
+    if (indexAttr) {
+        indices = Array.from(indexAttr.array as ArrayLike<number>);
+    } else {
+        indices = Array.from({ length: positionAttr.count }, (_, idx) => idx);
+    }
+
+    return { positions, indices };
+};
 
 // create an empty navmesh and build context; we'll build tiles via the queue
 const buildCtx = BuildContext.create();
 const navMesh = createNavMesh();
-navMesh.tileWidth = tileSizeWorld;
-navMesh.tileHeight = tileSizeWorld;
-navMesh.origin = meshBounds[0];
 
 const offMeshConnections: OffMeshConnectionParams[] = [
     {
@@ -229,11 +370,6 @@ type PhysicsObj = {
 const physicsObjects: PhysicsObj[] = [];
 const tileToObjects = new Map<string, Set<number>>();
 
-const tileWidth = Math.floor((gridSize[0] + tileSizeVoxels - 1) / tileSizeVoxels);
-const tileHeight = Math.floor((gridSize[1] + tileSizeVoxels - 1) / tileSizeVoxels);
-
-const tileKey = (x: number, y: number) => `${x}_${y}`;
-
 const dirtyTiles = new Set<string>();
 const rebuildQueue: Array<[number, number]> = [];
 
@@ -251,7 +387,7 @@ type TileFlash = {
 const tileFlashes = new Map<string, TileFlash>();
 
 // throttle in ms
-const TILE_REBUILD_THROTTLE_MS = 1000;
+const TILE_REBUILD_THROTTLE_MS = { current: navMeshConfig.tileRebuildThrottleMs };
 
 const enqueueTile = (x: number, y: number) => {
     if (x < 0 || y < 0 || x >= tileWidth || y >= tileHeight) return;
@@ -261,76 +397,29 @@ const enqueueTile = (x: number, y: number) => {
     rebuildQueue.push([x, y]);
 };
 
-// enqueue all tiles initially so the queue will build the whole navmesh
-for (let tx = 0; tx < tileWidth; tx++) {
-    for (let ty = 0; ty < tileHeight; ty++) {
-        enqueueTile(tx, ty);
-    }
-}
-
 const getTileBounds = (x: number, y: number) => {
+    const cached = tileBoundsCache.get(tileKey(x, y));
+    if (cached) return cached;
+
     const min: Vec3 = [meshBounds[0][0] + x * tileSizeWorld, meshBounds[0][1], meshBounds[0][2] + y * tileSizeWorld];
     const max: Vec3 = [meshBounds[0][0] + (x + 1) * tileSizeWorld, meshBounds[1][1], meshBounds[0][2] + (y + 1) * tileSizeWorld];
-    return [min, max] as [Vec3, Vec3];
+    const bounds: [Vec3, Vec3] = [min, max];
+    tileBoundsCache.set(tileKey(x, y), bounds);
+    return bounds;
 };
 
-// Precomputed compact heightfields for each tile (from static level geometry)
-const tileCompactHFs = new Map<string, CompactHeightfield>();
+const getExpandedTileBounds = (x: number, y: number) => {
+    const cached = tileExpandedBoundsCache.get(tileKey(x, y));
+    if (cached) return cached;
 
-// Precompute compact heightfields for every tile from static geometry
-for (let tx = 0; tx < tileWidth; tx++) {
-    for (let ty = 0; ty < tileHeight; ty++) {
-        const tileBounds = getTileBounds(tx, ty);
-
-        // expand bounds by border size like buildNavMeshTile does
-        const expanded = box3.clone(tileBounds as any);
-        expanded[0][0] -= borderSize * cellSize;
-        expanded[0][2] -= borderSize * cellSize;
-        expanded[1][0] += borderSize * cellSize;
-        expanded[1][2] += borderSize * cellSize;
-
-        // collect triangles overlapping expanded bounds
-        const trianglesInBox: number[] = [];
-        const triangle = triangle3.create();
-
-        for (let i = 0; i < levelIndices.length; i += 3) {
-            const a = levelIndices[i];
-            const b = levelIndices[i + 1];
-            const c = levelIndices[i + 2];
-
-            vec3.fromBuffer(triangle[0], levelPositions, a * 3);
-            vec3.fromBuffer(triangle[1], levelPositions, b * 3);
-            vec3.fromBuffer(triangle[2], levelPositions, c * 3);
-
-            if (box3.intersectsTriangle3(expanded as any, triangle)) {
-                trianglesInBox.push(a, b, c);
-            }
-        }
-
-        // mark walkable triangles
-        const triAreaIds = new Uint8Array(trianglesInBox.length / 3).fill(0);
-        markWalkableTriangles(levelPositions, trianglesInBox, triAreaIds, walkableSlopeAngleDegrees);
-
-        // create heightfield for tile (with border)
-        const hfW = Math.floor(tileSizeVoxels + borderSize * 2);
-        const hfH = Math.floor(tileSizeVoxels + borderSize * 2);
-        const heightfield = createHeightfield(hfW, hfH, expanded as any, cellSize, cellHeight);
-
-        rasterizeTriangles(buildCtx, heightfield, levelPositions, trianglesInBox, triAreaIds, walkableClimbVoxels);
-
-        // filter and build compact heightfield from static geometry
-        filterLowHangingWalkableObstacles(heightfield, walkableClimbVoxels);
-        filterLedgeSpans(heightfield, walkableHeightVoxels, walkableClimbVoxels);
-        filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
-
-        const compactHeightfield = buildCompactHeightfield(buildCtx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
-        erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
-        buildDistanceField(compactHeightfield);
-
-        // store the compact heightfield
-        tileCompactHFs.set(tileKey(tx, ty), compactHeightfield);
-    }
-}
+    const base = getTileBounds(x, y);
+    const borderOffset = navMeshConfig.borderSize * navMeshConfig.cellSize;
+    const expandedMin: Vec3 = [base[0][0] - borderOffset, base[0][1], base[0][2] - borderOffset];
+    const expandedMax: Vec3 = [base[1][0] + borderOffset, base[1][1], base[1][2] + borderOffset];
+    const expanded: [Vec3, Vec3] = [expandedMin, expandedMax];
+    tileExpandedBoundsCache.set(tileKey(x, y), expanded);
+    return expanded;
+};
 
 const processRebuildQueue = (maxPerFrame: number) => {
     let processed = 0;
@@ -346,7 +435,7 @@ const processRebuildQueue = (maxPerFrame: number) => {
         // if this tile was rebuilt recently, skip and re-enqueue
         const last = tileLastRebuilt.get(key) ?? 0;
         const now = performance.now();
-        if (now - last < TILE_REBUILD_THROTTLE_MS) {
+        if (now - last < TILE_REBUILD_THROTTLE_MS.current) {
             rebuildQueue.push([tx, ty]);
             continue;
         }
@@ -354,80 +443,80 @@ const processRebuildQueue = (maxPerFrame: number) => {
         // we are rebuilding this tile now, remove from dirty set
         dirtyTiles.delete(key);
 
-        const tileBounds = getTileBounds(tx, ty);
-
         try {
-            // we precomputed compact heightfields for all tiles using static level geometry
-            const precomputedCompactHeightfield = tileCompactHFs.get(key);
+            const expandedBounds = getExpandedTileBounds(tx, ty);
+            const expandedBox = expandedBounds as any;
 
-            if (!precomputedCompactHeightfield) {
-                console.error('No precomputed compact heightfield for tile', key);
-                continue;
+            const hfSize = Math.floor(navMeshConfig.tileSizeVoxels + navMeshConfig.borderSize * 2);
+            const heightfield = createHeightfield(
+                hfSize,
+                hfSize,
+                expandedBox,
+                navMeshConfig.cellSize,
+                navMeshConfig.cellHeight,
+            );
+
+            const staticTriangles = tileStaticTriangles.get(key) ?? [];
+            if (staticTriangles.length > 0) {
+                const staticAreaIds = new Uint8Array(staticTriangles.length / 3);
+                markWalkableTriangles(
+                    levelPositions,
+                    staticTriangles,
+                    staticAreaIds,
+                    navMeshConfig.walkableSlopeAngleDegrees,
+                );
+                rasterizeTriangles(
+                    buildCtx,
+                    heightfield,
+                    levelPositions,
+                    staticTriangles,
+                    staticAreaIds,
+                    walkableClimbVoxels,
+                );
             }
 
-            // clone the compact heightfield (it's a regular JSON-serialisable object)
-            const chf = structuredClone(precomputedCompactHeightfield);
-
-            // use tileToObjects mapping to only mark objects that influence this tile.
             const influencing = tileToObjects.get(key);
-
             if (influencing && influencing.size > 0) {
                 for (const objIndex of influencing) {
                     const obj = physicsObjects[objIndex];
                     if (!obj) continue;
 
-                    const pos = obj.mesh.position;
-                    const worldRadius = obj.radius;
+                    const meshData = extractMeshWorldTriangles(obj.mesh);
+                    if (!meshData) continue;
 
-                    // quick AABB check: skip if sphere center outside the tile bounds (with radius)
-                    const min = tileBounds[0];
-                    const max = tileBounds[1];
-                    if (
-                        pos.x + worldRadius < min[0] ||
-                        pos.x - worldRadius > max[0] ||
-                        pos.y + worldRadius < min[1] ||
-                        pos.y - worldRadius > max[1] ||
-                        pos.z + worldRadius < min[2] ||
-                        pos.z - worldRadius > max[2]
-                    ) {
-                        continue;
-                    }
+                    const { positions, indices } = meshData;
+                    if (indices.length === 0) continue;
 
-                    markCylinderArea([pos.x, pos.y - worldRadius, pos.z], worldRadius, worldRadius, NULL_AREA, chf);
-                }
-            } else {
-                // fallback: if mapping empty, conservatively mark all dynamic objects overlapping the tile
-                for (const obj of physicsObjects) {
-                    const pos = obj.mesh.position;
-                    const worldRadius = obj.radius ?? 0.5;
-                    const min = tileBounds[0];
-                    const max = tileBounds[1];
-                    if (
-                        pos.x + worldRadius < min[0] ||
-                        pos.x - worldRadius > max[0] ||
-                        pos.y + worldRadius < min[1] ||
-                        pos.y - worldRadius > max[1] ||
-                        pos.z + worldRadius < min[2] ||
-                        pos.z - worldRadius > max[2]
-                    ) {
-                        continue;
-                    }
-                    markCylinderArea([pos.x, pos.y - worldRadius, pos.z], worldRadius, worldRadius, NULL_AREA, chf);
+                    const areaIds = new Uint8Array(indices.length / 3);
+                    markWalkableTriangles(
+                        positions,
+                        indices,
+                        areaIds,
+                        navMeshConfig.walkableSlopeAngleDegrees,
+                    );
+                    rasterizeTriangles(buildCtx, heightfield, positions, indices, areaIds, walkableClimbVoxels);
                 }
             }
 
-            // after marking dynamic obstacles, run region/contour/poly build steps from the compact heightfield
-            buildRegions(buildCtx, chf, borderSize, minRegionArea, mergeRegionArea);
+            filterLowHangingWalkableObstacles(heightfield, walkableClimbVoxels);
+            filterLedgeSpans(heightfield, walkableHeightVoxels, walkableClimbVoxels);
+            filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
+
+            const chf = buildCompactHeightfield(buildCtx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
+            erodeWalkableArea(walkableRadiusVoxels, chf);
+            buildDistanceField(chf);
+
+            buildRegions(buildCtx, chf, navMeshConfig.borderSize, navMeshConfig.minRegionArea, navMeshConfig.mergeRegionArea);
 
             const contourSet = buildContours(
                 buildCtx,
                 chf,
-                maxSimplificationError,
-                maxEdgeLength,
+                navMeshConfig.maxSimplificationError,
+                navMeshConfig.maxEdgeLength,
                 ContourBuildFlags.CONTOUR_TESS_WALL_EDGES,
             );
 
-            const polyMesh = buildPolyMesh(buildCtx, contourSet, maxVerticesPerPoly);
+            const polyMesh = buildPolyMesh(buildCtx, contourSet, navMeshConfig.maxVerticesPerPoly);
 
             for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
                 if (polyMesh.areas[polyIndex] === WALKABLE_AREA) {
@@ -454,11 +543,11 @@ const processRebuildQueue = (maxPerFrame: number) => {
                 tileX: tx,
                 tileY: ty,
                 tileLayer: 0,
-                cellSize,
-                cellHeight,
-                walkableHeight: walkableHeightWorld,
-                walkableRadius: walkableRadiusWorld,
-                walkableClimb: walkableClimbWorld,
+                cellSize: navMeshConfig.cellSize,
+                cellHeight: navMeshConfig.cellHeight,
+                walkableHeight: navMeshConfig.walkableHeightWorld,
+                walkableRadius: navMeshConfig.walkableRadiusWorld,
+                walkableClimb: navMeshConfig.walkableClimbWorld,
             } as any;
 
             const tile = buildTile(tileParams);
@@ -508,18 +597,106 @@ const processRebuildQueue = (maxPerFrame: number) => {
     }
 };
 
-const buildAllTiles = () => {
+const buildAllTiles = (batchSize = 64) => {
     while (rebuildQueue.length > 0) {
-        processRebuildQueue(64);
+        processRebuildQueue(batchSize);
     }
 };
 
+const clearTileHelpers = () => {
+    for (const helper of tileHelpers.values()) {
+        scene.remove(helper.object);
+        helper.dispose();
+    }
+    tileHelpers.clear();
+};
+
+const removeAllNavMeshTiles = () => {
+    const existingTiles = Object.values(navMesh.tiles ?? {});
+    for (const tile of existingTiles) {
+        if (!tile) continue;
+        removeTile(navMesh, tile.tileX, tile.tileY, tile.tileLayer ?? 0);
+    }
+};
+
+const repopulateTileObjectMapping = () => {
+    tileToObjects.clear();
+
+    for (let i = 0; i < physicsObjects.length; i++) {
+        const obj = physicsObjects[i];
+        if (!obj) continue;
+
+        const translation = obj.rigidBody.translation();
+        const radius = obj.radius ?? 0.5;
+        const min: Vec3 = [translation.x - radius, translation.y - radius, translation.z - radius];
+        const max: Vec3 = [translation.x + radius, translation.y + radius, translation.z + radius];
+
+        const tiles = tilesForAABB(min, max);
+        const newTiles = new Set<string>();
+
+        for (const [tx, ty] of tiles) {
+            if (tx < 0 || ty < 0 || tx >= tileWidth || ty >= tileHeight) continue;
+            const k = tileKey(tx, ty);
+            newTiles.add(k);
+
+            let set = tileToObjects.get(k);
+            if (!set) {
+                set = new Set<number>();
+                tileToObjects.set(k, set);
+            }
+            set.add(i);
+        }
+
+        obj.lastTiles = newTiles;
+        obj.lastPosition = [translation.x, translation.y, translation.z];
+    }
+};
+
+const queueAllTiles = () => {
+    for (let tx = 0; tx < tileWidth; tx++) {
+        for (let ty = 0; ty < tileHeight; ty++) {
+            enqueueTile(tx, ty);
+        }
+    }
+};
+
+function rebuildAllTiles(immediate = true) {
+    updateNavMeshDerivedValues();
+    rebuildStaticTileCaches();
+
+    clearTileHelpers();
+    tileLastRebuilt.clear();
+    tileFlashes.clear();
+    dirtyTiles.clear();
+    rebuildQueue.length = 0;
+
+    removeAllNavMeshTiles();
+    repopulateTileObjectMapping();
+
+    queueAllTiles();
+
+    if (immediate) {
+        buildAllTiles();
+    }
+}
+
 // compute the list of tiles overlapping an AABB (min/max Vec3)
 const tilesForAABB = (min: Vec3, max: Vec3) => {
-    const minX = Math.floor((min[0] - meshBounds[0][0]) / tileSizeWorld);
-    const minY = Math.floor((min[2] - meshBounds[0][2]) / tileSizeWorld);
-    const maxX = Math.floor((max[0] - meshBounds[0][0]) / tileSizeWorld);
-    const maxY = Math.floor((max[2] - meshBounds[0][2]) / tileSizeWorld);
+    if (tileWidth <= 0 || tileHeight <= 0 || tileSizeWorld <= 0) return [];
+
+    const rawMinX = Math.floor((min[0] - meshBounds[0][0]) / tileSizeWorld);
+    const rawMinY = Math.floor((min[2] - meshBounds[0][2]) / tileSizeWorld);
+    const rawMaxX = Math.floor((max[0] - meshBounds[0][0]) / tileSizeWorld);
+    const rawMaxY = Math.floor((max[2] - meshBounds[0][2]) / tileSizeWorld);
+
+    const clampIndex = (value: number, maxValue: number) => Math.min(Math.max(value, 0), maxValue);
+
+    const minX = clampIndex(rawMinX, tileWidth - 1);
+    const minY = clampIndex(rawMinY, tileHeight - 1);
+    const maxX = clampIndex(rawMaxX, tileWidth - 1);
+    const maxY = clampIndex(rawMaxY, tileHeight - 1);
+
+    if (minX > maxX || minY > maxY) return [];
 
     const out: Array<[number, number]> = [];
     for (let x = minX; x <= maxX; x++) {
@@ -563,7 +740,7 @@ const updateObjectTiles = (objIndex: number, newTiles: Set<string>) => {
 };
 
 /* perform initial synchronous build of all tiles */
-buildAllTiles();
+rebuildAllTiles();
 
 /* create physics world */
 const physicsWorld = new Rapier.World(new Rapier.Vector3(0, -9.81, 0));
@@ -638,21 +815,27 @@ const renderRapierDebug = (): void => {
 /* create a bunch of dynamic boxes */
 for (let i = 0; i < 20; i++) {
     // visual
-    const boxSize = 0.5;
-    const boxGeometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+    const boxSizeX = 0.4 + Math.random() * 0.6;
+    const boxSizeZ = 0.4 + Math.random() * 0.6;
+    const minHeight = 0.25;
+    const maxHeight = 1.6;
+    const boxHeight = minHeight + Math.random() * (maxHeight - minHeight);
+
+    const boxGeometry = new THREE.BoxGeometry(boxSizeX, boxHeight, boxSizeZ);
     const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
     const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
 
     scene.add(boxMesh);
+    raycastTargets.push(boxMesh);
 
     // physics
-    const boxColliderDesc = Rapier.ColliderDesc.cuboid(boxSize / 2, boxSize / 2, boxSize / 2);
+    const boxColliderDesc = Rapier.ColliderDesc.cuboid(boxSizeX / 2, boxHeight / 2, boxSizeZ / 2);
     boxColliderDesc.setRestitution(0.1);
     boxColliderDesc.setFriction(0.5);
     boxColliderDesc.setDensity(1.0);
     const boxRigidBodyDesc = Rapier.RigidBodyDesc.dynamic().setTranslation(
         (Math.random() - 0.5) * 8,
-        10 + i * 2,
+        10 + i * 2 + boxHeight,
         (Math.random() - 0.5) * 8,
     );
 
@@ -683,6 +866,7 @@ for (let i = 0; i < 20; i++) {
             tileToObjects.set(k, s);
         }
         s.add(i);
+        enqueueTile(tx, ty);
     }
 
     // add the physics object
@@ -1014,7 +1198,7 @@ const onPointerDown = (event: MouseEvent) => {
 
     raycaster.setFromCamera(mouse, camera);
 
-    const intersects = raycaster.intersectObjects(walkableMeshes, true);
+    const intersects = raycaster.intersectObjects(raycastTargets, true);
 
     if (intersects.length === 0) return;
 
