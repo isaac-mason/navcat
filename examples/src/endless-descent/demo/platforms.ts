@@ -32,7 +32,11 @@ export class MovingPlatform implements KinematicSurface {
     readonly path: PlatformPath;
     readonly mesh: THREE.Mesh;
     readonly body: Rapier.RigidBody;
+    readonly collider: Rapier.Collider;
     private readonly footprint: THREE.Vector3[];
+    private readonly baseColor: THREE.Color;
+    private readonly highlightColor: THREE.Color = new THREE.Color(0x4beb78);
+    private highlighted = false;
 
     constructor(config: PlatformConfig, world: Rapier.World, material: THREE.Material) {
         this.id = config.id;
@@ -40,7 +44,12 @@ export class MovingPlatform implements KinematicSurface {
         this.height = config.height;
         this.path = config.path;
         const geometry = new THREE.BoxGeometry(config.size.x, 0.4, config.size.y);
-        this.mesh = new THREE.Mesh(geometry, material);
+        const platformMaterial = material instanceof THREE.MeshStandardMaterial
+            ? material.clone()
+            : new THREE.MeshStandardMaterial({ color: 0x4b9deb });
+        platformMaterial.color.setHex(0x4b9deb);
+        this.baseColor = platformMaterial.color.clone();
+        this.mesh = new THREE.Mesh(geometry, platformMaterial);
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
         this.footprint = Array.from({ length: 4 }, () => new THREE.Vector3());
@@ -50,7 +59,9 @@ export class MovingPlatform implements KinematicSurface {
         this.body = world.createRigidBody(rigidBodyDesc);
 
         const colliderDesc = Rapier.ColliderDesc.cuboid(config.size.x / 2, 0.2, config.size.y / 2);
-        world.createCollider(colliderDesc, this.body);
+        colliderDesc.setFriction(4);
+        colliderDesc.setRestitution(0);
+        this.collider = world.createCollider(colliderDesc, this.body);
     }
 
     footprintAt(t: number): THREE.Vector3[] {
@@ -91,6 +102,15 @@ export class MovingPlatform implements KinematicSurface {
         this.mesh.quaternion.copy(pose.quaternion);
         this.body.setTranslation(pose.position, true);
         this.body.setRotation({ x: pose.quaternion.x, y: pose.quaternion.y, z: pose.quaternion.z, w: pose.quaternion.w }, true);
+    }
+
+    setHighlighted(highlight: boolean): void {
+        if (this.highlighted === highlight) return;
+        this.highlighted = highlight;
+        const mat = this.mesh.material as THREE.MeshStandardMaterial;
+        if (mat && 'color' in mat) {
+            mat.color.copy(highlight ? this.highlightColor : this.baseColor);
+        }
     }
 
     private poseAt(t: number): { position: THREE.Vector3; quaternion: THREE.Quaternion } {
@@ -140,6 +160,16 @@ export class PlatformsManager {
     update(sceneTime: number): void {
         for (const platform of this.platforms) {
             platform.update(sceneTime);
+        }
+    }
+
+    updateContactHighlights(world: Rapier.World): void {
+        for (const platform of this.platforms) {
+            let highlighted = false;
+            world.contactPairsWith(platform.collider, (_other) => {
+                highlighted = true;
+            });
+            platform.setHighlighted(highlighted);
         }
     }
 

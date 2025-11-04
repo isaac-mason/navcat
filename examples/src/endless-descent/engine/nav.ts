@@ -1,3 +1,4 @@
+import Rapier from '@dimforge/rapier3d-compat';
 import { generateSoloNavMesh, generateTiledNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
 import {
     addOffMeshConnection,
@@ -21,23 +22,44 @@ export type EndlessNavEnvironment = {
 
 //
 
-export function buildEndlessNavEnvironment(scene: THREE.Scene): EndlessNavEnvironment {
+export function buildEndlessNavEnvironment(scene: THREE.Scene, world: Rapier.World): EndlessNavEnvironment {
     const roofHeight = 18;
     const roofHalf = new THREE.Vector2(8, 8);
     const groundHalf = new THREE.Vector2(60, 60);
 
     // Visual meshes (also used for navmesh generation via getPositionsAndIndices)
     const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x2f3f5c });
-    const roofGeometry = new THREE.BoxGeometry(roofHalf.x * 2, 0.6, roofHalf.y * 2);
+    const roofThickness = 0.6;
+    const groundThickness = 0.4;
+
+    const roofGeometry = new THREE.BoxGeometry(roofHalf.x * 2, roofThickness, roofHalf.y * 2);
     const roofMesh = new THREE.Mesh(roofGeometry, roofMaterial);
     roofMesh.position.set(0, roofHeight - 0.3, 0);
     scene.add(roofMesh);
 
-    const groundGeometry = new THREE.BoxGeometry(groundHalf.x * 2, 0.4, groundHalf.y * 2);
+    const groundGeometry = new THREE.BoxGeometry(groundHalf.x * 2, groundThickness, groundHalf.y * 2);
     const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x232323 });
     const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
     groundMesh.position.set(0, -0.2, 0);
     scene.add(groundMesh);
+
+    const roofBody = world.createRigidBody(
+        Rapier.RigidBodyDesc.fixed().setTranslation(roofMesh.position.x, roofMesh.position.y, roofMesh.position.z),
+    );
+    const roofCollider = world.createCollider(
+        Rapier.ColliderDesc.cuboid(roofHalf.x, roofThickness / 2, roofHalf.y),
+        roofBody,
+    );
+    roofCollider.setFriction(1);
+
+    const groundBody = world.createRigidBody(
+        Rapier.RigidBodyDesc.fixed().setTranslation(groundMesh.position.x, groundMesh.position.y, groundMesh.position.z),
+    );
+    const groundCollider = world.createCollider(
+        Rapier.ColliderDesc.cuboid(groundHalf.x, groundThickness / 2, groundHalf.y),
+        groundBody,
+    );
+    groundCollider.setFriction(1);
 
     const [positionsArr, indicesArr] = getPositionsAndIndices([roofMesh, groundMesh]);
 

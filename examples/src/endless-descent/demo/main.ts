@@ -5,11 +5,11 @@ import { createNavMeshHelper, createNavMeshLinksHelper, createNavMeshOffMeshConn
 import * as THREE from 'three/webgpu';
 import { setupScene } from './scene';
 import { buildEndlessNavEnvironment } from '../engine/nav';
-import { createCrowdController, getAgentPosition } from '../engine/crowd';
+import { createCrowdController, getAgentPosition, setAgentPosition } from '../engine/crowd';
 import { DebugDraw } from '../engine/debug';
 import { PlatformsManager } from './platforms';
 import { planSpatioTemporalPath } from '../temporal/planner';
-import type { AgentKinodynamics, KinematicSurface } from '../temporal/types';
+import type { AgentKinodynamics, KinematicSurface, TemporalPlan, TemporalPlanActionStep, TemporalPlanStep } from '../temporal/types';
 import { TemporalExecutor, type AgentRuntime } from '../temporal/executor';
 
 const container = document.getElementById('root')!;
@@ -66,7 +66,7 @@ const updatePhysicsDebug = () => {
     physicsDebugGeometry.setDrawRange(0, vertices.length / 3);
 };
 
-const navEnv = buildEndlessNavEnvironment(scene);
+const navEnv = buildEndlessNavEnvironment(scene, world);
 // Debug: log nav environment basics
 console.log('[EndlessDescent] roofRef:', navEnv.roofRef, 'goalRegion:', navEnv.goalRegion);
 
@@ -134,24 +134,27 @@ const platformsManager = new PlatformsManager(world, scene);
 
 const platformHeights = [15, 12, 9, 6, 3];
 for (let i = 0; i < platformHeights.length; i++) {
+    const height = platformHeights[i];
+    const horizontalOffset = 12 + i * 0.8;
+    const side = i % 2 === 0 ? 1 : -1;
     platformsManager.addPlatform(
         {
             id: `platform-${i}`,
             size: new THREE.Vector2(2.5 + Math.random(), 2.5 + Math.random()),
-            height: platformHeights[i],
+            height,
             path:
                 i % 2 === 0
                     ? {
                           kind: 'circle',
-                          center: new THREE.Vector3(0, platformHeights[i], 0),
-                          radius: 6 + i,
+                          center: new THREE.Vector3(side * horizontalOffset, height, 0),
+                          radius: 3.5 + i * 0.6,
                           speed: 0.3 + i * 0.05,
                           phase: Math.random() * Math.PI,
                       }
                     : {
                           kind: 'line',
-                          start: new THREE.Vector3(-8, platformHeights[i], -4 - i),
-                          end: new THREE.Vector3(8, platformHeights[i], 4 + i),
+                          start: new THREE.Vector3(side * horizontalOffset, height, -4 - i),
+                          end: new THREE.Vector3(side * (horizontalOffset + 4 + i), height, 4 + i),
                           period: 8 + i * 1.5,
                       },
             spawnTime: 0,
@@ -183,14 +186,165 @@ const agentGeometry = new THREE.CapsuleGeometry(0.3, 0.8, 4, 8);
 const agentMaterial = new THREE.MeshStandardMaterial({ color: 0xffc87a });
 
 const agentRuntimes: AgentRuntime[] = [];
-for (let i = 0; i < 40; i++) {
+const agentPathVisuals = new Map<AgentRuntime, { line: THREE.Line; color: THREE.Color }>();
+const pathHeightOffset = 0.25;
+const agentCount = 3;
+
+const ensureAgentPathVisual = (agent: AgentRuntime, color: THREE.Color) => {
+    let entry = agentPathVisuals.get(agent);
+    if (!entry) {
+        const geometry = new THREE.BufferGeometry();
+        const material = new THREE.LineBasicMaterial({
+            color: color.getHex(),
+            transparent: true,
+            opacity: 0.9,
+            depthWrite: false,
+        });
+        const line = new THREE.Line(geometry, material);
+        line.visible = false;
+        line.renderOrder = 1004;
+        scene.add(line);
+        entry = { line, color: color.clone() };
+        agentPathVisuals.set(agent, entry);
+    }
+    return entry;
+};
+
+const hideAgentPath = (agent: AgentRuntime) => {
+    const entry = agentPathVisuals.get(agent);
+    if (entry) {
+        entry.line.visible = false;
+    }
+};
+
+const densifyPathPoints = (points: THREE.Vector3[]): THREE.Vector3[] => {
+    if (points.length < 2) return points;
+    const densified: THREE.Vector3[] = [];
+    for (let i = 0; i < points.length - 1; i++) {
+        const current = points[i];
+        const next = points[i + 1];
+        densified.push(current.clone());
+        const distance = current.distanceTo(next);
+        if (distance > 0.001) {
+            const segments = Math.max(1, Math.ceil(distance * 6));
+            for (let j = 1; j < segments; j++) {
+                const t = j / segments;
+                const interpolated = new THREE.Vector3().lerpVectors(current, next, t);
+                densified.push(interpolated);
+            }
+        }
+    }
+    densified.push(points[points.length - 1].clone());
+    return densified;
+};
+
+const sampleJumpArcPoints = (edge: TemporalPlanActionStep['edge']): THREE.Vector3[] => {
+    const points: THREE.Vector3[] = [];
+    const heading = edge.heading.clone();
+    if (heading.lengthSq() > 0) {
+        heading.normalize();
+    }
+    const samples = Math.max(20, Math.ceil(edge.tau / 0.05));
+    for (let i = 0; i <= samples; i++) {
+        const t = (edge.tau * i) / samples;
+        const horizontal = heading.clone().multiplyScalar(edge.v0h * t);
+        const x = edge.launchPoint.x + horizontal.x;
+        const z = edge.launchPoint.z + horizontal.z;
+        const y = edge.launchPoint.y + edge.v0y * t - 0.5 * kin.g * t * t;
+        const point = new THREE.Vector3(x, y, z);
+        if (i === samples) {
+            points.push(edge.landingPoint.clone());
+        } else {
+            points.push(point);
+        }
+    }
+    return points;
+};
+
+const updateAgentPlanPath = (agent: AgentRuntime, plan: TemporalPlan | null, startPosition: THREE.Vector3 | null) => {
+    const entry = agentPathVisuals.get(agent);
+    if (!entry) return;
+
+    if (!plan || !plan.steps || plan.steps.length === 0) {
+        entry.line.visible = false;
+        return;
+    }
+
+    const points: THREE.Vector3[] = [];
+    const addPoint = (vec: THREE.Vector3 | undefined | null) => {
+        if (!vec) return;
+        if (!Number.isFinite(vec.x) || !Number.isFinite(vec.y) || !Number.isFinite(vec.z)) return;
+        const point = vec.clone();
+        point.y += pathHeightOffset;
+        if (points.length === 0 || !points[points.length - 1].equals(point)) {
+            points.push(point);
+        }
+    };
+
+    if (startPosition) {
+        addPoint(startPosition.clone());
+    }
+
+    for (const step of plan.steps as TemporalPlanStep[]) {
+        switch (step.kind) {
+            case 'SURFACE': {
+                for (const waypoint of step.waypoints) {
+                    addPoint(waypoint);
+                }
+                break;
+            }
+            case 'WAIT': {
+                addPoint(step.position);
+                break;
+            }
+            case 'ACTION': {
+                if (step.edge.approachPath && step.edge.approachPath.length > 0) {
+                    for (const approach of step.edge.approachPath) {
+                        addPoint(approach);
+                    }
+                }
+                addPoint(step.edge.launchPoint);
+                for (const jumpPoint of sampleJumpArcPoints(step.edge)) {
+                    addPoint(jumpPoint);
+                }
+                addPoint(step.edge.landingPoint);
+                break;
+            }
+            case 'RIDE': {
+                // No explicit path sampling for ride steps; they will be interpolated between existing points.
+                break;
+            }
+        }
+    }
+
+    if (points.length < 2) {
+        entry.line.visible = false;
+        return;
+    }
+
+    const densified = densifyPathPoints(points);
+    (entry.line.geometry as THREE.BufferGeometry).setFromPoints(densified);
+    entry.line.visible = true;
+};
+
+const spawnHeightOffset = 2.5;
+
+for (let i = 0; i < agentCount; i++) {
     const spawnPosition = sampleRoofSpawn();
+    const spawnPhysicsPosition = vec3.clone(spawnPosition);
+    spawnPhysicsPosition[1] += spawnHeightOffset;
     const mesh = new THREE.Mesh(agentGeometry, agentMaterial.clone());
     mesh.castShadow = true;
-    mesh.position.set(spawnPosition[0], spawnPosition[1], spawnPosition[2]);
+    const pathColor = new THREE.Color().setHSL((i / Math.max(1, agentCount)), 0.75, 0.55);
+    if (mesh.material && 'color' in mesh.material) {
+        (mesh.material as THREE.MeshStandardMaterial).color.copy(pathColor);
+    }
+    mesh.position.set(spawnPhysicsPosition[0], spawnPhysicsPosition[1], spawnPhysicsPosition[2]);
     scene.add(mesh);
     const crowdId = crowdController.spawnAgent(spawnPosition);
-    const runtime = executor.addAgent(mesh, crowdId, spawnPosition);
+    setAgentPosition(crowdController, crowdId, spawnPhysicsPosition);
+    const runtime = executor.addAgent(mesh, crowdId, spawnPhysicsPosition);
+    ensureAgentPathVisual(runtime, pathColor);
     agentRuntimes.push(runtime);
 }
 
@@ -327,9 +481,12 @@ const actions = {
                 crowdController.removeAgent(agent.crowdId);
             }
             const spawn = sampleRoofSpawn();
+            const spawnPhysics = vec3.clone(spawn);
+            spawnPhysics[1] += spawnHeightOffset;
             const newId = crowdController.spawnAgent(spawn);
-            executor.resetAgent(agent, spawn, newId);
+            executor.resetAgent(agent, spawnPhysics, newId);
             agent.nextReplanTime = now;
+            hideAgentPath(agent);
         }
     },
 };
@@ -349,10 +506,14 @@ function updateAgentsPlans(now: number) {
         if (!agent.plan || now > agent.nextReplanTime) {
             const plan = planSpatioTemporalPath(navEnv.navMesh, startPos, navEnv.goalRegion, now, kin, surfaces());
             executor.setPlan(agent, plan, now);
+            updateAgentPlanPath(agent, plan, startPos.clone());
             if (agent === agentRuntimes[0]) {
                 debugDraw.clear();
                 debugDraw.drawPlan(plan);
             }
+        } else if (agent.plan) {
+            // Keep path line visible for agents with existing plans.
+            updateAgentPlanPath(agent, agent.plan, startPos.clone());
         }
     }
 }
@@ -365,6 +526,7 @@ function animate() {
 
     world.step();
     platformsManager.update(time);
+    platformsManager.updateContactHighlights(world);
     if (debugConfig.platforms) rebuildPlatformsOverlay(time);
     executor.syncCrowdToPhysics();
     crowdController.update(dt);

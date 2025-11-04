@@ -41,6 +41,7 @@ export class TemporalExecutor {
     private readonly zeroVelocity: Vec3 = vec3.create();
     private readonly capsuleRadius: number;
     private readonly capsuleHalfHeight: number;
+    private readonly agentColliderHandles = new Set<number>();
 
     constructor(
         kin: AgentKinodynamics,
@@ -61,6 +62,7 @@ export class TemporalExecutor {
 
     private createKinematicForAgent(agent: AgentRuntime, position: Vec3): void {
         if (agent.collider) {
+            this.agentColliderHandles.delete(agent.collider.handle);
             this.world.removeCollider(agent.collider, true);
             agent.collider = null;
         }
@@ -74,7 +76,10 @@ export class TemporalExecutor {
         body.setNextKinematicTranslation({ x: position[0], y: position[1], z: position[2] });
 
         const colliderDesc = Rapier.ColliderDesc.capsule(this.capsuleHalfHeight, this.capsuleRadius);
+        colliderDesc.setFriction(4);
+        colliderDesc.setRestitution(0);
         const collider = this.world.createCollider(colliderDesc, body);
+        this.agentColliderHandles.add(collider.handle);
 
         agent.kinematicBody = body;
         agent.collider = collider;
@@ -237,11 +242,23 @@ export class TemporalExecutor {
 
         this.tempDesired.set(targetVelocity[0] * dt, agent.verticalVelocity * dt, targetVelocity[2] * dt);
 
-        this.characterController.computeColliderMovement(agent.collider, {
-            x: this.tempDesired.x,
-            y: this.tempDesired.y,
-            z: this.tempDesired.z,
-        });
+        const filterPredicate = (other: Rapier.Collider): boolean => {
+            if (!other) return true;
+            if (other.handle === agent.collider?.handle) return true;
+            return !this.agentColliderHandles.has(other.handle);
+        };
+
+        this.characterController.computeColliderMovement(
+            agent.collider,
+            {
+                x: this.tempDesired.x,
+                y: this.tempDesired.y,
+                z: this.tempDesired.z,
+            },
+            undefined,
+            undefined,
+            filterPredicate,
+        );
 
         const movement = this.characterController.computedMovement() as { x: number; y: number; z: number };
         this.tempNextPosition.set(
@@ -332,6 +349,7 @@ export class TemporalExecutor {
             agent.crowdId = null;
         }
         if (agent.collider) {
+            this.agentColliderHandles.delete(agent.collider.handle);
             this.world.removeCollider(agent.collider, true);
             agent.collider = null;
         }
@@ -351,6 +369,8 @@ export class TemporalExecutor {
         );
         const body = this.world.createRigidBody(bodyDesc);
         const colliderDesc = Rapier.ColliderDesc.ball(0.25);
+        colliderDesc.setFriction(4);
+        colliderDesc.setRestitution(0);
         this.world.createCollider(colliderDesc, body);
         agent.body = body;
         agent.expectedLandingTime = step.edge.t0 + step.edge.tau;
@@ -358,12 +378,13 @@ export class TemporalExecutor {
         agent.grounded = false;
     }
 
-    private endJump(agent: AgentRuntime, step: TemporalPlanActionStep) {
+    private endJump(agent: AgentRuntime, _step: TemporalPlanActionStep) {
         if (!agent.body) return;
-        const landing = step.edge.landingPoint;
-        agent.body.setTranslation(landing, true);
-        agent.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-        this.world.removeRigidBody(agent.body);
+        const body = agent.body;
+        const bodyTranslation = body.translation();
+        const landing = new THREE.Vector3(bodyTranslation.x, bodyTranslation.y, bodyTranslation.z);
+        body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        this.world.removeRigidBody(body);
         agent.body = null;
         agent.mesh.position.copy(landing);
 
