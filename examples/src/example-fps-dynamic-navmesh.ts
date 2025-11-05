@@ -369,7 +369,6 @@ renderer.domElement.addEventListener('pointerup', onPointerUp);
 // load level model
 const levelModel = await loadGLTF('./models/lowpoly__fps__tdm__game__map_by_resoforge.glb');
 scene.add(levelModel.scene);
-levelModel.scene.scale.setScalar(4)
 
 /* get walkable level geometry */
 const walkableMeshes: THREE.Mesh[] = [];
