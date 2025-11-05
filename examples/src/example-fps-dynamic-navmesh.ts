@@ -388,7 +388,17 @@ const levelIndices = new Uint32Array(levelIndicesArray);
 /* navmesh generation state */
 const meshBounds = calculateMeshBounds(box3.create(), levelPositions, levelIndices);
 
-const tileKey = (x: number, y: number) => `${x}_${y}`;
+const serTileKey = (x: number, y: number) => `${x}_${y}`;
+
+const desTileKey = (out: [number, number], key: string): [number, number] => {
+    const parts = key.split('_');
+    out[0] = parseInt(parts[0], 10);
+    out[1] = parseInt(parts[1], 10);
+    return out;
+};
+
+// Reusable tuple for desTileKey
+const _tileCoords: [number, number] = [0, 0];
 
 /* dynamic NavMesh state */
 let navMeshState: DynamicNavMeshState;
@@ -812,13 +822,12 @@ function spawnBox(
 
     const tiles = tilesForAABB(navMeshState, min, max);
     const tilesSet = new Set<string>();
-    const tileKey = (x: number, y: number) => `${x}_${y}`;
     
     // Get next ID and increment counter
     const objId = navMeshState.physics.nextObjectId++;
     
     for (const [tx, ty] of tiles) {
-        const k = tileKey(tx, ty);
+        const k = serTileKey(tx, ty);
         tilesSet.add(k);
         let s = navMeshState.tracking.tileToObjects.get(k);
         if (!s) {
@@ -912,13 +921,12 @@ function spawnRamp(
 
     const tiles = tilesForAABB(navMeshState, min, max);
     const tilesSet = new Set<string>();
-    const tileKey = (x: number, y: number) => `${x}_${y}`;
     
     // Get next ID and increment counter
     const objId = navMeshState.physics.nextObjectId++;
     
     for (const [tx, ty] of tiles) {
-        const k = tileKey(tx, ty);
+        const k = serTileKey(tx, ty);
         tilesSet.add(k);
         let s = navMeshState.tracking.tileToObjects.get(k);
         if (!s) {
@@ -996,13 +1004,12 @@ function spawnPlatform(
 
     const tiles = tilesForAABB(navMeshState, min, max);
     const tilesSet = new Set<string>();
-    const tileKey = (x: number, y: number) => `${x}_${y}`;
     
     // Get next ID and increment counter
     const objId = navMeshState.physics.nextObjectId++;
     
     for (const [tx, ty] of tiles) {
-        const k = tileKey(tx, ty);
+        const k = serTileKey(tx, ty);
         tilesSet.add(k);
         let s = navMeshState.tracking.tileToObjects.get(k);
         if (!s) {
@@ -1073,13 +1080,11 @@ function deleteObject(
     
     // Mark tiles for rebuild (the update loop will clean up stale references)
     for (const tileKey of physicsObject.lastTiles) {
-        const [tx, ty] = tileKey.split('_').map(Number);
+        const [tx, ty] = desTileKey(_tileCoords, tileKey);
         enqueueTile(navMeshState, tx, ty);
     }
     
     // Remove from physics objects map
-    // Note: We don't clean up tileToObjects here - updateDynamicNavMesh will
-    // handle stale references defensively, which is simpler and more robust
     navMeshState.physics.objects.delete(objId);
 }
 
@@ -1222,7 +1227,7 @@ function initDynamicNavMesh(
                 meshBounds[0][2] + (ty + 1) * tileSizeWorld,
             ];
             const bounds: [Vec3, Vec3] = [min, max];
-            const key = tileKey(tx, ty);
+            const key = serTileKey(tx, ty);
             tileBoundsCache.set(key, bounds);
             
             const expandedMin: Vec3 = [min[0] - borderOffset, min[1], min[2] - borderOffset];
@@ -1256,7 +1261,7 @@ function initDynamicNavMesh(
     
     for (let tx = 0; tx < tileWidth; tx++) {
         for (let ty = 0; ty < tileHeight; ty++) {
-            const key = tileKey(tx, ty);
+            const key = serTileKey(tx, ty);
             const expandedBounds = tileExpandedBoundsCache.get(key);
             if (!expandedBounds) continue;
             
@@ -1346,7 +1351,7 @@ function buildTileAtCoords(
     tx: number,
     ty: number,
 ): void {
-    const key = tileKey(tx, ty);
+    const key = serTileKey(tx, ty);
     
     // Clone the pre-rasterized static heightfield for this tile
     const cachedHeightfield = state.caches.tileStaticHeightfields.get(key);
@@ -1462,7 +1467,7 @@ function buildTileAtCoords(
     addTile(state.navMesh, tile);
     
     // Update visual helper
-    const tileKeyStr = tileKey(tx, ty);
+    const tileKeyStr = serTileKey(tx, ty);
     const oldTileHelper = state.visuals.tileHelpers.get(tileKeyStr);
     if (oldTileHelper) {
         scene.remove(oldTileHelper.object);
@@ -1490,7 +1495,7 @@ function buildTileAtCoords(
 
 function enqueueTile(state: DynamicNavMeshState, x: number, y: number): void {
     if (x < 0 || y < 0 || x >= state.config.tileWidth || y >= state.config.tileHeight) return;
-    const key = tileKey(x, y);
+    const key = serTileKey(x, y);
     if (state.tracking.dirtyTiles.has(key)) return;
     state.tracking.dirtyTiles.add(key);
     state.tracking.rebuildQueue.push([x, y]);
@@ -1509,7 +1514,7 @@ function processRebuildQueue(
         const tile = state.tracking.rebuildQueue.shift();
         if (!tile) return;
         const [tx, ty] = tile;
-        const key = tileKey(tx, ty);
+        const key = serTileKey(tx, ty);
         
         // if this tile was rebuilt recently, skip and re-enqueue
         const last = state.tracking.tileLastRebuilt.get(key) ?? 0;
@@ -1625,9 +1630,9 @@ function updateDynamicNavMesh(
         }
     }
     
-    // Schedule tiles based on movements of physics objects between tiles
+    // schedule tiles based on movements of physics objects between tiles
     for (const [objId, obj] of state.physics.objects) {
-        // Skip static objects entirely - they never move after placement
+        // skip static objects, they never move after placement
         if (obj.isStatic) {
             continue;
         }
@@ -1635,7 +1640,7 @@ function updateDynamicNavMesh(
         const posNow = obj.rigidBody.translation();
         const curPos: Vec3 = [posNow.x, posNow.y, posNow.z];
         
-        // Compute swept AABB between lastPosition and curPos expanded by radius
+        // compute swept AABB between lastPosition and curPos expanded by radius
         const r = obj.radius;
         const min: Vec3 = [
             Math.min(obj.lastPosition[0], curPos[0]) - r,
@@ -1651,7 +1656,7 @@ function updateDynamicNavMesh(
         const tiles = tilesForAABB(state, min, max);
         const newTiles = new Set<string>();
         for (const [tx, ty] of tiles) {
-            newTiles.add(tileKey(tx, ty));
+            newTiles.add(serTileKey(tx, ty));
         }
         
         const isSleeping = obj.rigidBody.isSleeping();
@@ -1659,9 +1664,7 @@ function updateDynamicNavMesh(
         // Rebuild tiles we left (object no longer present, needs removal)
         for (const oldKey of obj.lastTiles) {
             if (!newTiles.has(oldKey)) {
-                const parts = oldKey.split('_');
-                const tx = parseInt(parts[0], 10);
-                const ty = parseInt(parts[1], 10);
+                const [tx, ty] = desTileKey(_tileCoords, oldKey);
                 enqueueTile(state, tx, ty);
             }
         }
@@ -1669,9 +1672,7 @@ function updateDynamicNavMesh(
         // Rebuild current tiles only if object is awake (moving/settling)
         if (!isSleeping) {
             for (const newKey of newTiles) {
-                const parts = newKey.split('_');
-                const tx = parseInt(parts[0], 10);
-                const ty = parseInt(parts[1], 10);
+                const [tx, ty] = desTileKey(_tileCoords, newKey);
                 enqueueTile(state, tx, ty);
             }
         }
@@ -2142,7 +2143,7 @@ function processInputActions(
         } else {
             // Spawn object in front of player
             camera.getWorldDirection(_cameraDirection);
-            const spawnPosition = new THREE.Vector3()
+            _spawnPosition
                 .copy(playerState.position)
                 .addScaledVector(_cameraDirection, 2); // 2 units in front
             
@@ -2150,13 +2151,13 @@ function processInputActions(
             let yRotation = Math.atan2(_cameraDirection.x, _cameraDirection.z);
             
             if (selectedTool === 'box') {
-                spawnBox(navMeshState, scene, spawnPosition, yRotation, raycastTargets);
+                spawnBox(navMeshState, scene, _spawnPosition, yRotation, raycastTargets);
             } else if (selectedTool === 'ramp') {
                 // Flip 180 degrees so ramp faces towards player (ramps up)
                 yRotation += Math.PI;
-                spawnRamp(navMeshState, scene, spawnPosition, yRotation, raycastTargets);
+                spawnRamp(navMeshState, scene, _spawnPosition, yRotation, raycastTargets);
             } else if (selectedTool === 'platform') {
-                spawnPlatform(navMeshState, scene, spawnPosition, yRotation, raycastTargets);
+                spawnPlatform(navMeshState, scene, _spawnPosition, yRotation, raycastTargets);
             }
         }
     }
@@ -2188,6 +2189,7 @@ const _cameraDirection = new THREE.Vector3();
 const _cameraRight = new THREE.Vector3();
 const _moveVector = new THREE.Vector3();
 const _desiredMovement = new THREE.Vector3();
+const _spawnPosition = new THREE.Vector3();
 
 /* loop */
 let prevTime = performance.now();
