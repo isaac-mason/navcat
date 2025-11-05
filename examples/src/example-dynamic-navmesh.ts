@@ -1,20 +1,20 @@
 import Rapier from '@dimforge/rapier3d-compat';
 import { GUI } from 'lil-gui';
-import { box3, triangle3, vec2, type Vec3, vec3 } from 'mathcat';
+import { box3, triangle3, type Vec3, vec2, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
     addTile,
-    buildCompactHeightfield,
     BuildContext,
+    buildCompactHeightfield,
     buildContours,
     buildDistanceField,
     buildPolyMesh,
     buildPolyMeshDetail,
     buildRegions,
     buildTile,
+    ContourBuildFlags,
     calculateGridSize,
     calculateMeshBounds,
-    ContourBuildFlags,
     createFindNearestPolyResult,
     createHeightfield,
     createNavMesh,
@@ -33,6 +33,7 @@ import {
     removeTile,
     WALKABLE_AREA,
 } from 'navcat';
+import { crowd } from 'navcat/blocks';
 import {
     createNavMeshOffMeshConnectionsHelper,
     createNavMeshTileHelper,
@@ -42,14 +43,12 @@ import {
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
-import { crowd, pathCorridor } from 'navcat/blocks';
 
 /* init rapier */
 await Rapier.init();
 
 /* controls */
 const guiSettings = {
-    showPathLine: true,
     showRapierDebug: true,
 };
 
@@ -229,10 +228,10 @@ const reinitializeNavMesh = () => {
         scene.remove(helper.object);
         helper.dispose();
     }
-    
+
     // Reinitialize state
     navMeshState = initDynamicNavMesh(navMeshConfig, levelPositions, levelIndices, meshBounds, offMeshConnections, scene);
-    
+
     // Update off-mesh connections helper
     offMeshConnectionsHelper.object.parent?.remove(offMeshConnectionsHelper.object);
     offMeshConnectionsHelper.dispose();
@@ -242,7 +241,6 @@ const reinitializeNavMesh = () => {
 
 /* setup GUI controls */
 const gui = new GUI();
-gui.add(guiSettings, 'showPathLine').name('Show Path Line');
 gui.add(guiSettings, 'showRapierDebug').name('Show Rapier Debug');
 
 const navMeshFolder = gui.addFolder('NavMesh');
@@ -262,14 +260,20 @@ navMeshRegionFolder.add(navMeshConfig, 'minRegionArea', 0, 50, 1).name('Min Regi
 navMeshRegionFolder.add(navMeshConfig, 'mergeRegionArea', 0, 50, 1).name('Merge Region Area').onChange(reinitializeNavMesh);
 
 const navMeshContourFolder = navMeshFolder.addFolder('Contour');
-navMeshContourFolder.add(navMeshConfig, 'maxSimplificationError', 0.1, 10, 0.1).name('Max Simplification Error').onChange(reinitializeNavMesh);
+navMeshContourFolder
+    .add(navMeshConfig, 'maxSimplificationError', 0.1, 10, 0.1)
+    .name('Max Simplification Error')
+    .onChange(reinitializeNavMesh);
 navMeshContourFolder.add(navMeshConfig, 'maxEdgeLength', 0, 50, 1).name('Max Edge Length').onChange(reinitializeNavMesh);
 
 const navMeshPolyFolder = navMeshFolder.addFolder('PolyMesh');
 navMeshPolyFolder.add(navMeshConfig, 'maxVerticesPerPoly', 3, 12, 1).name('Max Vertices/Poly').onChange(reinitializeNavMesh);
 
 const navMeshDetailFolder = navMeshFolder.addFolder('Detail');
-navMeshDetailFolder.add(navMeshConfig, 'detailSampleDistance', 0, 16, 1).name('Sample Distance (voxels)').onChange(reinitializeNavMesh);
+navMeshDetailFolder
+    .add(navMeshConfig, 'detailSampleDistance', 0, 16, 1)
+    .name('Sample Distance (voxels)')
+    .onChange(reinitializeNavMesh);
 navMeshDetailFolder.add(navMeshConfig, 'detailSampleMaxError', 0, 16, 1).name('Max Error (voxels)').onChange(reinitializeNavMesh);
 
 const navMeshActions = {
@@ -307,7 +311,7 @@ type DynamicNavMeshState = {
     // Core navmesh
     navMesh: ReturnType<typeof createNavMesh>;
     buildCtx: ReturnType<typeof BuildContext.create>;
-    
+
     // All configuration (source + derived)
     config: {
         // Source config
@@ -338,7 +342,7 @@ type DynamicNavMeshState = {
         tileWidth: number;
         tileHeight: number;
     };
-    
+
     // Caches
     caches: {
         tileBounds: Map<string, [Vec3, Vec3]>;
@@ -346,7 +350,7 @@ type DynamicNavMeshState = {
         tileStaticTriangles: Map<string, number[]>;
         tileStaticHeightfields: Map<string, ReturnType<typeof createHeightfield>>;
     };
-    
+
     // Dynamic tracking
     tracking: {
         physicsObjects: PhysicsObj[];
@@ -356,13 +360,13 @@ type DynamicNavMeshState = {
         tileLastRebuilt: Map<string, number>;
         throttleMs: number;
     };
-    
+
     // Visuals
     visuals: {
         tileHelpers: Map<string, DebugObject>;
         tileFlashes: Map<string, TileFlash>;
     };
-    
+
     // Immutable input data
     levelPositions: Float32Array;
     levelIndices: Uint32Array;
@@ -379,25 +383,25 @@ function initDynamicNavMesh(
 ): DynamicNavMeshState {
     const buildCtx = BuildContext.create();
     const navMesh = createNavMesh();
-    
+
     // Add off-mesh connections
     for (const offMeshConnection of offMeshConnections) {
         addOffMeshConnection(navMesh, offMeshConnection);
     }
-    
+
     // 1. Calculate all derived values and create unified config
     const tileSizeWorld = config.tileSizeVoxels * config.cellSize;
     const walkableRadiusVoxels = Math.max(0, Math.ceil(config.walkableRadiusWorld / config.cellSize));
     const walkableClimbVoxels = Math.max(0, Math.ceil(config.walkableClimbWorld / config.cellHeight));
     const walkableHeightVoxels = Math.max(0, Math.ceil(config.walkableHeightWorld / config.cellHeight));
-    
+
     const detailSampleDistanceWorld = config.detailSampleDistance < 0.9 ? 0 : config.cellSize * config.detailSampleDistance;
     const detailSampleMaxErrorWorld = config.cellHeight * config.detailSampleMaxError;
-    
+
     const gridSize = calculateGridSize(vec2.create(), meshBounds, config.cellSize);
     const tileWidth = Math.max(1, Math.floor((gridSize[0] + config.tileSizeVoxels - 1) / config.tileSizeVoxels));
     const tileHeight = Math.max(1, Math.floor((gridSize[1] + config.tileSizeVoxels - 1) / config.tileSizeVoxels));
-    
+
     const unifiedConfig = {
         // Source config
         ...config,
@@ -412,27 +416,23 @@ function initDynamicNavMesh(
         tileWidth,
         tileHeight,
     };
-    
+
     navMesh.tileWidth = tileSizeWorld;
     navMesh.tileHeight = tileSizeWorld;
     navMesh.origin = meshBounds[0];
-    
+
     // 2. Build static tile caches
     const tileBoundsCache = new Map<string, [Vec3, Vec3]>();
     const tileExpandedBoundsCache = new Map<string, [Vec3, Vec3]>();
     const tileStaticTriangles = new Map<string, number[]>();
     const tileStaticHeightfields = new Map<string, ReturnType<typeof createHeightfield>>();
-    
+
     const borderOffset = config.borderSize * config.cellSize;
     const triangle = triangle3.create();
-    
+
     for (let tx = 0; tx < tileWidth; tx++) {
         for (let ty = 0; ty < tileHeight; ty++) {
-            const min: Vec3 = [
-                meshBounds[0][0] + tx * tileSizeWorld,
-                meshBounds[0][1],
-                meshBounds[0][2] + ty * tileSizeWorld,
-            ];
+            const min: Vec3 = [meshBounds[0][0] + tx * tileSizeWorld, meshBounds[0][1], meshBounds[0][2] + ty * tileSizeWorld];
             const max: Vec3 = [
                 meshBounds[0][0] + (tx + 1) * tileSizeWorld,
                 meshBounds[1][1],
@@ -441,78 +441,60 @@ function initDynamicNavMesh(
             const bounds: [Vec3, Vec3] = [min, max];
             const key = tileKey(tx, ty);
             tileBoundsCache.set(key, bounds);
-            
+
             const expandedMin: Vec3 = [min[0] - borderOffset, min[1], min[2] - borderOffset];
             const expandedMax: Vec3 = [max[0] + borderOffset, max[1], max[2] + borderOffset];
             const expandedBounds: [Vec3, Vec3] = [expandedMin, expandedMax];
             tileExpandedBoundsCache.set(key, expandedBounds);
-            
+
             const expandedBox = expandedBounds as any;
             const trianglesInBox: number[] = [];
-            
+
             for (let i = 0; i < levelIndices.length; i += 3) {
                 const a = levelIndices[i];
                 const b = levelIndices[i + 1];
                 const c = levelIndices[i + 2];
-                
+
                 vec3.fromBuffer(triangle[0], levelPositions, a * 3);
                 vec3.fromBuffer(triangle[1], levelPositions, b * 3);
                 vec3.fromBuffer(triangle[2], levelPositions, c * 3);
-                
+
                 if (box3.intersectsTriangle3(expandedBox, triangle)) {
                     trianglesInBox.push(a, b, c);
                 }
             }
-            
+
             tileStaticTriangles.set(key, trianglesInBox);
         }
     }
-    
+
     // 2.5. Pre-rasterize static geometry into heightfields for each tile
     const hfSize = Math.floor(config.tileSizeVoxels + config.borderSize * 2);
-    
+
     for (let tx = 0; tx < tileWidth; tx++) {
         for (let ty = 0; ty < tileHeight; ty++) {
             const key = tileKey(tx, ty);
             const expandedBounds = tileExpandedBoundsCache.get(key);
             if (!expandedBounds) continue;
-            
+
             const expandedBox = expandedBounds as any;
-            
+
             // create heightfield for this tile
-            const heightfield = createHeightfield(
-                hfSize,
-                hfSize,
-                expandedBox,
-                config.cellSize,
-                config.cellHeight,
-            );
-            
+            const heightfield = createHeightfield(hfSize, hfSize, expandedBox, config.cellSize, config.cellHeight);
+
             // rasterize static geometry only
             const staticTriangles = tileStaticTriangles.get(key) ?? [];
             if (staticTriangles.length > 0) {
                 const staticAreaIds = new Uint8Array(staticTriangles.length / 3);
-                markWalkableTriangles(
-                    levelPositions,
-                    staticTriangles,
-                    staticAreaIds,
-                    config.walkableSlopeAngleDegrees,
-                );
-                rasterizeTriangles(
-                    buildCtx,
-                    heightfield,
-                    levelPositions,
-                    staticTriangles,
-                    staticAreaIds,
-                    walkableClimbVoxels,
-                );
+                markWalkableTriangles(levelPositions, staticTriangles, staticAreaIds, config.walkableSlopeAngleDegrees);
+                rasterizeTriangles(buildCtx, heightfield, levelPositions, staticTriangles, staticAreaIds, walkableClimbVoxels);
             }
-            
+
             // cache the pre-rasterized heightfield
             tileStaticHeightfields.set(key, heightfield);
         }
     }
-    
+
     // 3. Create state object
     const state: DynamicNavMeshState = {
         navMesh,
@@ -540,75 +522,58 @@ function initDynamicNavMesh(
         levelIndices,
         meshBounds,
     };
-    
+
     // 4. Build all tiles initially
     const totalTiles = state.config.tileWidth * state.config.tileHeight;
     let builtTiles = 0;
-    
+
     for (let tx = 0; tx < state.config.tileWidth; tx++) {
         for (let ty = 0; ty < state.config.tileHeight; ty++) {
             buildTileAtCoords(state, scene, tx, ty);
             builtTiles++;
         }
     }
-    
+
     console.log(`Built ${builtTiles} / ${totalTiles} navmesh tiles`);
-    
+
     return state;
 }
 
-function buildTileAtCoords(
-    state: DynamicNavMeshState,
-    scene: THREE.Scene,
-    tx: number,
-    ty: number,
-): void {
+function buildTileAtCoords(state: DynamicNavMeshState, scene: THREE.Scene, tx: number, ty: number): void {
     const key = tileKey(tx, ty);
-    
+
     // Clone the pre-rasterized static heightfield for this tile
     const cachedHeightfield = state.caches.tileStaticHeightfields.get(key);
     if (!cachedHeightfield) {
         throw new Error(`No cached heightfield found for tile ${tx}, ${ty}`);
     }
-    
+
     const heightfield = structuredClone(cachedHeightfield);
-    
+
     // Rasterize dynamic obstacles (only if there are any)
     const dynamicObjects = state.tracking.tileToObjects.get(key);
     if (dynamicObjects && dynamicObjects.size > 0) {
         for (const objIndex of dynamicObjects) {
             const obj = state.tracking.physicsObjects[objIndex];
             if (!obj) continue;
-            
+
             const meshData = extractMeshWorldTriangles(obj.mesh);
             if (!meshData) continue;
-            
+
             const { positions, indices } = meshData;
             if (indices.length === 0) continue;
-            
+
             const areaIds = new Uint8Array(indices.length / 3);
-            markWalkableTriangles(
-                positions,
-                indices,
-                areaIds,
-                state.config.walkableSlopeAngleDegrees,
-            );
-            rasterizeTriangles(
-                state.buildCtx,
-                heightfield,
-                positions,
-                indices,
-                areaIds,
-                state.config.walkableClimbVoxels,
-            );
+            markWalkableTriangles(positions, indices, areaIds, state.config.walkableSlopeAngleDegrees);
+            rasterizeTriangles(state.buildCtx, heightfield, positions, indices, areaIds, state.config.walkableClimbVoxels);
         }
     }
-    
+
     // Filter and build compact heightfield
     filterLowHangingWalkableObstacles(heightfield, state.config.walkableClimbVoxels);
     filterLedgeSpans(heightfield, state.config.walkableHeightVoxels, state.config.walkableClimbVoxels);
     filterWalkableLowHeightSpans(heightfield, state.config.walkableHeightVoxels);
-    
+
     const chf = buildCompactHeightfield(
         state.buildCtx,
         state.config.walkableHeightVoxels,
@@ -617,10 +582,10 @@ function buildTileAtCoords(
     );
     erodeWalkableArea(state.config.walkableRadiusVoxels, chf);
     buildDistanceField(chf);
-    
+
     // Build regions and contours
     buildRegions(state.buildCtx, chf, state.config.borderSize, state.config.minRegionArea, state.config.mergeRegionArea);
-    
+
     const contourSet = buildContours(
         state.buildCtx,
         chf,
@@ -628,20 +593,20 @@ function buildTileAtCoords(
         state.config.maxEdgeLength,
         ContourBuildFlags.CONTOUR_TESS_WALL_EDGES,
     );
-    
+
     // Build poly mesh
     const polyMesh = buildPolyMesh(state.buildCtx, contourSet, state.config.maxVerticesPerPoly);
-    
+
     for (let polyIndex = 0; polyIndex < polyMesh.nPolys; polyIndex++) {
         if (polyMesh.areas[polyIndex] === WALKABLE_AREA) {
             polyMesh.areas[polyIndex] = 0;
         }
-        
+
         if (polyMesh.areas[polyIndex] === 0) {
             polyMesh.flags[polyIndex] = 1;
         }
     }
-    
+
     // Build detail mesh
     const polyMeshDetail = buildPolyMeshDetail(
         state.buildCtx,
@@ -650,10 +615,10 @@ function buildTileAtCoords(
         state.config.detailSampleDistanceWorld,
         state.config.detailSampleMaxErrorWorld,
     );
-    
+
     const tilePolys = polyMeshToTilePolys(polyMesh);
     const tileDetail = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);
-    
+
     // Create tile parameters
     const tileParams = {
         bounds: polyMesh.bounds,
@@ -671,13 +636,13 @@ function buildTileAtCoords(
         walkableRadius: state.config.walkableRadiusWorld,
         walkableClimb: state.config.walkableClimbWorld,
     } as any;
-    
+
     const tile = buildTile(tileParams);
-    
+
     // Remove old tile and add new one
     removeTile(state.navMesh, tx, ty, 0);
     addTile(state.navMesh, tile);
-    
+
     // Update visual helper
     const tileKeyStr = tileKey(tx, ty);
     const oldTileHelper = state.visuals.tileHelpers.get(tileKeyStr);
@@ -686,7 +651,7 @@ function buildTileAtCoords(
         oldTileHelper.dispose();
         state.visuals.tileHelpers.delete(tileKeyStr);
     }
-    
+
     for (const tileId in state.navMesh.tiles) {
         const t = state.navMesh.tiles[tileId];
         if (t.tileX === tx && t.tileY === ty) {
@@ -694,12 +659,12 @@ function buildTileAtCoords(
             newTileHelper.object.position.y += 0.05;
             scene.add(newTileHelper.object);
             state.visuals.tileHelpers.set(tileKeyStr, newTileHelper);
-            
+
             state.visuals.tileFlashes.set(tileKeyStr, {
                 startTime: performance.now(),
                 duration: 1500,
             });
-            
+
             break;
         }
     }
@@ -713,21 +678,17 @@ function enqueueTile(state: DynamicNavMeshState, x: number, y: number): void {
     state.tracking.rebuildQueue.push([x, y]);
 }
 
-function processRebuildQueue(
-    state: DynamicNavMeshState,
-    scene: THREE.Scene,
-    maxPerFrame: number,
-): void {
+function processRebuildQueue(state: DynamicNavMeshState, scene: THREE.Scene, maxPerFrame: number): void {
     let processed = 0;
-    
+
     for (let i = 0; i < state.tracking.rebuildQueue.length; i++) {
         if (processed >= maxPerFrame) break;
-        
+
         const tile = state.tracking.rebuildQueue.shift();
         if (!tile) return;
         const [tx, ty] = tile;
         const key = tileKey(tx, ty);
-        
+
         // if this tile was rebuilt recently, skip and re-enqueue
         const last = state.tracking.tileLastRebuilt.get(key) ?? 0;
         const now = performance.now();
@@ -735,16 +696,16 @@ function processRebuildQueue(
             state.tracking.rebuildQueue.push([tx, ty]);
             continue;
         }
-        
+
         // we are rebuilding this tile now, remove from dirty set
         state.tracking.dirtyTiles.delete(key);
-        
+
         try {
             buildTileAtCoords(state, scene, tx, ty);
-            
+
             // record rebuild time
             state.tracking.tileLastRebuilt.set(key, performance.now());
-            
+
             // count this as a processed tile
             processed++;
         } catch (err) {
@@ -756,28 +717,24 @@ function processRebuildQueue(
 }
 
 function tilesForAABB(state: DynamicNavMeshState, min: Vec3, max: Vec3): Array<[number, number]> {
-    if (
-        state.config.tileWidth <= 0 ||
-        state.config.tileHeight <= 0 ||
-        state.config.tileSizeWorld <= 0
-    ) {
+    if (state.config.tileWidth <= 0 || state.config.tileHeight <= 0 || state.config.tileSizeWorld <= 0) {
         return [];
     }
-    
+
     const rawMinX = Math.floor((min[0] - state.meshBounds[0][0]) / state.config.tileSizeWorld);
     const rawMinY = Math.floor((min[2] - state.meshBounds[0][2]) / state.config.tileSizeWorld);
     const rawMaxX = Math.floor((max[0] - state.meshBounds[0][0]) / state.config.tileSizeWorld);
     const rawMaxY = Math.floor((max[2] - state.meshBounds[0][2]) / state.config.tileSizeWorld);
-    
+
     const clampIndex = (value: number, maxValue: number) => Math.min(Math.max(value, 0), maxValue);
-    
+
     const minX = clampIndex(rawMinX, state.config.tileWidth - 1);
     const minY = clampIndex(rawMinY, state.config.tileHeight - 1);
     const maxX = clampIndex(rawMaxX, state.config.tileWidth - 1);
     const maxY = clampIndex(rawMaxY, state.config.tileHeight - 1);
-    
+
     if (minX > maxX || minY > maxY) return [];
-    
+
     const out: Array<[number, number]> = [];
     for (let x = minX; x <= maxX; x++) {
         for (let y = minY; y <= maxY; y++) {
@@ -787,14 +744,10 @@ function tilesForAABB(state: DynamicNavMeshState, min: Vec3, max: Vec3): Array<[
     return out;
 }
 
-function updateObjectTiles(
-    state: DynamicNavMeshState,
-    objIndex: number,
-    newTiles: Set<string>,
-): void {
+function updateObjectTiles(state: DynamicNavMeshState, objIndex: number, newTiles: Set<string>): void {
     const obj = state.tracking.physicsObjects[objIndex];
     if (!obj) return;
-    
+
     // compute tiles to remove (in lastTiles but not in newTiles)
     for (const oldKey of obj.lastTiles) {
         if (!newTiles.has(oldKey)) {
@@ -805,7 +758,7 @@ function updateObjectTiles(
             }
         }
     }
-    
+
     // compute tiles to add (in newTiles but not in lastTiles)
     for (const newKey of newTiles) {
         if (!obj.lastTiles.has(newKey)) {
@@ -817,7 +770,7 @@ function updateObjectTiles(
             s.add(objIndex);
         }
     }
-    
+
     // replace lastTiles with newTiles
     obj.lastTiles = newTiles;
 }
@@ -834,7 +787,7 @@ function updateDynamicNavMesh(
         const obj = state.tracking.physicsObjects[i];
         const posNow = obj.rigidBody.translation();
         const curPos: Vec3 = [posNow.x, posNow.y, posNow.z];
-        
+
         // Compute swept AABB between lastPosition and curPos expanded by radius
         const r = obj.radius;
         const min: Vec3 = [
@@ -847,15 +800,15 @@ function updateDynamicNavMesh(
             Math.max(obj.lastPosition[1], curPos[1]) + r,
             Math.max(obj.lastPosition[2], curPos[2]) + r,
         ];
-        
+
         const tiles = tilesForAABB(state, min, max);
         const newTiles = new Set<string>();
         for (const [tx, ty] of tiles) {
             newTiles.add(tileKey(tx, ty));
         }
-        
+
         const isSleeping = obj.rigidBody.isSleeping();
-        
+
         // Rebuild tiles we left (object no longer present, needs removal)
         for (const oldKey of obj.lastTiles) {
             if (!newTiles.has(oldKey)) {
@@ -865,7 +818,7 @@ function updateDynamicNavMesh(
                 enqueueTile(state, tx, ty);
             }
         }
-        
+
         // Rebuild current tiles only if object is awake (moving/settling)
         if (!isSleeping) {
             for (const newKey of newTiles) {
@@ -875,60 +828,60 @@ function updateDynamicNavMesh(
                 enqueueTile(state, tx, ty);
             }
         }
-        
+
         // Update object tile registrations
         updateObjectTiles(state, i, newTiles);
-        
+
         // Save current position for next frame
         obj.lastPosition = curPos;
     }
-    
+
     // Process tile rebuilds
     processRebuildQueue(state, scene, options.maxTilesPerFrame);
 }
 
 function updateNavMeshVisuals(state: DynamicNavMeshState, _scene: THREE.Scene, now: number): void {
     const flashesToRemove: string[] = [];
-    
+
     for (const [key, flash] of state.visuals.tileFlashes) {
         const elapsed = now - flash.startTime;
         const t = Math.min(elapsed / flash.duration, 1.0); // normalized time [0, 1]
-        
+
         const tileHelper = state.visuals.tileHelpers.get(key);
         if (tileHelper) {
             const fadeAmount = (1.0 - t) ** 3;
-            
+
             tileHelper.object.traverse((child) => {
                 if (child instanceof THREE.Mesh && child.material instanceof THREE.Material) {
                     const material = child.material as THREE.MeshBasicMaterial;
-                    
+
                     const baseColor = 0x222222;
                     const flashColor = 0x005500;
-                    
+
                     const baseR = (baseColor >> 16) & 0xff;
                     const baseG = (baseColor >> 8) & 0xff;
                     const baseB = baseColor & 0xff;
-                    
+
                     const flashR = (flashColor >> 16) & 0xff;
                     const flashG = (flashColor >> 8) & 0xff;
                     const flashB = flashColor & 0xff;
-                    
+
                     const r = Math.round(flashR * fadeAmount + baseR * (1 - fadeAmount));
                     const g = Math.round(flashG * fadeAmount + baseG * (1 - fadeAmount));
                     const b = Math.round(flashB * fadeAmount + baseB * (1 - fadeAmount));
-                    
+
                     const color = (r << 16) | (g << 8) | b;
                     material.color.setHex(color);
                     material.vertexColors = false;
                 }
             });
         }
-        
+
         if (t >= 1.0) {
             flashesToRemove.push(key);
         }
     }
-    
+
     for (const key of flashesToRemove) {
         state.visuals.tileFlashes.delete(key);
     }
@@ -1078,23 +1031,18 @@ for (let i = 0; i < 20; i++) {
 type AgentVisuals = {
     capsule: THREE.Mesh;
     targetMesh: THREE.Mesh;
-    pathLine: THREE.Line | null;
     color: number;
-};
-
-type AgentVisualsOptions = {
-    showPathLine?: boolean;
 };
 
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
     // Create capsule geometry
     const capsuleGeometry = new THREE.CapsuleGeometry(radius, height - radius * 2, 4, 8);
-    const capsuleMaterial = new THREE.MeshStandardMaterial({ 
-        color, 
+    const capsuleMaterial = new THREE.MeshStandardMaterial({
+        color,
         emissive: color,
         emissiveIntensity: 0.2,
         roughness: 0.7,
-        metalness: 0.3
+        metalness: 0.3,
     });
     const capsule = new THREE.Mesh(capsuleGeometry, capsuleMaterial);
     capsule.position.set(position[0], position[1] + height / 2, position[2]);
@@ -1110,24 +1058,13 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     return {
         capsule,
         targetMesh,
-        pathLine: null,
         color,
     };
 };
 
-const updateAgentVisuals = (
-    agent: crowd.Agent,
-    visuals: AgentVisuals,
-    scene: THREE.Scene,
-    _deltaTime: number,
-    options: AgentVisualsOptions = {},
-): void => {
+const updateAgentVisuals = (agent: crowd.Agent, visuals: AgentVisuals): void => {
     // Update capsule position
-    visuals.capsule.position.set(
-        agent.position[0],
-        agent.position[1] + agentParams.height / 2,
-        agent.position[2]
-    );
+    visuals.capsule.position.set(agent.position[0], agent.position[1] + agentParams.height / 2, agent.position[2]);
 
     // Rotate capsule to face movement direction
     const velocity = vec3.length(agent.velocity);
@@ -1140,56 +1077,6 @@ const updateAgentVisuals = (
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
-
-    // path line visualization
-    if (options.showPathLine) {
-        const corners = pathCorridor.findCorners(agent.corridor, navMeshState.navMesh, 3);
-
-        if (corners && corners.length > 1) {
-            // validate coordinates
-            const validPoints: THREE.Vector3[] = [];
-
-            // add agent position
-            if (Number.isFinite(agent.position[0]) && Number.isFinite(agent.position[1]) && Number.isFinite(agent.position[2])) {
-                validPoints.push(new THREE.Vector3(agent.position[0], agent.position[1] + 0.2, agent.position[2]));
-            }
-
-            // add corners
-            for (const corner of corners) {
-                if (
-                    Number.isFinite(corner.position[0]) &&
-                    Number.isFinite(corner.position[1]) &&
-                    Number.isFinite(corner.position[2])
-                ) {
-                    validPoints.push(new THREE.Vector3(corner.position[0], corner.position[1] + 0.2, corner.position[2]));
-                }
-            }
-
-            if (validPoints.length > 1) {
-                if (!visuals.pathLine) {
-                    // create new path line
-                    const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
-                    const material = new THREE.LineBasicMaterial({ color: visuals.color, linewidth: 2 });
-                    visuals.pathLine = new THREE.Line(geometry, material);
-                    scene.add(visuals.pathLine);
-                } else {
-                    // update existing path line
-                    const geometry = visuals.pathLine.geometry as THREE.BufferGeometry;
-                    geometry.setFromPoints(validPoints);
-                    visuals.pathLine.visible = true;
-                }
-            } else if (visuals.pathLine) {
-                visuals.pathLine.visible = false;
-            }
-        } else if (visuals.pathLine) {
-            visuals.pathLine.visible = false;
-        }
-    } else {
-        // hide path line when disabled
-        if (visuals.pathLine) {
-            visuals.pathLine.visible = false;
-        }
-    }
 };
 
 /* create crowd and agents */
@@ -1357,11 +1244,10 @@ function update() {
     for (let i = 0; i < agents.length; i++) {
         const agentId = agents[i];
         const agent = catsCrowd.agents[agentId];
+        const visuals = agentVisuals[agentId];
 
-        if (agentVisuals[agentId]) {
-            updateAgentVisuals(agent, agentVisuals[agentId], scene, clampedDeltaTime, {
-                showPathLine: guiSettings.showPathLine,
-            });
+        if (visuals) {
+            updateAgentVisuals(agent, visuals);
         }
     }
 
