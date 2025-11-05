@@ -530,6 +530,8 @@ type PhysicsObj = {
     lastTiles: Set<string>;
     // collision radius used to mark the compact heightfield
     radius: number;
+    // whether this is a static/fixed object (doesn't move after placement)
+    isStatic: boolean;
 };
 
 type PhysicsState = {
@@ -836,6 +838,7 @@ function spawnBox(
         lastPosition: [boxRigidBody.translation().x, boxRigidBody.translation().y, boxRigidBody.translation().z],
         lastTiles: tilesSet,
         radius: worldRadius,
+        isStatic: false, // Box is dynamic
     };
 
     navMeshState.physics.objects.set(objId, physicsObject);
@@ -935,6 +938,7 @@ function spawnRamp(
         lastPosition: [rampRigidBody.translation().x, rampRigidBody.translation().y, rampRigidBody.translation().z],
         lastTiles: tilesSet,
         radius: worldRadius,
+        isStatic: true, // Ramp is static/fixed
     };
 
     navMeshState.physics.objects.set(objId, physicsObject);
@@ -1018,6 +1022,7 @@ function spawnPlatform(
         lastPosition: [platformRigidBody.translation().x, platformRigidBody.translation().y, platformRigidBody.translation().z],
         lastTiles: tilesSet,
         radius: worldRadius,
+        isStatic: true, // Platform is static/fixed
     };
 
     navMeshState.physics.objects.set(objId, physicsObject);
@@ -1622,6 +1627,11 @@ function updateDynamicNavMesh(
     
     // Schedule tiles based on movements of physics objects between tiles
     for (const [objId, obj] of state.physics.objects) {
+        // Skip static objects entirely - they never move after placement
+        if (obj.isStatic) {
+            continue;
+        }
+        
         const posNow = obj.rigidBody.translation();
         const curPos: Vec3 = [posNow.x, posNow.y, posNow.z];
         
