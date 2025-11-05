@@ -26,7 +26,12 @@
     },
     "example-dynamic-navmesh": {
         "title": "Dynamic Navmesh",
-        "description": "Example of dynamic navmesh generation with moving physics objects as changes to the navmesh",
+        "description": "Minimal example of dynamic navmesh generation with moving physics objects as changes to the navmesh",
+        "tags": ["dynamic", "navmesh", "physics"]
+    },
+    "example-fps-dynamic-navmesh": {
+        "title": "FPS Dynamic Navmesh",
+        "description": "Showcase example of dynamic navmesh generation with moving physics objects as changes to the navmesh, in a first-person shooter style environment",
         "tags": ["dynamic", "navmesh", "physics", "fps"]
     },
     "example-multiple-agent-sizes": {
