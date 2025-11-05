@@ -58,7 +58,7 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
     <td align="center">
       <a href="https://navcat.dev/examples#example-navmesh-constrained-character-controller">
         <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Navmesh Constrained Character Controller
+        NavMesh Constrained Character Controller
       </a>
     </td>
     <td align="center">
@@ -84,7 +84,7 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
     <td align="center">
       <a href="https://navcat.dev/examples#example-dynamic-navmesh">
         <img src="./examples/public/screenshots/example-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Dynamic Navmesh
+        Dynamic NavMesh
       </a>
     </td>
   </tr>
@@ -92,7 +92,7 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
     <td align="center">
       <a href="https://navcat.dev/examples#example-fps-dynamic-navmesh">
         <img src="./examples/public/screenshots/example-fps-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        FPS Dynamic Navmesh
+        FPS Dynamic NavMesh
       </a>
     </td>
     <td align="center">
@@ -690,7 +690,7 @@ export function moveAlongSurface(navMesh: NavMesh, startNodeRef: NodeRef, startP
   <td align="center">
     <a href="https://navcat.dev/examples#example-navmesh-constrained-character-controller">
       <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="200" height="133" style="object-fit:cover;"/><br/>
-      <strong>Navmesh Constrained Character Controller</strong>
+      <strong>NavMesh Constrained Character Controller</strong>
     </a>
   </td>
   <td align="center">
