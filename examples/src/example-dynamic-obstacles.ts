@@ -1,5 +1,4 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import { GUI } from 'lil-gui';
 import { box3, triangle3, vec2, type Vec3, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
@@ -36,6 +35,7 @@ import {
     removeTile,
     WALKABLE_AREA,
 } from 'navcat';
+import { crowd } from 'navcat/blocks';
 import {
     createNavMeshOffMeshConnectionsHelper,
     createNavMeshTileHelper,
@@ -45,7 +45,6 @@ import {
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
-import { crowd } from 'navcat/blocks';
 
 /* init rapier */
 await Rapier.init();
@@ -636,12 +635,12 @@ type AgentVisuals = {
 const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
     // Create capsule geometry
     const capsuleGeometry = new THREE.CapsuleGeometry(radius, height - radius * 2, 4, 8);
-    const capsuleMaterial = new THREE.MeshStandardMaterial({ 
-        color, 
+    const capsuleMaterial = new THREE.MeshStandardMaterial({
+        color,
         emissive: color,
         emissiveIntensity: 0.2,
         roughness: 0.7,
-        metalness: 0.3
+        metalness: 0.3,
     });
     const capsule = new THREE.Mesh(capsuleGeometry, capsuleMaterial);
     capsule.position.set(position[0], position[1] + height / 2, position[2]);
@@ -661,16 +660,9 @@ const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, r
     };
 };
 
-const updateAgentVisuals = (
-    agent: crowd.Agent,
-    visuals: AgentVisuals,
-): void => {
+const updateAgentVisuals = (agent: crowd.Agent, visuals: AgentVisuals): void => {
     // Update capsule position
-    visuals.capsule.position.set(
-        agent.position[0],
-        agent.position[1] + agent.height / 2,
-        agent.position[2]
-    );
+    visuals.capsule.position.set(agent.position[0], agent.position[1] + agent.height / 2, agent.position[2]);
 
     // Rotate capsule to face movement direction
     const velocity = vec3.length(agent.velocity);
