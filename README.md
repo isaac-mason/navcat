@@ -82,19 +82,33 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
       </a>
     </td>
     <td align="center">
+      <a href="https://navcat.dev/examples#example-dynamic-navmesh">
+        <img src="./examples/public/screenshots/example-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Dynamic Navmesh
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-fps-dynamic-navmesh">
+        <img src="./examples/public/screenshots/example-fps-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        FPS Dynamic Navmesh
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev/examples#example-multiple-agent-sizes">
         <img src="./examples/public/screenshots/example-multiple-agent-sizes.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Multiple Agent Sizes
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-crowd-simulation-stress-test">
         <img src="./examples/public/screenshots/example-crowd-simulation-stress-test.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Crowd Simulation Stress Test
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-flow-field-pathfinding">
         <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -107,14 +121,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Find Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -127,14 +141,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Off-Mesh Connections
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-upload-model">
         <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Upload Model
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -147,14 +161,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Solo NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -167,14 +181,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Find Nearest Poly
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -187,14 +201,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Mark Compact Heightfield Areas
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-navmesh-generation">
         <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom NavMesh Generation
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -1779,6 +1793,14 @@ Most navigation mesh querying APIs accept a `queryFilter` parameter that allows 
 You can provide a cost calculation function to modify the cost of traversing polygons, and you can provide a filter function to include/exclude polygons based on their area and flags.
 
 ```ts
+/**
+ * A query filter used in navigation queries.
+ *
+ * This allows for customization of what nodes are considered traversable, and
+ * the cost of traversing between nodes.
+ *
+ * If you are getting started, you can use the built-in @see DEFAULT_QUERY_FILTER or @see ANY_QUERY_FILTER
+ */
 export type QueryFilter = {
     /**
      * Checks if a NavMesh node passes the filter.
@@ -1810,20 +1832,7 @@ export type QueryFilter = {
 ```
 
 ```ts
-export const DEFAULT_QUERY_FILTER = {
-    includeFlags: 0xffffffff,
-    excludeFlags: 0,
-    getCost(pa, pb, _navMesh, _prevRef, _curRef, _nextRef) {
-        // use the distance between the two points as the cost
-        return vec3.distance(pa, pb);
-    },
-    passFilter(nodeRef, navMesh) {
-        // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
-        const { flags } = getNodeByRef(navMesh, nodeRef);
-
-        return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
-    },
-} satisfies DefaultQueryFilter;
+export const DEFAULT_QUERY_FILTER = createDefaultQueryFilter();
 ```
 
 Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
@@ -1937,6 +1946,13 @@ export function removeOffMeshConnection(navMesh: NavMesh, offMeshConnectionId: n
 ```
 
 ```ts
+/**
+ * Returns whether the off mesh connection with the given ID is currently connected to the navmesh.
+ * An off mesh connection may be disconnected if the start or end positions have no valid polygons nearby to connect to.
+ * @param navMesh the navmesh
+ * @param offMeshConnectionId the ID of the off mesh connection
+ * @returns whether the off mesh connection is connected
+ */
 export function isOffMeshConnectionConnected(navMesh: NavMesh, offMeshConnectionId: number): boolean;
 ```
 
