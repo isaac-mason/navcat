@@ -59,6 +59,11 @@
         "description": "Example of using off-mesh connections in a navmesh",
         "tags": ["navmesh", "off-mesh"]
     },
+    "example-dynamic-off-mesh-connections": {
+        "title": "Dynamic Off-Mesh Connections",
+        "description": "Example of using dynamic off-mesh connections in a navmesh",
+        "tags": ["navmesh", "off-mesh", "dynamic"]
+    },
     "example-upload-model": {
         "title": "Upload Model",
         "description": "Example of uploading a model and generating a navmesh from it",

@@ -51,6 +51,9 @@ export type NavMesh = {
 
     /** Pool for link indices */
     linkIndexPool: IndexPool;
+
+    /** Lazy off-mesh providers invoked during path searches */
+    lazyOffMeshProviders?: LazyOffMeshProvider[];
 };
 
 export type NavMeshPoly = {
@@ -190,6 +193,19 @@ export type OffMeshConnectionAttachment = {
     /** the end polygon that the off mesh connection has linked to */
     endPolyNode: NodeRef;
 };
+
+export type LazyOffMeshProviderCtx = {
+    navMesh: NavMesh;
+    fromNodeRef: NodeRef;
+    /** current search position near this poly */
+    pos: Vec3;
+    /** start position of the current path query */
+    start: Vec3;
+    /** end position of the current path query */
+    end: Vec3;
+};
+
+export type LazyOffMeshProvider = (ctx: LazyOffMeshProviderCtx) => OffMeshConnectionParams[] | null | undefined;
 
 export type NavMeshBvNode = {
     /** bounds of the bv node */

@@ -3,7 +3,7 @@ import { vec3 } from 'mathcat';
 import { FindStraightPathResultFlags, findStraightPath, type StraightPathPoint } from './find-straight-path';
 import type { NavMesh } from './nav-mesh';
 import type { QueryFilter } from './nav-mesh-api';
-import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
+import { createFindNearestPolyResult, findNearestPoly, removeOffMeshConnection } from './nav-mesh-api';
 import { type FindNodePathResult, FindNodePathResultFlags, findNodePath } from './nav-mesh-search';
 import type { NodeRef } from './node';
 
@@ -131,6 +131,13 @@ export const findPath = (
     if (!straightPath.success) {
         result.flags = FindPathResultFlags.FIND_STRAIGHT_PATH_FAILED;
         return result;
+    }
+
+    // cleanup ephemeral lazy off-mesh links created during node path search
+    if (nodePath.ephemeralOffMeshConnectionIds?.length) {
+        for (let i = 0; i < nodePath.ephemeralOffMeshConnectionIds.length; i++) {
+            removeOffMeshConnection(navMesh, nodePath.ephemeralOffMeshConnectionIds[i]!);
+        }
     }
 
     result.success = true;

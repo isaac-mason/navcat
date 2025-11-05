@@ -9,12 +9,13 @@ import {
     randomPointInConvexPoly,
     triArea2D,
 } from '../geometry';
-import type { NavMesh, NavMeshLink, NavMeshPoly, NavMeshTile } from './nav-mesh';
+import type { NavMesh, NavMeshLink, NavMeshPoly, NavMeshTile, OffMeshConnectionParams } from './nav-mesh';
 import type { QueryFilter } from './nav-mesh-api';
 import {
     createGetClosestPointOnPolyResult,
     createGetPolyHeightResult,
     DEFAULT_QUERY_FILTER,
+    addOffMeshConnection,
     getClosestPointOnPoly,
     getNodeByRef,
     getNodeByTileAndPoly,
@@ -279,6 +280,9 @@ export type FindNodePathResult = {
 
     /** intermediate open list used for the search */
     openList: SearchNodeQueue;
+
+    /** ephemeral off-mesh connection IDs added during this search (to be cleaned later) */
+    ephemeralOffMeshConnectionIds?: number[];
 };
 
 const HEURISTIC_SCALE = 0.999; // Search heuristic scale
@@ -309,6 +313,8 @@ export const findNodePath = (
 ): FindNodePathResult => {
     const nodes: SearchNodePool = {};
     const openList: SearchNodeQueue = [];
+    const ephemeralOffMeshIds: number[] = [];
+    const lazyKeySet = new Set<string>();
 
     // validate input
     if (
@@ -323,6 +329,7 @@ export const findNodePath = (
             path: [],
             nodes,
             openList,
+            ephemeralOffMeshConnectionIds: ephemeralOffMeshIds,
         };
     }
 
@@ -334,6 +341,7 @@ export const findNodePath = (
             path: [startNodeRef],
             nodes,
             openList,
+            ephemeralOffMeshConnectionIds: ephemeralOffMeshIds,
         };
     }
 
@@ -375,6 +383,30 @@ export const findNodePath = (
 
         // get parent node ref
         const parentNodeRef = bestSearchNode.parentNodeRef ?? undefined;
+
+        // materialize lazy off-mesh connections near this expansion point
+        if (navMesh.lazyOffMeshProviders?.length) {
+            const pos = bestSearchNode.position;
+            const q = (x: number) => Math.round(x * 1000) / 1000;
+            const keyOf = (c: OffMeshConnectionParams) =>
+                `${q(c.start[0])},${q(c.start[1])},${q(c.start[2])}|${q(c.end[0])},${q(c.end[1])},${q(c.end[2])}|${c.direction}|${q(
+                    c.radius,
+                )}|${c.area}|${c.flags}`;
+
+            for (let i = 0; i < navMesh.lazyOffMeshProviders.length; i++) {
+                const provider = navMesh.lazyOffMeshProviders[i]!;
+                const cons = provider({ navMesh, fromNodeRef: bestNodeRef, pos, start: startPosition, end: endPosition });
+                if (!cons || cons.length === 0) continue;
+                for (let j = 0; j < cons.length; j++) {
+                    const c = cons[j]!;
+                    const k = keyOf(c);
+                    if (lazyKeySet.has(k)) continue;
+                    const id = addOffMeshConnection(navMesh, c);
+                    lazyKeySet.add(k);
+                    ephemeralOffMeshIds.push(id);
+                }
+            }
+        }
 
         // expand the search with node links
         for (const linkIndex of bestNode.links) {
@@ -501,6 +533,7 @@ export const findNodePath = (
             path,
             nodes,
             openList,
+            ephemeralOffMeshConnectionIds: ephemeralOffMeshIds,
         };
     }
 
@@ -511,6 +544,7 @@ export const findNodePath = (
         path,
         nodes,
         openList,
+        ephemeralOffMeshConnectionIds: ephemeralOffMeshIds,
     };
 };
 

@@ -14,6 +14,7 @@ import {
     type OffMeshConnectionAttachment,
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
+    type LazyOffMeshProvider,
 } from './nav-mesh';
 import {
     getNodeRefIndex,
@@ -1576,6 +1577,16 @@ export const removeOffMeshConnection = (navMesh: NavMesh, offMeshConnectionId: n
     disconnectOffMeshConnection(navMesh, offMeshConnection);
 
     delete navMesh.offMeshConnections[offMeshConnection.id];
+};
+
+/**
+ * Registers a provider that supplies nearby off-mesh connections lazily during pathfinding.
+ * @param navMesh the navmesh
+ * @param provider callback invoked during node expansion with local context
+ */
+export const addLazyOffMeshConnections = (navMesh: NavMesh, provider: LazyOffMeshProvider): void => {
+    if (!navMesh.lazyOffMeshProviders) navMesh.lazyOffMeshProviders = [];
+    navMesh.lazyOffMeshProviders.push(provider);
 };
 
 /**
