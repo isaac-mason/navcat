@@ -1,5 +1,4 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import { GUI } from 'lil-gui';
 import { box3, triangle3, vec2, type Vec3, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
@@ -36,6 +35,7 @@ import {
     removeTile,
     WALKABLE_AREA,
 } from 'navcat';
+import { crowd } from 'navcat/blocks';
 import {
     createNavMeshOffMeshConnectionsHelper,
     createNavMeshTileHelper,
@@ -45,18 +45,9 @@ import {
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
-import { crowd, pathCorridor } from 'navcat/blocks';
 
 /* init rapier */
 await Rapier.init();
-
-/* controls */
-const guiSettings = {
-    showPathLine: false,
-};
-
-const gui = new GUI();
-gui.add(guiSettings, 'showPathLine').name('Show Path Line');
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -104,10 +95,6 @@ orbitControls.enableDamping = true;
 // load level model
 const levelModel = await loadGLTF('./models/nav-test.glb');
 scene.add(levelModel.scene);
-
-// load cat model for agents
-const catModel = await loadGLTF('./models/cat.gltf');
-const catAnimations = catModel.animations;
 
 /* get walkable level geometry */
 const walkableMeshes: THREE.Mesh[] = [];
@@ -640,263 +627,54 @@ for (let i = 0; i < 20; i++) {
 
 /* Agent visuals */
 type AgentVisuals = {
-    group: THREE.Group; // cat model group
-    mixer: THREE.AnimationMixer; // animation mixer for cat
-    idleAction: THREE.AnimationAction;
-    walkAction: THREE.AnimationAction;
-    runAction: THREE.AnimationAction;
-    currentAnimation: 'idle' | 'walk' | 'run';
-    currentRotation: number; // current Y rotation for lerping
-    targetRotation: number; // target Y rotation
-    color: number;
-
+    capsule: THREE.Mesh;
     targetMesh: THREE.Mesh;
-    pathLine: THREE.Line | null;
+    color: number;
 };
 
-type AgentVisualsOptions = {
-    showPathLine?: boolean;
-};
-
-const cloneCatModel = (color?: number): THREE.Group => {
-    const clone = catModel.scene.clone(true);
-
-    const patchMaterial = (material: THREE.Material): THREE.Material => {
-        if (
-            color !== undefined &&
-            (material instanceof THREE.MeshLambertMaterial ||
-                material instanceof THREE.MeshStandardMaterial ||
-                material instanceof THREE.MeshPhongMaterial)
-        ) {
-            const clonedMat = material.clone();
-
-            clonedMat.color.setHex(color);
-            clonedMat.color.multiplyScalar(2);
-
-            if (clonedMat instanceof THREE.MeshStandardMaterial) {
-                clonedMat.emissive.setHex(color);
-                clonedMat.emissiveIntensity = 0.1;
-                clonedMat.roughness = 0.3;
-                clonedMat.metalness = 0.1;
-            }
-
-            return clonedMat;
-        }
-
-        return material;
-    };
-
-    // clone SkinnedMeshes
-    const skinnedMeshes: THREE.SkinnedMesh[] = [];
-
-    clone.traverse((child) => {
-        if (child instanceof THREE.SkinnedMesh) {
-            skinnedMeshes.push(child);
-        }
-
-        if (child instanceof THREE.Mesh) {
-            if (Array.isArray(child.material)) {
-                child.material = child.material.map(patchMaterial);
-            } else {
-                child.material = patchMaterial(child.material);
-            }
-        }
+const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number, height: number): AgentVisuals => {
+    // Create capsule geometry
+    const capsuleGeometry = new THREE.CapsuleGeometry(radius, height - radius * 2, 4, 8);
+    const capsuleMaterial = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.2,
+        roughness: 0.7,
+        metalness: 0.3,
     });
+    const capsule = new THREE.Mesh(capsuleGeometry, capsuleMaterial);
+    capsule.position.set(position[0], position[1] + height / 2, position[2]);
+    capsule.castShadow = true;
+    scene.add(capsule);
 
-    // fix skeleton references for SkinnedMesh
-    for (const skinnedMesh of skinnedMeshes) {
-        const skeleton = skinnedMesh.skeleton;
-        const bones: THREE.Bone[] = [];
-
-        for (const bone of skeleton.bones) {
-            const foundBone = clone.getObjectByName(bone.name);
-            if (foundBone instanceof THREE.Bone) {
-                bones.push(foundBone);
-            }
-        }
-
-        skinnedMesh.bind(new THREE.Skeleton(bones, skeleton.boneInverses));
-    }
-
-    return clone;
-};
-
-const createAgentVisuals = (position: Vec3, scene: THREE.Scene, color: number, radius: number): AgentVisuals => {
-    const catGroup = cloneCatModel(color);
-    catGroup.position.set(position[0], position[1], position[2]);
-    catGroup.scale.setScalar(radius * 1.5);
-    scene.add(catGroup);
-
-    const mixer = new THREE.AnimationMixer(catGroup);
-
-    const idleClip = catAnimations.find((clip) => clip.name === 'Idle');
-    const walkClip = catAnimations.find((clip) => clip.name === 'Walk');
-    const runClip = catAnimations.find((clip) => clip.name === 'Run');
-
-    if (!idleClip || !walkClip || !runClip) {
-        throw new Error('Missing required animations in cat model');
-    }
-
-    const idleAction = mixer.clipAction(idleClip);
-    const walkAction = mixer.clipAction(walkClip);
-    const runAction = mixer.clipAction(runClip);
-
-    idleAction.loop = THREE.LoopRepeat;
-    walkAction.loop = THREE.LoopRepeat;
-    runAction.loop = THREE.LoopRepeat;
-
-    idleAction.play();
-
+    // Create target indicator
     const targetGeometry = new THREE.SphereGeometry(0.1);
     const targetMaterial = new THREE.MeshBasicMaterial({ color });
     const targetMesh = new THREE.Mesh(targetGeometry, targetMaterial);
     scene.add(targetMesh);
 
     return {
-        group: catGroup,
-        mixer,
-        idleAction,
-        walkAction,
-        runAction,
-        currentAnimation: 'idle',
-        currentRotation: 0,
-        targetRotation: 0,
-        color,
+        capsule,
         targetMesh,
-        pathLine: null,
+        color,
     };
 };
 
-const updateAgentVisuals = (
-    agent: crowd.Agent,
-    visuals: AgentVisuals,
-    scene: THREE.Scene,
-    deltaTime: number,
-    options: AgentVisualsOptions = {},
-): void => {
-    // update animation mixer
-    visuals.mixer.update(deltaTime);
+const updateAgentVisuals = (agent: crowd.Agent, visuals: AgentVisuals): void => {
+    // Update capsule position
+    visuals.capsule.position.set(agent.position[0], agent.position[1] + agent.height / 2, agent.position[2]);
 
-    // update cat model position and rotation
-    visuals.group.position.fromArray(agent.position);
-
-    // calculate velocity and determine animation
+    // Rotate capsule to face movement direction
     const velocity = vec3.length(agent.velocity);
-    let targetAnimation: 'idle' | 'walk' | 'run' = 'idle';
-
-    if (velocity > 2.5) {
-        targetAnimation = 'run';
-    } else if (velocity > 0.1) {
-        targetAnimation = 'walk';
-    }
-
-    // handle animation transitions
-    if (visuals.currentAnimation !== targetAnimation) {
-        const currentAction =
-            visuals.currentAnimation === 'idle'
-                ? visuals.idleAction
-                : visuals.currentAnimation === 'walk'
-                  ? visuals.walkAction
-                  : visuals.runAction;
-
-        const targetAction =
-            targetAnimation === 'idle' ? visuals.idleAction : targetAnimation === 'walk' ? visuals.walkAction : visuals.runAction;
-
-        // cross-fade to new animation
-        currentAction.fadeOut(0.3);
-        targetAction.reset().fadeIn(0.3).play();
-
-        visuals.currentAnimation = targetAnimation;
-    }
-
-    // rotate cat to face movement direction with lerping
-    const minVelocityThreshold = 0.1; // minimum velocity to trigger rotation
-    const rotationLerpSpeed = 5.0; // how fast to lerp towards target rotation
-
-    if (velocity > minVelocityThreshold) {
+    if (velocity > 0.1) {
         const direction = vec3.normalize([0, 0, 0], agent.velocity);
         const targetAngle = Math.atan2(direction[0], direction[2]);
-        visuals.targetRotation = targetAngle;
-    } else {
-        const targetDirection = vec3.subtract([0, 0, 0], agent.targetPosition, agent.position);
-        const targetDistance = vec3.length(targetDirection);
-
-        if (targetDistance > 0.1) {
-            const normalizedTarget = vec3.normalize([0, 0, 0], targetDirection);
-            const targetAngle = Math.atan2(normalizedTarget[0], normalizedTarget[2]);
-            visuals.targetRotation = targetAngle;
-        }
+        visuals.capsule.rotation.y = targetAngle;
     }
-
-    // lerp current rotation towards target rotation
-    let angleDiff = visuals.targetRotation - visuals.currentRotation;
-
-    // handle angle wrapping (shortest path)
-    if (angleDiff > Math.PI) {
-        angleDiff -= 2 * Math.PI;
-    } else if (angleDiff < -Math.PI) {
-        angleDiff += 2 * Math.PI;
-    }
-
-    // apply lerp
-    visuals.currentRotation += angleDiff * rotationLerpSpeed * deltaTime;
-
-    // apply rotation to cat
-    visuals.group.rotation.y = visuals.currentRotation;
 
     // update target mesh position
     visuals.targetMesh.position.fromArray(agent.targetPosition);
     visuals.targetMesh.position.y += 0.1;
-
-    // path line visualization
-    if (options.showPathLine) {
-        const corners = pathCorridor.findCorners(agent.corridor, navMesh, 3);
-
-        if (corners && corners.length > 1) {
-            // validate coordinates
-            const validPoints: THREE.Vector3[] = [];
-
-            // add agent position
-            if (Number.isFinite(agent.position[0]) && Number.isFinite(agent.position[1]) && Number.isFinite(agent.position[2])) {
-                validPoints.push(new THREE.Vector3(agent.position[0], agent.position[1] + 0.2, agent.position[2]));
-            }
-
-            // add corners
-            for (const corner of corners) {
-                if (
-                    Number.isFinite(corner.position[0]) &&
-                    Number.isFinite(corner.position[1]) &&
-                    Number.isFinite(corner.position[2])
-                ) {
-                    validPoints.push(new THREE.Vector3(corner.position[0], corner.position[1] + 0.2, corner.position[2]));
-                }
-            }
-
-            if (validPoints.length > 1) {
-                if (!visuals.pathLine) {
-                    // create new path line
-                    const geometry = new THREE.BufferGeometry().setFromPoints(validPoints);
-                    const material = new THREE.LineBasicMaterial({ color: visuals.color, linewidth: 2 });
-                    visuals.pathLine = new THREE.Line(geometry, material);
-                    scene.add(visuals.pathLine);
-                } else {
-                    // update existing path line
-                    const geometry = visuals.pathLine.geometry as THREE.BufferGeometry;
-                    geometry.setFromPoints(validPoints);
-                    visuals.pathLine.visible = true;
-                }
-            } else if (visuals.pathLine) {
-                visuals.pathLine.visible = false;
-            }
-        } else if (visuals.pathLine) {
-            visuals.pathLine.visible = false;
-        }
-    } else {
-        // hide path line when disabled
-        if (visuals.pathLine) {
-            visuals.pathLine.visible = false;
-        }
-    }
 };
 
 /* create crowd and agents */
@@ -906,7 +684,7 @@ console.log(catsCrowd);
 
 const agentParams: crowd.AgentParams = {
     radius: 0.3,
-    height: 0.6,
+    height: 1,
     maxAcceleration: 15.0,
     maxSpeed: 3.5,
     collisionQueryRange: 2,
@@ -938,7 +716,7 @@ for (let i = 0; i < agentPositions.length; i++) {
     console.log(`Creating agent ${i} at position:`, position);
 
     // create visuals for the agent
-    agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius);
+    agentVisuals[agentId] = createAgentVisuals(position, scene, color, agentParams.radius, agentParams.height);
 }
 
 // mouse interaction for setting agent targets
@@ -1163,9 +941,7 @@ function update() {
         const agent = catsCrowd.agents[agentId];
 
         if (agentVisuals[agentId]) {
-            updateAgentVisuals(agent, agentVisuals[agentId], scene, clampedDeltaTime, {
-                showPathLine: guiSettings.showPathLine,
-            });
+            updateAgentVisuals(agent, agentVisuals[agentId]);
         }
     }
 
