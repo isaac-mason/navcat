@@ -54,6 +54,11 @@
         "description": "Example of finding a path on the navmesh",
         "tags": ["path"]
     },
+    "example-area-costs": {
+        "title": "Area Costs",
+        "description": "Example of cost-aware pathfinding that prefers a longer green detour over a red slow zone",
+        "tags": ["path", "cost", "areas"]
+    },
     "example-find-smooth-path": {
         "title": "Find Smooth Path",
         "description": "Example of finding a smooth path on the navmesh",
