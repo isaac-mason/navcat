@@ -16,7 +16,6 @@ import {
     ContourBuildFlags,
     createHeightfield,
     createNavMesh,
-    DEFAULT_QUERY_FILTER,
     erodeWalkableArea,
     filterLedgeSpans,
     filterLowHangingWalkableObstacles,
@@ -289,7 +288,7 @@ const areaCostConfig = {
 };
 
 const queryFilter: QueryFilter = {
-    ...DEFAULT_QUERY_FILTER,
+    passFilter: (_nodeRef, _navMesh) => true,
     getCost(pa, pb, navMeshInstance, _prevRef, curRef, _nextRef) {
         const base = vec3.distance(pa, pb);
         if (!curRef) return base;
@@ -436,21 +435,28 @@ renderer.domElement.addEventListener('pointerdown', (event: PointerEvent) => {
     if (!point) return;
 
     if (event.button === 0) {
-        moving = 'start';
-        renderer.domElement.style.cursor = 'crosshair';
-        start = point;
+        if (moving === 'start') {
+            moving = null;
+            renderer.domElement.style.cursor = '';
+            start = point;
+        } else {
+            moving = 'start';
+            renderer.domElement.style.cursor = 'crosshair';
+            start = point;
+        }
     } else if (event.button === 2) {
-        moving = 'end';
-        renderer.domElement.style.cursor = 'crosshair';
-        end = point;
+        if (moving === 'end') {
+            moving = null;
+            renderer.domElement.style.cursor = '';
+            end = point;
+        } else {
+            moving = 'end';
+            renderer.domElement.style.cursor = 'crosshair';
+            end = point;
+        }
     }
 
     updatePath();
-});
-
-renderer.domElement.addEventListener('pointerup', () => {
-    moving = null;
-    renderer.domElement.style.cursor = '';
 });
 
 renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
