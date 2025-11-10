@@ -136,19 +136,25 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
       </a>
     </td>
     <td align="center">
+      <a href="https://navcat.dev/examples#example-find-shortest-paths">
+        <img src="./examples/public/screenshots/example-find-shortest-paths.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Find Shortest Paths
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev/examples#example-find-diverse-paths">
         <img src="./examples/public/screenshots/example-find-diverse-paths.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Diverse Paths
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Raycast
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -161,14 +167,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Upload Model
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom GLTF NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -181,14 +187,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Tiled NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flood Fill Pruning
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -201,14 +207,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Find Random Point
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point Around Circle
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-mark-compact-heightfield-areas">
         <img src="./examples/public/screenshots/example-mark-compact-heightfield-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -221,6 +227,8 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Custom NavMesh Generation
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -247,6 +255,7 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
   - [`findRandomPoint`](#findrandompoint)
   - [`findRandomPointAroundCircle`](#findrandompointaroundcircle)
 - [Crowd Simulation](#crowd-simulation)
+- [Custom Pathfinding Algorithms](#custom-pathfinding-algorithms)
 - [Navigation Mesh Generation](#navigation-mesh-generation)
   - [Overview](#overview)
     - [The Structure of a Navigation Mesh](#the-structure-of-a-navigation-mesh)
@@ -993,6 +1002,37 @@ And see the below for interactive examples:
     <a href="https://navcat.dev/examples#example-crowd-simulation-stress-test">
       <img src="./examples/public/screenshots/example-crowd-simulation-stress-test.png" width="200" height="133" style="object-fit:cover;"/><br/>
       <strong>Crowd Simulation Stress Test</strong>
+    </a>
+  </td>
+  </tr>
+</table>
+
+## Custom Pathfinding Algorithms
+
+If your use case is not covered by built-in high level APIs, navcat provides lower-level access to the navigation mesh structure to enable building custom pathfinding algorithms.
+
+The [Advanced Navigation Mesh APIs](#advanced-navigation-mesh-apis) section below covers APIs for working with the navigation mesh structure.
+
+See the examples below for demonstrations of userland pathfinding algorithms:
+
+<table>
+  <tr>
+  <td align="center">
+    <a href="https://navcat.dev/examples#example-flow-field-pathfinding">
+      <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Flow Field Pathfinding</strong>
+    </a>
+  </td>
+  <td align="center">
+    <a href="https://navcat.dev/examples#example-find-shortest-paths">
+      <img src="./examples/public/screenshots/example-find-shortest-paths.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Find Shortest Paths</strong>
+    </a>
+  </td>
+  <td align="center">
+    <a href="https://navcat.dev/examples#example-find-diverse-paths">
+      <img src="./examples/public/screenshots/example-find-diverse-paths.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Find Diverse Paths</strong>
     </a>
   </td>
   </tr>

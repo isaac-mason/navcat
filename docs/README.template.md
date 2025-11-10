@@ -260,6 +260,16 @@ And see the below for interactive examples:
 
 <ExamplesTable ids="example-crowd-simulation,example-crowd-simulation-stress-test" />
 
+## Custom Pathfinding Algorithms
+
+If your use case is not covered by built-in high level APIs, navcat provides lower-level access to the navigation mesh structure to enable building custom pathfinding algorithms.
+
+The [Advanced Navigation Mesh APIs](#advanced-navigation-mesh-apis) section below covers APIs for working with the navigation mesh structure.
+
+See the examples below for demonstrations of userland pathfinding algorithms:
+
+<ExamplesTable ids="example-flow-field-pathfinding,example-find-shortest-paths,example-find-diverse-paths" />
+
 ## Navigation Mesh Generation
 
 ### Overview
