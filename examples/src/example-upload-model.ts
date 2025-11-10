@@ -1,6 +1,14 @@
 import GUI from 'lil-gui';
 import type { Vec3 } from 'mathcat';
-import { DEFAULT_QUERY_FILTER, FindStraightPathResultFlags, findNearestPoly, findPath, getNodeRefType, NodeType, createFindNearestPolyResult } from 'navcat';
+import {
+    DEFAULT_QUERY_FILTER,
+    FindStraightPathResultFlags,
+    findNearestPoly,
+    findPath,
+    getNodeRefType,
+    NodeType,
+    createFindNearestPolyResult,
+} from 'navcat';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
@@ -28,6 +36,7 @@ import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions 
 import { generateSoloNavMesh, type SoloNavMeshInput, type SoloNavMeshOptions } from 'navcat/blocks';
 import { getPositionsAndIndices } from 'navcat/three';
 import { loadGLTF } from './common/load-gltf';
+import { createFlag } from './common/flag';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -53,6 +62,11 @@ const toolConfig = {
     activeTool: 'pathfinding' as ToolType,
 };
 
+/* visuals */
+type Visual = { object: THREE.Object3D; dispose: () => void };
+let queryVisuals: Visual[] = [];
+let pathVisuals: Visual[] = [];
+
 /* pathfinding tool state */
 const pathfindingConfig = {
     halfExtentsX: 1,
@@ -63,8 +77,6 @@ const pathfindingConfig = {
 
 let pathStart: Vec3 | null = null;
 let pathEnd: Vec3 | null = null;
-type PathVisual = { object: THREE.Object3D; dispose: () => void };
-let pathVisuals: PathVisual[] = [];
 
 /* query tool state */
 const queryConfig = {
@@ -73,9 +85,6 @@ const queryConfig = {
     halfExtentsY: 1,
     halfExtentsZ: 1,
 };
-
-type QueryVisual = { object: THREE.Object3D; dispose: () => void };
-let queryVisuals: QueryVisual[] = [];
 
 /* unified navmesh generation configuration */
 type NavMeshType = 'solo' | 'tiled';
@@ -481,22 +490,7 @@ function clearPathVisuals() {
     if (pathTime) pathTime.textContent = '-';
 }
 
-function createFlag(color: number): THREE.Group {
-    const poleGeom = new THREE.BoxGeometry(0.12, 1.2, 0.12);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
-    const pole = new THREE.Mesh(poleGeom, poleMat);
-    pole.position.set(0, 0.6, 0);
-    const flagGeom = new THREE.BoxGeometry(0.32, 0.22, 0.04);
-    const flagMat = new THREE.MeshStandardMaterial({ color });
-    const flag = new THREE.Mesh(flagGeom, flagMat);
-    flag.position.set(0.23, 1.0, 0);
-    const group = new THREE.Group();
-    group.add(pole);
-    group.add(flag);
-    return group;
-}
-
-function addPathVisual(visual: PathVisual) {
+function addPathVisual(visual: Visual) {
     pathVisuals.push(visual);
     scene.add(visual.object);
 }
@@ -515,47 +509,15 @@ function updatePath() {
     // Create start flag if start point is set
     if (start) {
         const startFlag = createFlag(0x2196f3);
-        startFlag.position.set(...start);
-        addPathVisual({
-            object: startFlag,
-            dispose: () => {
-                startFlag.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                        child.geometry?.dispose();
-                        if (Array.isArray(child.material)) {
-                            for (const mat of child.material) {
-                                mat?.dispose?.();
-                            }
-                        } else {
-                            child.material?.dispose?.();
-                        }
-                    }
-                });
-            },
-        });
+        startFlag.object.position.set(...start);
+        addPathVisual(startFlag);
     }
 
     // Create end flag if end point is set
     if (end) {
         const endFlag = createFlag(0x00ff00);
-        endFlag.position.set(...end);
-        addPathVisual({
-            object: endFlag,
-            dispose: () => {
-                endFlag.traverse((child) => {
-                    if (child instanceof THREE.Mesh) {
-                        child.geometry?.dispose();
-                        if (Array.isArray(child.material)) {
-                            for (const mat of child.material) {
-                                mat?.dispose?.();
-                            }
-                        } else {
-                            child.material?.dispose?.();
-                        }
-                    }
-                });
-            },
-        });
+        endFlag.object.position.set(...end);
+        addPathVisual(endFlag);
     }
 
     // Only compute path if both start and end are set
@@ -670,7 +632,7 @@ function clearQueryVisuals() {
     if (queryRef) queryRef.textContent = '-';
 }
 
-function addQueryVisual(visual: QueryVisual) {
+function addQueryVisual(visual: Visual) {
     queryVisuals.push(visual);
     scene.add(visual.object);
 }

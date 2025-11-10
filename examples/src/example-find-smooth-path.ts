@@ -23,6 +23,7 @@ import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
 import { loadGLTF } from './common/load-gltf';
+import { createFlag } from './common/flag';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -179,51 +180,16 @@ function addVisual(visual: Visual) {
     scene.add(visual.object);
 }
 
-function createFlag(color: number): THREE.Group {
-    const poleGeom = new THREE.BoxGeometry(0.12, 1.2, 0.12);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
-    const pole = new THREE.Mesh(poleGeom, poleMat);
-    pole.position.set(0, 0.6, 0);
-    const flagGeom = new THREE.BoxGeometry(0.32, 0.22, 0.04);
-    const flagMat = new THREE.MeshStandardMaterial({ color });
-    const flag = new THREE.Mesh(flagGeom, flagMat);
-    flag.position.set(0.23, 1.0, 0);
-    const group = new THREE.Group();
-    group.add(pole);
-    group.add(flag);
-    return group;
-}
-
 function updatePath() {
     clearVisuals();
 
     const startFlag = createFlag(0x2196f3);
-    startFlag.position.set(...start);
-    addVisual({
-        object: startFlag,
-        dispose: () => {
-            startFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    child.material?.dispose?.();
-                }
-            });
-        },
-    });
+    startFlag.object.position.set(...start);
+    addVisual(startFlag);
 
     const endFlag = createFlag(0x00ff00);
-    endFlag.position.set(...end);
-    addVisual({
-        object: endFlag,
-        dispose: () => {
-            endFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    child.material?.dispose?.();
-                }
-            });
-        },
-    });
+    endFlag.object.position.set(...end);
+    addVisual(endFlag);
 
     console.time('findSmoothPath');
     const pathResult = findSmoothPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, stepSize, slop, 1024);

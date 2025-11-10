@@ -22,6 +22,7 @@ import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
 import { loadGLTF } from './common/load-gltf';
+import { createFlag } from './common/flag';
 
 /**
  * This example demonstrates a penalty-based heuristic for finding multiple diverse paths
@@ -301,30 +302,6 @@ function clearVisuals() {
 function addVisual(visual: Visual) {
     visuals.push(visual);
     scene.add(visual.object);
-}
-
-function createFlag(color: number): Visual {
-    const poleGeom = new THREE.BoxGeometry(0.12, 1.2, 0.12);
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
-    const pole = new THREE.Mesh(poleGeom, poleMat);
-    pole.position.set(0, 0.6, 0);
-    const flagGeom = new THREE.BoxGeometry(0.32, 0.22, 0.04);
-    const flagMat = new THREE.MeshStandardMaterial({ color });
-    const flag = new THREE.Mesh(flagGeom, flagMat);
-    flag.position.set(0.23, 1.0, 0);
-    const group = new THREE.Group();
-    group.add(pole);
-    group.add(flag);
-
-    return {
-        object: group,
-        dispose: () => {
-            poleGeom.dispose();
-            poleMat.dispose();
-            flagGeom.dispose();
-            flagMat.dispose();
-        },
-    };
 }
 
 function updatePath() {
