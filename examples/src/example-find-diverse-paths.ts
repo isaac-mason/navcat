@@ -3,25 +3,24 @@ import type { Vec3 } from 'mathcat';
 import { vec3 } from 'mathcat';
 import {
     DEFAULT_QUERY_FILTER,
+    type FindPathResult,
+    FindPathResultFlags,
     findPath,
-    getNodeRefType,
-    NodeType,
     getEdgeMidPoint,
     getNodeByRef,
-    type QueryFilter,
-    type NodeRef,
+    getNodeRefType,
     type NavMesh,
-    FindPathResultFlags,
-    type FindPathResult,
+    type NodeRef,
+    NodeType,
+    type QueryFilter,
 } from 'navcat';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from 'navcat/three';
 import { createExample } from './common/example-base';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
-import { getPositionsAndIndices } from 'navcat/three';
 import { loadGLTF } from './common/load-gltf';
 
 /**
@@ -316,7 +315,7 @@ function createFlag(color: number): Visual {
     const group = new THREE.Group();
     group.add(pole);
     group.add(flag);
-    
+
     return {
         object: group,
         dispose: () => {
@@ -380,6 +379,7 @@ function updatePath() {
                     new THREE.MeshBasicMaterial({ color: routeColor }),
                 );
                 mesh.position.set(...point.position);
+                mesh.position.y += 0.1;
                 addVisual({
                     object: mesh,
                     dispose: () => {
@@ -398,6 +398,7 @@ function updatePath() {
                         worldUnits: true,
                     });
                     const line = new Line2(geometry, material);
+                    line.position.y += 0.1;
                     addVisual({
                         object: line,
                         dispose: () => {
