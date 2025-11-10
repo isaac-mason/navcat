@@ -64,9 +64,14 @@
         "description": "Example of finding a smooth path on the navmesh",
         "tags": ["path"]
     },
+    "example-find-shortest-paths": {
+        "title": "Find Shortest Paths",
+        "description": "Example of finding shortest paths on the navmesh using Yen's algorithm",
+        "tags": ["path", "shortest"]
+    },
     "example-find-diverse-paths": {
         "title": "Find Diverse Paths",
-        "description": "Example of finding diverse paths on the navmesh",
+        "description": "Example of finding diverse paths on the navmesh with a heuristic method",
         "tags": ["path", "diverse"]
     },
     "example-raycast": {

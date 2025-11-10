@@ -8,7 +8,6 @@ import {
     findNodePath,
     findStraightPath,
     getEdgeMidPoint,
-    getNodeByRef,
     getNodeRefType,
     type NavMesh,
     type NodeRef,
@@ -22,140 +21,113 @@ import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
-import { loadGLTF } from './common/load-gltf';
 import { createFlag } from './common/flag';
+import { loadGLTF } from './common/load-gltf';
 
 /**
- * This example demonstrates a penalty-based heuristic for finding multiple diverse paths
- * between two points on a navigation mesh. This is not a formal k-shortest paths algorithm,
- * but rather a practical technique for finding visually distinct routes.
+ * This example demonstrates Yen's k-shortest paths algorithm for finding multiple
+ * alternative paths between two points on a navigation mesh.
  *
- * APPROACH:
- * 1. Find a path using standard A*
- * 2. Apply penalties to nodes used in the path (and their neighbors)
- * 3. Re-run A* with the penalized cost function to find alternative paths
- * 4. Filter candidates by:
- *    - Cost stretch: reject paths significantly longer than optimal
- *    - Path dissimilarity: reject paths too similar to existing ones (using Jaccard index)
- * 5. Repeat until k paths are found or max attempts reached
+ * Yen's Algorithm (1971):
+ * 1. Find the shortest path using A*
+ * 2. For each k-th iteration:
+ *    - For each node in the (k-1)-th path:
+ *      a. Create a "spur node" at position i
+ *      b. Remove edges from previous paths that share the same root path [0...i]
+ *      c. Remove nodes in the root path [0...i-1] to prevent loops
+ *      d. Find shortest path from spur node to end with modified graph
+ *      e. Combine root path + spur path
+ *    - Add the shortest candidate path to results
+ * 3. Repeat until k paths found or no more candidates
  */
-
-type FindDiversePathsOptions = {
-    k?: number; // number of alternatives including the fastest
-    maxStretch?: number; // e.g. 0.08 => ≤ +8% cost vs best
-    maxShared?: number; // max allowed overlap (Jaccard on node sets), e.g. 0.5
-    basePenalty?: number; // cost bump per used node
-    neighborDepth?: number; // how many hops to spread penalty (0..2)
-    neighborDecay?: number; // penalty decay per hop, e.g. 0.5
-    maxTries?: number; // safety bound
-};
 
 type NodePath = {
     path: NodeRef[];
-    nodeSet: Set<NodeRef>;
     cost: number;
 };
 
-function findDiversePaths(
+type PathCandidate = {
+    nodePath: NodeRef[];
+    cost: number;
+    rootLength: number; // for deduplication
+};
+
+function findShortestPaths(
     navMesh: NavMesh,
     start: Vec3,
     end: Vec3,
     halfExtents: Vec3,
     baseFilter: QueryFilter,
-    opts: FindDiversePathsOptions = {},
+    k: number = 3,
 ): NodePath[] {
-    const {
-        k = 3,
-        maxStretch = 0.08,
-        maxShared = 0.5,
-        basePenalty = 80, // tune to your filter's scale; start large to force diversity
-        neighborDepth = 1,
-        neighborDecay = 0.5,
-        maxTries = 10,
-    } = opts;
-
-    const accepted: NodePath[] = [];
-    const penalty = new Map<NodeRef, number>();
-
-    const computeUnpenalizedCost = (path: NodeRef[]): number => {
+    // calculate the actual cost of a path by computing straight line distances
+    const calculatePathCost = (path: NodeRef[], startPos: Vec3, endPos: Vec3): number => {
         if (path.length === 0) return Number.POSITIVE_INFINITY;
+        if (path.length === 1) {
+            // single node: distance from start to end
+            return vec3.distance(startPos, endPos);
+        }
 
-        const mids: Vec3[] = [];
-        const tmp: Vec3 = vec3.create();
-        mids.push(vec3.clone(start));
+        let totalCost = 0;
+        let prevPos = startPos;
 
-        for (let i = 0; i + 1 < path.length; i++) {
-            if (getEdgeMidPoint(navMesh, path[i], path[i + 1], tmp)) {
-                mids.push(vec3.clone(tmp));
+        for (let i = 0; i < path.length; i++) {
+            const currentNode = path[i];
+            const nextNode = i < path.length - 1 ? path[i + 1] : null;
+
+            let currentPos: Vec3;
+            if (i === path.length - 1) {
+                // last node: use end position
+                currentPos = endPos;
+            } else if (nextNode) {
+                // intermediate node: use edge midpoint to next node
+                const midpoint = vec3.create();
+                if (getEdgeMidPoint(navMesh, currentNode, nextNode, midpoint)) {
+                    currentPos = midpoint;
+                } else {
+                    // fallback if edge midpoint fails
+                    currentPos = prevPos;
+                }
+            } else {
+                currentPos = prevPos;
             }
+
+            totalCost += vec3.distance(prevPos, currentPos);
+            prevPos = currentPos;
         }
 
-        mids.push(vec3.clone(end));
-
-        let total = 0;
-        for (let j = 0; j + 1 < mids.length; j++) {
-            const prevRef = j > 0 ? path[Math.min(j - 1, path.length - 1)] : undefined;
-            const curRef = path[Math.min(j, path.length - 1)];
-            const nextRef = j + 1 < path.length ? path[Math.min(j + 1, path.length - 1)] : undefined;
-            total += baseFilter.getCost(mids[j], mids[j + 1], navMesh, prevRef, curRef, nextRef);
-        }
-        return total;
+        return totalCost;
     };
 
-    const nodeSetOf = (path: NodeRef[]) => new Set<NodeRef>(path);
+    const edgeKey = (from: NodeRef, to: NodeRef): string => `${from},${to}`;
 
-    const jaccard = (a: Set<NodeRef>, b: Set<NodeRef>) => {
-        let inter = 0;
-        for (const x of a) if (b.has(x)) inter++;
-        const union = a.size + b.size - inter;
-        return union === 0 ? 0 : inter / union;
-    };
-
-    const spreadPenalty = (path: NodeRef[]) => {
-        const used = path;
-        const seen = new Set<NodeRef>();
-
-        const add = (ref: NodeRef, amount: number) => {
-            penalty.set(ref, (penalty.get(ref) ?? 0) + amount);
-        };
-
-        for (const ref of used) {
-            add(ref, basePenalty);
-            seen.add(ref);
-        }
-
-        // spread to neighbors up to depth
-        for (let d = 1; d <= neighborDepth; d++) {
-            const amount = basePenalty * neighborDecay ** d;
-            const frontier: NodeRef[] = [];
-            for (const ref of Array.from(seen)) {
-                const node = getNodeByRef(navMesh, ref);
-                if (!node) continue;
-                for (const li of node.links) {
-                    const link = navMesh.links[li];
-                    if (!link) continue;
-                    const nbr = link.toNodeRef;
-                    if (!seen.has(nbr)) frontier.push(nbr);
+    const createBlockingFilter = (blockedNodes: Set<NodeRef>, blockedEdges: Set<string>): QueryFilter => ({
+        passFilter: (ref, nm) => {
+            if (blockedNodes.has(ref)) return false;
+            return baseFilter.passFilter(ref, nm);
+        },
+        getCost: (pa, pb, nm, prevRef, curRef, nextRef) => {
+            if (curRef && nextRef) {
+                if (blockedEdges.has(edgeKey(curRef, nextRef))) {
+                    return Number.POSITIVE_INFINITY;
                 }
             }
-            for (const ref of frontier) {
-                add(ref, amount);
-                seen.add(ref);
-            }
-        }
-    };
-
-    const makePenalized = (base: QueryFilter): QueryFilter => ({
-        passFilter: (ref, nm) => base.passFilter(ref, nm),
-        getCost: (pa, pb, nm, prevRef, curRef, nextRef) => {
-            const baseCost = base.getCost(pa, pb, nm, prevRef, curRef, nextRef);
-            const pCur = curRef ? (penalty.get(curRef) ?? 0) : 0;
-            const pNext = nextRef ? (penalty.get(nextRef) ?? 0) : 0;
-            return baseCost + pCur + 0.5 * pNext;
+            return baseFilter.getCost(pa, pb, nm, prevRef, curRef, nextRef);
         },
     });
 
-    // find start and end node refs
+    const pathsEqual = (a: NodeRef[], b: NodeRef[]): boolean => {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        return true;
+    };
+
+    const A: NodePath[] = []; // accepted k-shortest paths
+    const B: PathCandidate[] = []; // candidate paths (will be sorted by cost)
+
+    // find start and end node refs once
     const startNearestPolyResult = findNearestPoly(createFindNearestPolyResult(), navMesh, start, halfExtents, baseFilter);
     if (!startNearestPolyResult.success) return [];
 
@@ -165,35 +137,93 @@ function findDiversePaths(
     const startNodeRef = startNearestPolyResult.nodeRef;
     const endNodeRef = endNearestPolyResult.nodeRef;
 
-    // 1) best path
-    const best = findNodePath(navMesh, startNodeRef, endNodeRef, start, end, baseFilter);
-    if (!best.success) return [];
-    const bestCost = computeUnpenalizedCost(best.path);
-    const bestNodeSet = nodeSetOf(best.path);
-    accepted.push({ path: best.path, cost: bestCost, nodeSet: bestNodeSet });
-    spreadPenalty(best.path);
-
-    // 2) alternatives
-    let tries = 0;
-    while (accepted.length < k && tries < maxTries) {
-        tries++;
-        const cand = findNodePath(navMesh, startNodeRef, endNodeRef, start, end, makePenalized(baseFilter));
-        if (!cand.success) continue;
-
-        const cost = computeUnpenalizedCost(cand.path);
-        if (cost > (1 + maxStretch) * bestCost) continue;
-
-        const nodes = nodeSetOf(cand.path);
-        const tooSimilar = accepted.some((a) => jaccard(a.nodeSet, nodes) > maxShared);
-        if (tooSimilar) continue;
-
-        accepted.push({ path: cand.path, cost, nodeSet: nodes });
-        spreadPenalty(cand.path);
+    // step 1: Find the shortest path using findNodePath directly
+    const firstPath = findNodePath(navMesh, startNodeRef, endNodeRef, start, end, baseFilter);
+    if (!firstPath.success) {
+        return [];
     }
 
-    accepted.sort((a, b) => a.cost - b.cost);
+    const firstCost = calculatePathCost(firstPath.path, start, end);
+    A.push({ path: firstPath.path, cost: firstCost });
 
-    return accepted.slice(0, k);
+    // step 2: Find k-1 more paths
+    for (let k_iter = 1; k_iter < k; k_iter++) {
+        const prevRoute = A[k_iter - 1];
+        const prevPath = prevRoute.path;
+
+        // for each node in the previous path (except last)
+        for (let i = 0; i < prevPath.length - 1; i++) {
+            const spurNode = prevPath[i];
+            const rootPath = prevPath.slice(0, i + 1);
+
+            // collect edges and nodes to block
+            const blockedEdges = new Set<string>();
+            const blockedNodes = new Set<NodeRef>();
+
+            // block nodes in root path (except spur node)
+            for (let j = 0; j < i; j++) {
+                blockedNodes.add(rootPath[j]);
+            }
+
+            // block edges used by previous paths that share the same root
+            for (const route of A) {
+                const p = route.path;
+                // check if this path shares the root [0...i]
+                let sharesRoot = true;
+                for (let j = 0; j <= i && j < p.length; j++) {
+                    if (p[j] !== rootPath[j]) {
+                        sharesRoot = false;
+                        break;
+                    }
+                }
+
+                if (sharesRoot && i + 1 < p.length) {
+                    // block the edge from node i to i+1
+                    blockedEdges.add(edgeKey(p[i], p[i + 1]));
+                }
+            }
+
+            // find spur path from spurNode to end using findNodePath directly
+            const spurFilter = createBlockingFilter(blockedNodes, blockedEdges);
+            const nextNode = prevPath[i + 1];
+            const spurNodePos = i === 0 ? start : (() => {
+                const midpoint = vec3.create();
+                getEdgeMidPoint(navMesh, spurNode, nextNode, midpoint);
+                return midpoint;
+            })();
+
+            const spurPathResult = findNodePath(navMesh, spurNode, endNodeRef, spurNodePos, end, spurFilter);
+
+            if (spurPathResult.success) {
+                const spurPath = spurPathResult.path;
+
+                // combine root + spur paths
+                // spurPath starts from spurNode, so we skip the first element to avoid duplication
+                const totalPath = [...rootPath, ...spurPath.slice(1)];
+
+                // check for duplicates
+                const isDuplicate =
+                    A.some((route) => pathsEqual(route.path, totalPath)) ||
+                    B.some((candidate) => pathsEqual(candidate.nodePath, totalPath));
+                if (isDuplicate) continue;
+
+                // calculate the total cost of the combined path
+                const totalCost = calculatePathCost(totalPath, start, end);
+
+                B.push({ nodePath: totalPath, cost: totalCost, rootLength: i });
+            }
+        }
+
+        if (B.length === 0) break; // no more paths available
+
+        // sort candidates by cost and take the cheapest
+        B.sort((a, b) => a.cost - b.cost);
+        const nextCandidate = B.shift()!;
+
+        A.push({ path: nextCandidate.nodePath, cost: nextCandidate.cost });
+    }
+
+    return A;
 }
 
 /* setup example scene */
@@ -286,15 +316,8 @@ let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [2.52, 2.39, -2.2];
 const halfExtents: Vec3 = [1, 1, 1];
 
-// Configuration for alternative path options
-const altPathConfig = {
+const kShortestConfig = {
     k: 3,
-    maxStretch: 0.2,
-    maxShared: 0.65,
-    basePenalty: 120,
-    neighborDepth: 2,
-    neighborDecay: 0.5,
-    maxTries: 20,
 };
 
 type Visual = { object: THREE.Object3D; dispose: () => void };
@@ -324,22 +347,22 @@ function updatePath() {
     endFlag.object.position.set(...end);
     addVisual(endFlag);
 
-    console.time('findDiversePaths');
+    console.time('findShortestPaths');
 
-    const nodePaths = findDiversePaths(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, altPathConfig);
+    const nodePaths = findShortestPaths(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, kShortestConfig.k);
 
-    console.timeEnd('findDiversePaths');
+    console.timeEnd('findShortestPaths');
 
-    console.log(`Found ${nodePaths.length} routes`);
+    console.log(`Found ${nodePaths.length} paths (Yen's k-shortest)`);
+    console.log('nodePaths', nodePaths);
 
-    // Route colors: fastest = yellow, alt1 = orange, alt2 = cyan
-    const routeColors = ['yellow', 'orange', 'cyan'];
+    const routeColors = ['yellow', 'orange', 'cyan', 'magenta', 'lime', 'aqua', 'pink', 'gold', 'salmon', 'violet'];
 
     for (let pathIdx = 0; pathIdx < nodePaths.length; pathIdx++) {
         const nodePath = nodePaths[pathIdx];
         const routeColor = routeColors[pathIdx] || 'white';
 
-        // Show poly helpers only for the fastest route
+        // visualize polygon helpers for the shortest path
         if (pathIdx === 0) {
             for (let i = 0; i < nodePath.path.length; i++) {
                 const node = nodePath.path[i];
@@ -351,15 +374,15 @@ function updatePath() {
             }
         }
 
-        // Generate straight path for visualization
+        // generate straight path for visualization
         const straightPathResult = findStraightPath(navMesh, start, end, nodePath.path);
 
         if (straightPathResult.success && straightPathResult.path.length > 0) {
-            const path = straightPathResult.path;
+            const straightPath = straightPathResult.path;
 
-            for (let i = 0; i < path.length; i++) {
-                const point = path[i];
-                // point (smaller for alternatives)
+            for (let i = 0; i < straightPath.length; i++) {
+                const point = straightPath[i];
+                // point (smaller for alternative paths)
                 const pointSize = pathIdx === 0 ? 0.2 : 0.15;
                 const mesh = new THREE.Mesh(
                     new THREE.SphereGeometry(pointSize),
@@ -376,7 +399,7 @@ function updatePath() {
                 });
                 // line
                 if (i > 0) {
-                    const prevPoint = path[i - 1];
+                    const prevPoint = straightPath[i - 1];
                     const geometry = new LineGeometry();
                     geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
                     const material = new Line2NodeMaterial({
@@ -466,44 +489,14 @@ renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 /* GUI controls */
 const gui = new GUI();
-gui.title('Find Diverse Paths Controls');
+gui.title("Yen's k-Shortest Paths");
 
-const pathsFolder = gui.addFolder('Path Finding');
+const pathsFolder = gui.addFolder('Algorithm Settings');
 pathsFolder
-    .add(altPathConfig, 'k', 1, 10, 1)
-    .name('Number of Paths')
-    .onChange(() => updatePath());
-pathsFolder
-    .add(altPathConfig, 'maxStretch', 0.0, 1.0, 0.05)
-    .name('Max Stretch (%)')
-    .onChange(() => updatePath());
-pathsFolder
-    .add(altPathConfig, 'maxShared', 0.0, 1.0, 0.05)
-    .name('Max Shared (overlap)')
+    .add(kShortestConfig, 'k', 1, 10, 1)
+    .name('k (Number of Paths)')
     .onChange(() => updatePath());
 pathsFolder.open();
-
-const penaltyFolder = gui.addFolder('Penalty Settings');
-penaltyFolder
-    .add(altPathConfig, 'basePenalty', 0, 500, 10)
-    .name('Base Penalty')
-    .onChange(() => updatePath());
-penaltyFolder
-    .add(altPathConfig, 'neighborDepth', 0, 5, 1)
-    .name('Neighbor Depth')
-    .onChange(() => updatePath());
-penaltyFolder
-    .add(altPathConfig, 'neighborDecay', 0.0, 1.0, 0.05)
-    .name('Neighbor Decay')
-    .onChange(() => updatePath());
-penaltyFolder.open();
-
-const advancedFolder = gui.addFolder('Advanced');
-advancedFolder
-    .add(altPathConfig, 'maxTries', 1, 50, 1)
-    .name('Max Tries')
-    .onChange(() => updatePath());
-advancedFolder.open();
 
 /* initial update */
 updatePath();
