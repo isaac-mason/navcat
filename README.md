@@ -62,13 +62,19 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-custom-areas">
-        <img src="./examples/public/screenshots/example-custom-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Custom Areas
+      <a href="https://navcat.dev/examples#example-area-filters">
+        <img src="./examples/public/screenshots/example-area-filters.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Area Filters
       </a>
     </td>
   </tr>
   <tr>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-area-costs">
+        <img src="./examples/public/screenshots/example-area-costs.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Area Costs
+      </a>
+    </td>
     <td align="center">
       <a href="https://navcat.dev/examples#example-doors-and-keys">
         <img src="./examples/public/screenshots/example-doors-and-keys.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -81,14 +87,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Dynamic Obstacles
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-dynamic-navmesh">
         <img src="./examples/public/screenshots/example-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Dynamic NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-fps-dynamic-navmesh">
         <img src="./examples/public/screenshots/example-fps-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -101,14 +107,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Multiple Agent Sizes
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-crowd-simulation-stress-test">
         <img src="./examples/public/screenshots/example-crowd-simulation-stress-test.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Crowd Simulation Stress Test
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-flow-field-pathfinding">
         <img src="./examples/public/screenshots/example-flow-field-pathfinding.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -121,14 +127,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Find Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -141,14 +147,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Off-Mesh Connections
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-upload-model">
         <img src="./examples/public/screenshots/example-upload-model.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Upload Model
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -161,14 +167,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Solo NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-tiled-navmesh">
         <img src="./examples/public/screenshots/example-tiled-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Tiled NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -181,14 +187,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Find Nearest Poly
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point">
         <img src="./examples/public/screenshots/example-find-random-point.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -201,14 +207,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Mark Compact Heightfield Areas
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-navmesh-generation">
         <img src="./examples/public/screenshots/example-custom-navmesh-generation.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom NavMesh Generation
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -1837,14 +1843,20 @@ export const DEFAULT_QUERY_FILTER = createDefaultQueryFilter();
 
 Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
 
-You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
+You can reference the areas examples to see how to mark areas with different types and use custom query filters to control passability and costs:
 
 <table>
   <tr>
   <td align="center">
-    <a href="https://navcat.dev/examples#example-custom-areas">
-      <img src="./examples/public/screenshots/example-custom-areas.png" width="200" height="133" style="object-fit:cover;"/><br/>
-      <strong>Custom Areas</strong>
+    <a href="https://navcat.dev/examples#example-area-filters">
+      <img src="./examples/public/screenshots/example-area-filters.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Area Filters</strong>
+    </a>
+  </td>
+  <td align="center">
+    <a href="https://navcat.dev/examples#example-area-costs">
+      <img src="./examples/public/screenshots/example-area-costs.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Area Costs</strong>
     </a>
   </td>
   <td align="center">

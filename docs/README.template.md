@@ -534,9 +534,9 @@ You can provide a cost calculation function to modify the cost of traversing pol
 
 Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
 
-You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
+You can reference the areas examples to see how to mark areas with different types and use custom query filters to control passability and costs:
 
-<ExamplesTable ids="example-custom-areas,example-multiple-agent-sizes" />
+<ExamplesTable ids="example-area-filters,example-area-costs,example-multiple-agent-sizes" />
 
 ### Off-Mesh Connections
 
