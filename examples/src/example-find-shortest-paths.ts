@@ -186,11 +186,14 @@ function findShortestPaths(
             // find spur path from spurNode to end using findNodePath directly
             const spurFilter = createBlockingFilter(blockedNodes, blockedEdges);
             const nextNode = prevPath[i + 1];
-            const spurNodePos = i === 0 ? start : (() => {
-                const midpoint = vec3.create();
-                getEdgeMidPoint(navMesh, spurNode, nextNode, midpoint);
-                return midpoint;
-            })();
+            const spurNodePos =
+                i === 0
+                    ? start
+                    : (() => {
+                          const midpoint = vec3.create();
+                          getEdgeMidPoint(navMesh, spurNode, nextNode, midpoint);
+                          return midpoint;
+                      })();
 
             const spurPathResult = findNodePath(navMesh, spurNode, endNodeRef, spurNodePos, end, spurFilter);
 

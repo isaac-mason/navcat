@@ -22,8 +22,8 @@ import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
 import { createExample } from './common/example-base';
-import { loadGLTF } from './common/load-gltf';
 import { createFlag } from './common/flag';
+import { loadGLTF } from './common/load-gltf';
 
 /**
  * This example demonstrates a penalty-based heuristic for finding multiple diverse paths
