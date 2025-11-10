@@ -1,3 +1,4 @@
+import GUI from 'lil-gui';
 import type { Vec3 } from 'mathcat';
 import { vec3 } from 'mathcat';
 import {
@@ -23,8 +24,22 @@ import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions 
 import { getPositionsAndIndices } from 'navcat/three';
 import { loadGLTF } from './common/load-gltf';
 
-/* alternative paths utility */
-type AltOptions = {
+/**
+ * This example demonstrates a penalty-based heuristic for finding multiple diverse paths
+ * between two points on a navigation mesh. This is not a formal k-shortest paths algorithm,
+ * but rather a practical technique for finding visually distinct routes.
+ *
+ * APPROACH:
+ * 1. Find a path using standard A*
+ * 2. Apply penalties to nodes used in the path (and their neighbors)
+ * 3. Re-run A* with the penalized cost function to find alternative paths
+ * 4. Filter candidates by:
+ *    - Cost stretch: reject paths significantly longer than optimal
+ *    - Path dissimilarity: reject paths too similar to existing ones (using Jaccard index)
+ * 5. Repeat until k paths are found or max attempts reached
+ */
+
+type FindDiversePathsOptions = {
     k?: number; // number of alternatives including the fastest
     maxStretch?: number; // e.g. 0.08 => ≤ +8% cost vs best
     maxShared?: number; // max allowed overlap (Jaccard on node sets), e.g. 0.5
@@ -34,20 +49,20 @@ type AltOptions = {
     maxTries?: number; // safety bound
 };
 
-type AltRoute = {
+type Route = {
     result: FindPathResult;
     nodeSet: Set<NodeRef>;
     cost: number; // computed with the same QueryFilter cost model
 };
 
-function findAlternativePaths(
+function findDiversePaths(
     navMesh: NavMesh,
     start: Vec3,
     end: Vec3,
     halfExtents: Vec3,
     baseFilter: QueryFilter,
-    opts: AltOptions = {},
-): AltRoute[] {
+    opts: FindDiversePathsOptions = {},
+): Route[] {
     const {
         k = 3,
         maxStretch = 0.08,
@@ -58,7 +73,7 @@ function findAlternativePaths(
         maxTries = 10,
     } = opts;
 
-    const accepted: AltRoute[] = [];
+    const accepted: Route[] = [];
     const penalty = new Map<NodeRef, number>();
 
     // Helper: compute path "cost" consistent with QueryFilter.getCost
@@ -113,7 +128,7 @@ function findAlternativePaths(
 
         // Spread to neighbors up to depth
         for (let d = 1; d <= neighborDepth; d++) {
-            const amount = basePenalty * Math.pow(neighborDecay, d);
+            const amount = basePenalty * neighborDecay ** d;
             const frontier: NodeRef[] = [];
             for (const ref of Array.from(seen)) {
                 const node = getNodeByRef(navMesh, ref);
@@ -136,8 +151,8 @@ function findAlternativePaths(
         passFilter: (ref, nm) => base.passFilter(ref, nm),
         getCost: (pa, pb, nm, prevRef, curRef, nextRef) => {
             const baseCost = base.getCost(pa, pb, nm, prevRef, curRef, nextRef);
-            const pCur = curRef ? penalty.get(curRef) ?? 0 : 0;
-            const pNext = nextRef ? penalty.get(nextRef) ?? 0 : 0;
+            const pCur = curRef ? (penalty.get(curRef) ?? 0) : 0;
+            const pNext = nextRef ? (penalty.get(nextRef) ?? 0) : 0;
             return baseCost + pCur + 0.5 * pNext;
         },
     });
@@ -262,6 +277,17 @@ let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [2.52, 2.39, -2.2];
 const halfExtents: Vec3 = [1, 1, 1];
 
+// Configuration for alternative path options
+const altPathConfig = {
+    k: 3,
+    maxStretch: 0.2,
+    maxShared: 0.65,
+    basePenalty: 120,
+    neighborDepth: 2,
+    neighborDecay: 0.5,
+    maxTries: 20,
+};
+
 type Visual = { object: THREE.Object3D; dispose: () => void };
 let visuals: Visual[] = [];
 
@@ -278,7 +304,7 @@ function addVisual(visual: Visual) {
     scene.add(visual.object);
 }
 
-function createFlag(color: number): THREE.Group {
+function createFlag(color: number): Visual {
     const poleGeom = new THREE.BoxGeometry(0.12, 1.2, 0.12);
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
     const pole = new THREE.Mesh(poleGeom, poleMat);
@@ -290,67 +316,36 @@ function createFlag(color: number): THREE.Group {
     const group = new THREE.Group();
     group.add(pole);
     group.add(flag);
-    return group;
+    
+    return {
+        object: group,
+        dispose: () => {
+            poleGeom.dispose();
+            poleMat.dispose();
+            flagGeom.dispose();
+            flagMat.dispose();
+        },
+    };
 }
 
 function updatePath() {
     clearVisuals();
 
     const startFlag = createFlag(0x2196f3);
-    startFlag.position.set(...start);
-    addVisual({
-        object: startFlag,
-        dispose: () => {
-            startFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            if (mat.dispose) mat.dispose();
-                        });
-                    } else {
-                        child.material?.dispose?.();
-                    }
-                }
-            });
-        },
-    });
+    startFlag.object.position.set(...start);
+    addVisual(startFlag);
 
     const endFlag = createFlag(0x00ff00);
-    endFlag.position.set(...end);
-    addVisual({
-        object: endFlag,
-        dispose: () => {
-            endFlag.traverse((child) => {
-                if (child instanceof THREE.Mesh) {
-                    child.geometry?.dispose();
-                    if (Array.isArray(child.material)) {
-                        child.material.forEach((mat) => {
-                            if (mat.dispose) mat.dispose();
-                        });
-                    } else {
-                        child.material?.dispose?.();
-                    }
-                }
-            });
-        },
-    });
+    endFlag.object.position.set(...end);
+    addVisual(endFlag);
 
-    console.time('findAlternativePaths');
+    console.time('findDiversePaths');
 
-    const alts = findAlternativePaths(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, {
-        k: 3,
-        maxStretch: 0.2,     // allow up to +20% vs fastest
-        maxShared: 0.65,     // permit a bit more overlap
-        basePenalty: 120,    // push harder into distinct corridors
-        neighborDepth: 2,    // spread penalty further
-        neighborDecay: 0.5,
-        maxTries: 20,        // try more times to find a third route
-    });
+    const alts = findDiversePaths(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, altPathConfig);
 
-    console.timeEnd('findAlternativePaths');
+    console.timeEnd('findDiversePaths');
 
-    console.log(`Found ${alts.length} alternative routes`);
+    console.log(`Found ${alts.length} routes`);
 
     // Route colors: fastest = yellow, alt1 = orange, alt2 = cyan
     const routeColors = ['yellow', 'orange', 'cyan'];
@@ -480,6 +475,47 @@ renderer.domElement.addEventListener('pointermove', (event: PointerEvent) => {
 });
 
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* GUI controls */
+const gui = new GUI();
+gui.title('Find Diverse Paths Controls');
+
+const pathsFolder = gui.addFolder('Path Finding');
+pathsFolder
+    .add(altPathConfig, 'k', 1, 10, 1)
+    .name('Number of Paths')
+    .onChange(() => updatePath());
+pathsFolder
+    .add(altPathConfig, 'maxStretch', 0.0, 1.0, 0.05)
+    .name('Max Stretch (%)')
+    .onChange(() => updatePath());
+pathsFolder
+    .add(altPathConfig, 'maxShared', 0.0, 1.0, 0.05)
+    .name('Max Shared (overlap)')
+    .onChange(() => updatePath());
+pathsFolder.open();
+
+const penaltyFolder = gui.addFolder('Penalty Settings');
+penaltyFolder
+    .add(altPathConfig, 'basePenalty', 0, 500, 10)
+    .name('Base Penalty')
+    .onChange(() => updatePath());
+penaltyFolder
+    .add(altPathConfig, 'neighborDepth', 0, 5, 1)
+    .name('Neighbor Depth')
+    .onChange(() => updatePath());
+penaltyFolder
+    .add(altPathConfig, 'neighborDecay', 0.0, 1.0, 0.05)
+    .name('Neighbor Decay')
+    .onChange(() => updatePath());
+penaltyFolder.open();
+
+const advancedFolder = gui.addFolder('Advanced');
+advancedFolder
+    .add(altPathConfig, 'maxTries', 1, 50, 1)
+    .name('Max Tries')
+    .onChange(() => updatePath());
+advancedFolder.open();
 
 /* initial update */
 updatePath();

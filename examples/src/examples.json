@@ -59,15 +59,15 @@
         "description": "Example of finding a path on the navmesh",
         "tags": ["path"]
     },
-    "example-find-path-alternatives": {
-        "title": "Find Path Alternatives",
-        "description": "Example of finding path alternatives on the navmesh",
-        "tags": ["path", "alternatives"]
-    },
     "example-find-smooth-path": {
         "title": "Find Smooth Path",
         "description": "Example of finding a smooth path on the navmesh",
         "tags": ["path"]
+    },
+    "example-find-diverse-paths": {
+        "title": "Find Diverse Paths",
+        "description": "Example of finding diverse paths on the navmesh",
+        "tags": ["path", "diverse"]
     },
     "example-raycast": {
         "title": "Raycast",
