@@ -58,17 +58,23 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
     <td align="center">
       <a href="https://navcat.dev/examples#example-navmesh-constrained-character-controller">
         <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Navmesh Constrained Character Controller
+        NavMesh Constrained Character Controller
       </a>
     </td>
     <td align="center">
-      <a href="https://navcat.dev/examples#example-custom-areas">
-        <img src="./examples/public/screenshots/example-custom-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
-        Custom Areas
+      <a href="https://navcat.dev/examples#example-area-filters">
+        <img src="./examples/public/screenshots/example-area-filters.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Area Filters
       </a>
     </td>
   </tr>
   <tr>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-area-costs">
+        <img src="./examples/public/screenshots/example-area-costs.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Area Costs
+      </a>
+    </td>
     <td align="center">
       <a href="https://navcat.dev/examples#example-doors-and-keys">
         <img src="./examples/public/screenshots/example-doors-and-keys.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -79,6 +85,20 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
       <a href="https://navcat.dev/examples#example-dynamic-obstacles">
         <img src="./examples/public/screenshots/example-dynamic-obstacles.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Dynamic Obstacles
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-dynamic-navmesh">
+        <img src="./examples/public/screenshots/example-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Dynamic NavMesh
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-fps-dynamic-navmesh">
+        <img src="./examples/public/screenshots/example-fps-dynamic-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        FPS Dynamic NavMesh
       </a>
     </td>
     <td align="center">
@@ -676,7 +696,7 @@ export function moveAlongSurface(navMesh: NavMesh, startNodeRef: NodeRef, startP
   <td align="center">
     <a href="https://navcat.dev/examples#example-navmesh-constrained-character-controller">
       <img src="./examples/public/screenshots/example-navmesh-constrained-character-controller.png" width="200" height="133" style="object-fit:cover;"/><br/>
-      <strong>Navmesh Constrained Character Controller</strong>
+      <strong>NavMesh Constrained Character Controller</strong>
     </a>
   </td>
   <td align="center">
@@ -1779,6 +1799,14 @@ Most navigation mesh querying APIs accept a `queryFilter` parameter that allows 
 You can provide a cost calculation function to modify the cost of traversing polygons, and you can provide a filter function to include/exclude polygons based on their area and flags.
 
 ```ts
+/**
+ * A query filter used in navigation queries.
+ *
+ * This allows for customization of what nodes are considered traversable, and
+ * the cost of traversing between nodes.
+ *
+ * If you are getting started, you can use the built-in @see DEFAULT_QUERY_FILTER or @see ANY_QUERY_FILTER
+ */
 export type QueryFilter = {
     /**
      * Checks if a NavMesh node passes the filter.
@@ -1810,32 +1838,25 @@ export type QueryFilter = {
 ```
 
 ```ts
-export const DEFAULT_QUERY_FILTER = {
-    includeFlags: 0xffffffff,
-    excludeFlags: 0,
-    getCost(pa, pb, _navMesh, _prevRef, _curRef, _nextRef) {
-        // use the distance between the two points as the cost
-        return vec3.distance(pa, pb);
-    },
-    passFilter(nodeRef, navMesh) {
-        // check whether the node's flags pass 'includeFlags' and 'excludeFlags' checks
-        const { flags } = getNodeByRef(navMesh, nodeRef);
-
-        return (flags & this.includeFlags) !== 0 && (flags & this.excludeFlags) === 0;
-    },
-} satisfies DefaultQueryFilter;
+export const DEFAULT_QUERY_FILTER = createDefaultQueryFilter();
 ```
 
 Many simple use cases can get far with using the default query `Nav.DEFAULT_QUERY_FILTER`. If you want to customise cost calculations, or include/exclude areas based on areas and flags, you can provide your own query filter that implements the `QueryFilter` type interface.
 
-You can reference the "Custom Areas" example to see how to mark areas with different types and use a custom query filter:
+You can reference the areas examples to see how to mark areas with different types and use custom query filters to control passability and costs:
 
 <table>
   <tr>
   <td align="center">
-    <a href="https://navcat.dev/examples#example-custom-areas">
-      <img src="./examples/public/screenshots/example-custom-areas.png" width="200" height="133" style="object-fit:cover;"/><br/>
-      <strong>Custom Areas</strong>
+    <a href="https://navcat.dev/examples#example-area-filters">
+      <img src="./examples/public/screenshots/example-area-filters.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Area Filters</strong>
+    </a>
+  </td>
+  <td align="center">
+    <a href="https://navcat.dev/examples#example-area-costs">
+      <img src="./examples/public/screenshots/example-area-costs.png" width="200" height="133" style="object-fit:cover;"/><br/>
+      <strong>Area Costs</strong>
     </a>
   </td>
   <td align="center">
@@ -1937,6 +1958,13 @@ export function removeOffMeshConnection(navMesh: NavMesh, offMeshConnectionId: n
 ```
 
 ```ts
+/**
+ * Returns whether the off mesh connection with the given ID is currently connected to the navmesh.
+ * An off mesh connection may be disconnected if the start or end positions have no valid polygons nearby to connect to.
+ * @param navMesh the navmesh
+ * @param offMeshConnectionId the ID of the off mesh connection
+ * @returns whether the off mesh connection is connected
+ */
 export function isOffMeshConnectionConnected(navMesh: NavMesh, offMeshConnectionId: number): boolean;
 ```
 
