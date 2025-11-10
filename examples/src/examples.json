@@ -64,6 +64,11 @@
         "description": "Example of finding a smooth path on the navmesh",
         "tags": ["path"]
     },
+    "example-find-diverse-paths": {
+        "title": "Find Diverse Paths",
+        "description": "Example of finding diverse paths on the navmesh",
+        "tags": ["path", "diverse"]
+    },
     "example-raycast": {
         "title": "Raycast",
         "description": "Example of a walkability raycast on a navmesh",
