@@ -2498,19 +2498,23 @@ recast-navigation-js is a WebAssembly port of the Recast and Detour C++ librarie
 - **Bundle Size**
   - recast-navigation-js has a larger bundle size due to large wasm binary and emscripten glue code, and no support for tree-shaking unused functionality.
   - navcat is a pure javascript library that is highly tree-shakeable
-- **Featureset**
-  - navcat addresses some limitations of Recast and Detour that have been addressed in the closed source Unity version of recastnavigation, but are not present in the open source recastnavigation
+- **Off Mesh Connections**
+  - navcat addresses some limitations of Recast and Detour's off mesh connections features that have been addressed in the closed source Unity version of recastnavigation, but are not present in the open source recastnavigation
     - off mesh connections can be added and removed dynamically without regenerating tiles, as they do not belong to tiles but are added globally to the navmesh
     - off mesh connections can be created between any tiles, not just between neighbouring tiles as in Recast/Detour
     - the navcat crowd API lets you control how agents traverse off mesh connections with animation hooks, the recast-navigation-js crowd API does not support this
+- **Query Filters**
   - query filters in navcat are regular javascript functions, no need to force your logic into an area cost table or includeFlags/excludeFlags
-    - very useful functionality for c++ users such as virtual functions for custom query filters are impractical to expose to javascript due to the performance cost of wasm to javascript calls
+  - very useful functionality for c++ users such as virtual functions for custom query filters are impractical to expose to javascript due to the performance cost of wasm to javascript calls
+- **External NavMeshes**
   - recast-navigation-js currently has no support for using externally created navigation meshes
-    - navcat supports pathfinding with externally provided navigation mesh polys, as it has decoupled the navmesh generation format and the runtime navmesh format.
+  - navcat supports pathfinding with externally provided navigation mesh polys, as it has decoupled the navmesh generation format and the runtime navmesh format.
+- **Extensibility**
   - it is impractical with recast-navigation-js to interact with the navmesh directly for anything that needs to be performant, some users have had to fork recast-navigation-js and modify Recast and Detour to suit their needs, as users of the c++ library would do
-    - navcat's data structures are transparent, it is easy to write a custom graph traversal algorithm in userland if your use case requires it
+  - navcat's data structures are transparent, it is easy to write a custom graph traversal algorithm in userland if your use case requires it
+- **Manual Memory Management**
   - recast-navigation-js requires some manual memory management, users must remember to call destroy() on some objects to avoid memory leaks
-    - navcat's data structures are regular javascript objects, no manual memory management is required
+  - navcat's data structures are regular javascript objects, no manual memory management is required
 - **Introspection and Debuggability**
   - recast-navigation-js's data structures are c++ wrapped objects, getting useful wasm stack traces requires a debug build
   - navcat doesn't use wasm, step into regular javascript to debug if you have to
@@ -2520,9 +2524,7 @@ recast-navigation-js is a WebAssembly port of the Recast and Detour C++ librarie
 
 **three-pathfinding, yuka**
 
-Both three-pathfinding (for three.js) and yuka provide navigation mesh querying capabilities, but neither provide navigation mesh generation.
-
-This library also provides support for dynamic off mesh connections for implementing traversal actions like jumping gaps, climbing ladders, teleporting, etc.
+Both three-pathfinding (for three.js) and yuka provide navigation mesh querying capabilities, but neither provide navigation mesh generation. This library also provides support for dynamic off mesh connections for implementing traversal actions like jumping gaps, climbing ladders, teleporting, etc.
 
 ## Community
 
