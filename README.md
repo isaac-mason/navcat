@@ -1,10 +1,8 @@
 ![./docs/cover.png](./docs/cover.png)
 
-
 [![Version](https://img.shields.io/npm/v/navcat?style=for-the-badge)](https://www.npmjs.com/package/navcat)
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/isaac-mason/navcat/main.yml?style=for-the-badge)
 [![Downloads](https://img.shields.io/npm/dt/navcat.svg?style=for-the-badge)](https://www.npmjs.com/package/navcat)
-
 
 ```bash
 > npm install navcat
@@ -288,6 +286,7 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
 - [Saving and Loading NavMeshes](#saving-and-loading-navmeshes)
 - [Debug Utilities](#debug-utilities)
 - [`navcat/three`](#navcatthree)
+- [How does navcat compare to other JavaScript navigation mesh libraries?](#how-does-navcat-compare-to-other-javascript-navigation-mesh-libraries)
 - [Community](#community)
 - [Acknowledgements](#acknowledgements)
 
@@ -438,7 +437,6 @@ Below is a quick summary of the navmesh generation parameters used above, and ho
 | `maxVerticesPerPoly`        | Max vertices per polygon.                                                                                         | 3–6                                          |
 | `detailSampleDistance`      | Distance between height samples (affects vertical detail).                                                        | `cellSize * 4–8`, e.g. `0.9`                 |
 | `detailSampleMaxError`      | Allowed height deviation when simplifying detail mesh.                                                            | `cellHeight * 1–2`, e.g. `0.25`              |
-
 
 ## Navigation Mesh Querying
 
@@ -983,6 +981,7 @@ For simple use cases you can use it directly, and for more advanced use cases yo
 It internally makes use of other `navcat/blocks` APIs like `pathCorridor`, `localBoundary`, and `obstacleAvoidance` to manage agent node corridors and handle obstacle avoidance.
 
 See the docs for API specifics:
+
 - `crowd`: https://navcat.dev/docs/modules/navcat_blocks.crowd.html
 - `pathCorridor`: https://navcat.dev/docs/modules/navcat_blocks.pathCorridor.html
 - `localBoundary`: https://navcat.dev/docs/modules/navcat_blocks.localBoundary.html
@@ -1057,6 +1056,7 @@ If you want to dig deeper into the internal structure (useful for advanced cases
 Most projects should start with a **single-tile navmesh** - it's simpler and covers the majority of use cases.
 
 Consider using **tiled navmeshes** when you need:
+
 - Dynamic updates (rebuild only affected tiles when geometry changes)
 - Memory management (stream tiles in/out based on player location)
 - Parallel generation (generate tiles independently)
@@ -2482,6 +2482,47 @@ if (path.nodePath) {
     scene.add(searchNodesHelper.object);
 }
 ```
+
+## How does navcat compare to other JavaScript navigation mesh libraries?
+
+**recast-navigation-js**
+
+recast-navigation-js is a WebAssembly port of the Recast and Detour C++ libraries. It has some advantages in performance, but also some downsides:
+
+- **Performance**
+  - navcat vs recast-navigation-js benchmarks can be found here, this repository will be maintained as each library is updated: https://github.com/isaac-mason/navcat-vs-recast-navigation-js-bench
+  - recast-navigation-js offers notably better performance for runtime navmesh generation and typically offers better performance for querying
+  - the webassembly initialization for recast-navigation-js is asynchronous, and can take tens of milliseconds (~40ms in benchmarks on M1 macbook pro)
+  - navcat is still very performant for pathfinding, and navmesh generation performance is fast enough for many dynamic generation use cases (all of the examples dynamically generate navmeshes)
+  - wherever possible, with both libraries, pre-generating navmeshes offline is the superior option for performance. if you can pre-generate your navmeshes, the generation performance difference is less relevant
+- **Bundle Size**
+  - recast-navigation-js has a larger bundle size due to large wasm binary and emscripten glue code, and no support for tree-shaking unused functionality.
+  - navcat is a pure javascript library that is highly tree-shakeable
+- **Featureset**
+  - navcat addresses some limitations of Recast and Detour that have been addressed in the closed source Unity version of recastnavigation, but are not present in the open source recastnavigation
+    - off mesh connections can be added and removed dynamically without regenerating tiles, as they do not belong to tiles but are added globally to the navmesh
+    - off mesh connections can be created between any tiles, not just between neighbouring tiles as in Recast/Detour
+    - the navcat crowd API lets you control how agents traverse off mesh connections with animation hooks, the recast-navigation-js crowd API does not support this
+  - query filters in navcat are regular javascript functions, no need to force your logic into an area cost table or includeFlags/excludeFlags
+    - very useful functionality for c++ users such as virtual functions for custom query filters are impractical to expose to javascript due to the performance cost of wasm to javascript calls
+  - recast-navigation-js currently has no support for using externally created navigation meshes
+    - navcat supports pathfinding with externally provided navigation mesh polys, as it has decoupled the navmesh generation format and the runtime navmesh format.
+  - it is impractical with recast-navigation-js to interact with the navmesh directly for anything that needs to be performant, some users have had to fork recast-navigation-js and modify Recast and Detour to suit their needs, as users of the c++ library would do
+    - navcat's data structures are transparent, it is easy to write a custom graph traversal algorithm in userland if your use case requires it
+  - recast-navigation-js requires some manual memory management, users must remember to call destroy() on some objects to avoid memory leaks
+    - navcat's data structures are regular javascript objects, no manual memory management is required
+- **Introspection and Debuggability**
+  - recast-navigation-js's data structures are c++ wrapped objects, getting useful wasm stack traces requires a debug build
+  - navcat doesn't use wasm, step into regular javascript to debug if you have to
+- **Future outlook**
+  - navcat has greater flexibility to evolve faster, and to cater more strongly to javascript
+  - recast-navigation-js will remain maintained, and will continue to track the upstream recastnavigation Recast/Detour library as it recieves new development
+
+**three-pathfinding, yuka**
+
+Both three-pathfinding (for three.js) and yuka provide navigation mesh querying capabilities, but neither provide navigation mesh generation.
+
+This library also provides support for dynamic off mesh connections for implementing traversal actions like jumping gaps, climbing ladders, teleporting, etc.
 
 ## Community
 
