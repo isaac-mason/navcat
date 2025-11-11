@@ -669,7 +669,7 @@ You can find a full list of threejs-specific utilities in the API docs: https://
 
 <Snippet source="./snippets/threejs.ts" select="quickstart" />
 
-## How does navcat compare to other JavaScript navigation mesh libraries?
+## How does navcat compare to other libraries?
 
 **recast-navigation-js**
 

@@ -286,7 +286,7 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
 - [Saving and Loading NavMeshes](#saving-and-loading-navmeshes)
 - [Debug Utilities](#debug-utilities)
 - [`navcat/three`](#navcatthree)
-- [How does navcat compare to other JavaScript navigation mesh libraries?](#how-does-navcat-compare-to-other-javascript-navigation-mesh-libraries)
+- [How does navcat compare to other libraries?](#how-does-navcat-compare-to-other-libraries)
 - [Community](#community)
 - [Acknowledgements](#acknowledgements)
 
@@ -2483,7 +2483,7 @@ if (path.nodePath) {
 }
 ```
 
-## How does navcat compare to other JavaScript navigation mesh libraries?
+## How does navcat compare to other libraries?
 
 **recast-navigation-js**
 
