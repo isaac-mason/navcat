@@ -233,6 +233,12 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Move Along Surface
       </a>
     </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-chunky-tri-mesh">
+        <img src="./examples/public/screenshots/example-chunky-tri-mesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Chunky Tri Mesh
+      </a>
+    </td>
   </tr>
 </table>
 
