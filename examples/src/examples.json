@@ -138,5 +138,10 @@
         "title": "Move Along Surface",
         "description": "Example of moving along the surface of a navmesh",
         "tags": ["movement"]
+    },
+    "example-chunky-tri-mesh": {
+        "title": "Chunky Tri Mesh",
+        "description": "Example of using a chunky triangle mesh for querying triangles within areas",
+        "tags": ["geometry", "spatial", "chunky", "tri-mesh"]
     }
 }

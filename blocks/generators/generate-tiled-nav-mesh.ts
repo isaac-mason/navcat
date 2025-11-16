@@ -1,4 +1,4 @@
-import { type Box3, box3, triangle3, vec2, vec3 } from 'mathcat';
+import { type Box3, box3, vec2 } from 'mathcat';
 import {
     addTile,
     BuildContext,
@@ -32,6 +32,7 @@ import {
     rasterizeTriangles,
     WALKABLE_AREA,
 } from 'navcat';
+import * as chunkyTriMesh from '../geometry/chunky-tri-mesh';
 
 export type TiledNavMeshInput = {
     positions: ArrayLike<number>;
@@ -64,6 +65,7 @@ export type TiledNavMeshIntermediates = {
     buildContext: BuildContextState;
     input: TiledNavMeshInput;
     inputBounds: Box3;
+    chunkyTriMesh: chunkyTriMesh.ChunkyTriMesh;
     triAreaIds: Uint8Array[];
     heightfield: Heightfield[];
     compactHeightfield: CompactHeightfield[];
@@ -80,7 +82,7 @@ export type TiledNavMeshResult = {
 const buildNavMeshTile = (
     ctx: BuildContextState,
     positions: ArrayLike<number>,
-    indices: ArrayLike<number>,
+    inputChunkyTriMesh: chunkyTriMesh.ChunkyTriMesh,
     tileBounds: Box3,
     cellSize: number,
     cellHeight: number,
@@ -130,64 +132,72 @@ const buildNavMeshTile = (
     expandedTileBounds[1][0] += borderSize * cellSize;
     expandedTileBounds[1][2] += borderSize * cellSize;
 
-    /* 2. get triangles overlapping the tile bounds */
+    /* 2. query chunks overlapping the tile bounds */
 
-    const trianglesInBox = [];
+    const tbmin: [number, number] = [expandedTileBounds[0][0], expandedTileBounds[0][2]];
+    const tbmax: [number, number] = [expandedTileBounds[1][0], expandedTileBounds[1][2]];
 
-    const triangle = triangle3.create();
+    const chunks = chunkyTriMesh.getChunksOverlappingRect(inputChunkyTriMesh, tbmin, tbmax);
 
-    for (let i = 0; i < indices.length; i += 3) {
-        const a = indices[i];
-        const b = indices[i + 1];
-        const c = indices[i + 2];
-
-        vec3.fromBuffer(triangle[0], positions, a * 3);
-        vec3.fromBuffer(triangle[1], positions, b * 3);
-        vec3.fromBuffer(triangle[2], positions, c * 3);
-
-        if (box3.intersectsTriangle3(expandedTileBounds, triangle)) {
-            trianglesInBox.push(a, b, c);
-        }
-    }
-
-    /* 3. mark walkable triangles */
-
-    const triAreaIds = new Uint8Array(trianglesInBox.length / 3).fill(0);
-
-    markWalkableTriangles(positions, trianglesInBox, triAreaIds, walkableSlopeAngleDegrees);
-
-    /* 4. rasterize the triangles to a voxel heightfield */
+    /* 3. create heightfield for rasterization */
 
     const heightfieldWidth = Math.floor(tileSizeVoxels + borderSize * 2);
     const heightfieldHeight = Math.floor(tileSizeVoxels + borderSize * 2);
 
     const heightfield = createHeightfield(heightfieldWidth, heightfieldHeight, expandedTileBounds, cellSize, cellHeight);
 
-    rasterizeTriangles(ctx, heightfield, positions, trianglesInBox, triAreaIds, walkableClimbVoxels);
+    /* 4. allocate triAreaIds for max chunk size (memory efficient!) */
 
-    /* 5. filter walkable surfaces */
+    const triAreaIds = new Uint8Array(inputChunkyTriMesh.maxTrisPerChunk).fill(0);
+
+    /* 5. rasterize triangles chunk by chunk */
+
+    for (const chunkIndex of chunks) {
+        const node = inputChunkyTriMesh.nodes[chunkIndex];
+        const startIdx = node.index * 3;
+        const triangleCount = node.count;
+
+        // Get this chunk's triangles
+        const chunkTriangles = inputChunkyTriMesh.triangles.slice(startIdx, startIdx + triangleCount * 3);
+
+        // Reset and mark walkable triangles for this chunk
+        triAreaIds.fill(0);
+        markWalkableTriangles(positions, chunkTriangles, triAreaIds.subarray(0, triangleCount), walkableSlopeAngleDegrees);
+
+        // Rasterize this chunk's triangles
+        rasterizeTriangles(
+            ctx,
+            heightfield,
+            positions,
+            chunkTriangles,
+            triAreaIds.subarray(0, triangleCount),
+            walkableClimbVoxels,
+        );
+    }
+
+    /* 6. filter walkable surfaces */
 
     filterLowHangingWalkableObstacles(heightfield, walkableClimbVoxels);
     filterLedgeSpans(heightfield, walkableHeightVoxels, walkableClimbVoxels);
     filterWalkableLowHeightSpans(heightfield, walkableHeightVoxels);
 
-    /* 6. build the compact heightfield */
+    /* 7. build the compact heightfield */
 
     const compactHeightfield = buildCompactHeightfield(ctx, walkableHeightVoxels, walkableClimbVoxels, heightfield);
 
-    /* 7. erode the walkable area by the agent radius / walkable radius */
+    /* 8. erode the walkable area by the agent radius / walkable radius */
 
     erodeWalkableArea(walkableRadiusVoxels, compactHeightfield);
 
-    /* 8. prepare for region partitioning by calculating a distance field along the walkable surface */
+    /* 9. prepare for region partitioning by calculating a distance field along the walkable surface */
 
     buildDistanceField(compactHeightfield);
 
-    /* 9. partition the walkable surface into simple regions without holes */
+    /* 10. partition the walkable surface into simple regions without holes */
 
     buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
 
-    /* 10. trace and simplify region contours */
+    /* 11. trace and simplify region contours */
 
     const contourSet = buildContours(
         ctx,
@@ -197,7 +207,7 @@ const buildNavMeshTile = (
         ContourBuildFlags.CONTOUR_TESS_WALL_EDGES,
     );
 
-    /* 11. build polygons mesh from contours */
+    /* 12. build polygons mesh from contours */
 
     const polyMesh = buildPolyMesh(ctx, contourSet, maxVerticesPerPoly);
 
@@ -211,7 +221,7 @@ const buildNavMeshTile = (
         }
     }
 
-    /* 12. create detail mesh which allows to access approximate height on each polygon */
+    /* 13. create detail mesh which allows to access approximate height on each polygon */
 
     const polyMeshDetail = buildPolyMeshDetail(ctx, polyMesh, compactHeightfield, detailSampleDistance, detailSampleMaxError);
 
@@ -227,8 +237,6 @@ const buildNavMeshTile = (
 };
 
 export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNavMeshOptions): TiledNavMeshResult {
-    console.time('navmesh generation');
-
     const { positions, indices } = input;
 
     /* 0. define generation parameters */
@@ -266,7 +274,11 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
     nav.tileHeight = tileSizeWorld;
     nav.origin = meshBounds[0];
 
-    /* 2. initialize intermediates for debugging */
+    /* 2. build chunky tri mesh for efficient spatial queries */
+
+    const inputChunkyTriMesh = chunkyTriMesh.create(positions, indices);
+
+    /* 3. initialize intermediates for debugging */
 
     const intermediates: TiledNavMeshIntermediates = {
         buildContext: ctx,
@@ -275,6 +287,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
             indices,
         },
         inputBounds: meshBounds,
+        chunkyTriMesh: inputChunkyTriMesh,
         triAreaIds: [],
         heightfield: [],
         compactHeightfield: [],
@@ -283,7 +296,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
         polyMeshDetail: [],
     };
 
-    /* 3. generate tiles */
+    /* 4. generate tiles */
 
     const nTilesX = Math.floor((gridSize[0] + tileSizeVoxels - 1) / tileSizeVoxels);
     const nTilesY = Math.floor((gridSize[1] + tileSizeVoxels - 1) / tileSizeVoxels);
@@ -302,7 +315,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
             const { triAreaIds, polyMesh, polyMeshDetail, heightfield, compactHeightfield, contourSet } = buildNavMeshTile(
                 ctx,
                 positions,
-                indices,
+                inputChunkyTriMesh,
                 tileBounds,
                 cellSize,
                 cellHeight,
@@ -356,8 +369,6 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
             addTile(nav, tile);
         }
     }
-
-    console.timeEnd('navmesh generation');
 
     return {
         navMesh: nav,

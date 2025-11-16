@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.1.1 (Unreleased)
+
+- feat: `navcat/blocks` `chunkyTriMesh` module, for building a 2D spatial partitioning structure over triangle meshes for fast bounds queries
+- feat: update `navcat/blocks` `generateTiledNavMesh` to use `chunkyTriMesh` for faster tile building, due to reduction of redundant tile rasterization
+
 ## 0.1.0
 
 - initial alpha release!
