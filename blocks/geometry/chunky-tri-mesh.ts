@@ -1,4 +1,4 @@
-import { type Vec2, vec2 } from "mathcat";
+import type { Vec2 } from 'mathcat';
 
 /*
  * Spatial chunking utility for triangles based on Recast's ChunkyTriMesh.
@@ -8,11 +8,7 @@ import { type Vec2, vec2 } from "mathcat";
  * the need to test all triangles against each tile.
  */
 
-export type Box2 = [min: Vec2, max: Vec2];
-
-export const cloneBox2 = (box: Box2): Box2 => {
-    return [vec2.clone(box[0]), vec2.clone(box[1])];
-};
+type Box2 = [min: Vec2, max: Vec2];
 
 export type ChunkyTriMeshNode = {
     /** bounding box of this node in XZ plane */
@@ -43,13 +39,12 @@ export type ChunkyTriMesh = {
     maxTrisPerChunk: number;
 };
 
-/** Temporary item used during tree construction */
 type BoundsItem = {
     bounds: Box2;
     index: number;
 };
 
-function calculateTriangleBounds(vertices: ArrayLike<number>, indices: ArrayLike<number>, triIndex: number): Box2 {
+const calculateTriangleBounds = (vertices: ArrayLike<number>, indices: ArrayLike<number>, triIndex: number): Box2 => {
     const i0 = indices[triIndex * 3 + 0] * 3;
     const i1 = indices[triIndex * 3 + 1] * 3;
     const i2 = indices[triIndex * 3 + 2] * 3;
@@ -65,12 +60,12 @@ function calculateTriangleBounds(vertices: ArrayLike<number>, indices: ArrayLike
         [Math.min(v0x, v1x, v2x), Math.min(v0z, v1z, v2z)],
         [Math.max(v0x, v1x, v2x), Math.max(v0z, v1z, v2z)],
     ];
-}
+};
 
-function calculateExtents(items: BoundsItem[], min: number, max: number): Box2 {
+const calculateExtents = (items: BoundsItem[], min: number, max: number): Box2 => {
     const bounds: Box2 = [
-        vec2.clone(items[min].bounds[0]),
-        vec2.clone(items[min].bounds[1]),
+        [items[min].bounds[0][0], items[min].bounds[0][1]],
+        [items[min].bounds[1][0], items[min].bounds[1][1]],
     ];
 
     for (let i = min + 1; i < max; i++) {
@@ -82,13 +77,13 @@ function calculateExtents(items: BoundsItem[], min: number, max: number): Box2 {
     }
 
     return bounds;
-}
+};
 
-function longestAxis(x: number, y: number): 0 | 1 {
+const longestAxis = (x: number, y: number): 0 | 1 => {
     return y > x ? 1 : 0;
 }
 
-function subdivide(
+const subdivide = (
     items: BoundsItem[],
     min: number,
     max: number,
@@ -96,12 +91,15 @@ function subdivide(
     nodes: ChunkyTriMeshNode[],
     outTriangles: number[],
     inTriangles: ArrayLike<number>,
-): void {
+): void => {
     const nodeIndex = nodes.length;
     const count = max - min;
 
     const node: ChunkyTriMeshNode = {
-        bounds: [[0, 0], [0, 0]],
+        bounds: [
+            [0, 0],
+            [0, 0],
+        ],
         index: 0,
         count: 0,
     };
@@ -153,11 +151,7 @@ function subdivide(
  * @param trisPerChunk target number of triangles per leaf chunk (default: 256)
  * @returns ChunkyTriMesh spatial data structure
  */
-export function create(
-    vertices: ArrayLike<number>,
-    indices: ArrayLike<number>,
-    trisPerChunk: number = 256,
-): ChunkyTriMesh {
+export const create = (vertices: ArrayLike<number>, indices: ArrayLike<number>, trisPerChunk: number = 256): ChunkyTriMesh => {
     const numTriangles = indices.length / 3;
 
     // build bounding items for all triangles
@@ -190,16 +184,11 @@ export function create(
     };
 }
 
-const checkOverlapRect = (
-    aMin: Vec2,
-    aMax: Vec2,
-    bMin: Vec2,
-    bMax: Vec2,
-): boolean => {
+const checkOverlapRect = (aMin: Vec2, aMax: Vec2, bMin: Vec2, bMax: Vec2): boolean => {
     if (aMin[0] > bMax[0] || aMax[0] < bMin[0]) return false;
     if (aMin[1] > bMax[1] || aMax[1] < bMin[1]) return false;
     return true;
-}
+};
 
 /**
  * Get all triangle chunks that overlap with a rectangular region
@@ -209,11 +198,7 @@ const checkOverlapRect = (
  * @param boundsMax maximum corner of query rectangle [x, z]
  * @returns Array of node indices that overlap the query region
  */
-export const getChunksOverlappingRect = (
-    chunkyTriMesh: ChunkyTriMesh,
-    boundsMin: Vec2,
-    boundsMax: Vec2,
-): number[] => {
+export const getChunksOverlappingRect = (chunkyTriMesh: ChunkyTriMesh, boundsMin: Vec2, boundsMax: Vec2): number[] => {
     const { nodes } = chunkyTriMesh;
     const result: number[] = [];
 
@@ -237,7 +222,7 @@ export const getChunksOverlappingRect = (
     }
 
     return result;
-}
+};
 
 /**
  * Get all triangles that overlap with a rectangular region
@@ -247,11 +232,7 @@ export const getChunksOverlappingRect = (
  * @param boundsMax maximum corner of query rectangle [x, z]
  * @returns Flat array of triangle indices [i0, i1, i2, i0, i1, i2, ...]
  */
-export const getTrianglesInRect = (
-    chunkyTriMesh: ChunkyTriMesh,
-    boundsMin: Vec2,
-    boundsMax: Vec2,
-): number[] => {
+export const getTrianglesInRect = (chunkyTriMesh: ChunkyTriMesh, boundsMin: Vec2, boundsMax: Vec2): number[] => {
     const chunks = getChunksOverlappingRect(chunkyTriMesh, boundsMin, boundsMax);
     const result: number[] = [];
 
@@ -266,7 +247,7 @@ export const getTrianglesInRect = (
     }
 
     return result;
-}
+};
 
 /**
  * Check if a line segment overlaps with a 2D bounding box
@@ -304,7 +285,7 @@ const checkOverlapSegment = (p: Vec2, q: Vec2, bMin: Vec2, bMax: Vec2): boolean 
     }
 
     return true;
-}
+};
 
 /**
  * Get all triangle chunks that overlap with a line segment
@@ -338,4 +319,4 @@ export const getChunksOverlappingSegment = (chunkyTriMesh: ChunkyTriMesh, p: Vec
     }
 
     return result;
-}
+};
