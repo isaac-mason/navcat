@@ -232,11 +232,13 @@ function visualizeChunkBounds() {
     const chunkIndices = chunkyTriMesh.getChunksOverlappingRect(levelChunkyTriMesh, queryMin, queryMax);
     const overlappingChunks = new Set(chunkIndices);
 
-    // Only show leaf nodes (actual chunks with triangles)
-    const leafNodes = levelChunkyTriMesh.nodes.filter((node) => node.index >= 0);
+    // Show all leaf nodes with their original indices
+    for (let i = 0; i < levelChunkyTriMesh.nodes.length; i++) {
+        const node = levelChunkyTriMesh.nodes[i];
+        const isLeaf = node.index >= 0;
 
-    for (let i = 0; i < leafNodes.length; i++) {
-        const node = leafNodes[i];
+        if (!isLeaf) continue;
+
         const isHighlighted = overlappingChunks.has(i);
 
         const color = isHighlighted ? config.triangleInQueryColor : config.chunkBoundsColor;
