@@ -37,6 +37,8 @@ navcat is available on npm:
 npm install navcat
 ```
 
+An example of using navcat without any build tools using unpkg can be found here: https://github.com/isaac-mason/navcat-vanilla-html-js-example
+
 **Changelog**
 
 See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each version.
