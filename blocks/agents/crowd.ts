@@ -380,7 +380,7 @@ export const requestMoveTarget = (crowd: Crowd, agentId: string, targetRef: Node
     vec3.copy(agent.targetPosition, targetPos);
 
     // if the agent already has a corridor path, this is a replan
-    agent.targetReplan = agent.corridor.path.length > 0;
+    agent.targetReplan = false;
     agent.targetState = AgentTargetState.REQUESTING;
     agent.targetPathIsPartial = false;
     agent.targetPathfindingTime = 0; // Reset timer for new request

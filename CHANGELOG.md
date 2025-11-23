@@ -4,6 +4,7 @@
 
 - feat: `navcat/blocks` `chunkyTriMesh` module, for building a 2D spatial partitioning structure over triangle meshes for fast bounds queries
 - feat: update `navcat/blocks` `generateTiledNavMesh` to use `chunkyTriMesh` for faster tile building with reduction of redundant triangle rasterization
+- fix: crowd requestMoveTarget calls should never be treated as a replan
 
 ## 0.1.0
 
