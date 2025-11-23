@@ -461,17 +461,6 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
         const agentNodeRef = agent.corridor.path[0];
 
         if (!isValidNodeRef(navMesh, agentNodeRef)) {
-            // current location is invalid, try to reposition
-            console.warn(`Agent ${agentId} has invalid current node ref, repositioning`, {
-                agentNodeRef,
-                corridorPath: agent.corridor.path,
-                corridorPosition: agent.corridor.position,
-                agentPosition: agent.position,
-                velocity: agent.velocity,
-                state: agent.state,
-                targetState: agent.targetState,
-            });
-
             const nearestPolyResult = findNearestPoly(
                 _checkPathValidityNearestPolyResult,
                 navMesh,
@@ -481,8 +470,6 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
             );
 
             if (!nearestPolyResult.success) {
-                // could not find location in navmesh, set agent state to invalid
-                console.error(`Agent ${agentId} could not find valid position on navmesh, marking as INVALID`);
                 agent.state = AgentState.INVALID;
                 pathCorridor.reset(agent.corridor, INVALID_NODE_REF, agent.position);
                 localBoundary.resetLocalBoundary(agent.boundary);
@@ -490,7 +477,6 @@ const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): v
                 continue;
             }
 
-            // Fix: Use nearestPolyResult.position (which is ON the navmesh) instead of agent.position
             pathCorridor.fixPathStart(agent.corridor, nearestPolyResult.nodeRef, nearestPolyResult.position);
             localBoundary.resetLocalBoundary(agent.boundary);
             vec3.copy(agent.position, nearestPolyResult.position);

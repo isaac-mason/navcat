@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.1.2 (Unreleased)
+
+- feat: reset agent state in crowd requestMoveVelocity
+- fix: remove logs in crowd checkPathValidity
+
 ## 0.1.1
 
 - feat: `navcat/blocks` `chunkyTriMesh` module, for building a 2D spatial partitioning structure over triangle meshes for fast bounds queries
