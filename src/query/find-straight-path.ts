@@ -460,12 +460,9 @@ export const findStraightPath = (
             }
 
             // left vertex
-            if (triArea2D(portalApex, portalLeft, _findStraightPathLeftPortalPoint) >= 0.0) {
-                if (
-                    vec3.equals(portalApex, portalLeft) ||
-                    triArea2D(portalApex, portalRight, _findStraightPathLeftPortalPoint) < 0.0
-                ) {
-                    vec3.copy(portalLeft, _findStraightPathLeftPortalPoint);
+            if (triArea2D(portalApex, portalLeft, left) >= 0.0) {
+                if (vec3.equals(portalApex, portalLeft) || triArea2D(portalApex, portalRight, left) < 0.0) {
+                    vec3.copy(portalLeft, left);
                     leftNodeRef = i + 1 < pathSize ? pathNodeRefs[i + 1] : null;
                     leftNodeType = toType;
                     leftIndex = i;
