@@ -321,21 +321,60 @@ export const findStraightPath = (
 
                     // append any pending portals along the current straight path segment
                     // this ensures we add intermediate waypoints between the current apex and the off-mesh connection start
-                    const appendPortalsStatus = appendPortals(
-                        navMesh,
-                        apexIndex,
-                        i,
-                        offMeshStart,
-                        pathNodeRefs,
-                        path,
-                        straightPathOptions,
-                        maxPoints,
-                    );
-                    if (appendPortalsStatus !== AppendVertexStatus.IN_PROGRESS) {
-                        const maxPointsReached = (appendPortalsStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
-                        let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
-                        if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
-                        return makeFindStraightPathResult(flags, path);
+                    if (straightPathOptions & (FindStraightPathOptions.AREA_CROSSINGS | FindStraightPathOptions.ALL_CROSSINGS)) {
+                        const appendPortalsStatus = appendPortals(
+                            navMesh,
+                            apexIndex,
+                            i,
+                            offMeshStart,
+                            pathNodeRefs,
+                            path,
+                            straightPathOptions,
+                            maxPoints,
+                        );
+                        if (appendPortalsStatus !== AppendVertexStatus.IN_PROGRESS) {
+                            const maxPointsReached = (appendPortalsStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
+                            let flags = FindStraightPathResultFlags.SUCCESS | FindStraightPathResultFlags.PARTIAL_PATH;
+                            if (maxPointsReached) flags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
+                            return makeFindStraightPathResult(flags, path);
+                        }
+                    }
+
+                    // check if we need to do string-pulling for the last portal
+                    const lastPointAdded = path[path.length - 1].position;
+                    if (!vec3.equals(lastPointAdded, portalRight) && !vec3.equals(lastPointAdded, portalLeft)) {
+                        const rightArea = triArea2D(lastPointAdded, portalRight, offMeshStart);
+                        const leftArea = triArea2D(lastPointAdded, portalLeft, offMeshStart);
+                        let appendStatus: AppendVertexStatus | undefined;
+
+                        if (rightArea <= 0 && leftArea < 0) {
+                            // offMeshStart is to the right of portalRight and portalLeft => add portalLeft
+                            appendStatus = appendVertex(
+                                portalLeft,
+                                leftNodeRef,
+                                0,
+                                path,
+                                leftNodeRef ? leftNodeType : NodeType.POLY,
+                                maxPoints,
+                            );
+                        } else if (leftArea >= 0 && rightArea > 0) {
+                            // offMeshStart is to the left of portalRight and portalLeft => add portalRight
+                            appendStatus = appendVertex(
+                                portalRight,
+                                rightNodeRef,
+                                0,
+                                path,
+                                rightNodeRef ? rightNodeType : NodeType.POLY,
+                                maxPoints,
+                            );
+                        }
+
+                        if (appendStatus && appendStatus !== AppendVertexStatus.IN_PROGRESS) {
+                            const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
+                            let resultFlags = FindStraightPathResultFlags.SUCCESS;
+                            if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
+                            return makeFindStraightPathResult(resultFlags, path);
+                        }
                     }
 
                     // append the off-mesh connection start point (with OFFMESH flag)
