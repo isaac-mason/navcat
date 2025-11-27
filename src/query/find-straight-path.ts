@@ -440,8 +440,7 @@ export const findStraightPath = (
                     if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                         const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
 
-                        let resultFlags = 0;
-                        resultFlags |= FindStraightPathResultFlags.SUCCESS;
+                        let resultFlags = FindStraightPathResultFlags.SUCCESS;
                         if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
 
                         return makeFindStraightPathResult(resultFlags, path);
@@ -512,8 +511,7 @@ export const findStraightPath = (
                     if (appendStatus !== AppendVertexStatus.IN_PROGRESS) {
                         const maxPointsReached = (appendStatus & AppendVertexStatus.MAX_POINTS_REACHED) !== 0;
 
-                        let resultFlags = 0;
-                        resultFlags |= FindStraightPathResultFlags.SUCCESS;
+                        let resultFlags = FindStraightPathResultFlags.SUCCESS;
                         if (maxPointsReached) resultFlags |= FindStraightPathResultFlags.MAX_POINTS_REACHED;
 
                         return makeFindStraightPathResult(resultFlags, path);
