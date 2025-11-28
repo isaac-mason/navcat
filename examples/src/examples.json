@@ -59,6 +59,16 @@
         "description": "Example of finding a path on the navmesh",
         "tags": ["path"]
     },
+    "example-find-node-path": {
+        "title": "Find Node Path",
+        "description": "Example of finding a node path on the navmesh",
+        "tags": ["path", "nodes"]
+    },
+    "example-find-straight-path": {
+        "title": "Find Straight Path",
+        "description": "Example of using findNodePath and findStraightPath together",
+        "tags": ["path", "straight"]
+    },
     "example-find-smooth-path": {
         "title": "Find Smooth Path",
         "description": "Example of finding a smooth path on the navmesh",
