@@ -114,6 +114,9 @@ const appendPortals = (
     options: number,
     maxPoints: number | null = null,
 ): AppendVertexStatus => {
+    const left = _appendPortalsLeft;
+    const right = _appendPortalsRight;
+
     const startPos = outPoints[outPoints.length - 1].position;
 
     for (let i = startIdx; i < endIdx; i++) {
@@ -129,8 +132,6 @@ const appendPortals = (
         }
 
         // calculate portal
-        const left = _appendPortalsLeft;
-        const right = _appendPortalsRight;
         if (!getPortalPoints(navMesh, from, to, left, right)) {
             break;
         }
@@ -154,6 +155,9 @@ const appendPortals = (
     return AppendVertexStatus.IN_PROGRESS;
 };
 
+const _findStraightPathPortalApex = vec3.create();
+const _findStraightPathPortalLeft = vec3.create();
+const _findStraightPathPortalRight = vec3.create();
 const _findStraightPathLeftPortalPoint = vec3.create();
 const _findStraightPathRightPortalPoint = vec3.create();
 const _findStraightPath_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
@@ -220,9 +224,11 @@ export const findStraightPath = (
         return makeFindStraightPathResult(flags, path);
     }
 
-    const portalApex = vec3.create();
-    const portalLeft = vec3.create();
-    const portalRight = vec3.create();
+    const portalApex = _findStraightPathPortalApex;
+    const portalLeft = _findStraightPathPortalLeft;
+    const portalRight = _findStraightPathPortalRight;
+    const left = _findStraightPathLeftPortalPoint;
+    const right = _findStraightPathRightPortalPoint;
 
     const pathSize = pathNodeRefs.length;
 
@@ -242,9 +248,6 @@ export const findStraightPath = (
 
         for (let i = 0; i < pathSize; ++i) {
             let toType: NodeType = NodeType.POLY;
-
-            const left = _findStraightPathLeftPortalPoint;
-            const right = _findStraightPathRightPortalPoint;
 
             if (i + 1 < pathSize) {
                 const toRef = pathNodeRefs[i + 1];
