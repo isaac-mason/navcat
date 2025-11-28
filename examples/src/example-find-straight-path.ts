@@ -1,15 +1,24 @@
+import { GUI } from 'lil-gui';
 import type { Vec3 } from 'mathcat';
-import { DEFAULT_QUERY_FILTER, FindStraightPathResultFlags, findPath, getNodeRefType, NodeType } from 'navcat';
+import {
+    createFindNearestPolyResult,
+    DEFAULT_QUERY_FILTER,
+    FindStraightPathResultFlags,
+    findNearestPoly,
+    findNodePath,
+    findStraightPath,
+    getNodeRefType,
+    NodeType,
+} from 'navcat';
+import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
+import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper, getPositionsAndIndices } from 'navcat/three';
 import * as THREE from 'three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { createNavMeshHelper, createNavMeshPolyHelper, createSearchNodesHelper } from 'navcat/three';
 import { createExample } from './common/example-base';
-import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
-import { getPositionsAndIndices } from 'navcat/three';
-import { loadGLTF } from './common/load-gltf';
 import { createFlag } from './common/flag';
+import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -96,7 +105,7 @@ const navMeshHelper = createNavMeshHelper(navMesh);
 navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
-/* find path */
+/* find straight path */
 let start: Vec3 = [-3.94, 0.26, 4.71];
 let end: Vec3 = [2.52, 2.39, -2.2];
 const halfExtents: Vec3 = [1, 1, 1];
@@ -128,40 +137,82 @@ function updatePath() {
     endFlag.object.position.set(...end);
     addVisual(endFlag);
 
-    console.time('findPath');
-
-    const pathResult = findPath(
+    /* find nearest polys for start and end */
+    const startNearestPolyResult = findNearestPoly(
+        createFindNearestPolyResult(),
         navMesh,
         start,
-        end,
         halfExtents,
         DEFAULT_QUERY_FILTER,
     );
+    if (!startNearestPolyResult.success) {
+        console.error('Failed to find start poly');
+        return;
+    }
 
-    console.timeEnd('findPath');
+    const endNearestPolyResult = findNearestPoly(createFindNearestPolyResult(), navMesh, end, halfExtents, DEFAULT_QUERY_FILTER);
+    if (!endNearestPolyResult.success) {
+        console.error('Failed to find end poly');
+        return;
+    }
 
-    console.log('pathResult', pathResult);
-    console.log('partial?', (pathResult.straightPathFlags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0);
+    console.time('findNodePath');
 
-    const { path, nodePath } = pathResult;
+    /* find node path */
+    const nodePathResult = findNodePath(
+        navMesh,
+        startNearestPolyResult.nodeRef,
+        endNearestPolyResult.nodeRef,
+        startNearestPolyResult.position,
+        endNearestPolyResult.position,
+        DEFAULT_QUERY_FILTER,
+    );
 
-    if (nodePath) {
-        const searchNodesHelper = createSearchNodesHelper(nodePath.nodes);
+    console.timeEnd('findNodePath');
+
+    if (!nodePathResult.success) {
+        console.error('findNodePath failed');
+        return;
+    }
+
+    console.time('findStraightPath');
+
+    /* find straight path */
+    const straightPathResult = findStraightPath(
+        navMesh,
+        startNearestPolyResult.position,
+        endNearestPolyResult.position,
+        nodePathResult.path,
+    );
+
+    console.timeEnd('findStraightPath');
+
+    console.log('nodePathResult', nodePathResult);
+    console.log('straightPathResult', straightPathResult);
+    console.log('partial?', (straightPathResult.flags & FindStraightPathResultFlags.PARTIAL_PATH) !== 0);
+
+    /* visualize search nodes */
+    if (nodePathResult.nodes) {
+        const searchNodesHelper = createSearchNodesHelper(nodePathResult.nodes);
         addVisual(searchNodesHelper);
+    }
 
-        for (let i = 0; i < nodePath.path.length; i++) {
-            const node = nodePath.path[i];
-            if (getNodeRefType(node) === NodeType.POLY) {
-                const polyHelper = createNavMeshPolyHelper(navMesh, node);
+    /* visualize node path polygons */
+    if (nodePathResult.path && nodePathResult.path.length > 0) {
+        for (let i = 0; i < nodePathResult.path.length; i++) {
+            const nodeRef = nodePathResult.path[i];
+            if (getNodeRefType(nodeRef) === NodeType.POLY) {
+                const polyHelper = createNavMeshPolyHelper(navMesh, nodeRef);
                 polyHelper.object.position.y += 0.15;
                 addVisual(polyHelper);
             }
         }
     }
 
-    if (path) {
-        for (let i = 0; i < path.length; i++) {
-            const point = path[i];
+    /* visualize straight path waypoints and lines */
+    if (straightPathResult.path) {
+        for (let i = 0; i < straightPathResult.path.length; i++) {
+            const point = straightPathResult.path[i];
             // point
             const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
             mesh.position.set(...point.position);
@@ -174,7 +225,7 @@ function updatePath() {
             });
             // line
             if (i > 0) {
-                const prevPoint = path[i - 1];
+                const prevPoint = straightPathResult.path[i - 1];
                 const geometry = new LineGeometry();
                 geometry.setFromPoints([new THREE.Vector3(...prevPoint.position), new THREE.Vector3(...point.position)]);
                 const material = new Line2NodeMaterial({
