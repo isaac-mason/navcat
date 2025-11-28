@@ -175,12 +175,8 @@ export const findSmoothPath = (
 
         let len = vec3.length(delta);
 
-        // if the steer target is the end of the path or an off-mesh connection, do not move past the location
-        if ((isEndOfPath || isOffMeshConnection) && len < stepSize) {
-            len = 1;
-        } else {
-            len = stepSize / len;
-        }
+        // always move to the steer target, but limit each step to stepSize
+        len = Math.min(stepSize, len) / len;
 
         const moveTarget = vec3.scaleAndAdd(_findSmoothPath_moveTarget, iterPos, delta, len);
 
