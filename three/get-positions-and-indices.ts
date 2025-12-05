@@ -18,14 +18,15 @@ export const getPositionsAndIndices = (meshes: Mesh[]): [positions: number[], in
 
         mesh.updateMatrixWorld();
 
-        const positions = new Float32Array(positionAttribute.array);
+        const positions = new Float32Array(positionAttribute.count * 3);
 
-        for (let i = 0; i < positions.length; i += 3) {
-            const pos = _position.set(positions[i], positions[i + 1], positions[i + 2]);
+        for (let i = 0; i < positionAttribute.count; i++) {
+            const pos = _position.fromBufferAttribute(positionAttribute, i);
             mesh.localToWorld(pos);
-            positions[i] = pos.x;
-            positions[i + 1] = pos.y;
-            positions[i + 2] = pos.z;
+            const indx = i * 3;
+            positions[indx] = pos.x;
+            positions[indx + 1] = pos.y;
+            positions[indx + 2] = pos.z;
         }
 
         let indices: ArrayLike<number> | undefined = mesh.geometry.getIndex()?.array;
