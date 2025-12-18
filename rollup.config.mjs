@@ -46,7 +46,7 @@ export default [
     },
     {
         input: './three/index.ts',
-        external: ['mathcat', 'navcat', 'three'],
+        external: ['mathcat', 'navcat', 'navcat/blocks', 'three'],
         output: [
             {
                 file: 'dist/three.js',
