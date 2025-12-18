@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.1.3 (Unreleased)
+
+- fix: make 'navcat/blocks' external for 'navcat/three' build
+
 ## 0.1.2
 
 - feat: reset agent state in crowd requestMoveVelocity
