@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.1.2 (Unreleased)
+## 0.1.2
 
 - feat: reset agent state in crowd requestMoveVelocity
 - fix: remove logs in crowd checkPathValidity
