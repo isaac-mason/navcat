@@ -5,6 +5,7 @@
 - feat: reset agent state in crowd requestMoveVelocity
 - fix: remove logs in crowd checkPathValidity
 - fix: findRandomPointAroundCircle not correctly generating random points on polys around circle
+- fix: support three.js geometry that has interleaved buffer attributes (@cgauld)
 
 ## 0.1.1
 
