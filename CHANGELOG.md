@@ -4,6 +4,7 @@
 
 - feat: reset agent state in crowd requestMoveVelocity
 - fix: remove logs in crowd checkPathValidity
+- fix: findRandomPointAroundCircle not correctly generating random points on polys around circle
 
 ## 0.1.1
 

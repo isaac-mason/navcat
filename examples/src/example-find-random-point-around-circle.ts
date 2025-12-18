@@ -1,3 +1,4 @@
+import GUI from 'lil-gui';
 import type { Vec3 } from 'mathcat';
 import { createFindNearestPolyResult, DEFAULT_QUERY_FILTER, findNearestPoly, findRandomPointAroundCircle } from 'navcat';
 import { generateTiledNavMesh, type TiledNavMeshInput, type TiledNavMeshOptions } from 'navcat/blocks';
@@ -93,13 +94,27 @@ navMeshHelper.object.position.y += 0.1;
 scene.add(navMeshHelper.object);
 
 /* find random point logic */
-const pointMesh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 16), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-scene.add(pointMesh);
+const pointsMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+const pointGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+const pointMeshes: THREE.Mesh[] = [];
 
-const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), pointMesh.position, 1, 0xffff00, 0.2);
+const MAX_POINTS = 500;
+for (let i = 0; i < MAX_POINTS; i++) {
+    const pointMesh = new THREE.Mesh(pointGeometry, pointsMaterial);
+    pointMesh.visible = false;
+    scene.add(pointMesh);
+    pointMeshes.push(pointMesh);
+}
+
+const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xffff00, 0.2);
 scene.add(arrow);
 
-const updateRandomPoint = (point: Vec3) => {
+const params = {
+    radius: 1.0,
+    numPoints: 100,
+};
+
+const updateRandomPoints = (point: Vec3) => {
     const nearestPoly = findNearestPoly(createFindNearestPolyResult(), navMesh, point, [0.5, 0.5, 0.5], DEFAULT_QUERY_FILTER);
 
     if (!nearestPoly.success) return;
@@ -107,18 +122,51 @@ const updateRandomPoint = (point: Vec3) => {
     const startRef = nearestPoly.nodeRef;
     const startPosition = nearestPoly.position;
 
-    const result = findRandomPointAroundCircle(navMesh, startRef, startPosition, 0.5, DEFAULT_QUERY_FILTER, Math.random);
+    arrow.setDirection(new THREE.Vector3(0, -1, 0));
+    arrow.position.fromArray(startPosition);
+    arrow.position.y += 1.5;
 
-    if (result.success) {
-        pointMesh.position.fromArray(result.position);
+    // Hide all points first
+    for (let i = 0; i < pointMeshes.length; i++) {
+        pointMeshes[i].visible = false;
+    }
 
-        arrow.setDirection(new THREE.Vector3(0, -1, 0));
-        arrow.position.copy(pointMesh.position);
-        arrow.position.y += 1.5;
+    // Generate only the requested number of points
+    for (let i = 0; i < params.numPoints; i++) {
+        const result = findRandomPointAroundCircle(
+            navMesh,
+            startRef,
+            startPosition,
+            params.radius,
+            DEFAULT_QUERY_FILTER,
+            Math.random,
+        );
+
+        if (result.success) {
+            pointMeshes[i].position.fromArray(result.position);
+            pointMeshes[i].visible = true;
+        }
     }
 };
 
-updateRandomPoint([-3.94, 0.26, 4.71]);
+updateRandomPoints([-3.94, 0.26, 4.71]);
+
+/* gui */
+const gui = new GUI();
+
+const randomPointFolder = gui.addFolder('Random Points');
+randomPointFolder
+    .add(params, 'radius', 0.1, 10.0)
+    .name('Radius')
+    .onChange((value: number) => {
+        params.radius = value;
+    });
+randomPointFolder
+    .add(params, 'numPoints', 1, MAX_POINTS, 1)
+    .name('Number of Points')
+    .onChange((value: number) => {
+        params.numPoints = Math.floor(value);
+    });
 
 /* handle pointer down events */
 const raycaster = new THREE.Raycaster();
@@ -133,7 +181,7 @@ const onPointerDown = (event: PointerEvent) => {
     const intersects = raycaster.intersectObjects(walkableMeshes);
     if (intersects.length > 0) {
         const point = intersects[0].point;
-        updateRandomPoint([point.x, point.y, point.z]);
+        updateRandomPoints([point.x, point.y, point.z]);
     }
 };
 

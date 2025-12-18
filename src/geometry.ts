@@ -550,10 +550,10 @@ const _randomPointInConvexPolyVc = vec3.create();
 export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], areas: number[], s: number, t: number): Vec3 => {
     // calculate cumulative triangle areas for weighted selection
     let areaSum = 0;
+    const va = vec3.fromBuffer(_randomPointInConvexPolyVa, verts, 0);
     for (let i = 2; i < nv; i++) {
-        const va = [verts[0], verts[1], verts[2]] as Vec3;
-        const vb = [verts[(i - 1) * 3], verts[(i - 1) * 3 + 1], verts[(i - 1) * 3 + 2]] as Vec3;
-        const vc = [verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2]] as Vec3;
+        const vb = vec3.fromBuffer(_randomPointInConvexPolyVb, verts, (i - 1) * 3);
+        const vc = vec3.fromBuffer(_randomPointInConvexPolyVc, verts, i * 3);
         areas[i] = triArea2D(va, vb, vc);
         areaSum += Math.max(0.001, areas[i]);
     }
@@ -561,35 +561,32 @@ export const randomPointInConvexPoly = (out: Vec3, nv: number, verts: number[], 
     // choose triangle based on area-weighted random selection
     const thr = s * areaSum;
     let acc = 0;
+    let u = 1;
     let tri = nv - 1;
     for (let i = 2; i < nv; i++) {
-        acc += Math.max(0.001, areas[i]);
-        if (thr <= acc) {
+        const dacc = areas[i];
+        if (thr >= acc && thr < acc + dacc) {
+            u = (thr - acc) / dacc;
             tri = i;
             break;
         }
+        acc += dacc;
     }
 
     // generate random point in triangle using barycentric coordinates
     // standard method: use square root for uniform distribution
-    let u = Math.sqrt(t);
-    let v = 1 - t;
+    const v = Math.sqrt(t);
 
-    // ensure the point is inside the triangle
-    if (u + v > 1) {
-        u = 1 - u;
-        v = 1 - v;
-    }
+    const a = 1 - v;
+    const b = (1 - u) * v;
+    const c = u * v;
 
-    const w = 1 - u - v;
-
-    const va = vec3.fromBuffer(_randomPointInConvexPolyVa, verts, 0);
     const vb = vec3.fromBuffer(_randomPointInConvexPolyVb, verts, (tri - 1) * 3);
     const vc = vec3.fromBuffer(_randomPointInConvexPolyVc, verts, tri * 3);
 
-    out[0] = u * va[0] + v * vb[0] + w * vc[0];
-    out[1] = u * va[1] + v * vb[1] + w * vc[1];
-    out[2] = u * va[2] + v * vb[2] + w * vc[2];
+    out[0] = a * va[0] + b * vb[0] + c * vc[0];
+    out[1] = a * va[1] + b * vb[1] + c * vc[1];
+    out[2] = a * va[2] + b * vb[2] + c * vc[2];
 
     return out;
 };
