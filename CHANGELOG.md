@@ -5,6 +5,9 @@
 - fix: make 'navcat/blocks' external for 'navcat/three' build
 - fix: use null check instead of falsy check for node refs in findStraightPath (@shrjrd)
 - fix: use null check instead of falsy check for node refs in path corridor moveOverOffMeshConnection, examples
+- feat: change findSmoothPath to reach all steer targets to address issues with overshooting
+- fix: finish string pulling before appending offmesh points in findStraightPath
+- feat: remove unnecessary allocations in findStraightPath
 
 ## 0.1.2
 
