@@ -130,11 +130,25 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
   </tr>
   <tr>
     <td align="center">
+      <a href="https://navcat.dev/examples#example-find-node-path">
+        <img src="./examples/public/screenshots/example-find-node-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Find Node Path
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-find-straight-path">
+        <img src="./examples/public/screenshots/example-find-straight-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Find Straight Path
+      </a>
+    </td>
+    <td align="center">
       <a href="https://navcat.dev/examples#example-find-smooth-path">
         <img src="./examples/public/screenshots/example-find-smooth-path.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Smooth Path
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-shortest-paths">
         <img src="./examples/public/screenshots/example-find-shortest-paths.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -147,14 +161,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Find Diverse Paths
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-raycast">
         <img src="./examples/public/screenshots/example-raycast.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Raycast
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-off-mesh-connections">
         <img src="./examples/public/screenshots/example-off-mesh-connections.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -167,14 +181,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Upload Model
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-custom-gltf-navmesh">
         <img src="./examples/public/screenshots/example-custom-gltf-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Custom GLTF NavMesh
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-solo-navmesh">
         <img src="./examples/public/screenshots/example-solo-navmesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -187,14 +201,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Tiled NavMesh
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-flood-fill-pruning">
         <img src="./examples/public/screenshots/example-flood-fill-pruning.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Flood Fill Pruning
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-nearest-poly">
         <img src="./examples/public/screenshots/example-find-nearest-poly.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -207,14 +221,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Find Random Point
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-find-random-point-around-circle">
         <img src="./examples/public/screenshots/example-find-random-point-around-circle.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Find Random Point Around Circle
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-mark-compact-heightfield-areas">
         <img src="./examples/public/screenshots/example-mark-compact-heightfield-areas.png" width="180" height="120" style="object-fit:cover;"/><br/>
@@ -227,14 +241,14 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Custom NavMesh Generation
       </a>
     </td>
-  </tr>
-  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-move-along-surface">
         <img src="./examples/public/screenshots/example-move-along-surface.png" width="180" height="120" style="object-fit:cover;"/><br/>
         Move Along Surface
       </a>
     </td>
+  </tr>
+  <tr>
     <td align="center">
       <a href="https://navcat.dev/examples#example-chunky-tri-mesh">
         <img src="./examples/public/screenshots/example-chunky-tri-mesh.png" width="180" height="120" style="object-fit:cover;"/><br/>
