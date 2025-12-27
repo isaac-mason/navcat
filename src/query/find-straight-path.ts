@@ -422,7 +422,7 @@ export const findStraightPath = (
                     apexIndex = leftIndex;
 
                     let pointFlags = 0;
-                    if (!leftNodeRef) {
+                    if (leftNodeRef === null) {
                         pointFlags = StraightPathPointFlags.END;
                     }
                     // note: leftNodeType can never be OFFMESH here because off-mesh connections are handled explicitly above
@@ -433,7 +433,7 @@ export const findStraightPath = (
                         leftNodeRef,
                         pointFlags,
                         path,
-                        leftNodeRef ? leftNodeType : NodeType.POLY,
+                        leftNodeRef !== null ? leftNodeType : NodeType.POLY,
                         maxPoints,
                     );
 
@@ -497,7 +497,7 @@ export const findStraightPath = (
                     apexIndex = rightIndex;
 
                     let pointFlags = 0;
-                    if (!rightNodeRef) {
+                    if (rightNodeRef === null) {
                         pointFlags = StraightPathPointFlags.END;
                     }
                     // note: rightNodeType can never be OFFMESH here because off-mesh connections are handled explicitly above
@@ -508,7 +508,7 @@ export const findStraightPath = (
                         rightNodeRef,
                         pointFlags,
                         path,
-                        rightNodeRef ? rightNodeType : NodeType.POLY,
+                        rightNodeRef !== null ? rightNodeType : NodeType.POLY,
                         maxPoints,
                     );
 
