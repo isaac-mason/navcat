@@ -357,7 +357,7 @@ export const findStraightPath = (
                                 leftNodeRef,
                                 0,
                                 path,
-                                leftNodeRef ? leftNodeType : NodeType.POLY,
+                                leftNodeRef !== null ? leftNodeType : NodeType.POLY,
                                 maxPoints,
                             );
                         } else if (leftArea >= 0 && rightArea > 0) {
@@ -367,7 +367,7 @@ export const findStraightPath = (
                                 rightNodeRef,
                                 0,
                                 path,
-                                rightNodeRef ? rightNodeType : NodeType.POLY,
+                                rightNodeRef !== null ? rightNodeType : NodeType.POLY,
                                 maxPoints,
                             );
                         }
