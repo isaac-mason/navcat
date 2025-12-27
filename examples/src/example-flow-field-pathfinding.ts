@@ -349,7 +349,7 @@ function showFlowFieldArrows(navMesh: NavMesh, flowField: FlowField) {
 
     // Show arrows for direction
     for (const [polyRef, nextRef] of flowField.next.entries()) {
-        if (!nextRef) continue;
+        if (nextRef === null) continue;
         const centerA = getPolyCenter(navMesh, polyRef);
         const centerB = getPolyCenter(navMesh, nextRef);
         if (!centerA || !centerB) continue;
