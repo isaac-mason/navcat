@@ -292,7 +292,6 @@ const queryFilter: QueryFilter = {
     passFilter: (_nodeRef, _navMesh) => true,
     getCost(pa, pb, navMeshInstance, _prevRef, curRef, _nextRef) {
         const base = vec3.distance(pa, pb);
-        if (!curRef) return base;
         const node = getNodeByRef(navMeshInstance, curRef);
         const multiplier =
             node.area === NavMeshAreaType.RED

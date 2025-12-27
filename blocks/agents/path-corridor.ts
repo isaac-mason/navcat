@@ -255,7 +255,7 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshNodeRef
     // prune path - remove the elements from 0 up to and including the off-mesh connection
     corridor.path = corridor.path.slice(i + 1);
 
-    if (!prevNodeRef) {
+    if (prevNodeRef === null) {
         return false;
     }
 

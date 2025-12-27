@@ -3,6 +3,8 @@
 ## 0.1.3 (Unreleased)
 
 - fix: make 'navcat/blocks' external for 'navcat/three' build
+- fix: use null check instead of falsy check for node refs in findStraightPath (@shrjrd)
+- fix: use null check instead of falsy check for node refs in path corridor moveOverOffMeshConnection, examples
 
 ## 0.1.2
 
