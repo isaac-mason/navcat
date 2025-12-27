@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.1.3 (Unreleased)
+## 0.1.3
 
 - fix: make 'navcat/blocks' external for 'navcat/three' build
 - fix: use null check instead of falsy check for node refs in findStraightPath (@shrjrd)
