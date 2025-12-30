@@ -297,6 +297,7 @@ const HEURISTIC_SCALE = 0.999; // Search heuristic scale
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter.
+ * @param raycastDistance The maximum distance when using raycast to find visibility shortcuts
  * @returns The result of the pathfinding operation.
  */
 export const findNodePath = (
@@ -306,6 +307,7 @@ export const findNodePath = (
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
+    raycastDistance?: number,
 ): FindNodePathResult => {
     const nodes: SearchNodePool = {};
     const openList: SearchNodeQueue = [];
@@ -365,6 +367,7 @@ export const findNodePath = (
 
         // if we have reached the goal, stop searching
         const bestNodeRef = bestSearchNode.nodeRef;
+        const bestNodeIsPoly = getNodeRefType(bestNodeRef) == NodeType.POLY;
         if (bestNodeRef === endNodeRef) {
             lastBestNode = bestSearchNode;
             break;
@@ -420,16 +423,48 @@ export const findNodePath = (
             let cost = 0;
             let heuristic = 0;
 
-            // normal cost calculation
-            const curCost = getCost(
-                bestSearchNode.position,
-                neighbourSearchNode.position,
-                navMesh,
-                parentNodeRef,
-                bestNodeRef,
-                neighbourNodeRef,
-            );
-            cost = bestSearchNode.cost + curCost;
+
+            // check for raycast shortcut (if enabled)
+            let foundShortcut = false;
+            if (raycastDistance !== undefined && raycastDistance > 0 && bestNodeIsPoly && parentNodeRef !== undefined && getNodeRefType(parentNodeRef) == NodeType.POLY && bestSearchNode.parentState !== null) {
+                // get grandparent node for potential raycast shortcut
+                const grandparentNode = getSearchNode(nodes, parentNodeRef, bestSearchNode.parentState);
+
+                if (grandparentNode) {
+                    const rayLength = vec3.distance(grandparentNode.position, neighbourSearchNode.position);
+
+                    if (rayLength < raycastDistance) {
+                        // attempt raycast from grandparent to current neighbor
+                        const rayResult = raycastWithCosts(
+                            navMesh,
+                            grandparentNode.nodeRef,
+                            grandparentNode.position,
+                            neighbourSearchNode.position,
+                            filter,
+                            grandparentNode.parentNodeRef ?? 0, // pass the great-grandparent for accurate cost calculations
+                        );
+
+                        // if the raycast didn't hit anything, we can take the shortcut
+                        if (rayResult.t >= 1.0) {
+                            foundShortcut = true;
+                            cost = grandparentNode.cost + rayResult.pathCost;
+                        }
+                    }
+                }
+            }
+
+            if (!foundShortcut) {
+                // normal cost calculation
+                const curCost = getCost(
+                    bestSearchNode.position,
+                    neighbourSearchNode.position,
+                    navMesh,
+                    parentNodeRef,
+                    bestNodeRef,
+                    neighbourNodeRef,
+                );
+                cost = bestSearchNode.cost + curCost;
+            }
 
             // special case for last node - add cost to reach end position
             if (neighbourNodeRef === endNodeRef) {
@@ -1391,10 +1426,8 @@ const raycastBase = (
 
     const intersectSegmentPoly2DResult = createIntersectSegmentPoly2DResult();
 
-    if (calculateCosts) {
-        vec3.sub(_raycast_dir, endPosition, startPosition);
-        vec3.copy(_raycast_curPos, startPosition);
-    }
+    vec3.sub(_raycast_dir, endPosition, startPosition);
+    vec3.copy(_raycast_curPos, startPosition);
 
     while (curRef) {
         // get current tile and poly
@@ -1413,7 +1446,7 @@ const raycastBase = (
         }
 
         // cast ray against current polygon
-        intersectSegmentPoly2D(intersectSegmentPoly2DResult, startPosition, endPosition, nv, vertices);
+        intersectSegmentPoly2D(intersectSegmentPoly2DResult, _raycast_curPos, endPosition, nv, vertices);
         if (!intersectSegmentPoly2DResult.intersects) {
             // could not hit the polygon, keep the old t and report hit
             return result;
@@ -1433,6 +1466,10 @@ const raycastBase = (
         if (intersectSegmentPoly2DResult.segMax === -1) {
             result.t = Number.MAX_VALUE;
 
+            if (calculateCosts) {
+                // accumulate cost
+                result.pathCost += filter.getCost(_raycast_curPos, endPosition, navMesh, prevRefTracking, curRef, undefined);
+            }
             return result;
         }
 
@@ -1505,6 +1542,38 @@ const raycastBase = (
             }
         }
 
+        // update curPos to the hit point on this polygon's edge
+        vec3.copy(_raycast_lastPos, _raycast_curPos);
+        vec3.scaleAndAdd(_raycast_curPos, startPosition, _raycast_dir, result.t);
+
+        // calculate height at the hit point by lerping vertices of the hit edge
+        const e0 = poly.vertices[intersectSegmentPoly2DResult.segMax];
+        const e1 = poly.vertices[(intersectSegmentPoly2DResult.segMax + 1) % poly.vertices.length];
+
+        const e1Offset = e1 * 3;
+        const e0Offset = e0 * 3;
+
+        vec3.fromBuffer(_raycast_e1Vec, tile.vertices, e1Offset);
+        vec3.fromBuffer(_raycast_e0Vec, tile.vertices, e0Offset);
+
+        vec3.sub(_raycast_eDir, _raycast_e1Vec, _raycast_e0Vec);
+
+        vec3.sub(_raycast_diff, _raycast_curPos, _raycast_e0Vec);
+
+        // use squared comparison to determine which component to use
+        const s =
+            _raycast_eDir[0] * _raycast_eDir[0] > _raycast_eDir[2] * _raycast_eDir[2]
+                ? _raycast_diff[0] / _raycast_eDir[0]
+                : _raycast_diff[2] / _raycast_eDir[2];
+
+        _raycast_curPos[1] = _raycast_e0Vec[1] + _raycast_eDir[1] * s;
+
+        // calculate cost along the path
+        if (calculateCosts) {
+            // accumulate cost
+            result.pathCost += filter.getCost(_raycast_lastPos, _raycast_curPos, navMesh, prevRefTracking, curRef, nextRef);
+        }
+
         if (nextRef === undefined) {
             // no neighbor, we hit a wall
 
@@ -1524,38 +1593,6 @@ const raycastBase = (
             }
 
             return result;
-        }
-
-        // calculate cost along the path
-        if (calculateCosts) {
-            // update curPos to the hit point on this polygon's edge
-            vec3.copy(_raycast_lastPos, _raycast_curPos);
-            vec3.scaleAndAdd(_raycast_curPos, startPosition, _raycast_dir, result.t);
-
-            // calculate height at the hit point by lerping vertices of the hit edge
-            const e0 = poly.vertices[intersectSegmentPoly2DResult.segMax];
-            const e1 = poly.vertices[(intersectSegmentPoly2DResult.segMax + 1) % poly.vertices.length];
-
-            const e1Offset = e1 * 3;
-            const e0Offset = e0 * 3;
-
-            vec3.fromBuffer(_raycast_e1Vec, tile.vertices, e1Offset);
-            vec3.fromBuffer(_raycast_e0Vec, tile.vertices, e0Offset);
-
-            vec3.sub(_raycast_eDir, _raycast_e1Vec, _raycast_e0Vec);
-
-            vec3.sub(_raycast_diff, _raycast_curPos, _raycast_e0Vec);
-
-            // use squared comparison to determine which component to use
-            const s =
-                _raycast_eDir[0] * _raycast_eDir[0] > _raycast_eDir[2] * _raycast_eDir[2]
-                    ? _raycast_diff[0] / _raycast_eDir[0]
-                    : _raycast_diff[2] / _raycast_eDir[2];
-
-            _raycast_curPos[1] = _raycast_e0Vec[1] + _raycast_eDir[1] * s;
-
-            // accumulate cost
-            result.pathCost += filter.getCost(_raycast_lastPos, _raycast_curPos, navMesh, prevRefTracking, curRef, nextRef);
         }
 
         // no hit, advance to neighbor polygon
