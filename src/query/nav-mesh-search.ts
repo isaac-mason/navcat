@@ -1617,6 +1617,9 @@ export const raycastWithCosts = (
 };
 
 const _findRandomPointVertices: number[] = [];
+const _findRandomPointVa: Vec3 = vec3.create();
+const _findRandomPointVb: Vec3 = vec3.create();
+const _findRandomPointVc: Vec3 = vec3.create();
 
 export type FindRandomPointResult = {
     success: boolean;
@@ -1677,14 +1680,11 @@ export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () 
 
         // calculate area of the polygon using triangulation
         let polyArea = 0;
-        const va = vec3.create();
-        const vb = vec3.create();
-        const vc = vec3.create();
         for (let j = 2; j < poly.vertices.length; j++) {
-            vec3.fromBuffer(va, selectedTile.vertices, poly.vertices[0] * 3);
-            vec3.fromBuffer(vb, selectedTile.vertices, poly.vertices[j - 1] * 3);
-            vec3.fromBuffer(vc, selectedTile.vertices, poly.vertices[j] * 3);
-            polyArea += triArea2D(va, vb, vc);
+            vec3.fromBuffer(_findRandomPointVa, selectedTile.vertices, poly.vertices[0] * 3);
+            vec3.fromBuffer(_findRandomPointVb, selectedTile.vertices, poly.vertices[j - 1] * 3);
+            vec3.fromBuffer(_findRandomPointVc, selectedTile.vertices, poly.vertices[j] * 3);
+            polyArea += triArea2D(_findRandomPointVa, _findRandomPointVb, _findRandomPointVc);
         }
 
         // choose random polygon weighted by area, using reservoir sampling
@@ -1734,6 +1734,9 @@ export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () 
 };
 
 const _findRandomPointAroundCircleVertices: number[] = [];
+const _findRandomPointAroundCircleV0: Vec3 = vec3.create();
+const _findRandomPointAroundCircleV1: Vec3 = vec3.create();
+const _findRandomPointAroundCircleV2: Vec3 = vec3.create();
 const _findRandomPointAroundCircle_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 export type FindRandomPointAroundCircleResult = {
@@ -1831,14 +1834,11 @@ export const findRandomPointAroundCircle = (
 
         // calculate area of the polygon
         let polyArea = 0;
-        const v0 = vec3.create();
-        const v1 = vec3.create();
-        const v2 = vec3.create();
         for (let j = 2; j < bestPoly.vertices.length; j++) {
-            vec3.fromBuffer(v0, bestTile.vertices, bestPoly.vertices[0] * 3);
-            vec3.fromBuffer(v1, bestTile.vertices, bestPoly.vertices[j - 1] * 3);
-            vec3.fromBuffer(v2, bestTile.vertices, bestPoly.vertices[j] * 3);
-            polyArea += triArea2D(v0, v1, v2);
+            vec3.fromBuffer(_findRandomPointAroundCircleV0, bestTile.vertices, bestPoly.vertices[0] * 3);
+            vec3.fromBuffer(_findRandomPointAroundCircleV1, bestTile.vertices, bestPoly.vertices[j - 1] * 3);
+            vec3.fromBuffer(_findRandomPointAroundCircleV2, bestTile.vertices, bestPoly.vertices[j] * 3);
+            polyArea += triArea2D(_findRandomPointAroundCircleV0, _findRandomPointAroundCircleV1, _findRandomPointAroundCircleV2);
         }
 
         // choose random polygon weighted by area, using reservoir sampling
