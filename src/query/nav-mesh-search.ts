@@ -1629,6 +1629,7 @@ export type FindRandomPointResult = {
 
 /**
  * Finds a random point on the navigation mesh.
+ * This function is using reservoir sampling and can fail in rare occurences even if there is an actual solution.
  *
  * @param navMesh The navigation mesh
  * @param filter Query filter to apply to polygons
@@ -1746,11 +1747,13 @@ export type FindRandomPointAroundCircleResult = {
 };
 
 /**
- * Finds a random point within a circle around a center position on the navigation mesh.
+ * Finds a random point around a center position on the navigation mesh.
+ * The location is not exactly constrained by the circle, but it limits the visited polygons.
  *
  * Uses Dijkstra-like search to explore reachable polygons within the circle,
  * then selects a random polygon weighted by area, and finally generates
  * a random point within that polygon.
+ * This function is using reservoir sampling and can fail in rare occurences even if there is an actual solution.
  *
  * @param navMesh The navigation mesh
  * @param startNodeRef Reference to the polygon to start the search from
