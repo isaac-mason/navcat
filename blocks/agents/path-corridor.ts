@@ -202,7 +202,7 @@ export const findCorners = (
 
 export const corridorIsValid = (corridor: PathCorridor, maxLookAhead: number, navMesh: NavMesh, filter: QueryFilter) => {
     const n = Math.min(corridor.path.length, maxLookAhead);
-    
+
     // check nodes are still valid and pass query filter
     for (let i = 0; i < n; i++) {
         const nodeRef = corridor.path[i];
@@ -238,7 +238,7 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshNodeRef
     let prevNodeRef: NodeRef | null = null;
     let nodeRef = corridor.path[0];
     let i = 0;
-    
+
     while (i < corridor.path.length && nodeRef !== offMeshNodeRef) {
         prevNodeRef = nodeRef;
         i++;
@@ -246,7 +246,7 @@ export const moveOverOffMeshConnection = (corridor: PathCorridor, offMeshNodeRef
             nodeRef = corridor.path[i];
         }
     }
-    
+
     if (i === corridor.path.length) {
         // could not find the off mesh connection node
         return false;
@@ -303,9 +303,9 @@ export const optimizePathTopology = (corridor: PathCorridor, navMesh: NavMesh, f
     }
 
     const MAX_ITER = 32;
-    
+
     const query = createSlicedNodePathQuery();
-    
+
     // do a local area search from start to end
     initSlicedFindNodePath(
         navMesh,
@@ -316,12 +316,12 @@ export const optimizePathTopology = (corridor: PathCorridor, navMesh: NavMesh, f
         corridor.target,
         filter,
     );
-    
+
     updateSlicedFindNodePath(navMesh, query, MAX_ITER);
-    
+
     const result = finalizeSlicedFindNodePathPartial(navMesh, query, corridor.path);
-    
-    if ((query.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0 && result.path.length > 0) {
+
+    if ((result.status & SlicedFindNodePathStatusFlags.SUCCESS) !== 0 && result.path.length > 0) {
         // merge the optimized path with the corridor using shortcut merge
         corridor.path = mergeStartShortcut(corridor.path, result.path);
         return true;
@@ -358,10 +358,10 @@ const _optimizePathVisibility_delta = vec3.create();
  * @param filter the query filter
  */
 export const optimizePathVisibility = (
-    corridor: PathCorridor, 
-    next: Vec3, 
-    pathOptimizationRange: number, 
-    navMesh: NavMesh, 
+    corridor: PathCorridor,
+    next: Vec3,
+    pathOptimizationRange: number,
+    navMesh: NavMesh,
     filter: QueryFilter
 ): void => {
     if (corridor.path.length === 0) {
@@ -387,7 +387,7 @@ export const optimizePathVisibility = (
     vec3.scaleAndAdd(goal, corridor.position, delta, pathOptimizationRange / dist);
 
     const result = raycast(navMesh, corridor.path[0], corridor.position, goal, filter);
-    
+
     if (result.path.length > 1 && result.t > 0.99) {
         corridor.path = mergeStartShortcut(corridor.path, result.path);
     }
