@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.1.4 (Unreleased)
+
+- feat: avoid memory allocations in findRandomPoint and findRandomPointAroundCircle (@FlorentMasson)
+
 ## 0.1.3
 
 - fix: make 'navcat/blocks' external for 'navcat/three' build
