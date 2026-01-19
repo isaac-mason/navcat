@@ -3,6 +3,7 @@
 ## 0.1.4 (Unreleased)
 
 - feat: avoid memory allocations in findRandomPoint and findRandomPointAroundCircle (@FlorentMasson)
+- fix: more permissive three peer dependency range
 
 ## 0.1.3
 
