@@ -516,7 +516,7 @@ export const createGetClosestPointOnPolyResult = (): GetClosestPointOnPolyResult
     };
 };
 
-const _getClosestPointOnPolyHeightResult = createGetPolyHeightResult();
+const _getClosestPointOnPoly_getPolyHeightResult = createGetPolyHeightResult();
 
 /**
  * Gets the closest point on a polygon to a given point
@@ -545,7 +545,7 @@ export const getClosestPointOnPoly = (
     result.success = true;
 
     const { tile, poly, polyIndex } = tileAndPoly;
-    const polyHeight = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, polyIndex, position);
+    const polyHeight = getPolyHeight(_getClosestPointOnPoly_getPolyHeightResult, tile, poly, polyIndex, position);
 
     if (polyHeight.success) {
         vec3.copy(result.position, position);
@@ -559,10 +559,11 @@ export const getClosestPointOnPoly = (
     return result;
 };
 
-const _closestPointOnPolyBoundaryLineStart = vec3.create();
-const _closestPointOnPolyBoundaryLineEnd = vec3.create();
-const _closestPointOnPolyBoundaryVertices: number[] = [];
+const _closestPointOnPolyBoundary_lineStart = vec3.create();
+const _closestPointOnPolyBoundary_lineEnd = vec3.create();
+const _closestPointOnPolyBoundary_vertices: number[] = [];
 const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
+const _closestPointOnPolyBoundary_getPolyHeightResult = createGetPolyHeightResult();
 
 /**
  * Gets the closest point on the boundary of a polygon to a given point
@@ -581,12 +582,12 @@ export const getClosestPointOnPolyBoundary = (out: Vec3, navMesh: NavMesh, nodeR
 
     const { tile, poly } = tileAndPoly;
 
-    const lineStart = _closestPointOnPolyBoundaryLineStart;
-    const lineEnd = _closestPointOnPolyBoundaryLineEnd;
+    const lineStart = _closestPointOnPolyBoundary_lineStart;
+    const lineEnd = _closestPointOnPolyBoundary_lineEnd;
 
     // collect vertices
     const verticesCount = poly.vertices.length;
-    const vertices = _closestPointOnPolyBoundaryVertices;
+    const vertices = _closestPointOnPolyBoundary_vertices;
     for (let i = 0; i < verticesCount; ++i) {
         const vIndex = poly.vertices[i] * 3;
         vertices[i * 3] = tile.vertices[vIndex];
@@ -599,7 +600,7 @@ export const getClosestPointOnPolyBoundary = (out: Vec3, navMesh: NavMesh, nodeR
         vec3.copy(out, point);
 
         // get the height of the polygon at this location
-        const heightResult = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, tile.polys.indexOf(poly), point);
+        const heightResult = getPolyHeight(_closestPointOnPolyBoundary_getPolyHeightResult, tile, poly, tile.polys.indexOf(poly), point);
         if (heightResult.success) {
             out[1] = heightResult.height;
         }

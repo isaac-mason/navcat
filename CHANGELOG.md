@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.1.5 (Unreleased)
+
+- feat: minor refactor of nav-mesh-api.ts temporary scratch variables
+
 ## 0.1.4
 
 - feat: avoid memory allocations in findRandomPoint and findRandomPointAroundCircle (@FlorentMasson)
