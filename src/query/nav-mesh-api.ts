@@ -298,30 +298,17 @@ export const getTileAndPolyByRef = (ref: NodeRef, navMesh: NavMesh): GetTileAndP
     return result;
 };
 
-const _getPolyHeightA = vec3.create();
-const _getPolyHeightB = vec3.create();
-const _getPolyHeightC = vec3.create();
-const _getPolyHeightTriangle: Triangle3 = [_getPolyHeightA, _getPolyHeightB, _getPolyHeightC];
-const _getPolyHeightVertices: number[] = [];
-
-export type GetPolyHeightResult = {
-    success: boolean;
-    height: number;
-};
-
-export const createGetPolyHeightResult = (): GetPolyHeightResult => ({
-    success: false,
-    height: 0,
-});
+const _getDetailMeshHeight_closest = vec3.create();
 
 /**
  * Gets the height at a position inside a polygon using the detail mesh.
  * Assumes the position is already known to be inside the polygon (in XZ).
+ * Falls back to closest point on detail edges if triangle checks fail.
  * @param tile The tile containing the polygon
  * @param poly The polygon
  * @param polyIndex The index of the polygon in the tile
  * @param pos The position to get height for
- * @returns The height at the position, or NaN if height could not be determined
+ * @returns The height at the position
  */
 const getDetailMeshHeight = (tile: NavMeshTile, poly: NavMeshPoly, polyIndex: number, pos: Vec3): number => {
     const detailMesh = tile.detailMeshes[polyIndex];
@@ -333,7 +320,7 @@ const getDetailMeshHeight = (tile: NavMeshTile, poly: NavMeshPoly, polyIndex: nu
             const detailTriangles = tile.detailTriangles;
 
             // get triangle vertices
-            const v: Vec3[] = _getPolyHeightTriangle;
+            const v: Vec3[] = _getPolyHeight_triangle;
             for (let k = 0; k < 3; ++k) {
                 const vertIndex = detailTriangles[t + k];
                 if (vertIndex < poly.vertices.length) {
@@ -363,10 +350,25 @@ const getDetailMeshHeight = (tile: NavMeshTile, poly: NavMeshPoly, polyIndex: nu
     // or larger floating point values) the point is on an edge, so just select
     // closest.
     // this should almost never happen so the extra iteration here is ok.
-    const closest = vec3.create();
-    getClosestPointOnDetailEdges(closest, tile, poly, polyIndex, pos, false);
-    return closest[1];
+    getClosestPointOnDetailEdges(_getDetailMeshHeight_closest, tile, poly, polyIndex, pos, false);
+    return _getDetailMeshHeight_closest[1];
 };
+
+const _getPolyHeight_a = vec3.create();
+const _getPolyHeight_b = vec3.create();
+const _getPolyHeight_c = vec3.create();
+const _getPolyHeight_triangle: Triangle3 = [_getPolyHeight_a, _getPolyHeight_b, _getPolyHeight_c];
+const _getPolyHeight_vertices: number[] = [];
+
+export type GetPolyHeightResult = {
+    success: boolean;
+    height: number;
+};
+
+export const createGetPolyHeightResult = (): GetPolyHeightResult => ({
+    success: false,
+    height: 0,
+});
 
 /**
  * Gets the height of a polygon at a given point using detail mesh if available.
@@ -389,7 +391,7 @@ export const getPolyHeight = (
 
     // build polygon vertices array
     const nv = poly.vertices.length;
-    const vertices = _getPolyHeightVertices;
+    const vertices = _getPolyHeight_vertices;
     for (let i = 0; i < nv; ++i) {
         const start = poly.vertices[i] * 3;
         vertices[i * 3] = tile.vertices[start];
@@ -420,9 +422,9 @@ const getDetailTriEdgeFlags = (triFlags: number, edgeIndex: number): number => {
     return (triFlags >> (edgeIndex * 2)) & 0x3;
 };
 
-const _closestPointOnDetailEdgesTriangleVertices: Vec3[] = [vec3.create(), vec3.create(), vec3.create()];
-const _closestPointOnDetailEdgesPmin = vec3.create();
-const _closestPointOnDetailEdgesPmax = vec3.create();
+const _closestPointOnDetailEdges_triangleVertices: Vec3[] = [vec3.create(), vec3.create(), vec3.create()];
+const _closestPointOnDetailEdges_pmin = vec3.create();
+const _closestPointOnDetailEdges_pmax = vec3.create();
 const _closestPointOnDetailEdges_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
 
 /**
@@ -448,8 +450,8 @@ export const getClosestPointOnDetailEdges = (
     let dmin = Number.MAX_VALUE;
     let tmin = 0;
 
-    const pmin = vec3.set(_closestPointOnDetailEdgesPmin, 0, 0, 0);
-    const pmax = vec3.set(_closestPointOnDetailEdgesPmax, 0, 0, 0);
+    const pmin = vec3.set(_closestPointOnDetailEdges_pmin, 0, 0, 0);
+    const pmax = vec3.set(_closestPointOnDetailEdges_pmax, 0, 0, 0);
 
     for (let i = 0; i < detailMesh.trianglesCount; i++) {
         const t = (detailMesh.trianglesBase + i) * 4;
@@ -465,7 +467,7 @@ export const getClosestPointOnDetailEdges = (
         }
 
         // get triangle vertices
-        const triangleVertices = _closestPointOnDetailEdgesTriangleVertices;
+        const triangleVertices = _closestPointOnDetailEdges_triangleVertices;
         for (let j = 0; j < 3; ++j) {
             const vertexIndex = detailTriangles[t + j];
             if (vertexIndex < poly.vertices.length) {
@@ -677,9 +679,9 @@ export const createFindNearestPolyResult = (): FindNearestPolyResult => {
     };
 };
 
-const _findNearestPolyClosestPointResult = createGetClosestPointOnPolyResult();
-const _findNearestPolyDiff = vec3.create();
-const _findNearestPolyBounds = box3.create();
+const _findNearestPoly_closestPointResult = createGetClosestPointOnPolyResult();
+const _findNearestPoly_diff = vec3.create();
+const _findNearestPoly_bounds = box3.create();
 
 export const findNearestPoly = (
     result: FindNearestPolyResult,
@@ -693,7 +695,7 @@ export const findNearestPoly = (
     vec3.copy(result.position, center);
 
     // get bounds for the query
-    const bounds = _findNearestPolyBounds;
+    const bounds = _findNearestPoly_bounds;
     vec3.sub(bounds[0], center, halfExtents);
     vec3.add(bounds[1], center, halfExtents);
 
@@ -704,7 +706,7 @@ export const findNearestPoly = (
 
     // find the closest polygon
     for (const ref of polys) {
-        const closestPoint = getClosestPointOnPoly(_findNearestPolyClosestPointResult, navMesh, ref, center);
+        const closestPoint = getClosestPointOnPoly(_findNearestPoly_closestPointResult, navMesh, ref, center);
 
         if (!closestPoint.success) continue;
 
@@ -715,17 +717,17 @@ export const findNearestPoly = (
         if (!tile) continue;
 
         // calculate difference vector
-        vec3.sub(_findNearestPolyDiff, center, closestPoint.position);
+        vec3.sub(_findNearestPoly_diff, center, closestPoint.position);
 
         let distSqr: number;
 
         // if a point is directly over a polygon and closer than
         // climb height, favor that instead of straight line nearest point.
         if (closestPoint.isOverPoly) {
-            const heightDiff = Math.abs(_findNearestPolyDiff[1]) - tile.walkableClimb;
+            const heightDiff = Math.abs(_findNearestPoly_diff[1]) - tile.walkableClimb;
             distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
         } else {
-            distSqr = vec3.squaredLength(_findNearestPolyDiff);
+            distSqr = vec3.squaredLength(_findNearestPoly_diff);
         }
 
         if (distSqr < nearestDistSqr) {
@@ -739,8 +741,8 @@ export const findNearestPoly = (
     return result;
 };
 
-const _queryPolygonsInTileBmax = vec3.create();
-const _queryPolygonsInTileBmin = vec3.create();
+const _queryPolygonsInTile_bmax = vec3.create();
+const _queryPolygonsInTile_bmin = vec3.create();
 
 export const queryPolygonsInTile = (
     out: NodeRef[],
@@ -767,12 +769,12 @@ export const queryPolygonsInTile = (
     const maxz = Math.max(Math.min(qmax[2], tbmax[2]), tbmin[2]) - tbmin[2];
 
     // quantize
-    _queryPolygonsInTileBmin[0] = Math.floor(qfac * minx) & 0xfffe;
-    _queryPolygonsInTileBmin[1] = Math.floor(qfac * miny) & 0xfffe;
-    _queryPolygonsInTileBmin[2] = Math.floor(qfac * minz) & 0xfffe;
-    _queryPolygonsInTileBmax[0] = Math.floor(qfac * maxx + 1) | 1;
-    _queryPolygonsInTileBmax[1] = Math.floor(qfac * maxy + 1) | 1;
-    _queryPolygonsInTileBmax[2] = Math.floor(qfac * maxz + 1) | 1;
+    _queryPolygonsInTile_bmin[0] = Math.floor(qfac * minx) & 0xfffe;
+    _queryPolygonsInTile_bmin[1] = Math.floor(qfac * miny) & 0xfffe;
+    _queryPolygonsInTile_bmin[2] = Math.floor(qfac * minz) & 0xfffe;
+    _queryPolygonsInTile_bmax[0] = Math.floor(qfac * maxx + 1) | 1;
+    _queryPolygonsInTile_bmax[1] = Math.floor(qfac * maxy + 1) | 1;
+    _queryPolygonsInTile_bmax[2] = Math.floor(qfac * maxz + 1) | 1;
 
     // traverse tree
     while (nodeIndex < endIndex) {
@@ -780,12 +782,12 @@ export const queryPolygonsInTile = (
 
         const nodeBounds = bvNode.bounds;
         const overlap =
-            _queryPolygonsInTileBmin[0] <= nodeBounds[1][0] &&
-            _queryPolygonsInTileBmax[0] >= nodeBounds[0][0] &&
-            _queryPolygonsInTileBmin[1] <= nodeBounds[1][1] &&
-            _queryPolygonsInTileBmax[1] >= nodeBounds[0][1] &&
-            _queryPolygonsInTileBmin[2] <= nodeBounds[1][2] &&
-            _queryPolygonsInTileBmax[2] >= nodeBounds[0][2];
+            _queryPolygonsInTile_bmin[0] <= nodeBounds[1][0] &&
+            _queryPolygonsInTile_bmax[0] >= nodeBounds[0][0] &&
+            _queryPolygonsInTile_bmin[1] <= nodeBounds[1][1] &&
+            _queryPolygonsInTile_bmax[1] >= nodeBounds[0][1] &&
+            _queryPolygonsInTile_bmin[2] <= nodeBounds[1][2] &&
+            _queryPolygonsInTile_bmax[2] >= nodeBounds[0][2];
 
         const isLeafNode = bvNode.i >= 0;
 
@@ -807,15 +809,15 @@ export const queryPolygonsInTile = (
     }
 };
 
-const _queryPolygonsMinTile = vec2.create();
-const _queryPolygonsMaxTile = vec2.create();
+const _queryPolygons_minTile = vec2.create();
+const _queryPolygons_maxTile = vec2.create();
 
 export const queryPolygons = (navMesh: NavMesh, bounds: Box3, filter: QueryFilter): NodeRef[] => {
     const result: NodeRef[] = [];
 
     // find min and max tile positions
-    const minTile = worldToTilePosition(_queryPolygonsMinTile, navMesh, bounds[0]);
-    const maxTile = worldToTilePosition(_queryPolygonsMaxTile, navMesh, bounds[1]);
+    const minTile = worldToTilePosition(_queryPolygons_minTile, navMesh, bounds[0]);
+    const maxTile = worldToTilePosition(_queryPolygons_maxTile, navMesh, bounds[1]);
 
     // iterate through the tiles in the query bounds
     if (!vec2.finite(minTile) || !vec2.finite(maxTile)) {
