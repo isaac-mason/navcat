@@ -315,42 +315,18 @@ export const createGetPolyHeightResult = (): GetPolyHeightResult => ({
 });
 
 /**
- * Gets the height of a polygon at a given point using detail mesh if available.
- * @param result The result object to populate
+ * Gets the height at a position inside a polygon using the detail mesh.
+ * Assumes the position is already known to be inside the polygon (in XZ).
  * @param tile The tile containing the polygon
  * @param poly The polygon
  * @param polyIndex The index of the polygon in the tile
  * @param pos The position to get height for
- * @returns The result object with success flag and height
+ * @returns The height at the position, or NaN if height could not be determined
  */
-export const getPolyHeight = (
-    result: GetPolyHeightResult,
-    tile: NavMeshTile,
-    poly: NavMeshPoly,
-    polyIndex: number,
-    pos: Vec3,
-): GetPolyHeightResult => {
-    result.success = false;
-    result.height = 0;
-
+const getDetailMeshHeight = (tile: NavMeshTile, poly: NavMeshPoly, polyIndex: number, pos: Vec3): number => {
     const detailMesh = tile.detailMeshes[polyIndex];
 
-    // build polygon vertices array
-    const nv = poly.vertices.length;
-    const vertices = _getPolyHeightVertices;
-    for (let i = 0; i < nv; ++i) {
-        const start = poly.vertices[i] * 3;
-        vertices[i * 3] = tile.vertices[start];
-        vertices[i * 3 + 1] = tile.vertices[start + 1];
-        vertices[i * 3 + 2] = tile.vertices[start + 2];
-    }
-
-    // check if point is inside polygon
-    if (!pointInPoly(pos, vertices, nv)) {
-        return result;
-    }
-
-    // point is inside polygon, find height at the location
+    // use detail mesh if available for more accurate height
     if (detailMesh) {
         for (let j = 0; j < detailMesh.trianglesCount; ++j) {
             const t = (detailMesh.trianglesBase + j) * 4;
@@ -378,9 +354,7 @@ export const getPolyHeight = (
             const height = closestHeightPointTriangle(pos, v[0], v[1], v[2]);
 
             if (!Number.isNaN(height)) {
-                result.success = true;
-                result.height = height;
-                return result;
+                return height;
             }
         }
     }
@@ -391,8 +365,46 @@ export const getPolyHeight = (
     // this should almost never happen so the extra iteration here is ok.
     const closest = vec3.create();
     getClosestPointOnDetailEdges(closest, tile, poly, polyIndex, pos, false);
+    return closest[1];
+};
+
+/**
+ * Gets the height of a polygon at a given point using detail mesh if available.
+ * @param result The result object to populate
+ * @param tile The tile containing the polygon
+ * @param poly The polygon
+ * @param polyIndex The index of the polygon in the tile
+ * @param pos The position to get height for
+ * @returns The result object with success flag and height
+ */
+export const getPolyHeight = (
+    result: GetPolyHeightResult,
+    tile: NavMeshTile,
+    poly: NavMeshPoly,
+    polyIndex: number,
+    pos: Vec3,
+): GetPolyHeightResult => {
+    result.success = false;
+    result.height = 0;
+
+    // build polygon vertices array
+    const nv = poly.vertices.length;
+    const vertices = _getPolyHeightVertices;
+    for (let i = 0; i < nv; ++i) {
+        const start = poly.vertices[i] * 3;
+        vertices[i * 3] = tile.vertices[start];
+        vertices[i * 3 + 1] = tile.vertices[start + 1];
+        vertices[i * 3 + 2] = tile.vertices[start + 2];
+    }
+
+    // check if point is inside polygon
+    if (!pointInPoly(pos, vertices, nv)) {
+        return result;
+    }
+
+    // point is inside polygon, find height at the location
+    result.height = getDetailMeshHeight(tile, poly, polyIndex, pos);
     result.success = true;
-    result.height = closest[1];
 
     return result;
 };
@@ -563,10 +575,10 @@ const _closestPointOnPolyBoundary_lineStart = vec3.create();
 const _closestPointOnPolyBoundary_lineEnd = vec3.create();
 const _closestPointOnPolyBoundary_vertices: number[] = [];
 const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
-const _closestPointOnPolyBoundary_getPolyHeightResult = createGetPolyHeightResult();
 
 /**
- * Gets the closest point on the boundary of a polygon to a given point
+ * Gets the closest point on the boundary of a polygon to a given point.
+ * If the point is inside the polygon (in XZ), the Y coordinate is adjusted to the polygon surface.
  * @param out the output closest point
  * @param navMesh the navigation mesh
  * @param nodeRef the polygon node reference
@@ -580,7 +592,7 @@ export const getClosestPointOnPolyBoundary = (out: Vec3, navMesh: NavMesh, nodeR
         return false;
     }
 
-    const { tile, poly } = tileAndPoly;
+    const { tile, poly, polyIndex } = tileAndPoly;
 
     const lineStart = _closestPointOnPolyBoundary_lineStart;
     const lineEnd = _closestPointOnPolyBoundary_lineEnd;
@@ -595,15 +607,11 @@ export const getClosestPointOnPolyBoundary = (out: Vec3, navMesh: NavMesh, nodeR
         vertices[i * 3 + 2] = tile.vertices[vIndex + 2];
     }
 
-    // if inside polygon, return the point as-is
+    // if inside polygon (XZ), return the point with Y adjusted to polygon surface
     if (pointInPoly(point, vertices, verticesCount)) {
-        vec3.copy(out, point);
-
-        // get the height of the polygon at this location
-        const heightResult = getPolyHeight(_closestPointOnPolyBoundary_getPolyHeightResult, tile, poly, tile.polys.indexOf(poly), point);
-        if (heightResult.success) {
-            out[1] = heightResult.height;
-        }
+        out[0] = point[0];
+        out[2] = point[2];
+        out[1] = getDetailMeshHeight(tile, poly, polyIndex, point);
 
         return true;
     }
