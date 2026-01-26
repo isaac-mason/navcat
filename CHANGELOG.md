@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.1.5 (Unreleased)
+## 0.1.5
 
 - feat: minor refactors of nav-mesh-api.ts temporary scratch variables
 - feat: refactor getClosestPointOnPolyBoundary and getPolyHeight to reuse common poly mesh detail logic, avoids some redundant logic in calls to getClosestPointOnPolyBoundary
