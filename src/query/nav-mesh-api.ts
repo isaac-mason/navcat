@@ -597,6 +597,13 @@ export const getClosestPointOnPolyBoundary = (out: Vec3, navMesh: NavMesh, nodeR
     // if inside polygon, return the point as-is
     if (pointInPoly(point, vertices, verticesCount)) {
         vec3.copy(out, point);
+
+        // get the height of the polygon at this location
+        const heightResult = getPolyHeight(_getClosestPointOnPolyHeightResult, tile, poly, tile.polys.indexOf(poly), point);
+        if (heightResult.success) {
+            out[1] = heightResult.height;
+        }
+
         return true;
     }
 

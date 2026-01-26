@@ -4,6 +4,8 @@
 
 - feat: avoid memory allocations in findRandomPoint and findRandomPointAroundCircle (@FlorentMasson)
 - fix: more permissive three peer dependency range
+- feat: change `getClosestPointOnPolyBoundary` to use `getPolyHeight` when the given point is inside the polygon's XZ bounds
+  - this improves `findStraightPath` behaviour when the start and end points are above or below polygon nodes in the path
 
 ## 0.1.3
 
