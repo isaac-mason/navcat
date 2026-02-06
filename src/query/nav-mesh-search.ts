@@ -22,7 +22,7 @@ import {
     getTileAndPolyByRef,
     isValidNodeRef,
 } from './nav-mesh-api';
-import { getNodeRefType, type NodeRef, NodeType } from './node';
+import { getNodeRefType, INVALID_NODE_REF, type NodeRef, NodeType } from './node';
 
 export const NODE_FLAG_OPEN = 0x01;
 export const NODE_FLAG_CLOSED = 0x02;
@@ -1396,7 +1396,7 @@ const raycastBase = (
         vec3.copy(_raycast_curPos, startPosition);
     }
 
-    while (curRef) {
+    while (curRef !== INVALID_NODE_REF) {
         // get current tile and poly
         const tileAndPolyResult = getTileAndPolyByRef(curRef, navMesh);
         if (!tileAndPolyResult.success) break;

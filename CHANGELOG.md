@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.1.6 (Unreleased)
+
+- fix: change raycastBase truthy check to INVALID_NODE_REF check
+
 ## 0.1.5
 
 - feat: minor refactors of nav-mesh-api.ts temporary scratch variables
