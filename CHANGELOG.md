@@ -3,6 +3,8 @@
 ## 0.1.6 (Unreleased)
 
 - fix: change raycastBase truthy check to INVALID_NODE_REF check
+- fix: use INVALID_NODE_REF instead of 0 as fallback for parentNodeRef in nav-mesh-search and steerPosRef in find-smooth-path
+- fix: use null check instead of truthy check for prevNodeRef in find-smooth-path off-mesh connection handling
 - feat: update mathcat from v0.0.6 to v0.0.8, required changes to logic using old triangle2 triangle3 apis
 
 ## 0.1.5

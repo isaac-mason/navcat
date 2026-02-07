@@ -1,4 +1,4 @@
-import { getNodeByRef, type NavMesh, type NodeRef, type QueryFilter } from 'navcat';
+import { getNodeByRef, INVALID_NODE_REF, type NavMesh, type NodeRef, type QueryFilter } from 'navcat';
 
 export type FlowField = {
     cost: Map<NodeRef, number>;
@@ -65,7 +65,7 @@ export function getNodePathFromFlowField(flowField: FlowField, startNodeRef: Nod
     let current = startNodeRef;
     const visited = new Set<NodeRef>();
 
-    while (current && flowField.next.has(current) && !visited.has(current)) {
+    while (current !== INVALID_NODE_REF && flowField.next.has(current) && !visited.has(current)) {
         path.push(current);
         visited.add(current);
         const next = flowField.next.get(current);

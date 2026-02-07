@@ -224,12 +224,12 @@ function performRaycast() {
     if (raycastResult.t === Number.MAX_VALUE) {
         // ray reached the end without hitting a wall
         raycastHitPos = vec3.clone(endPosition);
-        raycastHitPoly = raycastResult.path[raycastResult.path.length - 1] || endNodeRef;
+        raycastHitPoly = raycastResult.path[raycastResult.path.length - 1] ?? endNodeRef;
     } else {
         // ray hit a wall at parameter t
         raycastHitPos = vec3.create();
         vec3.lerp(raycastHitPos, startPosition, endPosition, raycastResult.t);
-        raycastHitPoly = raycastResult.path[raycastResult.path.length - 1] || startNodeRef;
+        raycastHitPoly = raycastResult.path[raycastResult.path.length - 1] ?? startNodeRef;
     }
 
     // if hit poly is different from end poly, get the actual height on the hit poly
@@ -464,7 +464,7 @@ function performRaycast() {
     addVisual(endPolyHelper);
 
     // highlight raycast hit poly (yellow/orange) if different from end poly
-    if (raycastHitPoly && raycastHitPoly !== endNodeRef) {
+    if (raycastHitPoly !== null && raycastHitPoly !== endNodeRef) {
         const hitPolyHelper = createNavMeshPolyHelper(navMesh, raycastHitPoly, [1, 0.6, 0]);
         hitPolyHelper.object.position.y += 0.25;
         addVisual(hitPolyHelper);

@@ -5,7 +5,7 @@ import type { NavMesh } from './nav-mesh';
 import type { QueryFilter } from './nav-mesh-api';
 import { createFindNearestPolyResult, findNearestPoly, getNodeByRef } from './nav-mesh-api';
 import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
-import { type NodeRef, NodeType } from './node';
+import { INVALID_NODE_REF, type NodeRef, NodeType } from './node';
 
 const _findSmoothPath_delta = vec3.create();
 const _findSmoothPath_moveTarget = vec3.create();
@@ -231,7 +231,7 @@ export const findSmoothPath = (
             const offMeshNode = getNodeByRef(navMesh, offMeshConRef);
             const offMeshConnection = navMesh.offMeshConnections[offMeshNode.offMeshConnectionId];
 
-            if (offMeshConnection && prevNodeRef) {
+            if (offMeshConnection && prevNodeRef !== null) {
                 // find the link from the previous poly to the off-mesh node to determine direction
                 const prevNode = getNodeByRef(navMesh, prevNodeRef);
                 let linkEdge = 0; // default to START
@@ -308,7 +308,7 @@ const getSteerTarget = (
     const result: GetSteerTargetResult = {
         success: false,
         steerPos: [0, 0, 0],
-        steerPosRef: 0,
+        steerPosRef: INVALID_NODE_REF,
         steerPosFlags: 0,
     };
 
@@ -345,7 +345,7 @@ const getSteerTarget = (
     const steerPoint = straightPath.path[ns];
 
     vec3.copy(result.steerPos, steerPoint.position);
-    result.steerPosRef = steerPoint.nodeRef ?? 0;
+    result.steerPosRef = steerPoint.nodeRef ?? INVALID_NODE_REF;
     result.steerPosFlags = steerPoint.flags;
     result.success = true;
 

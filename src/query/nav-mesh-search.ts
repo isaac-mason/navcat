@@ -763,7 +763,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                             grandparentNode.position,
                             neighbourSearchNode.position,
                             query.filter,
-                            grandparentNode.parentNodeRef ?? 0, // pass the great-grandparent for accurate cost calculations
+                            grandparentNode.parentNodeRef ?? INVALID_NODE_REF, // pass the great-grandparent for accurate cost calculations
                         );
 
                         // if the raycast didn't hit anything, we can take the shortcut

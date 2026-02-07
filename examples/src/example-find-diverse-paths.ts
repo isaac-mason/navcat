@@ -149,8 +149,8 @@ function findDiversePaths(
         passFilter: (ref, nm) => base.passFilter(ref, nm),
         getCost: (pa, pb, nm, prevRef, curRef, nextRef) => {
             const baseCost = base.getCost(pa, pb, nm, prevRef, curRef, nextRef);
-            const pCur = curRef ? (penalty.get(curRef) ?? 0) : 0;
-            const pNext = nextRef ? (penalty.get(nextRef) ?? 0) : 0;
+            const pCur = penalty.get(curRef) ?? 0;
+            const pNext = nextRef !== undefined ? (penalty.get(nextRef) ?? 0) : 0;
             return baseCost + pCur + 0.5 * pNext;
         },
     });
