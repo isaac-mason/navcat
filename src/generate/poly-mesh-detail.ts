@@ -1,4 +1,4 @@
-import { clamp, type Vec2, type Vec3, vec2, vec3, triangle2, circle } from 'mathcat';
+import { circle, circumcircle, clamp, type Vec2, type Vec3, vec2, vec3 } from 'mathcat';
 import { distancePtSeg, distToPoly, distToTriMesh, overlapSegSeg2d, polyMinExtent } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { getDirForOffset, getDirOffsetX, getDirOffsetY, MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED } from './common';
@@ -195,7 +195,9 @@ const _completeFacetPointU: Vec2 = vec2.create();
 const _completeFacetCircleCenter: Vec2 = vec2.create();
 const _completeFacetDistanceCalc: Vec2 = vec2.create();
 
-const _circumcircleTriangle = triangle2.create();
+const _triangleV1 = vec2.create();
+const _triangleV2 = vec2.create();
+const _triangleV3 = vec2.create();
 const _circumcircleResult = circle.create();
 
 // Triangle completion function for Delaunay triangulation
@@ -248,11 +250,11 @@ const completeFacet = (
                 // The circle is not updated yet, do it now.
                 pt = u;
 
-                getVec2XZ(_circumcircleTriangle[0], points, s * 3);
-                getVec2XZ(_circumcircleTriangle[1], points, t * 3);
-                getVec2XZ(_circumcircleTriangle[2], points, u * 3);
+                getVec2XZ(_triangleV1, points, s * 3);
+                getVec2XZ(_triangleV2, points, t * 3);
+                getVec2XZ(_triangleV3, points, u * 3);
 
-                triangle2.circumcircle(_circumcircleResult, _circumcircleTriangle);
+                circumcircle(_circumcircleResult, _triangleV1, _triangleV2, _triangleV3);
 
                 c[0] = _circumcircleResult.center[0];
                 c[1] = 0;
@@ -281,11 +283,11 @@ const completeFacet = (
             // Edge is valid.
             pt = u;
 
-            getVec2XZ(_circumcircleTriangle[0], points, s * 3);
-            getVec2XZ(_circumcircleTriangle[1], points, t * 3);
-            getVec2XZ(_circumcircleTriangle[2], points, u * 3);
+            getVec2XZ(_triangleV1, points, s * 3);
+            getVec2XZ(_triangleV2, points, t * 3);
+            getVec2XZ(_triangleV3, points, u * 3);
 
-            triangle2.circumcircle(_circumcircleResult, _circumcircleTriangle);
+            circumcircle(_circumcircleResult, _triangleV1, _triangleV2, _triangleV3);
 
             c[0] = _circumcircleResult.center[0];
             c[1] = 0;

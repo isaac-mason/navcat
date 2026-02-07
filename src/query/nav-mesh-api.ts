@@ -1,4 +1,4 @@
-import type { Box3, Triangle3, Vec2, Vec3 } from 'mathcat';
+import type { Box3, Vec2, Vec3 } from 'mathcat';
 import { box3, vec2, vec3 } from 'mathcat';
 import { DETAIL_EDGE_BOUNDARY, POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
 import { closestHeightPointTriangle, createDistancePtSegSqr2dResult, distancePtSegSqr2d, pointInPoly } from '../geometry';
@@ -357,7 +357,7 @@ const getDetailMeshHeight = (tile: NavMeshTile, poly: NavMeshPoly, polyIndex: nu
 const _getPolyHeight_a = vec3.create();
 const _getPolyHeight_b = vec3.create();
 const _getPolyHeight_c = vec3.create();
-const _getPolyHeight_triangle: Triangle3 = [_getPolyHeight_a, _getPolyHeight_b, _getPolyHeight_c];
+const _getPolyHeight_triangle: [Vec3, Vec3, Vec3] = [_getPolyHeight_a, _getPolyHeight_b, _getPolyHeight_c];
 const _getPolyHeight_vertices: number[] = [];
 
 export type GetPolyHeightResult = {

@@ -1,6 +1,6 @@
 import Rapier from '@dimforge/rapier3d-compat';
 import { GUI } from 'lil-gui';
-import { box3, triangle3, vec2, type Vec3, vec3 } from 'mathcat';
+import { box3, vec2, type Vec3, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
     addTile,
@@ -1212,8 +1212,10 @@ function initDynamicNavMesh(
     const tileStaticHeightfields = new Map<string, ReturnType<typeof createHeightfield>>();
     
     const borderOffset = config.borderSize * config.cellSize;
-    const triangle = triangle3.create();
-    
+    const triA: Vec3 = [0, 0, 0];
+    const triB: Vec3 = [0, 0, 0];
+    const triC: Vec3 = [0, 0, 0];
+
     for (let tx = 0; tx < tileWidth; tx++) {
         for (let ty = 0; ty < tileHeight; ty++) {
             const min: Vec3 = [
@@ -1229,25 +1231,25 @@ function initDynamicNavMesh(
             const bounds: [Vec3, Vec3] = [min, max];
             const key = serTileKey(tx, ty);
             tileBoundsCache.set(key, bounds);
-            
+
             const expandedMin: Vec3 = [min[0] - borderOffset, min[1], min[2] - borderOffset];
             const expandedMax: Vec3 = [max[0] + borderOffset, max[1], max[2] + borderOffset];
             const expandedBounds: [Vec3, Vec3] = [expandedMin, expandedMax];
             tileExpandedBoundsCache.set(key, expandedBounds);
-            
+
             const expandedBox = expandedBounds as any;
             const trianglesInBox: number[] = [];
-            
+
             for (let i = 0; i < levelIndices.length; i += 3) {
                 const a = levelIndices[i];
                 const b = levelIndices[i + 1];
                 const c = levelIndices[i + 2];
-                
-                vec3.fromBuffer(triangle[0], levelPositions, a * 3);
-                vec3.fromBuffer(triangle[1], levelPositions, b * 3);
-                vec3.fromBuffer(triangle[2], levelPositions, c * 3);
-                
-                if (box3.intersectsTriangle3(expandedBox, triangle)) {
+
+                vec3.fromBuffer(triA, levelPositions, a * 3);
+                vec3.fromBuffer(triB, levelPositions, b * 3);
+                vec3.fromBuffer(triC, levelPositions, c * 3);
+
+                if (box3.intersectsTriangle3(expandedBox, triA, triB, triC)) {
                     trianglesInBox.push(a, b, c);
                 }
             }

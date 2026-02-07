@@ -3,6 +3,7 @@
 ## 0.1.6 (Unreleased)
 
 - fix: change raycastBase truthy check to INVALID_NODE_REF check
+- feat: update mathcat from v0.0.6 to v0.0.8, required changes to logic using old triangle2 triangle3 apis
 
 ## 0.1.5
 

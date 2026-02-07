@@ -1,5 +1,5 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import { box3, triangle3, vec2, type Vec3, vec3 } from 'mathcat';
+import { box3, vec2, type Vec3, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
     addTile,
@@ -276,18 +276,20 @@ for (let tx = 0; tx < tileWidth; tx++) {
 
         // collect triangles overlapping expanded bounds
         const trianglesInBox: number[] = [];
-        const triangle = triangle3.create();
+        const triA: Vec3 = [0, 0, 0];
+        const triB: Vec3 = [0, 0, 0];
+        const triC: Vec3 = [0, 0, 0];
 
         for (let i = 0; i < levelIndices.length; i += 3) {
             const a = levelIndices[i];
             const b = levelIndices[i + 1];
             const c = levelIndices[i + 2];
 
-            vec3.fromBuffer(triangle[0], levelPositions, a * 3);
-            vec3.fromBuffer(triangle[1], levelPositions, b * 3);
-            vec3.fromBuffer(triangle[2], levelPositions, c * 3);
+            vec3.fromBuffer(triA, levelPositions, a * 3);
+            vec3.fromBuffer(triB, levelPositions, b * 3);
+            vec3.fromBuffer(triC, levelPositions, c * 3);
 
-            if (box3.intersectsTriangle3(expanded as any, triangle)) {
+            if (box3.intersectsTriangle3(expanded, triA, triB, triC)) {
                 trianglesInBox.push(a, b, c);
             }
         }
