@@ -435,7 +435,7 @@ const fixupShortcuts = (pathPolys: NodeRef[], navMesh: NavMesh): void => {
 
     for (const linkIndex of firstNode.links) {
         const link = navMesh.links[linkIndex];
-        if (link?.toNodeRef && nneis < maxNeis) {
+        if (link && nneis < maxNeis) {
             neis.push(link.toNodeRef);
             nneis++;
         }

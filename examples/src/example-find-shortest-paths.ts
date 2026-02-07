@@ -107,7 +107,7 @@ function findShortestPaths(
             return baseFilter.passFilter(ref, nm);
         },
         getCost: (pa, pb, nm, prevRef, curRef, nextRef) => {
-            if (curRef && nextRef) {
+            if (nextRef !== undefined) {
                 if (blockedEdges.has(edgeKey(curRef, nextRef))) {
                     return Number.POSITIVE_INFINITY;
                 }

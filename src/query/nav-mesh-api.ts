@@ -674,7 +674,7 @@ export type FindNearestPolyResult = {
 export const createFindNearestPolyResult = (): FindNearestPolyResult => {
     return {
         success: false,
-        nodeRef: 0,
+        nodeRef: INVALID_NODE_REF,
         position: [0, 0, 0],
     };
 };
@@ -890,10 +890,10 @@ const allocateLink = (navMesh: NavMesh) => {
         link = navMesh.links[linkIndex] = {
             allocated: true,
             index: linkIndex,
-            fromNodeIndex: 0,
-            fromNodeRef: 0,
-            toNodeIndex: 0,
-            toNodeRef: 0,
+            fromNodeIndex: -1,
+            fromNodeRef: INVALID_NODE_REF,
+            toNodeIndex: -1,
+            toNodeRef: INVALID_NODE_REF,
             edge: 0,
             side: 0,
             bmin: 0,
@@ -914,9 +914,9 @@ const releaseLink = (navMesh: NavMesh, index: number) => {
 
     link.allocated = false;
     link.fromNodeIndex = -1;
-    link.fromNodeRef = 0;
+    link.fromNodeRef = INVALID_NODE_REF;
     link.toNodeIndex = -1;
-    link.toNodeRef = 0;
+    link.toNodeRef = INVALID_NODE_REF;
     link.edge = 0;
     link.side = 0;
     link.bmin = 0;

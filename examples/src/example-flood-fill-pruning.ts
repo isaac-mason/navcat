@@ -172,7 +172,7 @@ function applyFloodFillPruning(startRef?: NodeRef) {
     currentResult.navMesh = JSON.parse(JSON.stringify(originalNavMesh));
 
     // apply flood fill pruning using navMesh.nodes and navMesh.links
-    const selectedStartRef = startRef || getRandomPolyRef();
+    const selectedStartRef = startRef ?? getRandomPolyRef();
 
     if (selectedStartRef) {
         floodFillPruneNavMesh(currentResult.navMesh, [selectedStartRef as NodeRef]);

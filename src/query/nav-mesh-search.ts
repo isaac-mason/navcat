@@ -1866,7 +1866,7 @@ export const findRandomPointAroundCircle = (
             const neighbourRef = link.toNodeRef;
 
             // skip invalid neighbours and do not follow back to parent
-            if (!neighbourRef || neighbourRef === parentRef) {
+            if (neighbourRef === INVALID_NODE_REF || neighbourRef === parentRef) {
                 continue;
             }
 
