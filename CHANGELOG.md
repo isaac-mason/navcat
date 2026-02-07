@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.1.6 (Unreleased)
+## 0.1.6
 
 - fix: change raycastBase truthy check to INVALID_NODE_REF check
 - fix: use INVALID_NODE_REF instead of 0 as fallback for parentNodeRef in nav-mesh-search and steerPosRef in find-smooth-path
