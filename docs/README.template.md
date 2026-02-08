@@ -43,8 +43,6 @@ An example of using navcat without any build tools using unpkg can be found here
 
 See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each version.
 
-> **_NOTE:_** This library is under active development. In the leadup to a v1 release, you can expect APIs to improve and change in minor versions.
-
 **Examples**
 
 <Examples />
