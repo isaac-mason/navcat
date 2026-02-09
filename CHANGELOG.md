@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.1.7 (Unreleased)
+
+- feat: update mathcat from v0.0.8 to v0.0.9
+
 ## 0.1.6
 
 - fix: change raycastBase truthy check to INVALID_NODE_REF check
