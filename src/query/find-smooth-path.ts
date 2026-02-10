@@ -84,6 +84,7 @@ export type FindSmoothPathResult = {
  * @param queryFilter The query filter.
  * @param stepSize The step size for movement along the surface
  * @param slop The distance tolerance for reaching waypoints
+ * @param raycastDistance The maximum distance when using raycast to find visibility shortcuts
  * @returns The result of the smooth pathfinding operation, with path points containing position, type, and nodeRef information.
  */
 
@@ -96,6 +97,7 @@ export const findSmoothPath = (
     stepSize: number,
     slop: number,
     maxPoints: number,
+    raycastDistance?: number,
 ): FindSmoothPathResult => {
     const result: FindSmoothPathResult = {
         success: false,
@@ -136,6 +138,7 @@ export const findSmoothPath = (
         result.startPosition,
         result.endPosition,
         queryFilter,
+        raycastDistance,
     );
 
     result.nodePath = nodePath;
