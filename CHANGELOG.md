@@ -2,7 +2,7 @@
 
 ## 0.1.7 (Unreleased)
 
-- feat: update mathcat from v0.0.8 to v0.0.9
+- feat: update mathcat from v0.0.8 to v0.0.10
 
 ## 0.1.6
 
