@@ -12,12 +12,12 @@
         "@dimforge/rapier3d-compat": "^0.19.1",
         "lil-gui": "^0.21.0",
         "navcat": "workspace:*",
-        "three": "^0.180.0",
-        "three-mesh-bvh": "^0.9.1"
+        "three": "^0.183.0",
+        "three-mesh-bvh": "^0.9.8"
     },
     "devDependencies": {
-        "@types/three": "^0.180.0",
+        "@types/three": "^0.183.0",
         "typescript": "^5.9.3",
-        "vite": "^7.1.10"
+        "vite": "^7.3.1"
     }
 }

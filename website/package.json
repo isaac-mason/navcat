@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "navcat": "workspace:*",
-    "three": "^0.180.0"
+    "three": "^0.183.0"
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
-    "@types/three": "^0.180.0",
+    "@types/three": "^0.183.0",
     "globals": "^16.4.0",
     "typescript": "~5.9.3",
-    "vite": "^7.1.7"
+    "vite": "^7.3.1"
   }
 }
