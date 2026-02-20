@@ -55,7 +55,7 @@
         "@biomejs/biome": "^2.2.0",
         "@rollup/plugin-node-resolve": "^16.0.1",
         "@rollup/plugin-typescript": "^12.1.4",
-        "@types/three": "0.180.0",
+        "@types/three": "0.183.0",
         "rollup": "^4.46.2",
         "rollup-plugin-copy": "^3.5.0",
         "rollup-plugin-filesize": "^10.0.0",

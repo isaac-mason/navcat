@@ -13,7 +13,7 @@ importers:
         version: 0.0.10
       three:
         specifier: '>=0.180.0'
-        version: 0.180.0
+        version: 0.183.0
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.2.0
@@ -25,8 +25,8 @@ importers:
         specifier: ^12.1.4
         version: 12.1.4(rollup@4.46.2)(tslib@2.8.1)(typescript@5.9.2)
       '@types/three':
-        specifier: 0.180.0
-        version: 0.180.0
+        specifier: 0.183.0
+        version: 0.183.0
       rollup:
         specifier: ^4.46.2
         version: 4.46.2
@@ -1200,18 +1200,6 @@ packages:
     resolution: {integrity: sha512-jIBvWWShCvlBqBNIZt0KAshWpvSjhkwkEu4ZUcASoAvhmrgAUI2t1dXrjSL4xXVLB4FznPrIsX3nKXFl/Dt4vA==}
     dev: true
 
-  /@types/three@0.180.0:
-    resolution: {integrity: sha512-ykFtgCqNnY0IPvDro7h+9ZeLY+qjgUWv+qEvUt84grhenO60Hqd4hScHE7VTB9nOQ/3QM8lkbNE+4vKjEpUxKg==}
-    dependencies:
-      '@dimforge/rapier3d-compat': 0.12.0
-      '@tweenjs/tween.js': 23.1.3
-      '@types/stats.js': 0.17.4
-      '@types/webxr': 0.5.22
-      '@webgpu/types': 0.1.64
-      fflate: 0.8.2
-      meshoptimizer: 0.22.0
-    dev: true
-
   /@types/three@0.183.0:
     resolution: {integrity: sha512-AaGkvloQhxdrfMm/HbY8cpOz1K1jkEELn6zjFoY3yhAiC7zhhZE19+gDBybYwKk+GqXmWKxqDCB43NqyW3+QZw==}
     dependencies:
@@ -2208,10 +2196,6 @@ packages:
     engines: {node: '>= 8'}
     dev: true
 
-  /meshoptimizer@0.22.0:
-    resolution: {integrity: sha512-IebiK79sqIy+E4EgOr+CAw+Ke8hAspXKzBd0JdgEmPHiAwmvEj2S4h1rfvo+o/BnfEYd/jAOg5IeeIjzlzSnDg==}
-    dev: true
-
   /meshoptimizer@1.0.1:
     resolution: {integrity: sha512-Vix+QlA1YYT3FwmBBZ+49cE5y/b+pRrcXKqGpS5ouh33d3lSp2PoTpCw19E0cKDFWalembrHnIaZetf27a+W2g==}
     dev: true
@@ -2954,10 +2938,6 @@ packages:
       three: '>= 0.159.0'
     dependencies:
       three: 0.183.0
-    dev: false
-
-  /three@0.180.0:
-    resolution: {integrity: sha512-o+qycAMZrh+TsE01GqWUxUIKR1AL0S8pq7zDkYOQw8GqfX8b8VoCKYUoHbhiX5j+7hr8XsuHDVU6+gkQJQKg9w==}
     dev: false
 
   /three@0.183.0:
