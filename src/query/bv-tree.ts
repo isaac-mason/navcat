@@ -3,38 +3,38 @@ import { MESH_NULL_IDX } from '../generate';
 import type { NavMeshBvNode, NavMeshTileBvTree, NavMeshTileParams } from './nav-mesh';
 
 const compareItemX = (a: NavMeshBvNode, b: NavMeshBvNode): number => {
-    if (a.bounds[0][0] < b.bounds[0][0]) return -1;
-    if (a.bounds[0][0] > b.bounds[0][0]) return 1;
+    if (a.bounds[0] < b.bounds[0]) return -1;
+    if (a.bounds[0] > b.bounds[0]) return 1;
     return 0;
 };
 
 const compareItemY = (a: NavMeshBvNode, b: NavMeshBvNode): number => {
-    if (a.bounds[0][1] < b.bounds[0][1]) return -1;
-    if (a.bounds[0][1] > b.bounds[0][1]) return 1;
+    if (a.bounds[1] < b.bounds[1]) return -1;
+    if (a.bounds[1] > b.bounds[1]) return 1;
     return 0;
 };
 
 const compareItemZ = (a: NavMeshBvNode, b: NavMeshBvNode): number => {
-    if (a.bounds[0][2] < b.bounds[0][2]) return -1;
-    if (a.bounds[0][2] > b.bounds[0][2]) return 1;
+    if (a.bounds[2] < b.bounds[2]) return -1;
+    if (a.bounds[2] > b.bounds[2]) return 1;
     return 0;
 };
 
 const calcExtends = (items: NavMeshBvNode[], imin: number, imax: number): Box3 => {
     const bounds: Box3 = [
-        [items[imin].bounds[0][0], items[imin].bounds[0][1], items[imin].bounds[0][2]],
-        [items[imin].bounds[1][0], items[imin].bounds[1][1], items[imin].bounds[1][2]],
+        items[imin].bounds[0], items[imin].bounds[1], items[imin].bounds[2],
+        items[imin].bounds[3], items[imin].bounds[4], items[imin].bounds[5],
     ];
 
     for (let i = imin + 1; i < imax; ++i) {
         const it = items[i];
-        if (it.bounds[0][0] < bounds[0][0]) bounds[0][0] = it.bounds[0][0];
-        if (it.bounds[0][1] < bounds[0][1]) bounds[0][1] = it.bounds[0][1];
-        if (it.bounds[0][2] < bounds[0][2]) bounds[0][2] = it.bounds[0][2];
+        if (it.bounds[0] < bounds[0]) bounds[0] = it.bounds[0];
+        if (it.bounds[1] < bounds[1]) bounds[1] = it.bounds[1];
+        if (it.bounds[2] < bounds[2]) bounds[2] = it.bounds[2];
 
-        if (it.bounds[1][0] > bounds[1][0]) bounds[1][0] = it.bounds[1][0];
-        if (it.bounds[1][1] > bounds[1][1]) bounds[1][1] = it.bounds[1][1];
-        if (it.bounds[1][2] > bounds[1][2]) bounds[1][2] = it.bounds[1][2];
+        if (it.bounds[3] > bounds[3]) bounds[3] = it.bounds[3];
+        if (it.bounds[4] > bounds[4]) bounds[4] = it.bounds[4];
+        if (it.bounds[5] > bounds[5]) bounds[5] = it.bounds[5];
     }
 
     return bounds;
@@ -64,39 +64,36 @@ const subdivide = (
     const icur = curNode.value;
 
     const node: NavMeshBvNode = {
-        bounds: [
-            [0, 0, 0],
-            [0, 0, 0],
-        ],
+        bounds: [0, 0, 0, 0, 0, 0],
         i: 0,
     };
     nodes[curNode.value++] = node;
 
     if (inum === 1) {
         // Leaf
-        node.bounds[0][0] = items[imin].bounds[0][0];
-        node.bounds[0][1] = items[imin].bounds[0][1];
-        node.bounds[0][2] = items[imin].bounds[0][2];
+        node.bounds[0] = items[imin].bounds[0];
+        node.bounds[1] = items[imin].bounds[1];
+        node.bounds[2] = items[imin].bounds[2];
 
-        node.bounds[1][0] = items[imin].bounds[1][0];
-        node.bounds[1][1] = items[imin].bounds[1][1];
-        node.bounds[1][2] = items[imin].bounds[1][2];
+        node.bounds[3] = items[imin].bounds[3];
+        node.bounds[4] = items[imin].bounds[4];
+        node.bounds[5] = items[imin].bounds[5];
 
         node.i = items[imin].i;
     } else {
         // Split
         const extents = calcExtends(items, imin, imax);
-        node.bounds[0][0] = extents[0][0];
-        node.bounds[0][1] = extents[0][1];
-        node.bounds[0][2] = extents[0][2];
-        node.bounds[1][0] = extents[1][0];
-        node.bounds[1][1] = extents[1][1];
-        node.bounds[1][2] = extents[1][2];
+        node.bounds[0] = extents[0];
+        node.bounds[1] = extents[1];
+        node.bounds[2] = extents[2];
+        node.bounds[3] = extents[3];
+        node.bounds[4] = extents[4];
+        node.bounds[5] = extents[5];
 
         const axis = longestAxis(
-            node.bounds[1][0] - node.bounds[0][0],
-            node.bounds[1][1] - node.bounds[0][1],
-            node.bounds[1][2] - node.bounds[0][2],
+            node.bounds[3] - node.bounds[0],
+            node.bounds[4] - node.bounds[1],
+            node.bounds[5] - node.bounds[2],
         );
 
         if (axis === 0) {
@@ -160,10 +157,7 @@ export const buildNavMeshBvTree = (
     // calculate bounds for each polygon
     for (let i = 0; i < params.polys.length; i++) {
         const item: NavMeshBvNode = {
-            bounds: [
-                [0, 0, 0],
-                [0, 0, 0],
-            ],
+            bounds: [0, 0, 0, 0, 0, 0],
             i,
         };
 
@@ -174,9 +168,9 @@ export const buildNavMeshBvTree = (
             // expand bounds with polygon vertices
             const firstVertIndex = poly.vertices[0] * 3;
 
-            item.bounds[0][0] = item.bounds[1][0] = params.vertices[firstVertIndex];
-            item.bounds[0][1] = item.bounds[1][1] = params.vertices[firstVertIndex + 1];
-            item.bounds[0][2] = item.bounds[1][2] = params.vertices[firstVertIndex + 2];
+            item.bounds[0] = item.bounds[3] = params.vertices[firstVertIndex];
+            item.bounds[1] = item.bounds[4] = params.vertices[firstVertIndex + 1];
+            item.bounds[2] = item.bounds[5] = params.vertices[firstVertIndex + 2];
 
             for (let j = 1; j < nvp; j++) {
                 const vertexIndex = poly.vertices[j];
@@ -187,13 +181,13 @@ export const buildNavMeshBvTree = (
                 const y = params.vertices[vertIndex + 1];
                 const z = params.vertices[vertIndex + 2];
 
-                if (x < item.bounds[0][0]) item.bounds[0][0] = x;
-                if (y < item.bounds[0][1]) item.bounds[0][1] = y;
-                if (z < item.bounds[0][2]) item.bounds[0][2] = z;
+                if (x < item.bounds[0]) item.bounds[0] = x;
+                if (y < item.bounds[1]) item.bounds[1] = y;
+                if (z < item.bounds[2]) item.bounds[2] = z;
 
-                if (x > item.bounds[1][0]) item.bounds[1][0] = x;
-                if (y > item.bounds[1][1]) item.bounds[1][1] = y;
-                if (z > item.bounds[1][2]) item.bounds[1][2] = z;
+                if (x > item.bounds[3]) item.bounds[3] = x;
+                if (y > item.bounds[4]) item.bounds[4] = y;
+                if (z > item.bounds[5]) item.bounds[5] = z;
             }
 
             // expand bounds with additional detail vertices if available
@@ -209,24 +203,24 @@ export const buildNavMeshBvTree = (
                     const y = params.detailVertices[vertIndex + 1];
                     const z = params.detailVertices[vertIndex + 2];
 
-                    if (x < item.bounds[0][0]) item.bounds[0][0] = x;
-                    if (y < item.bounds[0][1]) item.bounds[0][1] = y;
-                    if (z < item.bounds[0][2]) item.bounds[0][2] = z;
+                    if (x < item.bounds[0]) item.bounds[0] = x;
+                    if (y < item.bounds[1]) item.bounds[1] = y;
+                    if (z < item.bounds[2]) item.bounds[2] = z;
 
-                    if (x > item.bounds[1][0]) item.bounds[1][0] = x;
-                    if (y > item.bounds[1][1]) item.bounds[1][1] = y;
-                    if (z > item.bounds[1][2]) item.bounds[1][2] = z;
+                    if (x > item.bounds[3]) item.bounds[3] = x;
+                    if (y > item.bounds[4]) item.bounds[4] = y;
+                    if (z > item.bounds[5]) item.bounds[5] = z;
                 }
             }
 
             // bv tree uses cellSize for all dimensions, quantize relative to tile bounds
-            item.bounds[0][0] = (item.bounds[0][0] - params.bounds[0][0]) * quantFactor;
-            item.bounds[0][1] = (item.bounds[0][1] - params.bounds[0][1]) * quantFactor;
-            item.bounds[0][2] = (item.bounds[0][2] - params.bounds[0][2]) * quantFactor;
+            item.bounds[0] = (item.bounds[0] - params.bounds[0]) * quantFactor;
+            item.bounds[1] = (item.bounds[1] - params.bounds[1]) * quantFactor;
+            item.bounds[2] = (item.bounds[2] - params.bounds[2]) * quantFactor;
 
-            item.bounds[1][0] = (item.bounds[1][0] - params.bounds[0][0]) * quantFactor;
-            item.bounds[1][1] = (item.bounds[1][1] - params.bounds[0][1]) * quantFactor;
-            item.bounds[1][2] = (item.bounds[1][2] - params.bounds[0][2]) * quantFactor;
+            item.bounds[3] = (item.bounds[3] - params.bounds[0]) * quantFactor;
+            item.bounds[4] = (item.bounds[4] - params.bounds[1]) * quantFactor;
+            item.bounds[5] = (item.bounds[5] - params.bounds[2]) * quantFactor;
         }
 
         items[i] = item;

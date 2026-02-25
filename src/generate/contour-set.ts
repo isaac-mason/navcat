@@ -831,10 +831,10 @@ export const buildContours = (
     // If the heightfield was build with borderSize, remove the offset.
     if (borderSize > 0) {
         const pad = borderSize * compactHeightfield.cellSize;
-        contourSet.bounds[0][0] += pad;
-        contourSet.bounds[0][2] += pad;
-        contourSet.bounds[1][0] -= pad;
-        contourSet.bounds[1][2] -= pad;
+        contourSet.bounds[0] += pad;
+        contourSet.bounds[2] += pad;
+        contourSet.bounds[3] -= pad;
+        contourSet.bounds[5] -= pad;
     }
 
     const flags = new Array(compactHeightfield.spanCount).fill(0);

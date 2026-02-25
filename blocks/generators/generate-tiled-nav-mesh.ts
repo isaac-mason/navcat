@@ -126,16 +126,16 @@ const buildNavMeshTile = (
 
     const expandedTileBounds = box3.clone(tileBounds);
 
-    expandedTileBounds[0][0] -= borderSize * cellSize;
-    expandedTileBounds[0][2] -= borderSize * cellSize;
+    expandedTileBounds[0] -= borderSize * cellSize;
+    expandedTileBounds[2] -= borderSize * cellSize;
 
-    expandedTileBounds[1][0] += borderSize * cellSize;
-    expandedTileBounds[1][2] += borderSize * cellSize;
+    expandedTileBounds[3] += borderSize * cellSize;
+    expandedTileBounds[5] += borderSize * cellSize;
 
     /* 2. query chunks overlapping the tile bounds */
 
-    const tbmin: [number, number] = [expandedTileBounds[0][0], expandedTileBounds[0][2]];
-    const tbmax: [number, number] = [expandedTileBounds[1][0], expandedTileBounds[1][2]];
+    const tbmin: [number, number] = [expandedTileBounds[0], expandedTileBounds[2]];
+    const tbmax: [number, number] = [expandedTileBounds[3], expandedTileBounds[5]];
 
     const chunks = chunkyTriMesh.getChunksOverlappingRect(inputChunkyTriMesh, tbmin, tbmax);
 
@@ -272,7 +272,7 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
     const nav = createNavMesh();
     nav.tileWidth = tileSizeWorld;
     nav.tileHeight = tileSizeWorld;
-    nav.origin = meshBounds[0];
+    box3.min(nav.origin, meshBounds);
 
     /* 2. build chunky tri mesh for efficient spatial queries */
 
@@ -304,12 +304,12 @@ export function generateTiledNavMesh(input: TiledNavMeshInput, options: TiledNav
     for (let tileX = 0; tileX < nTilesX; tileX++) {
         for (let tileY = 0; tileY < nTilesY; tileY++) {
             const tileBounds: Box3 = [
-                [meshBounds[0][0] + tileX * tileSizeWorld, meshBounds[0][1], meshBounds[0][2] + tileY * tileSizeWorld],
-                [
-                    meshBounds[0][0] + (tileX + 1) * tileSizeWorld,
-                    meshBounds[1][1],
-                    meshBounds[0][2] + (tileY + 1) * tileSizeWorld,
-                ],
+                meshBounds[0] + tileX * tileSizeWorld,
+                meshBounds[1],
+                meshBounds[2] + tileY * tileSizeWorld,
+                meshBounds[0] + (tileX + 1) * tileSizeWorld,
+                meshBounds[4],
+                meshBounds[2] + (tileY + 1) * tileSizeWorld,
             ];
 
             const { triAreaIds, polyMesh, polyMeshDetail, heightfield, compactHeightfield, contourSet } = buildNavMeshTile(

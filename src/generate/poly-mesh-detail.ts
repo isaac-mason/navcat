@@ -1068,7 +1068,7 @@ export const buildPolyMeshDetail = (
     const nvp = polyMesh.maxVerticesPerPoly;
     const cs = polyMesh.cellSize;
     const ch = polyMesh.cellHeight;
-    const orig = [polyMesh.bounds[0][0], polyMesh.bounds[0][1], polyMesh.bounds[0][2]];
+    const orig = [polyMesh.bounds[0], polyMesh.bounds[1], polyMesh.bounds[2]];
     const borderSize = polyMesh.borderSize;
     const heightSearchRadius = Math.max(1, Math.ceil(polyMesh.maxEdgeError));
 

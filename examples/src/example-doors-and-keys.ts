@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
 import type { Box3, Vec3 } from 'mathcat';
-import { box3, vec2, vec3 } from 'mathcat';
+import { box3, vec2 } from 'mathcat';
 import {
     addTile,
     BuildContext,
@@ -278,9 +278,9 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     /* create a single tile nav mesh */
     const nav = createNavMesh();
-    nav.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
-    nav.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
-    vec3.copy(nav.origin, polyMesh.bounds[0]);
+    nav.tileWidth = polyMesh.bounds[3] - polyMesh.bounds[0];
+    nav.tileHeight = polyMesh.bounds[5] - polyMesh.bounds[2];
+    box3.min(nav.origin, polyMesh.bounds);
 
     const tilePolys = polyMeshToTilePolys(polyMesh);
 
@@ -383,8 +383,8 @@ for (const doorObject of doorObjects) {
 
     doors.push({
         box: [
-            [box3.min.x, box3.min.y - 0.5, box3.min.z],
-            [box3.max.x, box3.max.y, box3.max.z],
+            box3.min.x, box3.min.y - 0.5, box3.min.z,
+            box3.max.x, box3.max.y, box3.max.z,
         ],
         doorId: doorObject.userData.door,
     });

@@ -32,11 +32,8 @@ const SPAN_MAX_HEIGHT = 0x1fff; // 8191
 const MAX_HEIGHTFIELD_HEIGHT = 0xffff;
 
 export const calculateGridSize = (outGridSize: Vec2, bounds: Box3, cellSize: number): [width: number, height: number] => {
-    const minBounds = bounds[0];
-    const maxBounds = bounds[1];
-
-    outGridSize[0] = Math.floor((maxBounds[0] - minBounds[0]) / cellSize + 0.5);
-    outGridSize[1] = Math.floor((maxBounds[2] - minBounds[2]) / cellSize + 0.5);
+    outGridSize[0] = Math.floor((bounds[3] - bounds[0]) / cellSize + 0.5);
+    outGridSize[1] = Math.floor((bounds[5] - bounds[2]) / cellSize + 0.5);
 
     return outGridSize;
 };
@@ -213,6 +210,8 @@ const dividePoly = (
 };
 
 const _triangleBounds = box3.create();
+const _rasterize_triMin = vec3.create();
+const _rasterize_triMax = vec3.create();
 
 const _inVerts = new Array(7 * 3);
 const _inRow = new Array(7 * 3);
@@ -238,37 +237,35 @@ const rasterizeTriangle = (
     flagMergeThreshold: number,
 ): boolean => {
     // Calculate the bounding box of the triangle
-    const triangleBounds = _triangleBounds;
-    const triangleBoundsMin = triangleBounds[0];
-    const triangleBoundsMax = triangleBounds[1];
+    vec3.copy(_rasterize_triMin, v0);
+    vec3.min(_rasterize_triMin, _rasterize_triMin, v1);
+    vec3.min(_rasterize_triMin, _rasterize_triMin, v2);
 
-    vec3.copy(_triangleBounds[0], v0);
-    vec3.min(triangleBoundsMin, triangleBoundsMin, v1);
-    vec3.min(triangleBoundsMin, triangleBoundsMin, v2);
+    vec3.copy(_rasterize_triMax, v0);
+    vec3.max(_rasterize_triMax, _rasterize_triMax, v1);
+    vec3.max(_rasterize_triMax, _rasterize_triMax, v2);
 
-    vec3.copy(triangleBoundsMax, v0);
-    vec3.max(triangleBoundsMax, triangleBoundsMax, v1);
-    vec3.max(triangleBoundsMax, triangleBoundsMax, v2);
+    box3.set(_triangleBounds,
+        _rasterize_triMin[0], _rasterize_triMin[1], _rasterize_triMin[2],
+        _rasterize_triMax[0], _rasterize_triMax[1], _rasterize_triMax[2],
+    );
 
     // If the triangle does not touch the bounding box of the heightfield, skip the triangle
-    if (!box3.intersectsBox3(triangleBounds, heightfield.bounds)) {
+    if (!box3.intersectsBox3(_triangleBounds, heightfield.bounds)) {
         return true;
     }
 
-    const heightfieldBoundsMin: Vec3 = heightfield.bounds[0];
-    const heightfieldBoundsMax: Vec3 = heightfield.bounds[1];
-
     const w = heightfield.width;
     const h = heightfield.height;
-    const by = heightfieldBoundsMax[1] - heightfieldBoundsMin[1];
+    const by = heightfield.bounds[4] - heightfield.bounds[1];
     const cellSize = heightfield.cellSize;
     const cellHeight = heightfield.cellHeight;
     const inverseCellSize = 1.0 / cellSize;
     const inverseCellHeight = 1.0 / cellHeight;
 
     // Calculate the footprint of the triangle on the grid's z-axis
-    let z0 = Math.floor((triangleBoundsMin[2] - heightfieldBoundsMin[2]) * inverseCellSize);
-    let z1 = Math.floor((triangleBoundsMax[2] - heightfieldBoundsMin[2]) * inverseCellSize);
+    let z0 = Math.floor((_rasterize_triMin[2] - heightfield.bounds[2]) * inverseCellSize);
+    let z1 = Math.floor((_rasterize_triMax[2] - heightfield.bounds[2]) * inverseCellSize);
 
     // Use -1 rather than 0 to cut the polygon properly at the start of the tile
     z0 = clamp(z0, -1, h - 1);
@@ -295,7 +292,7 @@ const rasterizeTriangle = (
 
     for (let z = z0; z <= z1; ++z) {
         // Clip polygon to row. Store the remaining polygon as well
-        const cellZ = heightfieldBoundsMin[2] + z * cellSize;
+        const cellZ = heightfield.bounds[2] + z * cellSize;
         dividePoly(_dividePolyResult, inVerts, nvIn, inRow, p1, cellZ + cellSize, AXIS_Z);
         const nvRow = _dividePolyResult.nv1;
         const nvIn2 = _dividePolyResult.nv2;
@@ -325,8 +322,8 @@ const rasterizeTriangle = (
             }
         }
 
-        let x0 = Math.floor((minX - heightfieldBoundsMin[0]) * inverseCellSize);
-        let x1 = Math.floor((maxX - heightfieldBoundsMin[0]) * inverseCellSize);
+        let x0 = Math.floor((minX - heightfield.bounds[0]) * inverseCellSize);
+        let x1 = Math.floor((maxX - heightfield.bounds[0]) * inverseCellSize);
         if (x1 < 0 || x0 >= w) {
             continue;
         }
@@ -337,7 +334,7 @@ const rasterizeTriangle = (
 
         for (let x = x0; x <= x1; ++x) {
             // Clip polygon to column. Store the remaining polygon as well
-            const cx = heightfieldBoundsMin[0] + x * cellSize;
+            const cx = heightfield.bounds[0] + x * cellSize;
             dividePoly(_dividePolyResult, inRow, nv2, p1, p2, cx + cellSize, AXIS_X);
             const nv = _dividePolyResult.nv1;
             const nv2New = _dividePolyResult.nv2;
@@ -362,8 +359,8 @@ const rasterizeTriangle = (
                 spanMin = Math.min(spanMin, p1[vert * 3 + 1]);
                 spanMax = Math.max(spanMax, p1[vert * 3 + 1]);
             }
-            spanMin -= heightfieldBoundsMin[1];
-            spanMax -= heightfieldBoundsMin[1];
+            spanMin -= heightfield.bounds[1];
+            spanMax -= heightfield.bounds[1];
 
             // Skip the span if it's completely outside the heightfield bounding box
             if (spanMax < 0.0) {

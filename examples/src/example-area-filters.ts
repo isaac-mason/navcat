@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
 import type { Box3, Vec3 } from 'mathcat';
-import { box3, vec2, vec3 } from 'mathcat';
+import { box3, vec2 } from 'mathcat';
 import {
     addTile,
     buildCompactHeightfield,
@@ -266,9 +266,9 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     /* create a single tile nav mesh */
     const nav = createNavMesh();
-    nav.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
-    nav.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
-    vec3.copy(nav.origin, polyMesh.bounds[0]);
+    nav.tileWidth = polyMesh.bounds[3] - polyMesh.bounds[0];
+    nav.tileHeight = polyMesh.bounds[5] - polyMesh.bounds[2];
+    box3.min(nav.origin, polyMesh.bounds);
 
     const tilePolys = polyMeshToTilePolys(polyMesh);
 
@@ -365,8 +365,8 @@ const navMeshInput: NavMeshInput = {
     positions,
     indices,
     waterBounds: [
-        [-100, -1, -100],
-        [100, 1, 100],
+        -100, -1, -100,
+        100, 1, 100,
     ],
 };
 

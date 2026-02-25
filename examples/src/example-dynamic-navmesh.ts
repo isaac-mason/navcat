@@ -1,6 +1,6 @@
 import Rapier from '@dimforge/rapier3d-compat';
 import { GUI } from 'lil-gui';
-import { box3, type Vec3, vec2, vec3 } from 'mathcat';
+import { box3, type Box3, type Vec3, vec2, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
     addTile,
@@ -345,8 +345,8 @@ type DynamicNavMeshState = {
 
     // Caches
     caches: {
-        tileBounds: Map<string, [Vec3, Vec3]>;
-        tileExpandedBounds: Map<string, [Vec3, Vec3]>;
+        tileBounds: Map<string, Box3>;
+        tileExpandedBounds: Map<string, Box3>;
         tileStaticTriangles: Map<string, number[]>;
         tileStaticHeightfields: Map<string, ReturnType<typeof createHeightfield>>;
     };
@@ -370,14 +370,14 @@ type DynamicNavMeshState = {
     // Immutable input data
     levelPositions: Float32Array;
     levelIndices: Uint32Array;
-    meshBounds: [Vec3, Vec3];
+    meshBounds: Box3;
 };
 
 function initDynamicNavMesh(
     config: typeof navMeshConfig,
     levelPositions: Float32Array,
     levelIndices: Uint32Array,
-    meshBounds: [Vec3, Vec3],
+    meshBounds: Box3,
     offMeshConnections: OffMeshConnectionParams[],
     scene: THREE.Scene,
 ): DynamicNavMeshState {
@@ -419,11 +419,11 @@ function initDynamicNavMesh(
 
     navMesh.tileWidth = tileSizeWorld;
     navMesh.tileHeight = tileSizeWorld;
-    navMesh.origin = meshBounds[0];
+    box3.min(navMesh.origin, meshBounds);
 
     // 2. Build static tile caches
-    const tileBoundsCache = new Map<string, [Vec3, Vec3]>();
-    const tileExpandedBoundsCache = new Map<string, [Vec3, Vec3]>();
+    const tileBoundsCache = new Map<string, Box3>();
+    const tileExpandedBoundsCache = new Map<string, Box3>();
     const tileStaticTriangles = new Map<string, number[]>();
     const tileStaticHeightfields = new Map<string, ReturnType<typeof createHeightfield>>();
 
@@ -434,22 +434,19 @@ function initDynamicNavMesh(
 
     for (let tx = 0; tx < tileWidth; tx++) {
         for (let ty = 0; ty < tileHeight; ty++) {
-            const min: Vec3 = [meshBounds[0][0] + tx * tileSizeWorld, meshBounds[0][1], meshBounds[0][2] + ty * tileSizeWorld];
-            const max: Vec3 = [
-                meshBounds[0][0] + (tx + 1) * tileSizeWorld,
-                meshBounds[1][1],
-                meshBounds[0][2] + (ty + 1) * tileSizeWorld,
-            ];
-            const bounds: [Vec3, Vec3] = [min, max];
+            const minX = meshBounds[0] + tx * tileSizeWorld;
+            const minY = meshBounds[1];
+            const minZ = meshBounds[2] + ty * tileSizeWorld;
+            const maxX = meshBounds[0] + (tx + 1) * tileSizeWorld;
+            const maxY = meshBounds[4];
+            const maxZ = meshBounds[2] + (ty + 1) * tileSizeWorld;
+            const bounds: Box3 = [minX, minY, minZ, maxX, maxY, maxZ];
             const key = tileKey(tx, ty);
             tileBoundsCache.set(key, bounds);
 
-            const expandedMin: Vec3 = [min[0] - borderOffset, min[1], min[2] - borderOffset];
-            const expandedMax: Vec3 = [max[0] + borderOffset, max[1], max[2] + borderOffset];
-            const expandedBounds: [Vec3, Vec3] = [expandedMin, expandedMax];
+            const expandedBounds: Box3 = [minX - borderOffset, minY, minZ - borderOffset, maxX + borderOffset, maxY, maxZ + borderOffset];
             tileExpandedBoundsCache.set(key, expandedBounds);
 
-            const expandedBox = expandedBounds as any;
             const trianglesInBox: number[] = [];
 
             for (let i = 0; i < levelIndices.length; i += 3) {
@@ -461,7 +458,7 @@ function initDynamicNavMesh(
                 vec3.fromBuffer(triB, levelPositions, b * 3);
                 vec3.fromBuffer(triC, levelPositions, c * 3);
 
-                if (box3.intersectsTriangle3(expandedBox, triA, triB, triC)) {
+                if (box3.intersectsTriangle3(expandedBounds, triA, triB, triC)) {
                     trianglesInBox.push(a, b, c);
                 }
             }
@@ -479,10 +476,8 @@ function initDynamicNavMesh(
             const expandedBounds = tileExpandedBoundsCache.get(key);
             if (!expandedBounds) continue;
 
-            const expandedBox = expandedBounds as any;
-
             // create heightfield for this tile
-            const heightfield = createHeightfield(hfSize, hfSize, expandedBox, config.cellSize, config.cellHeight);
+            const heightfield = createHeightfield(hfSize, hfSize, expandedBounds, config.cellSize, config.cellHeight);
 
             // rasterize static geometry only
             const staticTriangles = tileStaticTriangles.get(key) ?? [];
@@ -723,10 +718,10 @@ function tilesForAABB(state: DynamicNavMeshState, min: Vec3, max: Vec3): Array<[
         return [];
     }
 
-    const rawMinX = Math.floor((min[0] - state.meshBounds[0][0]) / state.config.tileSizeWorld);
-    const rawMinY = Math.floor((min[2] - state.meshBounds[0][2]) / state.config.tileSizeWorld);
-    const rawMaxX = Math.floor((max[0] - state.meshBounds[0][0]) / state.config.tileSizeWorld);
-    const rawMaxY = Math.floor((max[2] - state.meshBounds[0][2]) / state.config.tileSizeWorld);
+    const rawMinX = Math.floor((min[0] - state.meshBounds[0]) / state.config.tileSizeWorld);
+    const rawMinY = Math.floor((min[2] - state.meshBounds[2]) / state.config.tileSizeWorld);
+    const rawMaxX = Math.floor((max[0] - state.meshBounds[0]) / state.config.tileSizeWorld);
+    const rawMaxY = Math.floor((max[2] - state.meshBounds[2]) / state.config.tileSizeWorld);
 
     const clampIndex = (value: number, maxValue: number) => Math.min(Math.max(value, 0), maxValue);
 

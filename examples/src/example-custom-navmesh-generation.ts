@@ -154,16 +154,16 @@ const gridSize = 2;
 const walkablePoints: Vec3[] = [];
 
 const gridRaycastBounds: Box3 = [
-    [-terrainSize / 2, -5, -terrainSize / 2],
-    [terrainSize / 2, 5, terrainSize / 2],
+    -terrainSize / 2, -5, -terrainSize / 2,
+    terrainSize / 2, 5, terrainSize / 2,
 ];
 const rayDirection = new THREE.Vector3(0, -1, 0);
 const gridRaycaster = new THREE.Raycaster();
 gridRaycaster.far = 100;
 
 // grid dimensions
-const nx = Math.ceil((gridRaycastBounds[1][0] - gridRaycastBounds[0][0]) / gridSize) + 1;
-const nz = Math.ceil((gridRaycastBounds[1][2] - gridRaycastBounds[0][2]) / gridSize) + 1;
+const nx = Math.ceil((gridRaycastBounds[3] - gridRaycastBounds[0]) / gridSize) + 1;
+const nz = Math.ceil((gridRaycastBounds[5] - gridRaycastBounds[2]) / gridSize) + 1;
 
 // grid of points
 const grid: (Vec3 | null)[][] = Array.from({ length: nx }, () => Array(nz).fill(null));
@@ -173,8 +173,8 @@ const vertexIndexGrid: (number | null)[][] = Array.from({ length: nx }, () => Ar
 
 for (let ix = 0; ix < nx; ix++) {
     for (let iz = 0; iz < nz; iz++) {
-        const x = gridRaycastBounds[0][0] + ix * gridSize;
-        const z = gridRaycastBounds[0][2] + iz * gridSize;
+        const x = gridRaycastBounds[0] + ix * gridSize;
+        const z = gridRaycastBounds[2] + iz * gridSize;
 
         gridRaycaster.set(new THREE.Vector3(x, 50, z), rayDirection);
 
@@ -312,11 +312,9 @@ const tile = buildTile(tileParams);
 /* assemble navmesh */
 const navMesh = createNavMesh();
 
-navMesh.tileWidth = bounds[1][0] - bounds[0][0];
-navMesh.tileHeight = bounds[1][2] - bounds[0][2];
-navMesh.origin[0] = bounds[0][0];
-navMesh.origin[1] = bounds[0][1];
-navMesh.origin[2] = bounds[0][2];
+navMesh.tileWidth = bounds[3] - bounds[0];
+navMesh.tileHeight = bounds[5] - bounds[2];
+box3.min(navMesh.origin, bounds);
 
 addTile(navMesh, tile);
 

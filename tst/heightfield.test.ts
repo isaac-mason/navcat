@@ -15,10 +15,7 @@ import {
 describe('heightfield', () => {
     describe('calculateGridSize', () => {
         test('calculates grid size for simple square bounds', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const cellSize = 1.0;
             const outGridSize = vec2.create();
 
@@ -29,10 +26,7 @@ describe('heightfield', () => {
         });
 
         test('handles non-uniform bounds correctly', () => {
-            const bounds: Box3 = [
-                [-5, 0, -5],
-                [15, 10, 5],
-            ];
+            const bounds: Box3 = [-5, 0, -5, 15, 10, 5];
             const cellSize = 0.5;
             const outGridSize = vec2.create();
 
@@ -43,10 +37,7 @@ describe('heightfield', () => {
         });
 
         test('rounds correctly with fractional cell sizes', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10.3, 5, 10.7],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10.3, 5, 10.7];
             const cellSize = 1.0;
             const outGridSize = vec2.create();
 
@@ -61,10 +52,7 @@ describe('heightfield', () => {
         test('creates heightfield with correct dimensions', () => {
             const width = 10;
             const height = 20;
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 5, 20],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 5, 20];
             const cellSize = 1.0;
             const cellHeight = 0.5;
 
@@ -79,10 +67,7 @@ describe('heightfield', () => {
             const heightfield = createHeightfield(
                 5,
                 5,
-                [
-                    [0, 0, 0],
-                    [5, 5, 5],
-                ],
+                [0, 0, 0, 5, 5, 5],
                 1.0,
                 0.5,
             );
@@ -93,10 +78,7 @@ describe('heightfield', () => {
         });
 
         test('stores bounds and cell parameters correctly', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 5, 20],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 5, 20];
             const cellSize = 1.0;
             const cellHeight = 0.5;
 
@@ -110,10 +92,7 @@ describe('heightfield', () => {
 
     describe('addHeightfieldSpan', () => {
         test('adds span to empty column', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 0, 10, 1, 1);
@@ -128,10 +107,7 @@ describe('heightfield', () => {
         });
 
         test('adds non-overlapping span before existing span', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 20, 30, 1, 1);
@@ -148,10 +124,7 @@ describe('heightfield', () => {
         });
 
         test('adds non-overlapping span after existing span', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 0, 10, 1, 1);
@@ -168,10 +141,7 @@ describe('heightfield', () => {
         });
 
         test('merges completely overlapping spans', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 10, 20, 1, 1);
@@ -186,10 +156,7 @@ describe('heightfield', () => {
         });
 
         test('merges partially overlapping spans', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 10, 20, 1, 1);
@@ -204,10 +171,7 @@ describe('heightfield', () => {
         });
 
         test('extends span when new span is taller', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 10, 20, 1, 1);
@@ -221,10 +185,7 @@ describe('heightfield', () => {
         });
 
         test('extends span when new span starts lower', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 10, 20, 1, 1);
@@ -238,10 +199,7 @@ describe('heightfield', () => {
         });
 
         test('merges multiple consecutive spans', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 0, 10, 1, 1);
@@ -259,10 +217,7 @@ describe('heightfield', () => {
         });
 
         test('respects area priority when spans have similar max height (within threshold)', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 10, 20, 5, 1);
@@ -275,10 +230,7 @@ describe('heightfield', () => {
         });
 
         test('keeps original area when max heights differ beyond threshold', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 10, 20, 5, 1);
@@ -294,10 +246,7 @@ describe('heightfield', () => {
         });
 
         test('maintains span ordering after multiple insertions', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 20, 30, 1, 1);
@@ -320,10 +269,7 @@ describe('heightfield', () => {
 
     describe('rasterizeTriangles', () => {
         test('rasterizes single horizontal triangle', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Horizontal triangle at y=2
@@ -354,10 +300,7 @@ describe('heightfield', () => {
         });
 
         test('rasterizes single vertical triangle', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Vertical triangle
@@ -387,10 +330,7 @@ describe('heightfield', () => {
         });
 
         test('skips triangle completely outside heightfield bounds', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Triangle completely outside bounds
@@ -409,10 +349,7 @@ describe('heightfield', () => {
         });
 
         test('clips triangle partially outside heightfield bounds', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Triangle partially outside
@@ -443,10 +380,7 @@ describe('heightfield', () => {
         });
 
         test('handles triangle touching heightfield boundary', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Triangle at boundary
@@ -461,10 +395,7 @@ describe('heightfield', () => {
         });
 
         test('rasterizes multiple overlapping triangles', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Two overlapping triangles at different heights
@@ -485,10 +416,7 @@ describe('heightfield', () => {
         });
 
         test('handles degenerate triangles gracefully', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Degenerate triangle (all points colinear)
@@ -503,10 +431,7 @@ describe('heightfield', () => {
         });
 
         test('respects flagMergeThreshold for overlapping geometry', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             const vertices = [2, 2.0, 2, 4, 2.0, 2, 3, 2.0, 4, 2, 2.5, 2, 4, 2.5, 2, 3, 2.5, 4];
@@ -522,10 +447,7 @@ describe('heightfield', () => {
         });
 
         test('handles triangles spanning multiple cells', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [10, 10, 10],
-            ];
+            const bounds: Box3 = [0, 0, 0, 10, 10, 10];
             const heightfield = createHeightfield(10, 10, bounds, 1.0, 1.0);
 
             // Large triangle spanning many cells
@@ -548,10 +470,7 @@ describe('heightfield', () => {
 
     describe('filterLowHangingWalkableObstacles', () => {
         test('marks span as walkable when obstacle is within walkableClimb', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Add walkable span, then non-walkable span close above it
@@ -571,10 +490,7 @@ describe('heightfield', () => {
         });
 
         test('does not modify span when obstacle exceeds walkableClimb', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Add walkable span, then non-walkable span far above it
@@ -592,10 +508,7 @@ describe('heightfield', () => {
         });
 
         test('handles multiple consecutive non-walkable spans correctly', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 0, 10, 1, 1); // Walkable, max at 10
@@ -615,10 +528,7 @@ describe('heightfield', () => {
         });
 
         test('preserves original walkable spans', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             addHeightfieldSpan(heightfield, 1, 1, 0, 10, 5, 1); // Walkable
@@ -633,10 +543,7 @@ describe('heightfield', () => {
         });
 
         test('handles empty columns', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             const walkableClimb = 3;
@@ -647,10 +554,7 @@ describe('heightfield', () => {
 
     describe('filterLedgeSpans', () => {
         test('marks span as unwalkable when neighbor drop exceeds walkableClimb', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Center cell at height 20
@@ -669,10 +573,7 @@ describe('heightfield', () => {
         });
 
         test('keeps span walkable when all neighbors are within walkableClimb', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Center cell at height 20
@@ -694,10 +595,7 @@ describe('heightfield', () => {
         });
 
         test('marks span as unwalkable when slope is too steep', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Center cell at height 20
@@ -717,10 +615,7 @@ describe('heightfield', () => {
         });
 
         test('handles edge of heightfield correctly', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Span at edge
@@ -737,10 +632,7 @@ describe('heightfield', () => {
         });
 
         test('handles corners with multiple steep neighbors', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Corner span
@@ -760,10 +652,7 @@ describe('heightfield', () => {
         });
 
         test('considers ceiling height for traversability', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Center cell with low ceiling
@@ -784,10 +673,7 @@ describe('heightfield', () => {
         });
 
         test('skips non-walkable spans', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Non-walkable span
@@ -807,10 +693,7 @@ describe('heightfield', () => {
 
     describe('filterWalkableLowHeightSpans', () => {
         test('marks span as unwalkable when ceiling is too low', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Add span with low ceiling
@@ -827,10 +710,7 @@ describe('heightfield', () => {
         });
 
         test('keeps span walkable when ceiling height is sufficient', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Add span with high ceiling
@@ -847,10 +727,7 @@ describe('heightfield', () => {
         });
 
         test('handles spans with no ceiling (top span)', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Single span with no span above it
@@ -866,10 +743,7 @@ describe('heightfield', () => {
         });
 
         test('processes all spans in column', () => {
-            const bounds: Box3 = [
-                [0, 0, 0],
-                [3, 3, 3],
-            ];
+            const bounds: Box3 = [0, 0, 0, 3, 3, 3];
             const heightfield = createHeightfield(3, 3, bounds, 1.0, 1.0);
 
             // Multiple spans in same column

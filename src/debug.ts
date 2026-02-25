@@ -195,7 +195,7 @@ export const createHeightfieldHelper = (heightfield: Heightfield): DebugPrimitiv
     const colors: number[] = [];
     const scales: number[] = [];
 
-    const heightfieldBoundsMin = heightfield.bounds[0];
+    const heightfieldBoundsMin: Vec3 = [heightfield.bounds[0], heightfield.bounds[1], heightfield.bounds[2]];
     const cellSize = heightfield.cellSize;
     const cellHeight = heightfield.cellHeight;
 
@@ -267,8 +267,8 @@ export const createCompactHeightfieldSolidHelper = (compactHeightfield: CompactH
 
     for (let y = 0; y < chf.height; y++) {
         for (let x = 0; x < chf.width; x++) {
-            const fx = chf.bounds[0][0] + x * chf.cellSize;
-            const fz = chf.bounds[0][2] + y * chf.cellSize;
+            const fx = chf.bounds[0] + x * chf.cellSize;
+            const fz = chf.bounds[2] + y * chf.cellSize;
             const cell = chf.cells[x + y * chf.width];
 
             for (let i = cell.index; i < cell.index + cell.count; i++) {
@@ -277,7 +277,7 @@ export const createCompactHeightfieldSolidHelper = (compactHeightfield: CompactH
 
                 areaToColor(_color, area);
 
-                const fy = chf.bounds[0][1] + (span.y + 1) * chf.cellHeight;
+                const fy = chf.bounds[1] + (span.y + 1) * chf.cellHeight;
 
                 // Create quad vertices
                 positions.push(fx, fy, fz);
@@ -344,13 +344,13 @@ export const createCompactHeightfieldDistancesHelper = (compactHeightfield: Comp
 
     for (let y = 0; y < chf.height; y++) {
         for (let x = 0; x < chf.width; x++) {
-            const fx = chf.bounds[0][0] + x * chf.cellSize;
-            const fz = chf.bounds[0][2] + y * chf.cellSize;
+            const fx = chf.bounds[0] + x * chf.cellSize;
+            const fz = chf.bounds[2] + y * chf.cellSize;
             const cell = chf.cells[x + y * chf.width];
 
             for (let i = cell.index; i < cell.index + cell.count; i++) {
                 const span = chf.spans[i];
-                const fy = chf.bounds[0][1] + (span.y + 1) * chf.cellHeight;
+                const fy = chf.bounds[1] + (span.y + 1) * chf.cellHeight;
 
                 const cd = Math.min(255, Math.floor(chf.distances[i] * dscale)) / 255.0;
 
@@ -411,13 +411,13 @@ export const createCompactHeightfieldRegionsHelper = (compactHeightfield: Compac
 
     for (let y = 0; y < chf.height; y++) {
         for (let x = 0; x < chf.width; x++) {
-            const fx = chf.bounds[0][0] + x * chf.cellSize;
-            const fz = chf.bounds[0][2] + y * chf.cellSize;
+            const fx = chf.bounds[0] + x * chf.cellSize;
+            const fz = chf.bounds[2] + y * chf.cellSize;
             const cell = chf.cells[x + y * chf.width];
 
             for (let i = cell.index; i < cell.index + cell.count; i++) {
                 const span = chf.spans[i];
-                const fy = chf.bounds[0][1] + span.y * chf.cellHeight;
+                const fy = chf.bounds[1] + span.y * chf.cellHeight;
 
                 regionToColor(_color, span.region);
 
@@ -461,7 +461,7 @@ export const createRawContoursHelper = (contourSet: ContourSet): DebugPrimitive[
         return [];
     }
 
-    const orig = contourSet.bounds[0];
+    const orig: Vec3 = [contourSet.bounds[0], contourSet.bounds[1], contourSet.bounds[2]];
     const cs = contourSet.cellSize;
     const ch = contourSet.cellHeight;
 
@@ -559,7 +559,7 @@ export const createSimplifiedContoursHelper = (contourSet: ContourSet): DebugPri
         return [];
     }
 
-    const orig = contourSet.bounds[0];
+    const orig: Vec3 = [contourSet.bounds[0], contourSet.bounds[1], contourSet.bounds[2]];
     const cs = contourSet.cellSize;
     const ch = contourSet.cellHeight;
 
@@ -666,7 +666,7 @@ export const createPolyMeshHelper = (polyMesh: PolyMesh): DebugPrimitive[] => {
     const nvp = polyMesh.maxVerticesPerPoly;
     const cs = polyMesh.cellSize;
     const ch = polyMesh.cellHeight;
-    const orig = polyMesh.bounds[0];
+    const orig: Vec3 = [polyMesh.bounds[0], polyMesh.bounds[1], polyMesh.bounds[2]];
 
     const triPositions: number[] = [];
     const triColors: number[] = [];
@@ -1505,12 +1505,12 @@ export const createNavMeshTileBvTreeHelper = (navMeshTile: NavMeshTile): DebugPr
         if (node.i < 0) continue;
 
         // Calculate world coordinates from quantized bounds
-        const minX = navMeshTile.bounds[0][0] + node.bounds[0][0] * cs;
-        const minY = navMeshTile.bounds[0][1] + node.bounds[0][1] * cs;
-        const minZ = navMeshTile.bounds[0][2] + node.bounds[0][2] * cs;
-        const maxX = navMeshTile.bounds[0][0] + node.bounds[1][0] * cs;
-        const maxY = navMeshTile.bounds[0][1] + node.bounds[1][1] * cs;
-        const maxZ = navMeshTile.bounds[0][2] + node.bounds[1][2] * cs;
+        const minX = navMeshTile.bounds[0] + node.bounds[0] * cs;
+        const minY = navMeshTile.bounds[1] + node.bounds[1] * cs;
+        const minZ = navMeshTile.bounds[2] + node.bounds[2] * cs;
+        const maxX = navMeshTile.bounds[0] + node.bounds[3] * cs;
+        const maxY = navMeshTile.bounds[1] + node.bounds[4] * cs;
+        const maxZ = navMeshTile.bounds[2] + node.bounds[5] * cs;
 
         // Create wireframe box edges
         // Bottom face

@@ -121,7 +121,7 @@ export const buildCompactHeightfield = (
     };
 
     // adjust upper bound to account for walkable height
-    compactHeightfield.bounds[1][1] += walkableHeightVoxels * heightfield.cellHeight;
+    compactHeightfield.bounds[4] += walkableHeightVoxels * heightfield.cellHeight;
 
     // initialize cells
     for (let i = 0; i < xSize * zSize; i++) {
@@ -476,19 +476,17 @@ export const erodeAndMarkWalkableAreas = (
  * Marks spans in the heightfield that intersect the specified box area with the given area ID.
  */
 export const markBoxArea = (bounds: Box3, areaId: number, compactHeightfield: CompactHeightfield) => {
-    const [boxMinBounds, boxMaxBounds] = bounds;
-
     const xSize = compactHeightfield.width;
     const zSize = compactHeightfield.height;
     const zStride = xSize; // For readability
 
     // Find the footprint of the box area in grid cell coordinates.
-    let minX = Math.floor((boxMinBounds[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const minY = Math.floor((boxMinBounds[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let minZ = Math.floor((boxMinBounds[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
-    let maxX = Math.floor((boxMaxBounds[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const maxY = Math.floor((boxMaxBounds[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let maxZ = Math.floor((boxMaxBounds[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+    let minX = Math.floor((bounds[0] - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const minY = Math.floor((bounds[1] - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let minZ = Math.floor((bounds[2] - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
+    let maxX = Math.floor((bounds[3] - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const maxY = Math.floor((bounds[4] - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let maxZ = Math.floor((bounds[5] - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
 
     // Early-out if the box is outside the bounds of the grid.
     if (maxX < 0) return;
@@ -593,12 +591,12 @@ export const markRotatedBoxArea = (
     const maxWorldY = center[1] + halfExtents[1];
 
     // convert AABB to grid coordinates
-    let minX = Math.floor((minWorldX - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const minY = Math.floor((minWorldY - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let minZ = Math.floor((minWorldZ - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
-    let maxX = Math.floor((maxWorldX - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const maxY = Math.floor((maxWorldY - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let maxZ = Math.floor((maxWorldZ - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+    let minX = Math.floor((minWorldX - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const minY = Math.floor((minWorldY - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let minZ = Math.floor((minWorldZ - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
+    let maxX = Math.floor((maxWorldX - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const maxY = Math.floor((maxWorldY - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let maxZ = Math.floor((maxWorldZ - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
 
     // early-out if the rotated box AABB is outside the grid bounds
     if (maxX < 0) return;
@@ -616,8 +614,8 @@ export const markRotatedBoxArea = (
     for (let z = minZ; z <= maxZ; ++z) {
         for (let x = minX; x <= maxX; ++x) {
             // calculate cell center in world space
-            const cellWorldX = compactHeightfield.bounds[0][0] + (x + 0.5) * compactHeightfield.cellSize;
-            const cellWorldZ = compactHeightfield.bounds[0][2] + (z + 0.5) * compactHeightfield.cellSize;
+            const cellWorldX = compactHeightfield.bounds[0] + (x + 0.5) * compactHeightfield.cellSize;
+            const cellWorldZ = compactHeightfield.bounds[2] + (z + 0.5) * compactHeightfield.cellSize;
 
             // transform cell center to box's local coordinate system
             // first translate to box origin
@@ -688,12 +686,12 @@ export const markConvexPolyArea = (
     }
 
     // compute the grid footprint of the polygon
-    let minx = Math.floor((bmin[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const miny = Math.floor((bmin[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let minz = Math.floor((bmin[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
-    let maxx = Math.floor((bmax[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const maxy = Math.floor((bmax[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let maxz = Math.floor((bmax[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+    let minx = Math.floor((bmin[0] - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const miny = Math.floor((bmin[1] - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let minz = Math.floor((bmin[2] - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
+    let maxx = Math.floor((bmax[0] - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const maxy = Math.floor((bmax[1] - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let maxz = Math.floor((bmax[2] - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
 
     // early-out if the polygon lies entirely outside the grid.
     if (maxx < 0) return;
@@ -728,9 +726,9 @@ export const markConvexPolyArea = (
 
                 const point = vec3.set(
                     _markConvexPolyArea_point,
-                    compactHeightfield.bounds[0][0] + (x + 0.5) * compactHeightfield.cellSize,
+                    compactHeightfield.bounds[0] + (x + 0.5) * compactHeightfield.cellSize,
                     0,
-                    compactHeightfield.bounds[0][2] + (z + 0.5) * compactHeightfield.cellSize,
+                    compactHeightfield.bounds[2] + (z + 0.5) * compactHeightfield.cellSize,
                 );
 
                 if (pointInPoly(point, verts, numVerts)) {
@@ -760,12 +758,12 @@ export const markCylinderArea = (
     const cylinderBBMax = [position[0] + radius, position[1] + height, position[2] + radius];
 
     // compute the grid footprint of the cylinder
-    let minx = Math.floor((cylinderBBMin[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const miny = Math.floor((cylinderBBMin[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let minz = Math.floor((cylinderBBMin[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
-    let maxx = Math.floor((cylinderBBMax[0] - compactHeightfield.bounds[0][0]) / compactHeightfield.cellSize);
-    const maxy = Math.floor((cylinderBBMax[1] - compactHeightfield.bounds[0][1]) / compactHeightfield.cellHeight);
-    let maxz = Math.floor((cylinderBBMax[2] - compactHeightfield.bounds[0][2]) / compactHeightfield.cellSize);
+    let minx = Math.floor((cylinderBBMin[0] - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const miny = Math.floor((cylinderBBMin[1] - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let minz = Math.floor((cylinderBBMin[2] - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
+    let maxx = Math.floor((cylinderBBMax[0] - compactHeightfield.bounds[0]) / compactHeightfield.cellSize);
+    const maxy = Math.floor((cylinderBBMax[1] - compactHeightfield.bounds[1]) / compactHeightfield.cellHeight);
+    let maxz = Math.floor((cylinderBBMax[2] - compactHeightfield.bounds[2]) / compactHeightfield.cellSize);
 
     // early-out if the cylinder is completely outside the grid bounds.
     if (maxx < 0 || minx >= xSize || maxz < 0 || minz >= zSize) {
@@ -785,8 +783,8 @@ export const markCylinderArea = (
             const cell = compactHeightfield.cells[x + z * zStride];
             const maxSpanIndex = cell.index + cell.count;
 
-            const cellX = compactHeightfield.bounds[0][0] + (x + 0.5) * compactHeightfield.cellSize;
-            const cellZ = compactHeightfield.bounds[0][2] + (z + 0.5) * compactHeightfield.cellSize;
+            const cellX = compactHeightfield.bounds[0] + (x + 0.5) * compactHeightfield.cellSize;
+            const cellZ = compactHeightfield.bounds[2] + (z + 0.5) * compactHeightfield.cellSize;
             const deltaX = cellX - position[0];
             const deltaZ = cellZ - position[2];
 

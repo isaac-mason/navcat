@@ -1,5 +1,5 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import { box3, vec2, type Vec3, vec3 } from 'mathcat';
+import { type Box3, box3, vec2, type Vec3, vec3 } from 'mathcat';
 import {
     addOffMeshConnection,
     addTile,
@@ -146,7 +146,7 @@ const buildCtx = BuildContext.create();
 const navMesh = createNavMesh();
 navMesh.tileWidth = tileSizeWorld;
 navMesh.tileHeight = tileSizeWorld;
-navMesh.origin = meshBounds[0];
+navMesh.origin = [meshBounds[0], meshBounds[1], meshBounds[2]];
 
 const offMeshConnections: OffMeshConnectionParams[] = [
     {
@@ -254,9 +254,10 @@ for (let tx = 0; tx < tileWidth; tx++) {
 }
 
 const getTileBounds = (x: number, y: number) => {
-    const min: Vec3 = [meshBounds[0][0] + x * tileSizeWorld, meshBounds[0][1], meshBounds[0][2] + y * tileSizeWorld];
-    const max: Vec3 = [meshBounds[0][0] + (x + 1) * tileSizeWorld, meshBounds[1][1], meshBounds[0][2] + (y + 1) * tileSizeWorld];
-    return [min, max] as [Vec3, Vec3];
+    return [
+        meshBounds[0] + x * tileSizeWorld, meshBounds[1], meshBounds[2] + y * tileSizeWorld,
+        meshBounds[0] + (x + 1) * tileSizeWorld, meshBounds[4], meshBounds[2] + (y + 1) * tileSizeWorld,
+    ] as Box3;
 };
 
 // Precomputed compact heightfields for each tile (from static level geometry)
@@ -268,11 +269,11 @@ for (let tx = 0; tx < tileWidth; tx++) {
         const tileBounds = getTileBounds(tx, ty);
 
         // expand bounds by border size like buildNavMeshTile does
-        const expanded = box3.clone(tileBounds as any);
-        expanded[0][0] -= borderSize * cellSize;
-        expanded[0][2] -= borderSize * cellSize;
-        expanded[1][0] += borderSize * cellSize;
-        expanded[1][2] += borderSize * cellSize;
+        const expanded = box3.clone(tileBounds);
+        expanded[0] -= borderSize * cellSize;
+        expanded[2] -= borderSize * cellSize;
+        expanded[3] += borderSize * cellSize;
+        expanded[5] += borderSize * cellSize;
 
         // collect triangles overlapping expanded bounds
         const trianglesInBox: number[] = [];
@@ -301,7 +302,7 @@ for (let tx = 0; tx < tileWidth; tx++) {
         // create heightfield for tile (with border)
         const hfW = Math.floor(tileSizeVoxels + borderSize * 2);
         const hfH = Math.floor(tileSizeVoxels + borderSize * 2);
-        const heightfield = createHeightfield(hfW, hfH, expanded as any, cellSize, cellHeight);
+        const heightfield = createHeightfield(hfW, hfH, expanded, cellSize, cellHeight);
 
         rasterizeTriangles(buildCtx, heightfield, levelPositions, trianglesInBox, triAreaIds, walkableClimbVoxels);
 
@@ -367,15 +368,13 @@ const processRebuildQueue = (maxPerFrame: number) => {
                     const worldRadius = obj.radius;
 
                     // quick AABB check: skip if sphere center outside the tile bounds (with radius)
-                    const min = tileBounds[0];
-                    const max = tileBounds[1];
                     if (
-                        pos.x + worldRadius < min[0] ||
-                        pos.x - worldRadius > max[0] ||
-                        pos.y + worldRadius < min[1] ||
-                        pos.y - worldRadius > max[1] ||
-                        pos.z + worldRadius < min[2] ||
-                        pos.z - worldRadius > max[2]
+                        pos.x + worldRadius < tileBounds[0] ||
+                        pos.x - worldRadius > tileBounds[3] ||
+                        pos.y + worldRadius < tileBounds[1] ||
+                        pos.y - worldRadius > tileBounds[4] ||
+                        pos.z + worldRadius < tileBounds[2] ||
+                        pos.z - worldRadius > tileBounds[5]
                     ) {
                         continue;
                     }
@@ -387,15 +386,13 @@ const processRebuildQueue = (maxPerFrame: number) => {
                 for (const obj of physicsObjects) {
                     const pos = obj.mesh.position;
                     const worldRadius = obj.radius ?? 0.5;
-                    const min = tileBounds[0];
-                    const max = tileBounds[1];
                     if (
-                        pos.x + worldRadius < min[0] ||
-                        pos.x - worldRadius > max[0] ||
-                        pos.y + worldRadius < min[1] ||
-                        pos.y - worldRadius > max[1] ||
-                        pos.z + worldRadius < min[2] ||
-                        pos.z - worldRadius > max[2]
+                        pos.x + worldRadius < tileBounds[0] ||
+                        pos.x - worldRadius > tileBounds[3] ||
+                        pos.y + worldRadius < tileBounds[1] ||
+                        pos.y - worldRadius > tileBounds[4] ||
+                        pos.z + worldRadius < tileBounds[2] ||
+                        pos.z - worldRadius > tileBounds[5]
                     ) {
                         continue;
                     }
@@ -503,10 +500,10 @@ const buildAllTiles = () => {
 
 // compute the list of tiles overlapping an AABB (min/max Vec3)
 const tilesForAABB = (min: Vec3, max: Vec3) => {
-    const minX = Math.floor((min[0] - meshBounds[0][0]) / tileSizeWorld);
-    const minY = Math.floor((min[2] - meshBounds[0][2]) / tileSizeWorld);
-    const maxX = Math.floor((max[0] - meshBounds[0][0]) / tileSizeWorld);
-    const maxY = Math.floor((max[2] - meshBounds[0][2]) / tileSizeWorld);
+    const minX = Math.floor((min[0] - meshBounds[0]) / tileSizeWorld);
+    const minY = Math.floor((min[2] - meshBounds[2]) / tileSizeWorld);
+    const maxX = Math.floor((max[0] - meshBounds[0]) / tileSizeWorld);
+    const maxY = Math.floor((max[2] - meshBounds[2]) / tileSizeWorld);
 
     const out: Array<[number, number]> = [];
     for (let x = minX; x <= maxX; x++) {

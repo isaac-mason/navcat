@@ -2,7 +2,9 @@
 
 ## 0.1.7 (Unreleased)
 
-- feat: update mathcat from v0.0.8 to v0.0.10
+- feat: update mathcat from v0.0.8 to v0.0.11
+  - Box3 type changed from `[Vec3, Vec3]` to flat array `[minX, minY, minZ, maxX, maxY, maxZ]`
+  - navcat APIs that take a `Box3` will now expect the flat array format
 
 ## 0.1.6
 

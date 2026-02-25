@@ -72,10 +72,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 5,
                 5,
-                [
-                    [0, 0, 0],
-                    [5, 5, 5],
-                ],
+                [0, 0, 0, 5, 5, 5],
                 1.0,
                 1.0,
             );
@@ -93,10 +90,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -113,10 +107,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 0.5,
             );
@@ -127,17 +118,14 @@ describe('compact-heightfield', () => {
             const compact = buildCompactHeightfield(ctx, walkableHeightVoxels, 2, heightfield);
 
             // Upper bound should be adjusted by walkableHeight * cellHeight
-            expect(compact.bounds[1][1]).toBe(3 + walkableHeightVoxels * 0.5);
+            expect(compact.bounds[4]).toBe(3 + walkableHeightVoxels * 0.5);
         });
 
         test('converts heightfield spans to compact spans correctly', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -159,10 +147,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -186,10 +171,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -211,10 +193,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -236,10 +215,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -258,10 +234,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -285,10 +258,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 3, 3],
-                ],
+                [0, 0, 0, 3, 3, 3],
                 1.0,
                 1.0,
             );
@@ -311,10 +281,7 @@ describe('compact-heightfield', () => {
         const heightfield = createHeightfield(
             size,
             size,
-            [
-                [0, 0, 0],
-                [size, 10, size],
-            ],
+            [0, 0, 0, size, 10, size],
             1.0,
             1.0,
         );
@@ -334,10 +301,7 @@ describe('compact-heightfield', () => {
     describe('markBoxArea', () => {
         test('marks spans within axis-aligned box bounds', () => {
             const compact = createGridWithSpans(5);
-            const bounds: [[number, number, number], [number, number, number]] = [
-                [1, 0, 1],
-                [3, 10, 3],
-            ];
+            const bounds: [number, number, number, number, number, number] = [1, 0, 1, 3, 10, 3];
 
             markBoxArea(bounds, 2, compact);
 
@@ -356,10 +320,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 3,
                 3,
-                [
-                    [0, 0, 0],
-                    [3, 10, 3],
-                ],
+                [0, 0, 0, 3, 10, 3],
                 1.0,
                 1.0,
             );
@@ -369,10 +330,7 @@ describe('compact-heightfield', () => {
             const compact = buildCompactHeightfield(BuildContext.create(), 5, 3, heightfield);
 
             markBoxArea(
-                [
-                    [0, 0, 0],
-                    [3, 7, 3],
-                ],
+                [0, 0, 0, 3, 7, 3],
                 3,
                 compact,
             );
@@ -405,10 +363,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 5,
                 5,
-                [
-                    [0, 0, 0],
-                    [5, 10, 5],
-                ],
+                [0, 0, 0, 5, 10, 5],
                 1.0,
                 1.0,
             );
@@ -446,10 +401,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 5,
                 5,
-                [
-                    [0, 0, 0],
-                    [5, 10, 5],
-                ],
+                [0, 0, 0, 5, 10, 5],
                 1.0,
                 1.0,
             );
@@ -622,10 +574,7 @@ describe('compact-heightfield', () => {
             const heightfield = createHeightfield(
                 5,
                 5,
-                [
-                    [0, 0, 0],
-                    [5, 10, 5],
-                ],
+                [0, 0, 0, 5, 10, 5],
                 1.0,
                 1.0,
             );

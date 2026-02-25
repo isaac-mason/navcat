@@ -1230,7 +1230,7 @@ const walkableHeightWorld = 1.0; // in world units
 const walkableHeightVoxels = Math.ceil(walkableHeightWorld / cellHeight);
 
 // calculate the bounds of the input geometry
-const bounds: Nav.Box3 = [[0, 0, 0], [0, 0, 0]];
+const bounds: Nav.Box3 = [0, 0, 0, 0, 0, 0];
 Nav.calculateMeshBounds(bounds, positions, indices);
 
 // calculate the grid size of the heightfield
@@ -1758,11 +1758,11 @@ const navMesh = Nav.createNavMesh();
 
 // set the navmesh parameters using the poly mesh bounds
 // this example is for a single tile navmesh, so the tile width/height is the same as the poly mesh bounds size
-navMesh.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
-navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
-navMesh.origin[0] = polyMesh.bounds[0][0];
-navMesh.origin[1] = polyMesh.bounds[0][1];
-navMesh.origin[2] = polyMesh.bounds[0][2];
+navMesh.tileWidth = polyMesh.bounds[3] - polyMesh.bounds[0];
+navMesh.tileHeight = polyMesh.bounds[5] - polyMesh.bounds[2];
+navMesh.origin[0] = polyMesh.bounds[0];
+navMesh.origin[1] = polyMesh.bounds[1];
+navMesh.origin[2] = polyMesh.bounds[2];
 
 // assemble the navmesh tile params
 const tileParams: Nav.NavMeshTileParams = {
@@ -2235,10 +2235,7 @@ export function getPortalPoints(navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRe
 
 ```ts
 // find all polys within a box area
-const bounds: Nav.Box3 = [
-    [0, 0, 0],
-    [1, 1, 1],
-];
+const bounds: Nav.Box3 = [0, 0, 0, 1, 1, 1];
 
 const queryPolygonsResult = Nav.queryPolygons(navMesh, bounds, Nav.DEFAULT_QUERY_FILTER);
 

@@ -696,8 +696,12 @@ export const findNearestPoly = (
 
     // get bounds for the query
     const bounds = _findNearestPoly_bounds;
-    vec3.sub(bounds[0], center, halfExtents);
-    vec3.add(bounds[1], center, halfExtents);
+    bounds[0] = center[0] - halfExtents[0];
+    bounds[1] = center[1] - halfExtents[1];
+    bounds[2] = center[2] - halfExtents[2];
+    bounds[3] = center[0] + halfExtents[0];
+    bounds[4] = center[1] + halfExtents[1];
+    bounds[5] = center[2] + halfExtents[2];
 
     // query polygons within the query bounds
     const polys = queryPolygons(navMesh, bounds, queryFilter);
@@ -751,22 +755,21 @@ export const queryPolygonsInTile = (
     bounds: Box3,
     filter: QueryFilter,
 ): void => {
-    const qmin = bounds[0];
-    const qmax = bounds[1];
-
     let nodeIndex = 0;
     const endIndex = tile.bvTree.nodes.length;
-    const tbmin = tile.bounds[0];
-    const tbmax = tile.bounds[1];
     const qfac = tile.bvTree.quantFactor;
 
+    // tile bounds min/max
+    const tbminX = tile.bounds[0], tbminY = tile.bounds[1], tbminZ = tile.bounds[2];
+    const tbmaxX = tile.bounds[3], tbmaxY = tile.bounds[4], tbmaxZ = tile.bounds[5];
+
     // clamp query box to world box.
-    const minx = Math.max(Math.min(qmin[0], tbmax[0]), tbmin[0]) - tbmin[0];
-    const miny = Math.max(Math.min(qmin[1], tbmax[1]), tbmin[1]) - tbmin[1];
-    const minz = Math.max(Math.min(qmin[2], tbmax[2]), tbmin[2]) - tbmin[2];
-    const maxx = Math.max(Math.min(qmax[0], tbmax[0]), tbmin[0]) - tbmin[0];
-    const maxy = Math.max(Math.min(qmax[1], tbmax[1]), tbmin[1]) - tbmin[1];
-    const maxz = Math.max(Math.min(qmax[2], tbmax[2]), tbmin[2]) - tbmin[2];
+    const minx = Math.max(Math.min(bounds[0], tbmaxX), tbminX) - tbminX;
+    const miny = Math.max(Math.min(bounds[1], tbmaxY), tbminY) - tbminY;
+    const minz = Math.max(Math.min(bounds[2], tbmaxZ), tbminZ) - tbminZ;
+    const maxx = Math.max(Math.min(bounds[3], tbmaxX), tbminX) - tbminX;
+    const maxy = Math.max(Math.min(bounds[4], tbmaxY), tbminY) - tbminY;
+    const maxz = Math.max(Math.min(bounds[5], tbmaxZ), tbminZ) - tbminZ;
 
     // quantize
     _queryPolygonsInTile_bmin[0] = Math.floor(qfac * minx) & 0xfffe;
@@ -782,12 +785,12 @@ export const queryPolygonsInTile = (
 
         const nodeBounds = bvNode.bounds;
         const overlap =
-            _queryPolygonsInTile_bmin[0] <= nodeBounds[1][0] &&
-            _queryPolygonsInTile_bmax[0] >= nodeBounds[0][0] &&
-            _queryPolygonsInTile_bmin[1] <= nodeBounds[1][1] &&
-            _queryPolygonsInTile_bmax[1] >= nodeBounds[0][1] &&
-            _queryPolygonsInTile_bmin[2] <= nodeBounds[1][2] &&
-            _queryPolygonsInTile_bmax[2] >= nodeBounds[0][2];
+            _queryPolygonsInTile_bmin[0] <= nodeBounds[3] &&
+            _queryPolygonsInTile_bmax[0] >= nodeBounds[0] &&
+            _queryPolygonsInTile_bmin[1] <= nodeBounds[4] &&
+            _queryPolygonsInTile_bmax[1] >= nodeBounds[1] &&
+            _queryPolygonsInTile_bmin[2] <= nodeBounds[5] &&
+            _queryPolygonsInTile_bmax[2] >= nodeBounds[2];
 
         const isLeafNode = bvNode.i >= 0;
 
@@ -811,13 +814,17 @@ export const queryPolygonsInTile = (
 
 const _queryPolygons_minTile = vec2.create();
 const _queryPolygons_maxTile = vec2.create();
+const _queryPolygons_minPos = vec3.create();
+const _queryPolygons_maxPos = vec3.create();
 
 export const queryPolygons = (navMesh: NavMesh, bounds: Box3, filter: QueryFilter): NodeRef[] => {
     const result: NodeRef[] = [];
 
     // find min and max tile positions
-    const minTile = worldToTilePosition(_queryPolygons_minTile, navMesh, bounds[0]);
-    const maxTile = worldToTilePosition(_queryPolygons_maxTile, navMesh, bounds[1]);
+    box3.min(_queryPolygons_minPos, bounds);
+    box3.max(_queryPolygons_maxPos, bounds);
+    const minTile = worldToTilePosition(_queryPolygons_minTile, navMesh, _queryPolygons_minPos);
+    const maxTile = worldToTilePosition(_queryPolygons_maxTile, navMesh, _queryPolygons_maxPos);
 
     // iterate through the tiles in the query bounds
     if (!vec2.finite(minTile) || !vec2.finite(maxTile)) {

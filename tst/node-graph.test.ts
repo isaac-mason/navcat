@@ -83,9 +83,9 @@ describe('node graph', () => {
         const tile = buildTile(tileParams);
 
         const navMesh = createNavMesh();
-        navMesh.origin = bounds[0];
-        navMesh.tileWidth = bounds[1][0] - bounds[0][0];
-        navMesh.tileHeight = bounds[1][2] - bounds[0][2];
+        navMesh.origin = [bounds[0], bounds[1], bounds[2]];
+        navMesh.tileWidth = bounds[3] - bounds[0];
+        navMesh.tileHeight = bounds[5] - bounds[2];
 
         // assert: no nodes or links yet
         expect(navMesh.nodes.length).toBe(0);
@@ -389,9 +389,9 @@ function createOffMeshTestNavMesh(): NavMesh {
     const tile = buildTile(tileParams);
 
     const navMesh = createNavMesh();
-    navMesh.origin = bounds[0];
-    navMesh.tileWidth = bounds[1][0] - bounds[0][0];
-    navMesh.tileHeight = bounds[1][2] - bounds[0][2];
+    navMesh.origin = [bounds[0], bounds[1], bounds[2]];
+    navMesh.tileWidth = bounds[3] - bounds[0];
+    navMesh.tileHeight = bounds[5] - bounds[2];
 
     addTile(navMesh, tile);
 

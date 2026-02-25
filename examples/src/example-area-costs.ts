@@ -47,23 +47,23 @@ enum NavMeshAreaType {
 }
 
 const RED_ZONE_BOUNDS: Box3 = [
-    [-8, -2, -2],
-    [2, 2, 12],
+    -8, -2, -2,
+    2, 2, 12,
 ];
 
 const GREEN_ENTRY_BOUNDS: Box3 = [
-    [2, -2, -12],
-    [14, 2, -2],
+    2, -2, -12,
+    14, 2, -2,
 ];
 
 const GREEN_LANE_BOUNDS: Box3 = [
-    [8, -2, -2],
-    [14, 2, 12],
+    8, -2, -2,
+    14, 2, 12,
 ];
 
 const GREEN_EXIT_BOUNDS: Box3 = [
-    [-12, -2, 12],
-    [14, 2, 20],
+    -12, -2, 12,
+    14, 2, 20,
 ];
 
 const RED_COLOR = 0xff3b30;
@@ -91,9 +91,8 @@ scene.add(floorMesh);
 
 /* zone overlays */
 function createOverlay(bounds: Box3, color: number) {
-    const [min, max] = bounds;
-    const sizeX = max[0] - min[0];
-    const sizeZ = max[2] - min[2];
+    const sizeX = bounds[3] - bounds[0];
+    const sizeZ = bounds[5] - bounds[2];
     const geometry = new THREE.PlaneGeometry(sizeX, sizeZ);
     geometry.rotateX(-Math.PI / 2);
     const material = new THREE.MeshBasicMaterial({
@@ -103,7 +102,7 @@ function createOverlay(bounds: Box3, color: number) {
         depthWrite: false,
     });
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(min[0] + sizeX / 2, 0.01, min[2] + sizeZ / 2);
+    mesh.position.set(bounds[0] + sizeX / 2, 0.01, bounds[2] + sizeZ / 2);
     mesh.renderOrder = 1;
     return mesh;
 }
@@ -223,9 +222,9 @@ function generateFlatNavMesh(input: NavMeshGenerationInput, options: NavMeshGene
     );
 
     const navMesh = createNavMesh();
-    navMesh.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
-    navMesh.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
-    vec3.copy(navMesh.origin, polyMesh.bounds[0]);
+    navMesh.tileWidth = polyMesh.bounds[3] - polyMesh.bounds[0];
+    navMesh.tileHeight = polyMesh.bounds[5] - polyMesh.bounds[2];
+    box3.min(navMesh.origin, polyMesh.bounds);
 
     const tilePolys = polyMeshToTilePolys(polyMesh);
     const tileDetailMesh = polyMeshDetailToTileDetailMesh(tilePolys.polys, polyMeshDetail);

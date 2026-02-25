@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
-import type { Vec3 } from 'mathcat';
-import { box3, degreesToRadians, vec2, vec3 } from 'mathcat';
+import type { Box3, Vec3 } from 'mathcat';
+import { box3, degreesToRadians, vec2 } from 'mathcat';
 import {
     addTile,
     buildCompactHeightfield,
@@ -96,9 +96,9 @@ type NavMeshResult = {
 };
 
 /* Shared area definitions (single source of truth for rasterization and helpers) */
-const waterBox: [Vec3, Vec3] = [
-    [5, -1, -8],
-    [11, 1, -3],
+const waterBox: Box3 = [
+    5, -1, -8,
+    11, 1, -3,
 ];
 
 const grassCylinderCenter: Vec3 = [9, 1.5, 3.5];
@@ -262,9 +262,9 @@ function generateNavMesh(input: NavMeshInput, options: NavMeshOptions): NavMeshR
 
     /* create a single tile nav mesh */
     const nav = createNavMesh();
-    nav.tileWidth = polyMesh.bounds[1][0] - polyMesh.bounds[0][0];
-    nav.tileHeight = polyMesh.bounds[1][2] - polyMesh.bounds[0][2];
-    vec3.copy(nav.origin, polyMesh.bounds[0]);
+    nav.tileWidth = polyMesh.bounds[3] - polyMesh.bounds[0];
+    nav.tileHeight = polyMesh.bounds[5] - polyMesh.bounds[2];
+    box3.min(nav.origin, polyMesh.bounds);
 
     const tilePolys = polyMeshToTilePolys(polyMesh);
 
@@ -435,10 +435,8 @@ const areaVisuals: Visual[] = [];
 
 function createAreaVisuals() {
     // water box
-    const wbMin = waterBox[0];
-    const wbMax = waterBox[1];
-    const wbSize = [wbMax[0] - wbMin[0], wbMax[1] - wbMin[1], wbMax[2] - wbMin[2]] as const;
-    const wbCenter = [(wbMin[0] + wbMax[0]) / 2, (wbMin[1] + wbMax[1]) / 2, (wbMin[2] + wbMax[2]) / 2] as Vec3;
+    const wbSize = [waterBox[3] - waterBox[0], waterBox[4] - waterBox[1], waterBox[5] - waterBox[2]] as const;
+    const wbCenter = [(waterBox[0] + waterBox[3]) / 2, (waterBox[1] + waterBox[4]) / 2, (waterBox[2] + waterBox[5]) / 2] as Vec3;
     const waterGeom = new THREE.BoxGeometry(wbSize[0], wbSize[1], wbSize[2]);
     const waterMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, opacity: 0.35, transparent: true });
     const waterMesh = new THREE.Mesh(waterGeom, waterMat);

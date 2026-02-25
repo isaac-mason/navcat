@@ -101,13 +101,13 @@ export const clearUnwalkableTriangles = (
 };
 
 export const calculateMeshBounds = (outBounds: Box3, inVertices: ArrayLike<number>, inIndices: ArrayLike<number>): Box3 => {
-    outBounds[0][0] = Number.POSITIVE_INFINITY;
-    outBounds[0][1] = Number.POSITIVE_INFINITY;
-    outBounds[0][2] = Number.POSITIVE_INFINITY;
+    outBounds[0] = Number.POSITIVE_INFINITY;
+    outBounds[1] = Number.POSITIVE_INFINITY;
+    outBounds[2] = Number.POSITIVE_INFINITY;
 
-    outBounds[1][0] = Number.NEGATIVE_INFINITY;
-    outBounds[1][1] = Number.NEGATIVE_INFINITY;
-    outBounds[1][2] = Number.NEGATIVE_INFINITY;
+    outBounds[3] = Number.NEGATIVE_INFINITY;
+    outBounds[4] = Number.NEGATIVE_INFINITY;
+    outBounds[5] = Number.NEGATIVE_INFINITY;
 
     const numTris = inIndices.length / 3;
 
@@ -120,13 +120,13 @@ export const calculateMeshBounds = (outBounds: Box3, inVertices: ArrayLike<numbe
             const y = inVertices[index * 3 + 1];
             const z = inVertices[index * 3 + 2];
 
-            outBounds[0][0] = Math.min(outBounds[0][0], x);
-            outBounds[0][1] = Math.min(outBounds[0][1], y);
-            outBounds[0][2] = Math.min(outBounds[0][2], z);
+            outBounds[0] = Math.min(outBounds[0], x);
+            outBounds[1] = Math.min(outBounds[1], y);
+            outBounds[2] = Math.min(outBounds[2], z);
 
-            outBounds[1][0] = Math.max(outBounds[1][0], x);
-            outBounds[1][1] = Math.max(outBounds[1][1], y);
-            outBounds[1][2] = Math.max(outBounds[1][2], z);
+            outBounds[3] = Math.max(outBounds[3], x);
+            outBounds[4] = Math.max(outBounds[4], y);
+            outBounds[5] = Math.max(outBounds[5], z);
         }
     }
 

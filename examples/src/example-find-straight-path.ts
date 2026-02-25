@@ -1,4 +1,3 @@
-import { GUI } from 'lil-gui';
 import type { Vec3 } from 'mathcat';
 import {
     createFindNearestPolyResult,
