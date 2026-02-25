@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.1.7 (Unreleased)
+## 0.2.0
 
 - feat: update mathcat from v0.0.8 to v0.0.11
   - Box3 type changed from `[Vec3, Vec3]` to flat array `[minX, minY, minZ, maxX, maxY, maxZ]`
