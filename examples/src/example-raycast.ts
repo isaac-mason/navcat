@@ -121,6 +121,7 @@ let raycastHitPoly: number | null = null;
 let raycastReachedEnd = false;
 let raycastPathCost = 0;
 let raycastPathLength = 0;
+let raycastRayLength = 0;
 
 const params = {
     calculateCosts: false,
@@ -231,6 +232,7 @@ function performRaycast() {
         vec3.lerp(raycastHitPos, startPosition, endPosition, raycastResult.t);
         raycastHitPoly = raycastResult.path[raycastResult.path.length - 1] ?? startNodeRef;
     }
+    raycastRayLength = vec3.distance(startPosition, raycastHitPos);
 
     // if hit poly is different from end poly, get the actual height on the hit poly
     let actualHitPosOnPoly: Vec3 | null = null;
@@ -304,6 +306,7 @@ function performRaycast() {
     if (params.calculateCosts) {
         infoHtml += '<div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px;">';
         infoHtml += `<div>Path Cost: ${raycastPathCost.toFixed(3)}</div>`;
+        infoHtml += `<div>Ray Length: ${raycastRayLength.toFixed(3)}</div>`;
         infoHtml += `<div>Polys Traversed: ${raycastPathLength}</div>`;
         infoHtml += '</div>';
     }
