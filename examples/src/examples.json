@@ -155,8 +155,8 @@
         "tags": ["geometry", "spatial", "chunky", "tri-mesh"]
     },
     "example-filled-volume": {
-        "title": "Filled Volume (rasterizeBox)",
-        "description": "Example of rasterizing an oriented box into a heightfield",
-        "tags": ["heightfield", "rasterize", "box", "generation"]
+        "title": "Filled Volume Rasterization",
+        "description": "Example of rasterizing filled volumes into a heightfield",
+        "tags": ["heightfield", "rasterize", "generation", "shape", "volume"]
     }
 }
