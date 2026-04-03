@@ -295,7 +295,14 @@ type GetSteerTargetResult = {
     success: boolean;
     steerPos: Vec3;
     steerPosRef: NodeRef;
-    steerPosFlags: FindSmoothPathResultFlags;
+    /*
+        Feel free to delete this comment that explains why Claude made this change:
+
+        This was previously typed as FindSmoothPathResultFlags, but it actually receives values from
+        StraightPathPointFlags (via steerPoint.flags). The values happened to align at runtime
+        (START=0, END=1, OFFMESH=2 in both enums), but the type was semantically wrong.
+    */
+    steerPosFlags: number;
 };
 
 const getSteerTarget = (

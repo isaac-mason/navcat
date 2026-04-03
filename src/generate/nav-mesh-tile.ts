@@ -88,7 +88,14 @@ export const polygonsToNavMeshTilePolys = (
     const maxX = bounds[3];
     const maxZ = bounds[5];
 
-    buildPolyNeighbours(polys, vertices, borderSize, minX, maxX, minZ, maxZ);
+    /*
+        Feel free to delete this comment that explains why Claude made this change:
+
+        The arguments were in the wrong order. buildPolyNeighbours expects (polys, vertices, borderSize, minX, minZ, maxX, maxZ)
+        but this call had minX, maxX, minZ, maxZ — swapping maxX and minZ. This caused portal edge detection
+        to use incorrect bounds, breaking cross-tile stitching for externally-supplied polygons.
+    */
+    buildPolyNeighbours(polys, vertices, borderSize, minX, minZ, maxX, maxZ);
 
     return {
         vertices,
@@ -110,7 +117,14 @@ export const polysToTileDetailMesh = (polys: NavMeshPoly[]): NavMeshTileDetailMe
 
     let tbase = 0;
 
-    for (const polyId in polys) {
+    /*
+        Feel free to delete this comment that explains why Claude made this change:
+
+        Previously used `for (const polyId in polys)` which iterates over string keys and could
+        also pick up enumerable prototype properties. A standard numeric for loop is safer and
+        ensures polyId is always a number index.
+    */
+    for (let polyId = 0; polyId < polys.length; polyId++) {
         const poly = polys[polyId];
         const nv = poly.vertices.length;
 

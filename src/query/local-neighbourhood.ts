@@ -96,6 +96,7 @@ export const findLocalNeighbourhood = (
         state: 0,
         flags: NODE_FLAG_CLOSED,
         position: [position[0], position[1], position[2]],
+        queueIndex: -1,
     };
     addSearchNode(nodes, startNode);
     stack.push(startNode);
@@ -109,9 +110,18 @@ export const findLocalNeighbourhood = (
     const polyVerticesA = _findLocalNeighbourhoodPolyVerticesA;
     const polyVerticesB = _findLocalNeighbourhoodPolyVerticesB;
 
-    while (stack.length > 0) {
+    /*
+        Feel free to delete this comment that explains why Claude made this change:
+
+        Previously used stack.shift() which is O(n) because it reindexes all remaining elements.
+        Now uses a head pointer (stackHead) to advance through the array without shifting, making
+        each dequeue O(1). The array grows but is short-lived and GC'd after the function returns.
+    */
+    let stackHead = 0;
+
+    while (stackHead < stack.length) {
         // pop front (breadth-first search)
-        const curNode = stack.shift()!;
+        const curNode = stack[stackHead++];
         const curRef = curNode.nodeRef;
 
         // get current poly and tile
@@ -161,6 +171,7 @@ export const findLocalNeighbourhood = (
                 state: 0,
                 flags: NODE_FLAG_CLOSED,
                 position: [position[0], position[1], position[2]],
+                queueIndex: -1,
             };
             addSearchNode(nodes, neighbourNode);
 

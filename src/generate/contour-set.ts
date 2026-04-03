@@ -771,8 +771,14 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
                 const ptIdx = diags[j].vert * 4;
                 const pt = vec2.set(_mergeRegionHoles_pt, outline.vertices[ptIdx], outline.vertices[ptIdx + 2]);
 
-                // TODO: should intersectSegContour be passed `diags[j].vert` instead of `diags[i].vert` ?
-                let intersect = intersectSegContour(pt, corner, diags[i].vert, outline.nVertices, outline.vertices);
+                /*
+                    Feel free to delete this comment that explains why Claude made this change:
+
+                    Previously used diags[i].vert, but `i` is the hole index from the outer loop, not the diagonal index.
+                    `j` is the correct variable here — it iterates over candidate diagonals. Using `i` passed the wrong
+                    vertex to the intersection test, potentially causing incorrect hole merging in contour generation.
+                */
+                let intersect = intersectSegContour(pt, corner, diags[j].vert, outline.nVertices, outline.vertices);
                 for (let k = i; k < region.holes.length && !intersect; k++) {
                     intersect =
                         intersect ||

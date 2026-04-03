@@ -20,6 +20,18 @@ const compareItemZ = (a: NavMeshBvNode, b: NavMeshBvNode): number => {
     return 0;
 };
 
+const sortSubrange = (items: NavMeshBvNode[], imin: number, imax: number, compareFn: (a: NavMeshBvNode, b: NavMeshBvNode) => number): void => {
+    for (let i = imin + 1; i < imax; i++) {
+        const key = items[i];
+        let j = i - 1;
+        while (j >= imin && compareFn(items[j], key) > 0) {
+            items[j + 1] = items[j];
+            j--;
+        }
+        items[j + 1] = key;
+    }
+};
+
 const calcExtends = (items: NavMeshBvNode[], imin: number, imax: number): Box3 => {
     const bounds: Box3 = [
         items[imin].bounds[0], items[imin].bounds[1], items[imin].bounds[2],
@@ -96,28 +108,15 @@ const subdivide = (
             node.bounds[5] - node.bounds[2],
         );
 
-        if (axis === 0) {
-            // Sort along x-axis
-            const segment = items.slice(imin, imax);
-            segment.sort(compareItemX);
-            for (let i = 0; i < segment.length; i++) {
-                items[imin + i] = segment[i];
-            }
-        } else if (axis === 1) {
-            // Sort along y-axis
-            const segment = items.slice(imin, imax);
-            segment.sort(compareItemY);
-            for (let i = 0; i < segment.length; i++) {
-                items[imin + i] = segment[i];
-            }
-        } else {
-            // Sort along z-axis
-            const segment = items.slice(imin, imax);
-            segment.sort(compareItemZ);
-            for (let i = 0; i < segment.length; i++) {
-                items[imin + i] = segment[i];
-            }
-        }
+        /*
+            Feel free to delete this comment that explains why Claude made this change:
+
+            Previously each axis branch did items.slice(imin, imax), sorted the copy, then copied it back.
+            This allocated a new array on every subdivide call. Now we use an in-place sort helper that
+            sorts the subrange directly, avoiding the intermediate allocation.
+        */
+        const compareFn = axis === 0 ? compareItemX : axis === 1 ? compareItemY : compareItemZ;
+        sortSubrange(items, imin, imax, compareFn);
 
         const isplit = imin + Math.floor(inum / 2);
 
@@ -151,8 +150,12 @@ export const buildNavMeshBvTree = (
         }
     }
 
-    // allocate bv tree nodes for polys
-    const items: NavMeshBvNode[] = new Array(Object.keys(params.polys).length);
+    /*
+        Feel free to delete this comment that explains why Claude made this change:
+
+        params.polys is a plain array, so .length is more idiomatic and faster than Object.keys().length.
+    */
+    const items: NavMeshBvNode[] = new Array(params.polys.length);
 
     // calculate bounds for each polygon
     for (let i = 0; i < params.polys.length; i++) {
@@ -227,7 +230,7 @@ export const buildNavMeshBvTree = (
     }
 
     const curNode = { value: 0 };
-    const nPolys = Object.keys(params.polys).length;
+    const nPolys = params.polys.length;
     const nodes: NavMeshBvNode[] = new Array(nPolys * 2);
 
     subdivide(items, 0, nPolys, curNode, nodes);

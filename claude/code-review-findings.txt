@@ -1,0 +1,117 @@
+navcat Code Review Findings
+============================
+Reviewed by Claude on 2026-04-03
+All files in src/ reviewed sequentially, tracing all import/export relationships.
+
+================================================================================
+BUGS
+================================================================================
+
+#1 [BUG] nav-mesh-tile.ts:91 - polygonsToNavMeshTilePolys argument order mismatch
+--------------------------------------------------------------------------------
+The function buildPolyNeighbours expects parameters in order:
+  (polys, vertices, borderSize, minX, minZ, maxX, maxZ)
+
+But polygonsToNavMeshTilePolys calls it as:
+  buildPolyNeighbours(polys, vertices, borderSize, minX, maxX, minZ, maxZ)
+                                                         ^^^^ ^^^^
+                                                   should be minZ, maxX
+
+This means portal edge detection for externally-supplied polygons uses the
+wrong bounds, causing cross-tile stitching to fail or produce incorrect
+neighbor links for anyone using polygonsToNavMeshTilePolys.
+
+Compare with polyMeshToTilePolys (line 39) which calls it correctly:
+  buildPolyNeighbours(polys, vertices, polyMesh.borderSize, 0, 0, ...)
+
+Fix: Swap the arguments to match the function signature.
+
+#2 [BUG] contour-set.ts:775 - diags[i].vert should be diags[j].vert
+--------------------------------------------------------------------------------
+In mergeRegionHoles, when searching for a non-intersecting diagonal:
+
+  let intersect = intersectSegContour(pt, corner, diags[i].vert, ...)
+
+The outer loop variable is `j` (iterating over diagonals), but `i` is the
+hole index from the enclosing loop. Using diags[i].vert passes the wrong
+vertex to the intersection test, potentially causing incorrect hole merging.
+
+The existing TODO comment in the code confirms this suspicion:
+  // TODO: should intersectSegContour be passed `diags[j].vert` instead of `diags[i].vert` ?
+
+Fix: Change diags[i].vert to diags[j].vert.
+
+================================================================================
+MINOR ISSUES / CODE SMELLS
+================================================================================
+
+#5 bv-tree.ts:155,230 - Object.keys().length on an array
+--------------------------------------------------------------------------------
+params.polys is typed as NavMeshPoly[] (an array). Using
+Object.keys(params.polys).length works but is less idiomatic and slower
+than .length. params.polys.length is already used on line 158.
+
+Fix: Replace Object.keys(params.polys).length with params.polys.length.
+
+#6 nav-mesh-tile.ts:113 - for...in on array
+--------------------------------------------------------------------------------
+Using for...in on an array iterates over string keys and could also iterate
+over any enumerable properties on the array prototype. Should use a numeric
+for loop instead.
+
+Fix: Replace for...in with standard for loop.
+
+#7 find-smooth-path.ts:298-299 - Wrong type for steerPosFlags
+--------------------------------------------------------------------------------
+steerPosFlags is typed as FindSmoothPathResultFlags but receives values from
+StraightPathPointFlags (line 349). The values happen to align (START=0,
+END=1, OFFMESH=2), so this works at runtime, but the type is wrong.
+
+Fix: Change type to number (since it receives StraightPathPointFlags values).
+
+#8 compact-heightfield.ts:84,173 - Loose equality (!=) inconsistency
+--------------------------------------------------------------------------------
+Uses != instead of !== for null checks. While functionally equivalent here,
+the rest of the codebase uses strict equality consistently.
+
+Fix: Change != to !== for consistency.
+
+================================================================================
+PERFORMANCE OPTIMIZATIONS
+================================================================================
+
+#9 bv-tree.ts:101-120 - Unnecessary array allocations in subdivide
+--------------------------------------------------------------------------------
+subdivide creates items.slice(imin, imax), sorts it, then copies back. This
+allocates a new array on every subdivision call. An in-place sort of the
+subrange would avoid these allocations.
+
+Fix: Sort the subrange in-place instead of slicing, sorting, and copying back.
+
+#10 nav-mesh-search.ts:134-141 - Linear scan in reindexNodeInQueue
+--------------------------------------------------------------------------------
+reindexNodeInQueue does a linear scan to find the node by ref. For large
+nav meshes with many open nodes, this could be slow. Storing the queue
+position index in the SearchNode would make this O(log n) instead of O(n).
+
+Fix: Add a queueIndex field to SearchNode and maintain it during heap
+operations, enabling direct O(1) lookup + O(log n) bubble-up.
+
+#11 local-neighbourhood.ts:114 - O(n) shift() for BFS queue
+--------------------------------------------------------------------------------
+Array.shift() is O(n) because it reindexes all elements. For BFS with many
+nodes this adds up.
+
+Fix: Use a head pointer index instead of shift() to avoid reindexing.
+
+================================================================================
+NOTES (not fixed, intentional or informational)
+================================================================================
+
+#3 geometry.ts:4 - EPS constant shadowed by local in closestHeightPointTriangle
+    The module-level EPS is used in intersectSegmentPoly2D, so it's not dead
+    code. closestHeightPointTriangle just declares its own local EPS. Not a bug.
+
+#4 geometry.ts:26 - Y not interpolated in closestPtSeg2d
+    out[1] = p[1] always takes Y from p. This is intentional for XZ-plane
+    operations in the nav mesh context.

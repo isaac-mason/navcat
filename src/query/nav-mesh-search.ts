@@ -47,6 +47,15 @@ export type SearchNode = {
     flags: number;
     /** the node ref for this search node */
     nodeRef: NodeRef;
+    /*
+        Feel free to delete this comment that explains why Claude made this change:
+
+        Added queueIndex to enable O(1) lookup of a node's position in the priority queue.
+        Previously, reindexNodeInQueue did a linear O(n) scan to find the node. With queueIndex,
+        we can go directly to the node's position and bubble it up in O(log n).
+    */
+    /** the index of this node in the priority queue, or -1 if not in the queue */
+    queueIndex: number;
 };
 
 export type SearchNodePool = { [nodeRef: NodeRef]: SearchNode[] };
@@ -79,11 +88,13 @@ export const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNod
 
     while (i > 0 && queue[parent].total > node.total) {
         queue[i] = queue[parent];
+        queue[i].queueIndex = i;
         i = parent;
         parent = Math.floor((i - 1) / 2);
     }
 
     queue[i] = node;
+    node.queueIndex = i;
 };
 
 export const trickleDownQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
@@ -103,11 +114,13 @@ export const trickleDownQueue = (queue: SearchNodeQueue, i: number, node: Search
 
         // move the smallest child up
         queue[i] = queue[child];
+        queue[i].queueIndex = i;
         i = child;
         child = i * 2 + 1;
     }
 
     queue[i] = node;
+    node.queueIndex = i;
 };
 
 export const pushNodeToQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
@@ -121,6 +134,7 @@ export const popNodeFromQueue = (queue: SearchNodeQueue): SearchNode | undefined
     }
 
     const node = queue[0];
+    node.queueIndex = -1;
     const lastNode = queue.pop();
 
     if (queue.length > 0 && lastNode !== undefined) {
@@ -131,13 +145,16 @@ export const popNodeFromQueue = (queue: SearchNodeQueue): SearchNode | undefined
     return node;
 };
 
+/*
+    Feel free to delete this comment that explains why Claude made this change:
+
+    Previously this function did a linear O(n) scan to find the node in the queue by nodeRef and state.
+    Now it uses the queueIndex field on SearchNode for O(1) lookup, then bubbles up in O(log n).
+*/
 export const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): void => {
-    for (let i = 0; i < queue.length; i++) {
-        if (queue[i].nodeRef === node.nodeRef && queue[i].state === node.state) {
-            queue[i] = node;
-            bubbleUpQueue(queue, i, node);
-            return;
-        }
+    const i = node.queueIndex;
+    if (i >= 0 && i < queue.length && queue[i] === node) {
+        bubbleUpQueue(queue, i, node);
     }
 };
 
@@ -349,6 +366,7 @@ export const findNodePath = (
         state: 0,
         flags: NODE_FLAG_OPEN,
         position: [startPosition[0], startPosition[1], startPosition[2]],
+        queueIndex: -1,
     };
 
     addSearchNode(nodes, startNode);
@@ -409,6 +427,7 @@ export const findNodePath = (
                     state,
                     flags: 0,
                     position: [0, 0, 0],
+                    queueIndex: -1,
                 };
 
                 addSearchNode(nodes, neighbourSearchNode);
@@ -637,6 +656,7 @@ export const initSlicedFindNodePath = (
         state: 0,
         flags: NODE_FLAG_OPEN,
         position: [startPosition[0], startPosition[1], startPosition[2]],
+        queueIndex: -1,
     };
 
     addSearchNode(query.nodes, startNode);
@@ -735,6 +755,7 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
                     state,
                     flags: 0,
                     position: [0, 0, 0],
+                    queueIndex: -1,
                 };
 
                 addSearchNode(query.nodes, neighbourSearchNode);
@@ -1166,6 +1187,7 @@ export const moveAlongSurface = (
         state: 0,
         flags: NODE_FLAG_CLOSED,
         position: [startPosition[0], startPosition[1], startPosition[2]],
+        queueIndex: -1,
     };
 
     addSearchNode(nodes, startNode);
@@ -1260,6 +1282,7 @@ export const moveAlongSurface = (
                             state: 0,
                             flags: 0,
                             position: [endPosition[0], endPosition[1], endPosition[2]],
+                            queueIndex: -1,
                         };
                         addSearchNode(nodes, neighbourNode);
                     }
@@ -1805,6 +1828,7 @@ export const findRandomPointAroundCircle = (
         state: 0,
         flags: NODE_FLAG_OPEN,
         position: [position[0], position[1], position[2]],
+        queueIndex: -1,
     };
 
     addSearchNode(nodes, startNode);
@@ -1903,6 +1927,7 @@ export const findRandomPointAroundCircle = (
                     state: 0,
                     flags: 0,
                     position: [0, 0, 0],
+                    queueIndex: -1,
                 };
                 addSearchNode(nodes, neighbourNode);
             }
