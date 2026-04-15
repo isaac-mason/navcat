@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.3.0 (Unreleased)
+
+- feat: add heightfield filled volume rasterization functions (rasterizeBox, rasterizeConvex, rasterizeSphere, rasterizeCapsule, rasterizeCylinder)
+
 ## 0.2.0
 
 - feat: update mathcat from v0.0.8 to v0.0.11

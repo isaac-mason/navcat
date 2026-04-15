@@ -586,322 +586,50 @@ export const filterWalkableLowHeightSpans = (heightfield: Heightfield, walkableH
 const EPSILON: number = 0.00001;
 const BOX_EDGES: number[] = [0, 1, 0, 2, 0, 4, 1, 3, 1, 5, 2, 3, 2, 6, 3, 7, 4, 5, 4, 6, 5, 7, 6, 7];
 
+/**
+ * Cell footprint layout: [xMin, zMin, xMax, zMax, yBase]
+ * - [0] xMin: minimum x of the cell
+ * - [1] zMin: minimum z of the cell
+ * - [2] xMax: maximum x of the cell
+ * - [3] zMax: maximum z of the cell
+ * - [4] yBase: the y-origin of the heightfield (hf.bounds[1])
+ */
+type CellRect = [xMin: number, zMin: number, xMax: number, zMax: number, yBase: number];
+
+const _rasterizeCapsule_axis: Vec3 = [0, 0, 0];
+const _rasterizeCylinder_axis: Vec3 = [0, 0, 0];
+
+const _rasterizeBox_normals: Vec3[] = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+];
+const _rasterizeBox_vertices = new Array<number>(8 * 3);
+const _rasterizeBox_bounds: Box3 = [0, 0, 0, 0, 0, 0];
+const _rasterizeBox_planes = [
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+    [0, 0, 0, 0],
+];
+
+const _rasterizeConvex_edge0: Vec3 = [0, 0, 0];
+const _rasterizeConvex_edge1: Vec3 = [0, 0, 0];
+const _rasterizeConvex_bounds: Box3 = [0, 0, 0, 0, 0, 0];
+
 const _rasterize_bounds: Box3 = [0, 0, 0, 0, 0, 0];
+const _rasterizationFilledShape_cellFootprint: CellRect = [0, 0, 0, 0, 0];
 
-export function rasterizeSphere(
-    hf: Heightfield,
-    center: Vec3,
-    radius: number,
-    area: number,
-    flagMergeThr: number,
-    ctx: BuildContextState,
-): void {
-    BuildContext.start(ctx, 'RASTERIZE_SPHERE');
-    _rasterize_bounds[0] = center[0] - radius;
-    _rasterize_bounds[1] = center[1] - radius;
-    _rasterize_bounds[2] = center[2] - radius;
-    _rasterize_bounds[3] = center[0] + radius;
-    _rasterize_bounds[4] = center[1] + radius;
-    _rasterize_bounds[5] = center[2] + radius;
-    rasterizationFilledShape(hf, _rasterize_bounds, area, flagMergeThr, (rectangle) =>
-        intersectSphere(rectangle, center, radius * radius),
-    );
-    BuildContext.end(ctx, 'RASTERIZE_SPHERE');
-}
-
-export function rasterizeCapsule(
-    hf: Heightfield,
-    start: Vec3,
-    finish: Vec3,
-    radius: number,
-    area: number,
-    flagMergeThr: number,
-    ctx: BuildContextState,
-): void {
-    BuildContext.start(ctx, 'RASTERIZE_CAPSULE');
-    _rasterize_bounds[0] = Math.min(start[0], finish[0]) - radius;
-    _rasterize_bounds[1] = Math.min(start[1], finish[1]) - radius;
-    _rasterize_bounds[2] = Math.min(start[2], finish[2]) - radius;
-    _rasterize_bounds[3] = Math.max(start[0], finish[0]) + radius;
-    _rasterize_bounds[4] = Math.max(start[1], finish[1]) + radius;
-    _rasterize_bounds[5] = Math.max(start[2], finish[2]) + radius;
-    const axis: Vec3 = [finish[0] - start[0], finish[1] - start[1], finish[2] - start[2]];
-    rasterizationFilledShape(hf, _rasterize_bounds, area, flagMergeThr, (rectangle) =>
-        intersectCapsule(rectangle, start, finish, axis, radius * radius),
-    );
-    BuildContext.end(ctx, 'RASTERIZE_CAPSULE');
-}
-
-export function rasterizeCylinder(
-    hf: Heightfield,
-    start: Vec3,
-    finish: Vec3,
-    radius: number,
-    area: number,
-    flagMergeThr: number,
-    ctx: BuildContextState,
-): void {
-    BuildContext.start(ctx, 'RASTERIZE_CYLINDER');
-    _rasterize_bounds[0] = Math.min(start[0], finish[0]) - radius;
-    _rasterize_bounds[1] = Math.min(start[1], finish[1]) - radius;
-    _rasterize_bounds[2] = Math.min(start[2], finish[2]) - radius;
-    _rasterize_bounds[3] = Math.max(start[0], finish[0]) + radius;
-    _rasterize_bounds[4] = Math.max(start[1], finish[1]) + radius;
-    _rasterize_bounds[5] = Math.max(start[2], finish[2]) + radius;
-    const axis: Vec3 = [finish[0] - start[0], finish[1] - start[1], finish[2] - start[2]];
-    rasterizationFilledShape(hf, _rasterize_bounds, area, flagMergeThr, (rectangle) =>
-        intersectCylinder(rectangle, start, finish, axis, radius * radius),
-    );
-    BuildContext.end(ctx, 'RASTERIZE_CYLINDER');
-}
-
-export function rasterizeBox(
-    hf: Heightfield,
-    center: Vec3,
-    halfEdges: Vec3[],
-    area: number,
-    flagMergeThr: number,
-    ctx: BuildContextState,
-): void {
-    BuildContext.start(ctx, 'RASTERIZE_BOX');
-    const normals: Vec3[] = [
-        [0, 0, 0],
-        [0, 0, 0],
-        [0, 0, 0],
-    ];
-    vec3.normalize(normals[0], halfEdges[0]);
-    vec3.normalize(normals[1], halfEdges[1]);
-    vec3.normalize(normals[2], halfEdges[2]);
-
-    const vertices = new Array<number>(8 * 3);
-    const bounds: Box3 = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
-    for (let i = 0; i < 8; ++i) {
-        const s0 = (i & 1) !== 0 ? 1 : -1;
-        const s1 = (i & 2) !== 0 ? 1 : -1;
-        const s2 = (i & 4) !== 0 ? 1 : -1;
-        vertices[i * 3 + 0] = center[0] + s0 * halfEdges[0][0] + s1 * halfEdges[1][0] + s2 * halfEdges[2][0];
-        vertices[i * 3 + 1] = center[1] + s0 * halfEdges[0][1] + s1 * halfEdges[1][1] + s2 * halfEdges[2][1];
-        vertices[i * 3 + 2] = center[2] + s0 * halfEdges[0][2] + s1 * halfEdges[1][2] + s2 * halfEdges[2][2];
-        bounds[0] = Math.min(bounds[0], vertices[i * 3 + 0]);
-        bounds[1] = Math.min(bounds[1], vertices[i * 3 + 1]);
-        bounds[2] = Math.min(bounds[2], vertices[i * 3 + 2]);
-        bounds[3] = Math.max(bounds[3], vertices[i * 3 + 0]);
-        bounds[4] = Math.max(bounds[4], vertices[i * 3 + 1]);
-        bounds[5] = Math.max(bounds[5], vertices[i * 3 + 2]);
-    }
-    const planes = [
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0],
-    ];
-    for (let i = 0; i < 6; i++) {
-        const m = i < 3 ? -1 : 1;
-        const vi = i < 3 ? 0 : 7;
-        planes[i][0] = m * normals[i % 3][0];
-        planes[i][1] = m * normals[i % 3][1];
-        planes[i][2] = m * normals[i % 3][2];
-        planes[i][3] =
-            vertices[vi * 3] * planes[i][0] + vertices[vi * 3 + 1] * planes[i][1] + vertices[vi * 3 + 2] * planes[i][2];
-    }
-    rasterizationFilledShape(hf, bounds, area, flagMergeThr, (rectangle) => intersectBox(rectangle, vertices, planes));
-    BuildContext.end(ctx, 'RASTERIZE_BOX');
-}
-
-function plane(planes: number[][], planeIdx: number, v1: number[], v2: number[], vertices: number[], vert: number): void {
-    vec3.cross(planes[planeIdx] as Vec3, v1 as Vec3, v2 as Vec3);
-    planes[planeIdx][3] =
-        planes[planeIdx][0] * vertices[vert] +
-        planes[planeIdx][1] * vertices[vert + 1] +
-        planes[planeIdx][2] * vertices[vert + 2];
-}
-
-export function rasterizeConvex(
-    hf: Heightfield,
-    vertices: number[],
-    triangles: number[],
-    area: number,
-    flagMergeThr: number,
-    ctx: BuildContextState,
-): void {
-    BuildContext.start(ctx, 'RASTERIZE_CONVEX');
-    const bounds: Box3 = [vertices[0], vertices[1], vertices[2], vertices[0], vertices[1], vertices[2]];
-    for (let i = 0; i < vertices.length; i += 3) {
-        bounds[0] = Math.min(bounds[0], vertices[i + 0]);
-        bounds[1] = Math.min(bounds[1], vertices[i + 1]);
-        bounds[2] = Math.min(bounds[2], vertices[i + 2]);
-        bounds[3] = Math.max(bounds[3], vertices[i + 0]);
-        bounds[4] = Math.max(bounds[4], vertices[i + 1]);
-        bounds[5] = Math.max(bounds[5], vertices[i + 2]);
-    }
-    const planes: number[][] = [];
-    const triBounds: number[][] = [];
-    for (let j = 0; j < triangles.length; j += 3) {
-        const a = triangles[j] * 3;
-        const b = triangles[j + 1] * 3;
-        const c = triangles[j + 2] * 3;
-        const e: Vec3 = [0, 0, 0];
-        const f: Vec3 = [0, 0, 0];
-        e[0] = vertices[b] - vertices[a];
-        e[1] = vertices[b + 1] - vertices[a + 1];
-        e[2] = vertices[b + 2] - vertices[a + 2];
-        f[0] = vertices[c] - vertices[a];
-        f[1] = vertices[c + 1] - vertices[a + 1];
-        f[2] = vertices[c + 2] - vertices[a + 2];
-        planes.push([0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]);
-        const planeIdx = j;
-        plane(planes, planeIdx, e, f, vertices, a);
-        f[0] = vertices[c] - vertices[b];
-        f[1] = vertices[c + 1] - vertices[b + 1];
-        f[2] = vertices[c + 2] - vertices[b + 2];
-        plane(planes, planeIdx + 1, planes[planeIdx], f, vertices, b);
-        f[0] = vertices[a] - vertices[c];
-        f[1] = vertices[a + 1] - vertices[c + 1];
-        f[2] = vertices[a + 2] - vertices[c + 2];
-        plane(planes, planeIdx + 2, planes[planeIdx], f, vertices, c);
-
-        let s =
-            1.0 /
-            (vertices[a] * planes[planeIdx + 1][0] +
-                vertices[a + 1] * planes[planeIdx + 1][1] +
-                vertices[a + 2] * planes[planeIdx + 1][2] -
-                planes[planeIdx + 1][3]);
-        planes[planeIdx + 1][0] *= s;
-        planes[planeIdx + 1][1] *= s;
-        planes[planeIdx + 1][2] *= s;
-        planes[planeIdx + 1][3] *= s;
-
-        s =
-            1.0 /
-            (vertices[b] * planes[planeIdx + 2][0] +
-                vertices[b + 1] * planes[planeIdx + 2][1] +
-                vertices[b + 2] * planes[planeIdx + 2][2] -
-                planes[planeIdx + 2][3]);
-        planes[planeIdx + 2][0] *= s;
-        planes[planeIdx + 2][1] *= s;
-        planes[planeIdx + 2][2] *= s;
-        planes[planeIdx + 2][3] *= s;
-
-        triBounds.push([0, 0, 0, 0]);
-        const tb = planeIdx / 3;
-        triBounds[tb][0] = Math.min(Math.min(vertices[a], vertices[b]), vertices[c]);
-        triBounds[tb][1] = Math.min(Math.min(vertices[a + 1], vertices[b + 1]), vertices[c + 1]);
-        triBounds[tb][2] = Math.max(Math.max(vertices[a], vertices[b]), vertices[c]);
-        triBounds[tb][3] = Math.max(Math.max(vertices[a + 1], vertices[b + 1]), vertices[c + 1]);
-    }
-    rasterizationFilledShape(hf, bounds, area, flagMergeThr, (rectangle) =>
-        intersectConvex(rectangle, triangles, vertices, planes, triBounds),
-    );
-    BuildContext.end(ctx, 'RASTERIZE_CONVEX');
-}
-
-function overlapBounds(amin: Vec3, amax: Vec3, bounds: Box3): boolean {
-    let overlap = true;
-    overlap = amin[0] > bounds[3] || amax[0] < bounds[0] ? false : overlap;
-    overlap = amin[1] > bounds[4] ? false : overlap;
-    overlap = amin[2] > bounds[5] || amax[2] < bounds[2] ? false : overlap;
-    return overlap;
-}
-
-function rasterizationFilledShape(
-    hf: Heightfield,
-    bounds: Box3,
-    area: number,
-    flagMergeThr: number,
-    intersection: (rectangle: number[]) => Vec2 | undefined,
-): void {
-    if (!overlapBounds([hf.bounds[0], hf.bounds[1], hf.bounds[2]], [hf.bounds[3], hf.bounds[4], hf.bounds[5]], bounds)) {
-        return;
-    }
-
-    bounds[3] = Math.min(bounds[3], hf.bounds[3]);
-    bounds[5] = Math.min(bounds[5], hf.bounds[5]);
-    bounds[0] = Math.max(bounds[0], hf.bounds[0]);
-    bounds[2] = Math.max(bounds[2], hf.bounds[2]);
-
-    if (bounds[3] <= bounds[0] || bounds[4] <= bounds[1] || bounds[5] <= bounds[2]) {
-        return;
-    }
-    const ics = 1.0 / hf.cellSize;
-    const ich = 1.0 / hf.cellHeight;
-    const xMin = Math.round((bounds[0] - hf.bounds[0]) * ics);
-    const zMin = Math.round((bounds[2] - hf.bounds[2]) * ics);
-    const xMax = Math.min(hf.width - 1, Math.round((bounds[3] - hf.bounds[0]) * ics));
-    const zMax = Math.min(hf.height - 1, Math.round((bounds[5] - hf.bounds[2]) * ics));
-    const rectangle = [0, 0, 0, 0, 0];
-    rectangle[4] = hf.bounds[1];
-    for (let x = xMin; x <= xMax; x++) {
-        for (let z = zMin; z <= zMax; z++) {
-            rectangle[0] = x * hf.cellSize + hf.bounds[0];
-            rectangle[1] = z * hf.cellSize + hf.bounds[2];
-            rectangle[2] = rectangle[0] + hf.cellSize;
-            rectangle[3] = rectangle[1] + hf.cellSize;
-            const h = intersection(rectangle);
-            if (h !== undefined) {
-                const smin = Math.floor((h[0] - hf.bounds[1]) * ich);
-                const smax = Math.ceil((h[1] - hf.bounds[1]) * ich);
-                if (smin !== smax) {
-                    const ismin = clamp(smin, 0, SPAN_MAX_HEIGHT);
-                    const ismax = clamp(smax, ismin + 1, SPAN_MAX_HEIGHT);
-                    addHeightfieldSpan(hf, x, z, ismin, ismax, area, flagMergeThr);
-                }
-            }
-        }
-    }
-}
-
-function lenSqr(dx: number, dy: number, dz: number): number {
-    return dx * dx + dy * dy + dz * dz;
-}
-
-function intersectSphere(rectangle: number[], center: Vec3, radiusSqr: number): Vec2 | undefined {
-    const x = Math.max(rectangle[0], Math.min(center[0], rectangle[2]));
-    const y = rectangle[4];
-    const z = Math.max(rectangle[1], Math.min(center[2], rectangle[3]));
-
-    const mx = x - center[0];
-    const my = y - center[1];
-    const mz = z - center[2];
-
-    const b = my;
-    const c = lenSqr(mx, my, mz) - radiusSqr;
-    if (c > 0.0 && b > 0.0) {
-        return undefined;
-    }
-    const discr = b * b - c;
-    if (discr < 0.0) {
-        return undefined;
-    }
-    const discrSqrt = Math.sqrt(discr);
-    let tmin = -b - discrSqrt;
-    const tmax = -b + discrSqrt;
-
-    if (tmin < 0.0) {
-        tmin = 0.0;
-    }
-    return [y + tmin, y + tmax];
-}
-
-function mergeIntersections(s1: Vec2 | undefined, s2: Vec2 | undefined): Vec2 | undefined {
-    if (s1 === undefined) {
-        return s2;
-    }
-    if (s2 === undefined) {
-        return s1;
-    }
-    return [Math.min(s1[0], s2[0]), Math.max(s1[1], s2[1])];
-}
-
-function intersectCapsule(rectangle: number[], start: Vec3, finish: Vec3, axis: Vec3, radiusSqr: number) {
-    let s = mergeIntersections(intersectSphere(rectangle, start, radiusSqr), intersectSphere(rectangle, finish, radiusSqr));
-    const axisLen2dSqr = axis[0] * axis[0] + axis[2] * axis[2];
-    if (axisLen2dSqr > EPSILON) {
-        s = slabsCylinderIntersection(rectangle, start, finish, axis, radiusSqr, s);
-    }
-    return s;
-}
+const _intersectSphere_result: Vec2 = [0, 0];
+const _mergeIntersections_result: Vec2 = [0, 0];
+const _rayCylinderIntersection_result: Vec2 = [0, 0];
+const _rayCylinderIntersection_m: Vec3 = [0, 0, 0];
+const _intersectBox_result: Vec2 = [0, 0];
+const _intersectBox_point: Vec3 = [0, 0, 0];
+const _intersectConvex_result: Vec2 = [0, 0];
+const _intersectConvex_point: Vec3 = [0, 0, 0];
 
 const _intersectCylinder_rectangleOnStartPlane: Vec3[] = [
     [0, 0, 0],
@@ -917,48 +645,441 @@ const _intersectCylinder_rectangleOnEndPlane: Vec3[] = [
 ];
 const _intersectCylinder_point: Vec3 = [0, 0, 0];
 
-function intersectCylinder(rectangle: number[], start: Vec3, finish: Vec3, axis: Vec3, radiusSqr: number) {
-    _intersectCylinder_point[0] = clamp(start[0], rectangle[0], rectangle[2]);
-    _intersectCylinder_point[1] = rectangle[4];
-    _intersectCylinder_point[2] = clamp(start[2], rectangle[1], rectangle[3]);
-    let s: Vec2 | undefined = rayCylinderIntersection(_intersectCylinder_point, start, axis, radiusSqr);
-    _intersectCylinder_point[0] = clamp(finish[0], rectangle[0], rectangle[2]);
-    _intersectCylinder_point[1] = rectangle[4];
-    _intersectCylinder_point[2] = clamp(finish[2], rectangle[1], rectangle[3]);
-    s = mergeIntersections(s, rayCylinderIntersection(_intersectCylinder_point, start, axis, radiusSqr));
-    const axisLen2dSqr = axis[0] * axis[0] + axis[2] * axis[2];
-    if (axisLen2dSqr > EPSILON) {
-        s = slabsCylinderIntersection(rectangle, start, finish, axis, radiusSqr, s);
-    }
-    if (axis[1] * axis[1] > EPSILON) {
-        const ds = vec3.dot(axis, start);
-        const de = vec3.dot(axis, finish);
-        for (let i = 0; i < 4; i++) {
-            const x = rectangle[(i + 1) & 2];
-            const z = rectangle[(i & 2) + 1];
-            const dotAxisA = axis[0] * x + axis[1] * rectangle[4] + axis[2] * z;
-            let t = (ds - dotAxisA) / axis[1];
-            _intersectCylinder_rectangleOnStartPlane[i][0] = x;
-            _intersectCylinder_rectangleOnStartPlane[i][1] = rectangle[4] + t;
-            _intersectCylinder_rectangleOnStartPlane[i][2] = z;
-            t = (de - dotAxisA) / axis[1];
-            _intersectCylinder_rectangleOnEndPlane[i][0] = x;
-            _intersectCylinder_rectangleOnEndPlane[i][1] = rectangle[4] + t;
-            _intersectCylinder_rectangleOnEndPlane[i][2] = z;
-        }
-        for (let i = 0; i < 4; i++) {
-            s = cylinderCapIntersection(start, radiusSqr, s, i, _intersectCylinder_rectangleOnStartPlane);
-            s = cylinderCapIntersection(finish, radiusSqr, s, i, _intersectCylinder_rectangleOnEndPlane);
-        }
-    }
-    return s;
-}
-
 const _cylinderCapIntersection_m: Vec3 = [0, 0, 0];
 const _cylinderCapIntersection_d: Vec3 = [0, 0, 0];
 const _cylinderCapIntersection_y: Vec2 = [0, 0];
 
-function cylinderCapIntersection(start: Vec3, radiusSqr: number, s: Vec2 | undefined, i: number, rectangleOnPlane: number[][]) {
+const _xSlabRayIntersection_result: Vec3 = [0, 0, 0];
+const _zSlabRayIntersection_result: Vec3 = [0, 0, 0];
+
+const _rayTriangleIntersection_s: Vec3 = [0, 0, 0];
+
+// --- Exported shape rasterization functions ---
+
+export function rasterizeSphere(
+    heightfield: Heightfield,
+    center: Vec3,
+    radius: number,
+    area: number,
+    flagMergeThreshold: number,
+    ctx: BuildContextState,
+): void {
+    BuildContext.start(ctx, 'RASTERIZE_SPHERE');
+    _rasterize_bounds[0] = center[0] - radius;
+    _rasterize_bounds[1] = center[1] - radius;
+    _rasterize_bounds[2] = center[2] - radius;
+    _rasterize_bounds[3] = center[0] + radius;
+    _rasterize_bounds[4] = center[1] + radius;
+    _rasterize_bounds[5] = center[2] + radius;
+    rasterizationFilledShape(heightfield, _rasterize_bounds, area, flagMergeThreshold, (cellFootprint) =>
+        intersectSphere(cellFootprint, center, radius * radius),
+    );
+    BuildContext.end(ctx, 'RASTERIZE_SPHERE');
+}
+
+export function rasterizeCapsule(
+    heightfield: Heightfield,
+    start: Vec3,
+    end: Vec3,
+    radius: number,
+    area: number,
+    flagMergeThreshold: number,
+    ctx: BuildContextState,
+): void {
+    BuildContext.start(ctx, 'RASTERIZE_CAPSULE');
+    _rasterize_bounds[0] = Math.min(start[0], end[0]) - radius;
+    _rasterize_bounds[1] = Math.min(start[1], end[1]) - radius;
+    _rasterize_bounds[2] = Math.min(start[2], end[2]) - radius;
+    _rasterize_bounds[3] = Math.max(start[0], end[0]) + radius;
+    _rasterize_bounds[4] = Math.max(start[1], end[1]) + radius;
+    _rasterize_bounds[5] = Math.max(start[2], end[2]) + radius;
+    _rasterizeCapsule_axis[0] = end[0] - start[0];
+    _rasterizeCapsule_axis[1] = end[1] - start[1];
+    _rasterizeCapsule_axis[2] = end[2] - start[2];
+    rasterizationFilledShape(heightfield, _rasterize_bounds, area, flagMergeThreshold, (cellFootprint) =>
+        intersectCapsule(cellFootprint, start, end, _rasterizeCapsule_axis, radius * radius),
+    );
+    BuildContext.end(ctx, 'RASTERIZE_CAPSULE');
+}
+
+export function rasterizeCylinder(
+    heightfield: Heightfield,
+    start: Vec3,
+    end: Vec3,
+    radius: number,
+    area: number,
+    flagMergeThreshold: number,
+    ctx: BuildContextState,
+): void {
+    BuildContext.start(ctx, 'RASTERIZE_CYLINDER');
+    _rasterize_bounds[0] = Math.min(start[0], end[0]) - radius;
+    _rasterize_bounds[1] = Math.min(start[1], end[1]) - radius;
+    _rasterize_bounds[2] = Math.min(start[2], end[2]) - radius;
+    _rasterize_bounds[3] = Math.max(start[0], end[0]) + radius;
+    _rasterize_bounds[4] = Math.max(start[1], end[1]) + radius;
+    _rasterize_bounds[5] = Math.max(start[2], end[2]) + radius;
+    _rasterizeCylinder_axis[0] = end[0] - start[0];
+    _rasterizeCylinder_axis[1] = end[1] - start[1];
+    _rasterizeCylinder_axis[2] = end[2] - start[2];
+    rasterizationFilledShape(heightfield, _rasterize_bounds, area, flagMergeThreshold, (cellFootprint) =>
+        intersectCylinder(cellFootprint, start, end, _rasterizeCylinder_axis, radius * radius),
+    );
+    BuildContext.end(ctx, 'RASTERIZE_CYLINDER');
+}
+
+export function rasterizeBox(
+    heightfield: Heightfield,
+    center: Vec3,
+    halfEdges: Vec3[],
+    area: number,
+    flagMergeThreshold: number,
+    ctx: BuildContextState,
+): void {
+    BuildContext.start(ctx, 'RASTERIZE_BOX');
+    const normals = _rasterizeBox_normals;
+    vec3.normalize(normals[0], halfEdges[0]);
+    vec3.normalize(normals[1], halfEdges[1]);
+    vec3.normalize(normals[2], halfEdges[2]);
+
+    const vertices = _rasterizeBox_vertices;
+    const bounds = _rasterizeBox_bounds;
+    bounds[0] = Infinity;
+    bounds[1] = Infinity;
+    bounds[2] = Infinity;
+    bounds[3] = -Infinity;
+    bounds[4] = -Infinity;
+    bounds[5] = -Infinity;
+    for (let i = 0; i < 8; ++i) {
+        const s0 = (i & 1) !== 0 ? 1 : -1;
+        const s1 = (i & 2) !== 0 ? 1 : -1;
+        const s2 = (i & 4) !== 0 ? 1 : -1;
+        vertices[i * 3 + 0] = center[0] + s0 * halfEdges[0][0] + s1 * halfEdges[1][0] + s2 * halfEdges[2][0];
+        vertices[i * 3 + 1] = center[1] + s0 * halfEdges[0][1] + s1 * halfEdges[1][1] + s2 * halfEdges[2][1];
+        vertices[i * 3 + 2] = center[2] + s0 * halfEdges[0][2] + s1 * halfEdges[1][2] + s2 * halfEdges[2][2];
+        bounds[0] = Math.min(bounds[0], vertices[i * 3 + 0]);
+        bounds[1] = Math.min(bounds[1], vertices[i * 3 + 1]);
+        bounds[2] = Math.min(bounds[2], vertices[i * 3 + 2]);
+        bounds[3] = Math.max(bounds[3], vertices[i * 3 + 0]);
+        bounds[4] = Math.max(bounds[4], vertices[i * 3 + 1]);
+        bounds[5] = Math.max(bounds[5], vertices[i * 3 + 2]);
+    }
+    const planes = _rasterizeBox_planes;
+    for (let i = 0; i < 6; i++) {
+        const m = i < 3 ? -1 : 1;
+        const vi = i < 3 ? 0 : 7;
+        planes[i][0] = m * normals[i % 3][0];
+        planes[i][1] = m * normals[i % 3][1];
+        planes[i][2] = m * normals[i % 3][2];
+        planes[i][3] =
+            vertices[vi * 3] * planes[i][0] + vertices[vi * 3 + 1] * planes[i][1] + vertices[vi * 3 + 2] * planes[i][2];
+    }
+    rasterizationFilledShape(heightfield, bounds, area, flagMergeThreshold, (cellFootprint) =>
+        intersectBox(cellFootprint, vertices, planes),
+    );
+    BuildContext.end(ctx, 'RASTERIZE_BOX');
+}
+
+function computePlaneFromEdges(
+    planes: number[][],
+    planeIdx: number,
+    v1: number[],
+    v2: number[],
+    vertices: number[],
+    vert: number,
+): void {
+    vec3.cross(planes[planeIdx] as Vec3, v1 as Vec3, v2 as Vec3);
+    planes[planeIdx][3] =
+        planes[planeIdx][0] * vertices[vert] +
+        planes[planeIdx][1] * vertices[vert + 1] +
+        planes[planeIdx][2] * vertices[vert + 2];
+}
+
+export function rasterizeConvex(
+    heightfield: Heightfield,
+    vertices: number[],
+    triangles: number[],
+    area: number,
+    flagMergeThreshold: number,
+    ctx: BuildContextState,
+): void {
+    BuildContext.start(ctx, 'RASTERIZE_CONVEX');
+    const bounds = _rasterizeConvex_bounds;
+    bounds[0] = vertices[0];
+    bounds[1] = vertices[1];
+    bounds[2] = vertices[2];
+    bounds[3] = vertices[0];
+    bounds[4] = vertices[1];
+    bounds[5] = vertices[2];
+    for (let i = 0; i < vertices.length; i += 3) {
+        bounds[0] = Math.min(bounds[0], vertices[i + 0]);
+        bounds[1] = Math.min(bounds[1], vertices[i + 1]);
+        bounds[2] = Math.min(bounds[2], vertices[i + 2]);
+        bounds[3] = Math.max(bounds[3], vertices[i + 0]);
+        bounds[4] = Math.max(bounds[4], vertices[i + 1]);
+        bounds[5] = Math.max(bounds[5], vertices[i + 2]);
+    }
+    const numTriangles = triangles.length / 3;
+    const planes = new Array<number[]>(triangles.length);
+    const triBounds = new Array<number[]>(numTriangles);
+    for (let i = 0; i < triangles.length; i++) {
+        planes[i] = [0, 0, 0, 0];
+    }
+    for (let i = 0; i < numTriangles; i++) {
+        triBounds[i] = [0, 0, 0, 0];
+    }
+    const edge0 = _rasterizeConvex_edge0;
+    const edge1 = _rasterizeConvex_edge1;
+    for (let j = 0; j < triangles.length; j += 3) {
+        const a = triangles[j] * 3;
+        const b = triangles[j + 1] * 3;
+        const c = triangles[j + 2] * 3;
+        edge0[0] = vertices[b] - vertices[a];
+        edge0[1] = vertices[b + 1] - vertices[a + 1];
+        edge0[2] = vertices[b + 2] - vertices[a + 2];
+        edge1[0] = vertices[c] - vertices[a];
+        edge1[1] = vertices[c + 1] - vertices[a + 1];
+        edge1[2] = vertices[c + 2] - vertices[a + 2];
+        const planeIdx = j;
+        computePlaneFromEdges(planes, planeIdx, edge0, edge1, vertices, a);
+        edge1[0] = vertices[c] - vertices[b];
+        edge1[1] = vertices[c + 1] - vertices[b + 1];
+        edge1[2] = vertices[c + 2] - vertices[b + 2];
+        computePlaneFromEdges(planes, planeIdx + 1, planes[planeIdx], edge1, vertices, b);
+        edge1[0] = vertices[a] - vertices[c];
+        edge1[1] = vertices[a + 1] - vertices[c + 1];
+        edge1[2] = vertices[a + 2] - vertices[c + 2];
+        computePlaneFromEdges(planes, planeIdx + 2, planes[planeIdx], edge1, vertices, c);
+
+        let scale =
+            1.0 /
+            (vertices[a] * planes[planeIdx + 1][0] +
+                vertices[a + 1] * planes[planeIdx + 1][1] +
+                vertices[a + 2] * planes[planeIdx + 1][2] -
+                planes[planeIdx + 1][3]);
+        planes[planeIdx + 1][0] *= scale;
+        planes[planeIdx + 1][1] *= scale;
+        planes[planeIdx + 1][2] *= scale;
+        planes[planeIdx + 1][3] *= scale;
+
+        scale =
+            1.0 /
+            (vertices[b] * planes[planeIdx + 2][0] +
+                vertices[b + 1] * planes[planeIdx + 2][1] +
+                vertices[b + 2] * planes[planeIdx + 2][2] -
+                planes[planeIdx + 2][3]);
+        planes[planeIdx + 2][0] *= scale;
+        planes[planeIdx + 2][1] *= scale;
+        planes[planeIdx + 2][2] *= scale;
+        planes[planeIdx + 2][3] *= scale;
+
+        const tb = planeIdx / 3;
+        triBounds[tb][0] = Math.min(vertices[a], vertices[b], vertices[c]);
+        triBounds[tb][1] = Math.min(vertices[a + 2], vertices[b + 2], vertices[c + 2]);
+        triBounds[tb][2] = Math.max(vertices[a], vertices[b], vertices[c]);
+        triBounds[tb][3] = Math.max(vertices[a + 2], vertices[b + 2], vertices[c + 2]);
+    }
+    rasterizationFilledShape(heightfield, bounds, area, flagMergeThreshold, (cellFootprint) =>
+        intersectConvex(cellFootprint, triangles, vertices, planes, triBounds),
+    );
+    BuildContext.end(ctx, 'RASTERIZE_CONVEX');
+}
+
+function overlapBoundsBox3(a: Box3, b: Box3): boolean {
+    if (a[0] > b[3] || a[3] < b[0]) return false;
+    if (a[1] > b[4] || a[4] < b[1]) return false;
+    if (a[2] > b[5] || a[5] < b[2]) return false;
+    return true;
+}
+
+function rasterizationFilledShape(
+    heightfield: Heightfield,
+    bounds: Box3,
+    area: number,
+    flagMergeThreshold: number,
+    intersection: (cellFootprint: CellRect) => Vec2 | undefined,
+): void {
+    if (!overlapBoundsBox3(heightfield.bounds, bounds)) {
+        return;
+    }
+
+    bounds[3] = Math.min(bounds[3], heightfield.bounds[3]);
+    bounds[5] = Math.min(bounds[5], heightfield.bounds[5]);
+    bounds[0] = Math.max(bounds[0], heightfield.bounds[0]);
+    bounds[2] = Math.max(bounds[2], heightfield.bounds[2]);
+
+    if (bounds[3] <= bounds[0] || bounds[4] <= bounds[1] || bounds[5] <= bounds[2]) {
+        return;
+    }
+    const inverseCellSize = 1.0 / heightfield.cellSize;
+    const inverseCellHeight = 1.0 / heightfield.cellHeight;
+    const xMin = Math.round((bounds[0] - heightfield.bounds[0]) * inverseCellSize);
+    const zMin = Math.round((bounds[2] - heightfield.bounds[2]) * inverseCellSize);
+    const xMax = Math.min(heightfield.width - 1, Math.round((bounds[3] - heightfield.bounds[0]) * inverseCellSize));
+    const zMax = Math.min(heightfield.height - 1, Math.round((bounds[5] - heightfield.bounds[2]) * inverseCellSize));
+    const cellFootprint = _rasterizationFilledShape_cellFootprint;
+    cellFootprint[4] = heightfield.bounds[1];
+    for (let x = xMin; x <= xMax; x++) {
+        for (let z = zMin; z <= zMax; z++) {
+            cellFootprint[0] = x * heightfield.cellSize + heightfield.bounds[0];
+            cellFootprint[1] = z * heightfield.cellSize + heightfield.bounds[2];
+            cellFootprint[2] = cellFootprint[0] + heightfield.cellSize;
+            cellFootprint[3] = cellFootprint[1] + heightfield.cellSize;
+            const h = intersection(cellFootprint);
+            if (h !== undefined) {
+                const smin = Math.floor((h[0] - heightfield.bounds[1]) * inverseCellHeight);
+                const smax = Math.ceil((h[1] - heightfield.bounds[1]) * inverseCellHeight);
+                if (smin !== smax) {
+                    const ismin = clamp(smin, 0, SPAN_MAX_HEIGHT);
+                    const ismax = clamp(smax, ismin + 1, SPAN_MAX_HEIGHT);
+                    addHeightfieldSpan(heightfield, x, z, ismin, ismax, area, flagMergeThreshold);
+                }
+            }
+        }
+    }
+}
+
+function intersectSphere(cellFootprint: CellRect, center: Vec3, radiusSqr: number): Vec2 | undefined {
+    const x = Math.max(cellFootprint[0], Math.min(center[0], cellFootprint[2]));
+    const y = cellFootprint[4];
+    const z = Math.max(cellFootprint[1], Math.min(center[2], cellFootprint[3]));
+
+    const mx = x - center[0];
+    const my = y - center[1];
+    const mz = z - center[2];
+
+    const b = my;
+    const c = mx * mx + my * my + mz * mz - radiusSqr;
+    if (c > 0.0 && b > 0.0) {
+        return undefined;
+    }
+    const discr = b * b - c;
+    if (discr < 0.0) {
+        return undefined;
+    }
+    const discrSqrt = Math.sqrt(discr);
+    let tmin = -b - discrSqrt;
+    const tmax = -b + discrSqrt;
+
+    if (tmin < 0.0) {
+        tmin = 0.0;
+    }
+    _intersectSphere_result[0] = y + tmin;
+    _intersectSphere_result[1] = y + tmax;
+    return _intersectSphere_result;
+}
+
+function mergeIntersections(ySpan1: Vec2 | undefined, ySpan2: Vec2 | undefined): Vec2 | undefined {
+    if (ySpan1 === undefined) {
+        return ySpan2;
+    }
+    if (ySpan2 === undefined) {
+        return ySpan1;
+    }
+    _mergeIntersections_result[0] = Math.min(ySpan1[0], ySpan2[0]);
+    _mergeIntersections_result[1] = Math.max(ySpan1[1], ySpan2[1]);
+    return _mergeIntersections_result;
+}
+
+function intersectCapsule(cellFootprint: CellRect, start: Vec3, end: Vec3, axis: Vec3, radiusSqr: number) {
+    // Evaluate sphere intersections sequentially to avoid _intersectSphere_result aliasing
+    const sphere1 = intersectSphere(cellFootprint, start, radiusSqr);
+    let yMin = 0,
+        yMax = 0,
+        hasSphere1 = false;
+    if (sphere1 !== undefined) {
+        yMin = sphere1[0];
+        yMax = sphere1[1];
+        hasSphere1 = true;
+    }
+    const sphere2 = intersectSphere(cellFootprint, end, radiusSqr);
+    let ySpan: Vec2 | undefined;
+    if (hasSphere1 && sphere2 !== undefined) {
+        _mergeIntersections_result[0] = Math.min(yMin, sphere2[0]);
+        _mergeIntersections_result[1] = Math.max(yMax, sphere2[1]);
+        ySpan = _mergeIntersections_result;
+    } else if (hasSphere1) {
+        _mergeIntersections_result[0] = yMin;
+        _mergeIntersections_result[1] = yMax;
+        ySpan = _mergeIntersections_result;
+    } else {
+        ySpan = sphere2;
+    }
+    const axisLen2dSqr = axis[0] * axis[0] + axis[2] * axis[2];
+    if (axisLen2dSqr > EPSILON) {
+        ySpan = slabsCylinderIntersection(cellFootprint, start, end, axis, radiusSqr, ySpan);
+    }
+    return ySpan;
+}
+
+function intersectCylinder(cellFootprint: CellRect, start: Vec3, end: Vec3, axis: Vec3, radiusSqr: number) {
+    _intersectCylinder_point[0] = clamp(start[0], cellFootprint[0], cellFootprint[2]);
+    _intersectCylinder_point[1] = cellFootprint[4];
+    _intersectCylinder_point[2] = clamp(start[2], cellFootprint[1], cellFootprint[3]);
+    // Evaluate rayCylinderIntersection calls sequentially to avoid _rayCylinderIntersection_result aliasing
+    const cyl1 = rayCylinderIntersection(_intersectCylinder_point, start, axis, radiusSqr);
+    let yMin = 0,
+        yMax = 0,
+        hasCyl1 = false;
+    if (cyl1 !== undefined) {
+        yMin = cyl1[0];
+        yMax = cyl1[1];
+        hasCyl1 = true;
+    }
+    _intersectCylinder_point[0] = clamp(end[0], cellFootprint[0], cellFootprint[2]);
+    _intersectCylinder_point[1] = cellFootprint[4];
+    _intersectCylinder_point[2] = clamp(end[2], cellFootprint[1], cellFootprint[3]);
+    const cyl2 = rayCylinderIntersection(_intersectCylinder_point, start, axis, radiusSqr);
+    let ySpan: Vec2 | undefined;
+    if (hasCyl1 && cyl2 !== undefined) {
+        _mergeIntersections_result[0] = Math.min(yMin, cyl2[0]);
+        _mergeIntersections_result[1] = Math.max(yMax, cyl2[1]);
+        ySpan = _mergeIntersections_result;
+    } else if (hasCyl1) {
+        _mergeIntersections_result[0] = yMin;
+        _mergeIntersections_result[1] = yMax;
+        ySpan = _mergeIntersections_result;
+    } else if (cyl2 !== undefined) {
+        // Copy into _mergeIntersections_result to avoid _rayCylinderIntersection_result aliasing
+        // in downstream slabsCylinderIntersection calls
+        _mergeIntersections_result[0] = cyl2[0];
+        _mergeIntersections_result[1] = cyl2[1];
+        ySpan = _mergeIntersections_result;
+    }
+    const axisLen2dSqr = axis[0] * axis[0] + axis[2] * axis[2];
+    if (axisLen2dSqr > EPSILON) {
+        ySpan = slabsCylinderIntersection(cellFootprint, start, end, axis, radiusSqr, ySpan);
+    }
+    if (axis[1] * axis[1] > EPSILON) {
+        const ds = vec3.dot(axis, start);
+        const de = vec3.dot(axis, end);
+        for (let i = 0; i < 4; i++) {
+            const x = cellFootprint[(i + 1) & 2];
+            const z = cellFootprint[(i & 2) + 1];
+            const dotAxisA = axis[0] * x + axis[1] * cellFootprint[4] + axis[2] * z;
+            let t = (ds - dotAxisA) / axis[1];
+            _intersectCylinder_rectangleOnStartPlane[i][0] = x;
+            _intersectCylinder_rectangleOnStartPlane[i][1] = cellFootprint[4] + t;
+            _intersectCylinder_rectangleOnStartPlane[i][2] = z;
+            t = (de - dotAxisA) / axis[1];
+            _intersectCylinder_rectangleOnEndPlane[i][0] = x;
+            _intersectCylinder_rectangleOnEndPlane[i][1] = cellFootprint[4] + t;
+            _intersectCylinder_rectangleOnEndPlane[i][2] = z;
+        }
+        for (let i = 0; i < 4; i++) {
+            ySpan = cylinderCapIntersection(start, radiusSqr, ySpan, i, _intersectCylinder_rectangleOnStartPlane);
+            ySpan = cylinderCapIntersection(end, radiusSqr, ySpan, i, _intersectCylinder_rectangleOnEndPlane);
+        }
+    }
+    return ySpan;
+}
+
+function cylinderCapIntersection(
+    start: Vec3,
+    radiusSqr: number,
+    ySpan: Vec2 | undefined,
+    i: number,
+    rectangleOnPlane: number[][],
+) {
     const j = (i + 1) % 4;
     _cylinderCapIntersection_m[0] = rectangleOnPlane[i][0] - start[0];
     _cylinderCapIntersection_m[1] = rectangleOnPlane[i][1] - start[1];
@@ -981,66 +1102,60 @@ function cylinderCapIntersection(start: Vec3, radiusSqr: number, s: Vec2 | undef
             const y2 = rectangleOnPlane[i][1] + t2 * _cylinderCapIntersection_d[1];
             _cylinderCapIntersection_y[0] = Math.min(y1, y2);
             _cylinderCapIntersection_y[1] = Math.max(y1, y2);
-            s = mergeIntersections(s, _cylinderCapIntersection_y);
+            ySpan = mergeIntersections(ySpan, _cylinderCapIntersection_y);
         }
     }
-    return s;
+    return ySpan;
 }
 
 function slabsCylinderIntersection(
-    rectangle: number[],
+    cellFootprint: CellRect,
     start: Vec3,
-    finish: Vec3,
+    end: Vec3,
     axis: Vec3,
     radiusSqr: number,
-    s: Vec2 | undefined,
+    ySpan: Vec2 | undefined,
 ) {
-    if (Math.min(start[0], finish[0]) < rectangle[0]) {
-        s = mergeIntersections(s, xSlabCylinderIntersection(rectangle, start, axis, radiusSqr, rectangle[0]));
+    if (Math.min(start[0], end[0]) < cellFootprint[0]) {
+        ySpan = mergeIntersections(ySpan, xSlabCylinderIntersection(cellFootprint, start, axis, radiusSqr, cellFootprint[0]));
     }
-    if (Math.max(start[0], finish[0]) > rectangle[2]) {
-        s = mergeIntersections(s, xSlabCylinderIntersection(rectangle, start, axis, radiusSqr, rectangle[2]));
+    if (Math.max(start[0], end[0]) > cellFootprint[2]) {
+        ySpan = mergeIntersections(ySpan, xSlabCylinderIntersection(cellFootprint, start, axis, radiusSqr, cellFootprint[2]));
     }
-    if (Math.min(start[2], finish[2]) < rectangle[1]) {
-        s = mergeIntersections(s, zSlabCylinderIntersection(rectangle, start, axis, radiusSqr, rectangle[1]));
+    if (Math.min(start[2], end[2]) < cellFootprint[1]) {
+        ySpan = mergeIntersections(ySpan, zSlabCylinderIntersection(cellFootprint, start, axis, radiusSqr, cellFootprint[1]));
     }
-    if (Math.max(start[2], finish[2]) > rectangle[3]) {
-        s = mergeIntersections(s, zSlabCylinderIntersection(rectangle, start, axis, radiusSqr, rectangle[3]));
+    if (Math.max(start[2], end[2]) > cellFootprint[3]) {
+        ySpan = mergeIntersections(ySpan, zSlabCylinderIntersection(cellFootprint, start, axis, radiusSqr, cellFootprint[3]));
     }
-    return s;
+    return ySpan;
 }
 
-function xSlabCylinderIntersection(rectangle: number[], start: Vec3, axis: Vec3, radiusSqr: number, x: number) {
-    return rayCylinderIntersection(xSlabRayIntersection(rectangle, start, axis, x), start, axis, radiusSqr);
+function xSlabCylinderIntersection(cellFootprint: CellRect, start: Vec3, axis: Vec3, radiusSqr: number, x: number) {
+    return rayCylinderIntersection(xSlabRayIntersection(cellFootprint, start, axis, x), start, axis, radiusSqr);
 }
 
-const _xSlabRayIntersection_result: Vec3 = [0, 0, 0];
-
-function xSlabRayIntersection(rectangle: number[], start: Vec3, direction: Vec3, x: number): Vec3 {
+function xSlabRayIntersection(cellFootprint: CellRect, start: Vec3, direction: Vec3, x: number): Vec3 {
     const t = (x - start[0]) / direction[0];
     _xSlabRayIntersection_result[0] = x;
-    _xSlabRayIntersection_result[1] = rectangle[4];
-    _xSlabRayIntersection_result[2] = clamp(start[2] + t * direction[2], rectangle[1], rectangle[3]);
+    _xSlabRayIntersection_result[1] = cellFootprint[4];
+    _xSlabRayIntersection_result[2] = clamp(start[2] + t * direction[2], cellFootprint[1], cellFootprint[3]);
     return _xSlabRayIntersection_result;
 }
 
-function zSlabCylinderIntersection(rectangle: number[], start: Vec3, axis: Vec3, radiusSqr: number, z: number) {
-    return rayCylinderIntersection(zSlabRayIntersection(rectangle, start, axis, z), start, axis, radiusSqr);
+function zSlabCylinderIntersection(cellFootprint: CellRect, start: Vec3, axis: Vec3, radiusSqr: number, z: number) {
+    return rayCylinderIntersection(zSlabRayIntersection(cellFootprint, start, axis, z), start, axis, radiusSqr);
 }
 
-const _zSlabRayIntersection_result: Vec3 = [0, 0, 0];
-
-function zSlabRayIntersection(rectangle: number[], start: Vec3, direction: Vec3, z: number): Vec3 {
+function zSlabRayIntersection(cellFootprint: CellRect, start: Vec3, direction: Vec3, z: number): Vec3 {
     const t = (z - start[2]) / direction[2];
-    _zSlabRayIntersection_result[0] = clamp(start[0] + t * direction[0], rectangle[0], rectangle[2]);
-    _zSlabRayIntersection_result[1] = rectangle[4];
+    _zSlabRayIntersection_result[0] = clamp(start[0] + t * direction[0], cellFootprint[0], cellFootprint[2]);
+    _zSlabRayIntersection_result[1] = cellFootprint[4];
     _zSlabRayIntersection_result[2] = z;
     return _zSlabRayIntersection_result;
 }
 
-const _rayCylinderIntersection_m: Vec3 = [0, 0, 0];
-
-// Based on Christer Ericsons's "Real-Time Collision Detection"
+// Based on Christer Ericson's "Real-Time Collision Detection"
 function rayCylinderIntersection(point: Vec3, start: Vec3, axis: Vec3, radiusSqr: number): Vec2 | undefined {
     const d = axis;
     _rayCylinderIntersection_m[0] = point[0] - start[0];
@@ -1058,12 +1173,14 @@ function rayCylinderIntersection(point: Vec3, start: Vec3, axis: Vec3, radiusSqr
     if (Math.abs(a) < EPSILON) {
         // Segment runs parallel to cylinder axis
         if (c > 0.0) {
-            return undefined; // ’a’ and thus the segment lie outside cylinder
+            return undefined; // 'a' and thus the segment lie outside cylinder
         }
         // Now known that segment intersects cylinder; figure out how it intersects
-        const t1 = -mn / nn; // Intersect segment against ’p’ endcap
-        const t2 = (nd - mn) / nn; // Intersect segment against ’q’ endcap
-        return [point[1] + Math.min(t1, t2), point[1] + Math.max(t1, t2)];
+        const t1 = -mn / nn; // Intersect segment against 'p' endcap
+        const t2 = (nd - mn) / nn; // Intersect segment against 'q' endcap
+        _rayCylinderIntersection_result[0] = point[1] + Math.min(t1, t2);
+        _rayCylinderIntersection_result[1] = point[1] + Math.max(t1, t2);
+        return _rayCylinderIntersection_result;
     }
     const b = dd * mn - nd * md;
     const discr = b * b - a * c;
@@ -1075,58 +1192,58 @@ function rayCylinderIntersection(point: Vec3, start: Vec3, axis: Vec3, radiusSqr
     let t2 = (-b + discSqrt) / a;
 
     if (md + t1 * nd < 0.0) {
-        // Intersection outside cylinder on ’p’ side
+        // Intersection outside cylinder on 'p' side
         t1 = -md / nd;
         if (k + t1 * (2 * mn + t1 * nn) > 0.0) {
             return undefined;
         }
     } else if (md + t1 * nd > dd) {
-        // Intersection outside cylinder on ’q’ side
+        // Intersection outside cylinder on 'q' side
         t1 = (dd - md) / nd;
         if (k + dd - 2 * md + t1 * (2 * (mn - nd) + t1 * nn) > 0.0) {
             return undefined;
         }
     }
     if (md + t2 * nd < 0.0) {
-        // Intersection outside cylinder on ’p’ side
+        // Intersection outside cylinder on 'p' side
         t2 = -md / nd;
         if (k + t2 * (2 * mn + t2 * nn) > 0.0) {
             return undefined;
         }
     } else if (md + t2 * nd > dd) {
-        // Intersection outside cylinder on ’q’ side
+        // Intersection outside cylinder on 'q' side
         t2 = (dd - md) / nd;
         if (k + dd - 2 * md + t2 * (2 * (mn - nd) + t2 * nn) > 0.0) {
             return undefined;
         }
     }
-    return [point[1] + Math.min(t1, t2), point[1] + Math.max(t1, t2)];
+    _rayCylinderIntersection_result[0] = point[1] + Math.min(t1, t2);
+    _rayCylinderIntersection_result[1] = point[1] + Math.max(t1, t2);
+    return _rayCylinderIntersection_result;
 }
 
-const _intersectBox_point: Vec3 = [0, 0, 0];
-
-function intersectBox(rectangle: number[], vertices: number[], planes: number[][]): Vec2 | undefined {
+function intersectBox(cellFootprint: CellRect, vertices: number[], planes: number[][]): Vec2 | undefined {
     let yMin = Infinity;
     let yMax = -Infinity;
     // check intersection with rays starting in box vertices first
     for (let i = 0; i < 8; i++) {
         const vi = i * 3;
         if (
-            vertices[vi] >= rectangle[0] &&
-            vertices[vi] < rectangle[2] &&
-            vertices[vi + 2] >= rectangle[1] &&
-            vertices[vi + 2] < rectangle[3]
+            vertices[vi] >= cellFootprint[0] &&
+            vertices[vi] < cellFootprint[2] &&
+            vertices[vi + 2] >= cellFootprint[1] &&
+            vertices[vi + 2] < cellFootprint[3]
         ) {
             yMin = Math.min(yMin, vertices[vi + 1]);
             yMax = Math.max(yMax, vertices[vi + 1]);
         }
     }
 
-    // check intersection with rays starting in rectangle vertices
-    _intersectBox_point[1] = rectangle[1];
+    // check intersection with rays starting in cell footprint vertices
+    _intersectBox_point[1] = cellFootprint[4];
     for (let i = 0; i < 4; i++) {
-        _intersectBox_point[0] = (i & 1) === 0 ? rectangle[0] : rectangle[2];
-        _intersectBox_point[2] = (i & 2) === 0 ? rectangle[1] : rectangle[3];
+        _intersectBox_point[0] = (i & 1) === 0 ? cellFootprint[0] : cellFootprint[2];
+        _intersectBox_point[2] = (i & 2) === 0 ? cellFootprint[1] : cellFootprint[3];
         for (let j = 0; j < 6; j++) {
             if (Math.abs(planes[j][1]) > EPSILON) {
                 const dotNormalPoint = vec3.dot(planes[j] as Vec3, _intersectBox_point as Vec3);
@@ -1164,24 +1281,24 @@ function intersectBox(rectangle: number[], vertices: number[], planes: number[][
         const dy = vertices[vj + 1] - y;
         const dz = vertices[vj + 2] - z;
         if (Math.abs(dx) > EPSILON) {
-            let iy = xSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[0]);
+            let iy = xSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[0]);
             if (iy !== undefined) {
                 yMin = Math.min(yMin, iy);
                 yMax = Math.max(yMax, iy);
             }
-            iy = xSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[2]);
+            iy = xSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[2]);
             if (iy !== undefined) {
                 yMin = Math.min(yMin, iy);
                 yMax = Math.max(yMax, iy);
             }
         }
         if (Math.abs(dz) > EPSILON) {
-            let iy = zSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[1]);
+            let iy = zSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[1]);
             if (iy !== undefined) {
                 yMin = Math.min(yMin, iy);
                 yMax = Math.max(yMax, iy);
             }
-            iy = zSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[3]);
+            iy = zSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[3]);
             if (iy !== undefined) {
                 yMin = Math.min(yMin, iy);
                 yMax = Math.max(yMax, iy);
@@ -1190,28 +1307,28 @@ function intersectBox(rectangle: number[], vertices: number[], planes: number[][
     }
 
     if (yMin <= yMax) {
-        return [yMin, yMax];
+        _intersectBox_result[0] = yMin;
+        _intersectBox_result[1] = yMax;
+        return _intersectBox_result;
     }
     return undefined;
 }
 
-const _intersectConvex_point: Vec3 = [0, 0, 0];
-
 function intersectConvex(
-    rectangle: number[],
+    cellFootprint: CellRect,
     triangles: number[],
     verts: number[],
     planes: number[][],
     triBounds: number[][],
 ): Vec2 | undefined {
-    let imin = Infinity;
-    let imax = -Infinity;
+    let yMin = Infinity;
+    let yMax = -Infinity;
     for (let tr = 0, tri = 0; tri < triangles.length; tr++, tri += 3) {
         if (
-            triBounds[tr][0] > rectangle[2] ||
-            triBounds[tr][2] < rectangle[0] ||
-            triBounds[tr][1] > rectangle[3] ||
-            triBounds[tr][3] < rectangle[1]
+            triBounds[tr][0] > cellFootprint[2] ||
+            triBounds[tr][2] < cellFootprint[0] ||
+            triBounds[tr][1] > cellFootprint[3] ||
+            triBounds[tr][3] < cellFootprint[1]
         ) {
             continue;
         }
@@ -1224,9 +1341,9 @@ function intersectConvex(
             const x = verts[vi];
             const z = verts[vi + 2];
             // triangle vertex
-            if (x >= rectangle[0] && x <= rectangle[2] && z >= rectangle[1] && z <= rectangle[3]) {
-                imin = Math.min(imin, verts[vi + 1]);
-                imax = Math.max(imax, verts[vi + 1]);
+            if (x >= cellFootprint[0] && x <= cellFootprint[2] && z >= cellFootprint[1] && z <= cellFootprint[3]) {
+                yMin = Math.min(yMin, verts[vi + 1]);
+                yMax = Math.max(yMax, verts[vi + 1]);
             }
             // triangle slab intersection
             const y = verts[vi + 1];
@@ -1234,50 +1351,52 @@ function intersectConvex(
             const dy = verts[vj + 1] - y;
             const dz = verts[vj + 2] - z;
             if (Math.abs(dx) > EPSILON) {
-                let iy = xSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[0]);
+                let iy = xSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[0]);
                 if (iy !== undefined) {
-                    imin = Math.min(imin, iy);
-                    imax = Math.max(imax, iy);
+                    yMin = Math.min(yMin, iy);
+                    yMax = Math.max(yMax, iy);
                 }
-                iy = xSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[2]);
+                iy = xSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[2]);
                 if (iy !== undefined) {
-                    imin = Math.min(imin, iy);
-                    imax = Math.max(imax, iy);
+                    yMin = Math.min(yMin, iy);
+                    yMax = Math.max(yMax, iy);
                 }
             }
             if (Math.abs(dz) > EPSILON) {
-                let iy = zSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[1]);
+                let iy = zSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[1]);
                 if (iy !== undefined) {
-                    imin = Math.min(imin, iy);
-                    imax = Math.max(imax, iy);
+                    yMin = Math.min(yMin, iy);
+                    yMax = Math.max(yMax, iy);
                 }
-                iy = zSlabSegmentIntersection(rectangle, x, y, z, dx, dy, dz, rectangle[3]);
+                iy = zSlabSegmentIntersection(cellFootprint, x, y, z, dx, dy, dz, cellFootprint[3]);
                 if (iy !== undefined) {
-                    imin = Math.min(imin, iy);
-                    imax = Math.max(imax, iy);
+                    yMin = Math.min(yMin, iy);
+                    yMax = Math.max(yMax, iy);
                 }
             }
         }
-        // rectangle vertex
-        _intersectConvex_point[1] = rectangle[1];
+        // cell footprint vertex
+        _intersectConvex_point[1] = cellFootprint[4];
         for (let i = 0; i < 4; i++) {
-            _intersectConvex_point[0] = (i & 1) === 0 ? rectangle[0] : rectangle[2];
-            _intersectConvex_point[2] = (i & 2) === 0 ? rectangle[1] : rectangle[3];
+            _intersectConvex_point[0] = (i & 1) === 0 ? cellFootprint[0] : cellFootprint[2];
+            _intersectConvex_point[2] = (i & 2) === 0 ? cellFootprint[1] : cellFootprint[3];
             const y = rayTriangleIntersection(_intersectConvex_point, tri, planes);
             if (y !== undefined) {
-                imin = Math.min(imin, y);
-                imax = Math.max(imax, y);
+                yMin = Math.min(yMin, y);
+                yMax = Math.max(yMax, y);
             }
         }
     }
-    if (imin < imax) {
-        return [imin, imax];
+    if (yMin < yMax) {
+        _intersectConvex_result[0] = yMin;
+        _intersectConvex_result[1] = yMax;
+        return _intersectConvex_result;
     }
     return undefined;
 }
 
 function xSlabSegmentIntersection(
-    rectangle: number[],
+    cellFootprint: CellRect,
     x: number,
     y: number,
     z: number,
@@ -1290,7 +1409,7 @@ function xSlabSegmentIntersection(
     if ((x < slabX && x2 > slabX) || (x > slabX && x2 < slabX)) {
         const t = (slabX - x) / dx;
         const iz = z + dz * t;
-        if (iz >= rectangle[1] && iz <= rectangle[3]) {
+        if (iz >= cellFootprint[1] && iz <= cellFootprint[3]) {
             return y + dy * t;
         }
     }
@@ -1298,7 +1417,7 @@ function xSlabSegmentIntersection(
 }
 
 function zSlabSegmentIntersection(
-    rectangle: number[],
+    cellFootprint: CellRect,
     x: number,
     y: number,
     z: number,
@@ -1311,25 +1430,23 @@ function zSlabSegmentIntersection(
     if ((z < slabZ && z2 > slabZ) || (z > slabZ && z2 < slabZ)) {
         const t = (slabZ - z) / dz;
         const ix = x + dx * t;
-        if (ix >= rectangle[0] && ix <= rectangle[2]) {
+        if (ix >= cellFootprint[0] && ix <= cellFootprint[2]) {
             return y + dy * t;
         }
     }
     return undefined;
 }
 
-const _rayTriangleIntersection_s: Vec3 = [0, 0, 0];
-
-function rayTriangleIntersection(point: Vec3, plane: number, planes: number[][]) {
-    const t = (planes[plane][3] - vec3.dot(planes[plane] as Vec3, point)) / planes[plane][1];
+function rayTriangleIntersection(point: Vec3, planeIdx: number, planes: number[][]) {
+    const t = (planes[planeIdx][3] - vec3.dot(planes[planeIdx] as Vec3, point)) / planes[planeIdx][1];
     _rayTriangleIntersection_s[0] = point[0];
     _rayTriangleIntersection_s[1] = point[1] + t;
     _rayTriangleIntersection_s[2] = point[2];
-    const u = vec3.dot(_rayTriangleIntersection_s, planes[plane + 1] as Vec3) - planes[plane + 1][3];
+    const u = vec3.dot(_rayTriangleIntersection_s, planes[planeIdx + 1] as Vec3) - planes[planeIdx + 1][3];
     if (u < 0.0 || u > 1.0) {
         return undefined;
     }
-    const v = vec3.dot(_rayTriangleIntersection_s, planes[plane + 2] as Vec3) - planes[plane + 2][3];
+    const v = vec3.dot(_rayTriangleIntersection_s, planes[planeIdx + 2] as Vec3) - planes[planeIdx + 2][3];
     if (v < 0.0) {
         return undefined;
     }
