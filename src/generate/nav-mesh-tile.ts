@@ -110,7 +110,7 @@ export const polysToTileDetailMesh = (polys: NavMeshPoly[]): NavMeshTileDetailMe
 
     let tbase = 0;
 
-    for (const polyId in polys) {
+    for (let polyId = 0; polyId < polys.length; polyId++) {
         const poly = polys[polyId];
         const nv = poly.vertices.length;
 
