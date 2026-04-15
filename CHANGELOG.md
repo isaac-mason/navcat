@@ -3,6 +3,11 @@
 ## 0.3.0 (Unreleased)
 
 - feat: add heightfield filled volume rasterization functions (rasterizeBox, rasterizeConvex, rasterizeSphere, rasterizeCapsule, rasterizeCylinder) (@shrjrd, @isaac-mason)
+- fix: remove unnecessary Object.keys calls in bv-tree.ts
+- fix: polygonsToNavMeshTilePolys incorrect argument order for buildPolyNeighbours
+- fix: use strict equality checks in compact-heightfield.ts
+- fix: contour hole merging using wrong diagonal vertex in intersection test
+  - the bug was ported from recastnavigation, the same fix already exists in recast4j
 
 ## 0.2.0
 
