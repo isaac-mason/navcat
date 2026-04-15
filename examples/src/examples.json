@@ -154,8 +154,8 @@
         "description": "Example of using a chunky triangle mesh for querying triangles within areas",
         "tags": ["geometry", "spatial", "chunky", "tri-mesh"]
     },
-    "example-filled-volume": {
-        "title": "Filled Volume Rasterization",
+    "example-rasterize-filled-volume": {
+        "title": "Rasterize Filled Volume",
         "description": "Example of rasterizing filled volumes into a heightfield",
         "tags": ["heightfield", "rasterize", "generation", "shape", "volume"]
     }
