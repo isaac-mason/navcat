@@ -253,6 +253,12 @@ See the [CHANGELOG.md](./CHANGELOG.md) for a detailed list of changes in each ve
         Chunky Tri Mesh
       </a>
     </td>
+    <td align="center">
+      <a href="https://navcat.dev/examples#example-rasterize-filled-volume">
+        <img src="./examples/public/screenshots/example-rasterize-filled-volume.png" width="180" height="120" style="object-fit:cover;"/><br/>
+        Rasterize Filled Volume
+      </a>
+    </td>
   </tr>
 </table>
 
@@ -501,9 +507,10 @@ if (findPathResult.success) {
  * @param start The starting position in world space.
  * @param end The ending position in world space.
  * @param queryFilter The query filter.
+ * @param options Optional configuration for the pathfinding operation.
  * @returns The result of the pathfinding operation.
  */
-export function findPath(navMesh: NavMesh, start: Vec3, end: Vec3, halfExtents: Vec3, queryFilter: QueryFilter): FindPathResult;
+export function findPath(navMesh: NavMesh, start: Vec3, end: Vec3, halfExtents: Vec3, queryFilter: QueryFilter, options?: FindPathOptions): FindPathResult;
 ```
 
 **[`findPath` API Documentation →](https://navcat.dev/docs/functions/navcat.findPath.html)**
@@ -546,11 +553,10 @@ Combines `findNodePath`, `findStraightPath`, and `moveAlongSurface` to produce a
  * @param end The ending position in world space.
  * @param halfExtents The half extents for nearest polygon queries.
  * @param queryFilter The query filter.
- * @param stepSize The step size for movement along the surface
- * @param slop The distance tolerance for reaching waypoints
+ * @param options Configuration for the smooth pathfinding operation.
  * @returns The result of the smooth pathfinding operation, with path points containing position, type, and nodeRef information.
  */
-export function findSmoothPath(navMesh: NavMesh, start: Vec3, end: Vec3, halfExtents: Vec3, queryFilter: QueryFilter, stepSize: number, slop: number, maxPoints: number): FindSmoothPathResult;
+export function findSmoothPath(navMesh: NavMesh, start: Vec3, end: Vec3, halfExtents: Vec3, queryFilter: QueryFilter, options: FindSmoothPathOptions): FindSmoothPathResult;
 ```
 
 **[`findSmoothPath` API Documentation →](https://navcat.dev/docs/functions/navcat.findSmoothPath.html)**
@@ -620,9 +626,10 @@ if (startNode.success && endNode.success) {
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter.
+ * @param options Optional configuration for the pathfinding operation.
  * @returns The result of the pathfinding operation.
  */
-export function findNodePath(navMesh: NavMesh, startNodeRef: NodeRef, endNodeRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter): FindNodePathResult;
+export function findNodePath(navMesh: NavMesh, startNodeRef: NodeRef, endNodeRef: NodeRef, startPosition: Vec3, endPosition: Vec3, filter: QueryFilter, options?: FindNodePathOptions): FindNodePathResult;
 ```
 
 **[`findNodePath` API Documentation →](https://navcat.dev/docs/functions/navcat.findNodePath.html)**
