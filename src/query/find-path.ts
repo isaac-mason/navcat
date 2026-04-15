@@ -53,6 +53,11 @@ export type FindPathResult = {
 const _findPathStartNearestPolyResult = createFindNearestPolyResult();
 const _findPathEndNearestPolyResult = createFindNearestPolyResult();
 
+export type FindPathOptions = {
+    /** Maximum raycast distance for any-angle shortcutting. 0 or undefined disables. */
+    raycastDistance?: number;
+};
+
 /**
  * Find a path between two positions on a NavMesh.
  *
@@ -71,6 +76,7 @@ const _findPathEndNearestPolyResult = createFindNearestPolyResult();
  * @param start The starting position in world space.
  * @param end The ending position in world space.
  * @param queryFilter The query filter.
+ * @param options Optional configuration for the pathfinding operation.
  * @returns The result of the pathfinding operation.
  */
 export const findPath = (
@@ -79,6 +85,7 @@ export const findPath = (
     end: Vec3,
     halfExtents: Vec3,
     queryFilter: QueryFilter,
+    options?: FindPathOptions,
 ): FindPathResult => {
     const result: FindPathResult = {
         success: false,
@@ -115,6 +122,7 @@ export const findPath = (
         result.startPosition,
         result.endPosition,
         queryFilter,
+        options?.raycastDistance ? { raycastDistance: options.raycastDistance } : undefined,
     );
 
     result.nodePath = nodePath;

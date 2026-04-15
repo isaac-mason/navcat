@@ -2,6 +2,10 @@
 
 ## 0.3.0 (Unreleased)
 
+- feat: add any-angle path shortcut support to findNodePath with new `raycastDistance` option, previously only supported in sliced find node path (@FlorentMasson)
+  - changed `findSmoothPath` signature to have an options object for `stepSize`, `slop`, `maxPoints`, and new optional `raycastDistance`
+  - added `options` parameter to `findPath` with new optional `raycastDistance` 
+- fix: raycast cost calculation (@FlorentMasson)
 - feat: add heightfield filled volume rasterization functions (rasterizeBox, rasterizeConvex, rasterizeSphere, rasterizeCapsule, rasterizeCylinder) (@shrjrd, @isaac-mason)
 - fix: polygonsToNavMeshTilePolys incorrect argument order for buildPolyNeighbours (@regnaio, @isaac-mason)
 - fix: contour hole merging using wrong diagonal vertex in intersection test (@regnaio, @isaac-mason)
