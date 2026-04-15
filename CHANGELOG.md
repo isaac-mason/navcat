@@ -2,7 +2,7 @@
 
 ## 0.3.0 (Unreleased)
 
-- feat: add heightfield filled volume rasterization functions (rasterizeBox, rasterizeConvex, rasterizeSphere, rasterizeCapsule, rasterizeCylinder)
+- feat: add heightfield filled volume rasterization functions (rasterizeBox, rasterizeConvex, rasterizeSphere, rasterizeCapsule, rasterizeCylinder) (@shrjrd, @isaac-mason)
 
 ## 0.2.0
 
