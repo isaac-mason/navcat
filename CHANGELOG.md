@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 0.3.0
+
+- feat: add any-angle path shortcut support to findNodePath with new `raycastDistance` option, previously only supported in sliced find node path (@FlorentMasson)
+  - changed `findSmoothPath` signature to have an options object for `stepSize`, `slop`, `maxPoints`, and new optional `raycastDistance`
+  - added `options` parameter to `findPath` with new optional `raycastDistance` 
+- fix: raycast cost calculation (@FlorentMasson)
+- feat: add heightfield filled volume rasterization functions (rasterizeBox, rasterizeConvex, rasterizeSphere, rasterizeCapsule, rasterizeCylinder) (@shrjrd, @isaac-mason)
+- fix: polygonsToNavMeshTilePolys incorrect argument order for buildPolyNeighbours (@regnaio, @isaac-mason)
+- fix: contour hole merging using wrong diagonal vertex in intersection test (@regnaio, @isaac-mason)
+  - the bug was ported from recastnavigation, the same fix already exists in recast4j
+- feat: various small cleanups (@regnaio, @isaac-mason)
+  - remove unnecessary Object.keys calls in bv-tree.ts
+  - use strict equality checks in compact-heightfield.ts
+  - change unnecessary for in loop over array to for loop in nav-mesh-tile.ts
+
 ## 0.2.0
 
 - feat: update mathcat from v0.0.8 to v0.0.11

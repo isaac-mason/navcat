@@ -88,7 +88,7 @@ export const polygonsToNavMeshTilePolys = (
     const maxX = bounds[3];
     const maxZ = bounds[5];
 
-    buildPolyNeighbours(polys, vertices, borderSize, minX, maxX, minZ, maxZ);
+    buildPolyNeighbours(polys, vertices, borderSize, minX, minZ, maxX, maxZ);
 
     return {
         vertices,
@@ -110,7 +110,7 @@ export const polysToTileDetailMesh = (polys: NavMeshPoly[]): NavMeshTileDetailMe
 
     let tbase = 0;
 
-    for (const polyId in polys) {
+    for (let polyId = 0; polyId < polys.length; polyId++) {
         const poly = polys[polyId];
         const nv = poly.vertices.length;
 
@@ -154,10 +154,7 @@ export const polysToTileDetailMesh = (polys: NavMeshPoly[]): NavMeshTileDetailMe
  * @param polyMeshDetail
  * @returns
  */
-export const polyMeshDetailToTileDetailMesh = (
-    polys: NavMeshPoly[],
-    polyMeshDetail: PolyMeshDetail,
-) => {
+export const polyMeshDetailToTileDetailMesh = (polys: NavMeshPoly[], polyMeshDetail: PolyMeshDetail) => {
     const detailMeshes: NavMeshPolyDetail[] = [];
     const detailVertices: number[] = [];
 

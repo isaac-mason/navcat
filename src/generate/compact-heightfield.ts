@@ -81,7 +81,7 @@ const getHeightFieldSpanCount = (heightfield: Heightfield): number => {
 
     for (let columnIndex = 0; columnIndex < numCols; ++columnIndex) {
         let span = heightfield.spans[columnIndex];
-        while (span != null) {
+        while (span !== null) {
             if (span.area !== NULL_AREA) {
                 spanCount++;
             }
@@ -150,7 +150,7 @@ export const buildCompactHeightfield = (
         let span = heightfield.spans[columnIndex];
 
         // if there are no spans at this cell, just leave the data to index=0, count=0.
-        if (span == null) {
+        if (span === null) {
             continue;
         }
 
@@ -158,7 +158,7 @@ export const buildCompactHeightfield = (
         cell.index = currentCellIndex;
         cell.count = 0;
 
-        while (span != null) {
+        while (span !== null) {
             if (span.area !== NULL_AREA) {
                 const bot = span.max;
                 const top = span.next ? span.next.min : MAX_HEIGHT;

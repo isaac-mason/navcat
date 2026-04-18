@@ -22,8 +22,12 @@ const compareItemZ = (a: NavMeshBvNode, b: NavMeshBvNode): number => {
 
 const calcExtends = (items: NavMeshBvNode[], imin: number, imax: number): Box3 => {
     const bounds: Box3 = [
-        items[imin].bounds[0], items[imin].bounds[1], items[imin].bounds[2],
-        items[imin].bounds[3], items[imin].bounds[4], items[imin].bounds[5],
+        items[imin].bounds[0],
+        items[imin].bounds[1],
+        items[imin].bounds[2],
+        items[imin].bounds[3],
+        items[imin].bounds[4],
+        items[imin].bounds[5],
     ];
 
     for (let i = imin + 1; i < imax; ++i) {
@@ -137,22 +141,20 @@ const subdivide = (
  * @param navMeshTile the nav mesh tile to build the BV tree for
  * @returns
  */
-export const buildNavMeshBvTree = (
-    params: NavMeshTileParams,
-): NavMeshTileBvTree => {
+export const buildNavMeshBvTree = (params: NavMeshTileParams): NavMeshTileBvTree => {
     // use cellSize for quantization factor
     const quantFactor = 1 / params.cellSize;
-    
+
     // early exit if the tile has no polys
     if (params.polys.length === 0) {
         return {
             nodes: [],
             quantFactor,
-        }
+        };
     }
 
     // allocate bv tree nodes for polys
-    const items: NavMeshBvNode[] = new Array(Object.keys(params.polys).length);
+    const items: NavMeshBvNode[] = new Array(params.polys.length);
 
     // calculate bounds for each polygon
     for (let i = 0; i < params.polys.length; i++) {
@@ -227,7 +229,7 @@ export const buildNavMeshBvTree = (
     }
 
     const curNode = { value: 0 };
-    const nPolys = Object.keys(params.polys).length;
+    const nPolys = params.polys.length;
     const nodes: NavMeshBvNode[] = new Array(nPolys * 2);
 
     subdivide(items, 0, nPolys, curNode, nodes);

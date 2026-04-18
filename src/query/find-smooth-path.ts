@@ -62,6 +62,17 @@ export type FindSmoothPathResult = {
     nodePath: FindNodePathResult | null;
 };
 
+export type FindSmoothPathOptions = {
+    /** Step size for movement along the surface */
+    stepSize: number;
+    /** Distance tolerance for reaching waypoints */
+    slop: number;
+    /** Maximum number of path points */
+    maxPoints: number;
+    /** Maximum raycast distance for any-angle shortcutting. 0 or undefined disables. */
+    raycastDistance?: number;
+};
+
 /**
  * Find a smooth path between two positions on a NavMesh.
  *
@@ -82,8 +93,7 @@ export type FindSmoothPathResult = {
  * @param end The ending position in world space.
  * @param halfExtents The half extents for nearest polygon queries.
  * @param queryFilter The query filter.
- * @param stepSize The step size for movement along the surface
- * @param slop The distance tolerance for reaching waypoints
+ * @param options Configuration for the smooth pathfinding operation.
  * @returns The result of the smooth pathfinding operation, with path points containing position, type, and nodeRef information.
  */
 
@@ -93,10 +103,9 @@ export const findSmoothPath = (
     end: Vec3,
     halfExtents: Vec3,
     queryFilter: QueryFilter,
-    stepSize: number,
-    slop: number,
-    maxPoints: number,
+    options: FindSmoothPathOptions,
 ): FindSmoothPathResult => {
+    const { stepSize, slop, maxPoints, raycastDistance } = options;
     const result: FindSmoothPathResult = {
         success: false,
         flags: FindSmoothPathResultFlags.NONE | FindSmoothPathResultFlags.INVALID_INPUT,
@@ -136,6 +145,7 @@ export const findSmoothPath = (
         result.startPosition,
         result.endPosition,
         queryFilter,
+        raycastDistance ? { raycastDistance } : undefined,
     );
 
     result.nodePath = nodePath;

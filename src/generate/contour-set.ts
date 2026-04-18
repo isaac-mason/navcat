@@ -771,8 +771,7 @@ const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void =
                 const ptIdx = diags[j].vert * 4;
                 const pt = vec2.set(_mergeRegionHoles_pt, outline.vertices[ptIdx], outline.vertices[ptIdx + 2]);
 
-                // TODO: should intersectSegContour be passed `diags[j].vert` instead of `diags[i].vert` ?
-                let intersect = intersectSegContour(pt, corner, diags[i].vert, outline.nVertices, outline.vertices);
+                let intersect = intersectSegContour(pt, corner, diags[j].vert, outline.nVertices, outline.vertices);
                 for (let k = i; k < region.holes.length && !intersect; k++) {
                     intersect =
                         intersect ||
@@ -960,7 +959,7 @@ export const buildContours = (
             for (let i = 0; i < contourSet.contours.length; ++i) {
                 const contour = contourSet.contours[i];
                 const region = regions[contour.reg];
-                
+
                 // Positively wound contours are outlines, negative holes.
                 if (winding[i] > 0) {
                     if (region.outline) {

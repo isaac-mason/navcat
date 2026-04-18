@@ -192,7 +192,11 @@ function updatePath() {
     addVisual(endFlag);
 
     console.time('findSmoothPath');
-    const pathResult = findSmoothPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, stepSize, slop, 1024);
+    const pathResult = findSmoothPath(navMesh, start, end, halfExtents, DEFAULT_QUERY_FILTER, {
+        stepSize,
+        slop,
+        maxPoints: 1024,
+    });
     console.timeEnd('findSmoothPath');
 
     console.log('pathResult', pathResult);

@@ -283,6 +283,11 @@ export type FindNodePathResult = {
 
 const HEURISTIC_SCALE = 0.999; // Search heuristic scale
 
+export type FindNodePathOptions = {
+    /** Maximum raycast distance for any-angle shortcutting. 0 or undefined disables. */
+    raycastDistance?: number;
+};
+
 /**
  * Find a path between two nodes.
  *
@@ -297,6 +302,7 @@ const HEURISTIC_SCALE = 0.999; // Search heuristic scale
  * @param startPosition The starting position in world space.
  * @param endPosition The ending position in world space.
  * @param filter The query filter.
+ * @param options Optional configuration for the pathfinding operation.
  * @returns The result of the pathfinding operation.
  */
 export const findNodePath = (
@@ -306,7 +312,9 @@ export const findNodePath = (
     startPosition: Vec3,
     endPosition: Vec3,
     filter: QueryFilter,
+    options?: FindNodePathOptions,
 ): FindNodePathResult => {
+    const raycastDistance = options?.raycastDistance ?? 0;
     const nodes: SearchNodePool = {};
     const openList: SearchNodeQueue = [];
 
@@ -365,6 +373,7 @@ export const findNodePath = (
 
         // if we have reached the goal, stop searching
         const bestNodeRef = bestSearchNode.nodeRef;
+        const bestNodeIsPoly = getNodeRefType(bestNodeRef) === NodeType.POLY;
         if (bestNodeRef === endNodeRef) {
             lastBestNode = bestSearchNode;
             break;
@@ -420,20 +429,64 @@ export const findNodePath = (
             let cost = 0;
             let heuristic = 0;
 
-            // normal cost calculation
-            const curCost = getCost(
-                bestSearchNode.position,
-                neighbourSearchNode.position,
-                navMesh,
-                parentNodeRef,
-                bestNodeRef,
-                neighbourNodeRef,
-            );
-            cost = bestSearchNode.cost + curCost;
+            // check for raycast shortcut (if enabled)
+            let foundShortcut = false;
+            if (
+                raycastDistance > 0 &&
+                bestNodeIsPoly &&
+                parentNodeRef !== undefined &&
+                getNodeRefType(parentNodeRef) === NodeType.POLY &&
+                bestSearchNode.parentState !== null
+            ) {
+                // get grandparent node for potential raycast shortcut
+                const grandparentNode = getSearchNode(nodes, parentNodeRef, bestSearchNode.parentState);
+
+                if (grandparentNode) {
+                    const rayLength = vec3.distance(grandparentNode.position, neighbourSearchNode.position);
+
+                    if (rayLength < raycastDistance) {
+                        // attempt raycast from grandparent to current neighbor
+                        const rayResult = raycastWithCosts(
+                            navMesh,
+                            grandparentNode.nodeRef,
+                            grandparentNode.position,
+                            neighbourSearchNode.position,
+                            filter,
+                            grandparentNode.parentNodeRef ?? 0, // pass the great-grandparent for accurate cost calculations
+                        );
+
+                        // if the raycast didn't hit anything, we can take the shortcut
+                        if (rayResult.t >= 1.0) {
+                            foundShortcut = true;
+                            cost = grandparentNode.cost + rayResult.pathCost;
+                        }
+                    }
+                }
+            }
+
+            if (!foundShortcut) {
+                // normal cost calculation
+                const curCost = getCost(
+                    bestSearchNode.position,
+                    neighbourSearchNode.position,
+                    navMesh,
+                    parentNodeRef,
+                    bestNodeRef,
+                    neighbourNodeRef,
+                );
+                cost = bestSearchNode.cost + curCost;
+            }
 
             // special case for last node - add cost to reach end position
             if (neighbourNodeRef === endNodeRef) {
-                const endCost = getCost(neighbourSearchNode.position, endPosition, navMesh, bestNodeRef, neighbourNodeRef, undefined);
+                const endCost = getCost(
+                    neighbourSearchNode.position,
+                    endPosition,
+                    navMesh,
+                    bestNodeRef,
+                    neighbourNodeRef,
+                    undefined,
+                );
                 cost = cost + endCost;
                 heuristic = 0;
             } else {
@@ -453,8 +506,13 @@ export const findNodePath = (
             }
 
             // add or update the node
-            neighbourSearchNode.parentNodeRef = bestSearchNode.nodeRef;
-            neighbourSearchNode.parentState = bestSearchNode.state;
+            if (foundShortcut) {
+                neighbourSearchNode.parentNodeRef = bestSearchNode.parentNodeRef;
+                neighbourSearchNode.parentState = bestSearchNode.parentState;
+            } else {
+                neighbourSearchNode.parentNodeRef = bestSearchNode.nodeRef;
+                neighbourSearchNode.parentState = bestSearchNode.state;
+            }
             neighbourSearchNode.nodeRef = neighbourNodeRef;
             neighbourSearchNode.flags = neighbourSearchNode.flags & ~NODE_FLAG_CLOSED;
             neighbourSearchNode.cost = cost;
@@ -924,13 +982,7 @@ export const finalizeSlicedFindNodePath = (
             // if this node has a detached parent, we need to raycast to fill the gap
             if (next && current.wasDetached) {
                 // raycast from current position to next position to get intermediate polygons
-                const rayResult = raycast(
-                    navMesh,
-                    current.node.nodeRef,
-                    current.node.position,
-                    next.node.position,
-                    query.filter,
-                );
+                const rayResult = raycast(navMesh, current.node.nodeRef, current.node.position, next.node.position, query.filter);
 
                 // add all polygons from the raycast
                 for (const polyRef of rayResult.path) {
@@ -1061,13 +1113,7 @@ export const finalizeSlicedFindNodePathPartial = (
             // if this node has a detached parent, we need to raycast to fill the gap
             if (next && current.wasDetached) {
                 // raycast from current position to next position to get intermediate polygons
-                const rayResult = raycast(
-                    navMesh,
-                    current.node.nodeRef,
-                    current.node.position,
-                    next.node.position,
-                    query.filter,
-                );
+                const rayResult = raycast(navMesh, current.node.nodeRef, current.node.position, next.node.position, query.filter);
 
                 // add all polygons from the raycast
                 for (const polyRef of rayResult.path) {
@@ -1349,7 +1395,7 @@ export type RaycastResult = {
 
 /**
  * Internal base implementation of raycast that handles both cost calculation modes.
- * 
+ *
  * Casts a 'walkability' ray along the surface of the navigation mesh from
  * the start position toward the end position.
  *
@@ -1432,6 +1478,11 @@ const raycastBase = (
         // ray end is completely inside the polygon
         if (intersectSegmentPoly2DResult.segMax === -1) {
             result.t = Number.MAX_VALUE;
+
+            if (calculateCosts) {
+                // add cost to end position
+                result.pathCost += filter.getCost(_raycast_curPos, endPosition, navMesh, prevRefTracking, curRef, undefined);
+            }
 
             return result;
         }
@@ -1521,6 +1572,13 @@ const raycastBase = (
                 result.hitNormal[1] = 0;
                 result.hitNormal[2] = -dx;
                 vec3.normalize(result.hitNormal, result.hitNormal);
+            }
+
+            if (calculateCosts) {
+                // add cost to hit point
+                vec3.copy(_raycast_lastPos, _raycast_curPos);
+                vec3.scaleAndAdd(_raycast_curPos, startPosition, _raycast_dir, result.t);
+                result.pathCost += filter.getCost(_raycast_lastPos, _raycast_curPos, navMesh, prevRefTracking, curRef, undefined);
             }
 
             return result;

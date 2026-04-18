@@ -496,7 +496,7 @@ Nav.addTile(navMesh, tile);
 
 {
     /* SNIPPET_START: queryPolygons */
-    
+
     // find all polys within a box area
     const bounds: Nav.Box3 = [0, 0, 0, 1, 1, 1];
 
