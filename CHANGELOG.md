@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.3.0 (Unreleased)
+## 0.3.0
 
 - feat: add any-angle path shortcut support to findNodePath with new `raycastDistance` option, previously only supported in sliced find node path (@FlorentMasson)
   - changed `findSmoothPath` signature to have an options object for `stepSize`, `slop`, `maxPoints`, and new optional `raycastDistance`
