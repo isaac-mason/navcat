@@ -1769,7 +1769,7 @@ export const createNavMeshTilePortalsHelper = (navMeshTile: NavMeshTile): DebugP
         const color = sideColors[side];
         if (!color) continue;
 
-        for (const polyId in navMeshTile.polys) {
+        for (let polyId = 0; polyId < navMeshTile.polys.length; polyId++) {
             const poly = navMeshTile.polys[polyId];
             const nv = poly.vertices.length;
             for (let j = 0; j < nv; j++) {

@@ -1052,6 +1052,7 @@ const walkContour = (
             }
             if (ni === -1) {
                 // should not happen
+                console.warn(`walkContour: encountered unexpected disconnected neighbour at (${currentX}, ${currentY})`);
                 return;
             }
             currentX = nx;
