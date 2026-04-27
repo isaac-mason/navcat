@@ -198,8 +198,8 @@ export function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMes
     //   * good choice to use for tiled navmesh with medium and small sized tiles
 
     buildRegions(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
-    // buildRegionsMonotone(compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
-    // buildLayerRegions(compactHeightfield, borderSize, minRegionArea);
+    // buildRegionsMonotone(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
+    // buildLayerRegions(ctx, compactHeightfield, borderSize, minRegionArea);
 
     BuildContext.end(ctx, 'build compact heightfield regions');
 

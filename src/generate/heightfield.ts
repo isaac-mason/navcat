@@ -404,6 +404,8 @@ export const rasterizeTriangles = (
     triAreaIds: ArrayLike<number>,
     flagMergeThreshold = 1,
 ) => {
+    BuildContext.start(ctx, 'RASTERIZE_TRIANGLES');
+
     const numTris = indices.length / 3;
 
     for (let triIndex = 0; triIndex < numTris; ++triIndex) {
@@ -419,10 +421,12 @@ export const rasterizeTriangles = (
 
         if (!rasterizeTriangle(v0, v1, v2, areaId, heightfield, flagMergeThreshold)) {
             BuildContext.error(ctx, 'Failed to rasterize triangle');
+            BuildContext.end(ctx, 'RASTERIZE_TRIANGLES');
             return false;
         }
     }
 
+    BuildContext.end(ctx, 'RASTERIZE_TRIANGLES');
     return true;
 };
 
@@ -1387,7 +1391,8 @@ function intersectConvex(
             }
         }
     }
-    if (yMin < yMax) {
+
+    if (yMin <= yMax) {
         _intersectConvex_result[0] = yMin;
         _intersectConvex_result[1] = yMax;
         return _intersectConvex_result;
