@@ -316,7 +316,7 @@ export const buildRegions = (
     const overlaps: number[] = [];
     compactHeightfield.maxRegions = regionId;
 
-    if (!mergeAndFilterRegions(minRegionArea, mergeRegionArea, compactHeightfield, srcReg, overlaps)) {
+    if (!mergeAndFilterRegions(ctx, minRegionArea, mergeRegionArea, compactHeightfield, srcReg, overlaps)) {
         BuildContext.error(ctx, 'Failed to merge and filter regions');
         return false;
     }
@@ -655,6 +655,7 @@ type Region = {
  * Merge and filter regions based on size criteria
  */
 const mergeAndFilterRegions = (
+    ctx: BuildContextState,
     minRegionArea: number,
     mergeRegionSize: number,
     compactHeightfield: CompactHeightfield,
@@ -721,7 +722,7 @@ const mergeAndFilterRegions = (
 
                 if (ndir !== -1) {
                     // the cell is at border - walk around the contour to find all neighbors
-                    walkContour(x, y, i, ndir, compactHeightfield, srcReg, reg.connections);
+                    walkContour(ctx, x, y, i, ndir, compactHeightfield, srcReg, reg.connections);
                 }
             }
         }
@@ -997,6 +998,7 @@ const isSolidEdge = (
 };
 
 const walkContour = (
+    ctx: BuildContextState,
     x: number,
     y: number,
     i: number,
@@ -1051,8 +1053,8 @@ const walkContour = (
                 ni = nc.index + getCon(s, currentDir);
             }
             if (ni === -1) {
-                // should not happen
-                console.warn(`walkContour: encountered unexpected disconnected neighbour at (${currentX}, ${currentY})`);
+                // Should not happen.
+                BuildContext.warn(ctx, `walkContour: encountered unexpected disconnected neighbour at (${currentX}, ${currentY})`);
                 return;
             }
             currentX = nx;
@@ -1102,6 +1104,7 @@ type SweepSpan = {
  * does not generate overlapping regions.
  */
 export const buildRegionsMonotone = (
+    ctx: BuildContextState,
     compactHeightfield: CompactHeightfield,
     borderSize: number,
     minRegionArea: number,
@@ -1223,7 +1226,7 @@ export const buildRegionsMonotone = (
     const overlaps: number[] = [];
     compactHeightfield.maxRegions = id;
 
-    if (!mergeAndFilterRegions(minRegionArea, mergeRegionArea, compactHeightfield, srcReg, overlaps)) {
+    if (!mergeAndFilterRegions(ctx, minRegionArea, mergeRegionArea, compactHeightfield, srcReg, overlaps)) {
         return false;
     }
 
@@ -1440,7 +1443,12 @@ const mergeAndFilterLayerRegions = (
  * This creates regions that can be used for building navigation mesh layers.
  * Layer regions handle overlapping walkable areas by creating separate layers.
  */
-export const buildLayerRegions = (compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number): boolean => {
+export const buildLayerRegions = (
+    _ctx: BuildContextState,
+    compactHeightfield: CompactHeightfield,
+    borderSize: number,
+    minRegionArea: number,
+): boolean => {
     const w = compactHeightfield.width;
     const h = compactHeightfield.height;
     let id = 1;
