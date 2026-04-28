@@ -1,1 +1,1 @@
-export * from './flood-fill-nav-mesh';
+export * from './flood-fill-nav-mesh.js';

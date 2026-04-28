@@ -1,7 +1,7 @@
-import { BuildContext, type BuildContextState } from './build-context';
-import { BORDER_REG, DIR_OFFSETS, NOT_CONNECTED, NULL_AREA } from './common';
-import type { CompactHeightfield } from './compact-heightfield';
-import { getCon } from './compact-heightfield';
+import { BuildContext, type BuildContextState } from './build-context.js';
+import { BORDER_REG, DIR_OFFSETS, NOT_CONNECTED, NULL_AREA } from './common.js';
+import type { CompactHeightfield } from './compact-heightfield.js';
+import { getCon } from './compact-heightfield.js';
 
 const LOG_NB_STACKS = 3;
 const NB_STACKS = 1 << LOG_NB_STACKS;

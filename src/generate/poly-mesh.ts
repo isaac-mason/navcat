@@ -1,7 +1,7 @@
 import { type Box3, box3, vec3 } from 'mathcat';
-import { BuildContext, type BuildContextState } from './build-context';
-import { BORDER_VERTEX, MESH_NULL_IDX, MULTIPLE_REGS } from './common';
-import type { ContourSet } from './contour-set';
+import { BuildContext, type BuildContextState } from './build-context.js';
+import { BORDER_VERTEX, MESH_NULL_IDX, MULTIPLE_REGS } from './common.js';
+import type { ContourSet } from './contour-set.js';
 
 /**
  * Represents a polygon mesh suitable for use in building a navigation mesh.

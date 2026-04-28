@@ -1,9 +1,9 @@
 import type { Box3, Vec2, Vec3 } from 'mathcat';
 import { box3, vec2, vec3 } from 'mathcat';
-import { DETAIL_EDGE_BOUNDARY, POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate';
-import { closestHeightPointTriangle, createDistancePtSegSqr2dResult, distancePtSegSqr2d, pointInPoly } from '../geometry';
-import { createIndexPool, releaseIndex, requestIndex } from '../index-pool';
-import { buildNavMeshBvTree } from './bv-tree';
+import { DETAIL_EDGE_BOUNDARY, POLY_NEIS_FLAG_EXT_LINK, POLY_NEIS_FLAG_EXT_LINK_DIR_MASK } from '../generate/index.js';
+import { closestHeightPointTriangle, createDistancePtSegSqr2dResult, distancePtSegSqr2d, pointInPoly } from '../geometry.js';
+import { createIndexPool, releaseIndex, requestIndex } from '../index-pool.js';
+import { buildNavMeshBvTree } from './bv-tree.js';
 import {
     type NavMesh,
     type NavMeshNode,
@@ -14,7 +14,7 @@ import {
     type OffMeshConnectionAttachment,
     OffMeshConnectionDirection,
     type OffMeshConnectionParams,
-} from './nav-mesh';
+} from './nav-mesh.js';
 import {
     getNodeRefIndex,
     getNodeRefSequence,
@@ -24,7 +24,7 @@ import {
     type NodeRef,
     NodeType,
     serNodeRef,
-} from './node';
+} from './node.js';
 
 /**
  * Creates a new empty navigation mesh.

@@ -7,11 +7,11 @@ import {
     type IntersectSegSeg2DResult,
     intersectSegSeg2D,
     triArea2D,
-} from '../geometry';
-import type { NavMesh } from './nav-mesh';
-import { getClosestPointOnPolyBoundary, getNodeByRef } from './nav-mesh-api';
-import { getPortalPoints } from './nav-mesh-search';
-import { getNodeRefType, type NodeRef, NodeType } from './node';
+} from '../geometry.js';
+import type { NavMesh } from './nav-mesh.js';
+import { getClosestPointOnPolyBoundary, getNodeByRef } from './nav-mesh-api.js';
+import { getPortalPoints } from './nav-mesh-search.js';
+import { getNodeRefType, type NodeRef, NodeType } from './node.js';
 
 export enum FindStraightPathOptions {
     ALL_CROSSINGS = 1,

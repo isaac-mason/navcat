@@ -1,6 +1,6 @@
 import type { Box3 } from 'mathcat';
-import { MESH_NULL_IDX } from '../generate';
-import type { NavMeshBvNode, NavMeshTileBvTree, NavMeshTileParams } from './nav-mesh';
+import { MESH_NULL_IDX } from '../generate/index.js';
+import type { NavMeshBvNode, NavMeshTileBvTree, NavMeshTileParams } from './nav-mesh.js';
 
 const compareItemX = (a: NavMeshBvNode, b: NavMeshBvNode): number => {
     if (a.bounds[0] < b.bounds[0]) return -1;

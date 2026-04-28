@@ -1,6 +1,6 @@
 import type { Box3, Vec3 } from 'mathcat';
-import type { IndexPool } from '../index-pool';
-import type { NodeRef, NodeType } from './node';
+import type { IndexPool } from '../index-pool.js';
+import type { NodeRef, NodeType } from './node.js';
 
 /** A navigation mesh based on tiles of convex polygons */
 export type NavMesh = {

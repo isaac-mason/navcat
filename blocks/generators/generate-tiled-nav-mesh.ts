@@ -32,7 +32,7 @@ import {
     rasterizeTriangles,
     WALKABLE_AREA,
 } from 'navcat';
-import * as chunkyTriMesh from '../geometry/chunky-tri-mesh';
+import * as chunkyTriMesh from '../geometry/chunky-tri-mesh.js';
 
 export type TiledNavMeshInput = {
     positions: ArrayLike<number>;

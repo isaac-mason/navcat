@@ -20,9 +20,9 @@ import {
     StraightPathPointFlags,
     updateSlicedFindNodePath,
 } from 'navcat';
-import * as localBoundary from './local-boundary';
-import * as obstacleAvoidance from './obstacle-avoidance';
-import * as pathCorridor from './path-corridor';
+import * as localBoundary from './local-boundary.js';
+import * as obstacleAvoidance from './obstacle-avoidance.js';
+import * as pathCorridor from './path-corridor.js';
 
 export enum AgentState {
     INVALID,

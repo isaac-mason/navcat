@@ -8,7 +8,7 @@ import {
     MAX_SEQUENCE,
     NodeType,
     serNodeRef,
-} from '../src';
+} from '../src/index.js';
 
 describe('node ref', () => {
     test('serdes node ref with basic values', () => {

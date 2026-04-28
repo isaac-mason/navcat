@@ -1,2 +1,2 @@
-export * as chunkyTriMesh from "./chunky-tri-mesh";
-export * from "./merge-positions-and-indices";
+export * as chunkyTriMesh from "./chunky-tri-mesh.js";
+export * from "./merge-positions-and-indices.js";

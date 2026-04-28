@@ -1,6 +1,6 @@
 import { type Box3, type Vec3, vec3 } from 'mathcat';
-import type { ArrayLike } from './common';
-import { NULL_AREA, WALKABLE_AREA } from './common';
+import type { ArrayLike } from './common.js';
+import { NULL_AREA, WALKABLE_AREA } from './common.js';
 
 const _edge0 = vec3.create();
 const _edge1 = vec3.create();

@@ -8,9 +8,9 @@ import {
     pointInPoly,
     randomPointInConvexPoly,
     triArea2D,
-} from '../geometry';
-import type { NavMesh, NavMeshLink, NavMeshPoly, NavMeshTile } from './nav-mesh';
-import type { QueryFilter } from './nav-mesh-api';
+} from '../geometry.js';
+import type { NavMesh, NavMeshLink, NavMeshPoly, NavMeshTile } from './nav-mesh.js';
+import type { QueryFilter } from './nav-mesh-api.js';
 import {
     createGetClosestPointOnPolyResult,
     createGetPolyHeightResult,
@@ -21,8 +21,8 @@ import {
     getPolyHeight,
     getTileAndPolyByRef,
     isValidNodeRef,
-} from './nav-mesh-api';
-import { getNodeRefType, INVALID_NODE_REF, type NodeRef, NodeType } from './node';
+} from './nav-mesh-api.js';
+import { getNodeRefType, INVALID_NODE_REF, type NodeRef, NodeType } from './node.js';
 
 export const NODE_FLAG_OPEN = 0x01;
 export const NODE_FLAG_CLOSED = 0x02;

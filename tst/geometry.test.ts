@@ -1,6 +1,6 @@
 import { vec3 } from 'mathcat';
 import { describe, expect, test } from 'vitest';
-import { pointInPoly } from '../src/geometry';
+import { pointInPoly } from '../src/geometry.js';
 
 describe('geometry.pointInPoly', () => {
     test('point on edge is considered inside', () => {

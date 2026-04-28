@@ -1,6 +1,6 @@
 import type { Vec3 } from 'mathcat';
-import type { NavMeshPoly } from '../query';
-import { MESH_NULL_IDX, POLY_NEIS_FLAG_EXT_LINK } from './common';
+import type { NavMeshPoly } from '../query/index.js';
+import { MESH_NULL_IDX, POLY_NEIS_FLAG_EXT_LINK } from './common.js';
 
 export const buildPolyNeighbours = (
     polys: NavMeshPoly[],

@@ -10,7 +10,7 @@ import {
     filterWalkableLowHeightSpans,
     NULL_AREA,
     rasterizeTriangles,
-} from '../src';
+} from '../src/index.js';
 
 describe('heightfield', () => {
     describe('calculateGridSize', () => {

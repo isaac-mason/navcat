@@ -1,8 +1,8 @@
 import { type Vec3, vec3 } from 'mathcat';
-import type { ArrayLike, CompactHeightfield, ContourSet, Heightfield, PolyMesh, PolyMeshDetail } from './generate';
-import { MESH_NULL_IDX, NULL_AREA, POLY_NEIS_FLAG_EXT_LINK, WALKABLE_AREA } from './generate';
-import type { NavMesh, NavMeshTile, NodeRef, SearchNode, SearchNodePool } from './query';
-import { getNodeByRef, OffMeshConnectionDirection } from './query';
+import type { ArrayLike, CompactHeightfield, ContourSet, Heightfield, PolyMesh, PolyMeshDetail } from './generate/index.js';
+import { MESH_NULL_IDX, NULL_AREA, POLY_NEIS_FLAG_EXT_LINK, WALKABLE_AREA } from './generate/index.js';
+import type { NavMesh, NavMeshTile, NodeRef, SearchNode, SearchNodePool } from './query/index.js';
+import { getNodeByRef, OffMeshConnectionDirection } from './query/index.js';
 
 // debug primitive types
 export enum DebugPrimitiveType {

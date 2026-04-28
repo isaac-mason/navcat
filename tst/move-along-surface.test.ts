@@ -11,7 +11,7 @@ import {
     type NavMeshTileParams,
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
-} from '../src';
+} from '../src/index.js';
 
 describe('moveAlongSurface', () => {
     test('should move within single polygon', () => {

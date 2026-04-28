@@ -14,7 +14,7 @@ import {
     polysToTileDetailMesh,
     removeOffMeshConnection,
     removeTile,
-} from '../src';
+} from '../src/index.js';
 
 describe('node graph', () => {
     test('tile polys', () => {

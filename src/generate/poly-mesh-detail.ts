@@ -1,10 +1,10 @@
 import { circle, circumcircle, clamp, type Vec2, type Vec3, vec2, vec3 } from 'mathcat';
-import { distancePtSeg, distToPoly, distToTriMesh, overlapSegSeg2d, polyMinExtent } from '../geometry';
-import { BuildContext, type BuildContextState } from './build-context';
-import { getDirForOffset, getDirOffsetX, getDirOffsetY, MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED } from './common';
-import type { CompactHeightfield } from './compact-heightfield';
-import { getCon } from './compact-heightfield';
-import type { PolyMesh } from './poly-mesh';
+import { distancePtSeg, distToPoly, distToTriMesh, overlapSegSeg2d, polyMinExtent } from '../geometry.js';
+import { BuildContext, type BuildContextState } from './build-context.js';
+import { getDirForOffset, getDirOffsetX, getDirOffsetY, MESH_NULL_IDX, MULTIPLE_REGS, NOT_CONNECTED } from './common.js';
+import type { CompactHeightfield } from './compact-heightfield.js';
+import { getCon } from './compact-heightfield.js';
+import type { PolyMesh } from './poly-mesh.js';
 
 /**
  * Contains triangle meshes that represent detailed height data associated

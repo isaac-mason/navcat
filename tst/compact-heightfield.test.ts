@@ -11,7 +11,7 @@ import {
     markRotatedBoxArea,
     NULL_AREA,
     setCon,
-} from '../src';
+} from '../src/index.js';
 
 describe('compact-heightfield', () => {
     describe('setCon and getCon', () => {

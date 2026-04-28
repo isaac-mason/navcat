@@ -1,8 +1,8 @@
 import { box3, type Box3, type Vec3, vec3 } from 'mathcat';
-import { pointInPoly } from '../geometry';
-import { BuildContext, type BuildContextState } from './build-context';
-import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common';
-import type { Heightfield } from './heightfield';
+import { pointInPoly } from '../geometry.js';
+import { BuildContext, type BuildContextState } from './build-context.js';
+import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common.js';
+import type { Heightfield } from './heightfield.js';
 
 export type CompactHeightfieldSpan = {
     /** the lower extent of the span. measured from the heightfields base. */

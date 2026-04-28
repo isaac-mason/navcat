@@ -1,11 +1,11 @@
 import type { Vec3 } from 'mathcat';
 import { vec3 } from 'mathcat';
-import { FindStraightPathResultFlags, findStraightPath, type StraightPathPoint } from './find-straight-path';
-import type { NavMesh } from './nav-mesh';
-import type { QueryFilter } from './nav-mesh-api';
-import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
-import { type FindNodePathResult, FindNodePathResultFlags, findNodePath } from './nav-mesh-search';
-import type { NodeRef } from './node';
+import { FindStraightPathResultFlags, findStraightPath, type StraightPathPoint } from './find-straight-path.js';
+import type { NavMesh } from './nav-mesh.js';
+import type { QueryFilter } from './nav-mesh-api.js';
+import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api.js';
+import { type FindNodePathResult, FindNodePathResultFlags, findNodePath } from './nav-mesh-search.js';
+import type { NodeRef } from './node.js';
 
 export enum FindPathResultFlags {
     NONE = 0,

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { mergeStartMoved } from '../blocks/agents/path-corridor';
-import type { NodeRef } from '../src';
+import { mergeStartMoved } from '../blocks/agents/path-corridor.js';
+import type { NodeRef } from '../src/index.js';
 
 describe('mergeStartMoved', () => {
     test('should handle empty input', () => {

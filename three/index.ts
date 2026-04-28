@@ -2,5 +2,5 @@
  * @module navcat/three
  */
 
-export * from "./debug";
-export * from "./get-positions-and-indices";
+export * from "./debug.js";
+export * from "./get-positions-and-indices.js";

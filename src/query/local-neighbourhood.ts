@@ -1,9 +1,9 @@
 import type { Vec3 } from 'mathcat';
 import { vec3 } from 'mathcat';
-import { POLY_NEIS_FLAG_EXT_LINK } from '../generate';
-import { createDistancePtSegSqr2dResult, distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry';
-import type { NavMesh } from './nav-mesh';
-import { getNodeByRef, getNodeByTileAndPoly, getTileAndPolyByRef, isValidNodeRef } from './nav-mesh-api';
+import { POLY_NEIS_FLAG_EXT_LINK } from '../generate/index.js';
+import { createDistancePtSegSqr2dResult, distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry.js';
+import type { NavMesh } from './nav-mesh.js';
+import { getNodeByRef, getNodeByTileAndPoly, getTileAndPolyByRef, isValidNodeRef } from './nav-mesh-api.js';
 import {
     addSearchNode,
     getPortalPoints,
@@ -11,9 +11,9 @@ import {
     NODE_FLAG_CLOSED,
     type SearchNode,
     type SearchNodePool,
-} from './nav-mesh-search';
-import { getNodeRefType, type NodeRef, NodeType } from './node';
-import type { QueryFilter } from './nav-mesh-api';
+} from './nav-mesh-search.js';
+import { getNodeRefType, type NodeRef, NodeType } from './node.js';
+import type { QueryFilter } from './nav-mesh-api.js';
 
 type SegmentInterval = {
     nodeRef: NodeRef | null;

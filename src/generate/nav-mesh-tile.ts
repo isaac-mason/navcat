@@ -1,9 +1,9 @@
 import type { Box3 } from 'mathcat';
-import type { NavMeshPoly, NavMeshPolyDetail, NavMeshTile } from '../query';
-import { MESH_NULL_IDX } from './common';
-import type { PolyMesh } from './poly-mesh';
-import type { PolyMeshDetail } from './poly-mesh-detail';
-import { buildPolyNeighbours } from './poly-neighbours';
+import type { NavMeshPoly, NavMeshPolyDetail, NavMeshTile } from '../query/index.js';
+import { MESH_NULL_IDX } from './common.js';
+import type { PolyMesh } from './poly-mesh.js';
+import type { PolyMeshDetail } from './poly-mesh-detail.js';
+import { buildPolyNeighbours } from './poly-neighbours.js';
 
 export type NavMeshTilePolys = Pick<NavMeshTile, 'vertices' | 'polys'>;
 

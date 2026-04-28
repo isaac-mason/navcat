@@ -1,4 +1,4 @@
-export * as crowd from './crowd';
-export * as localBoundary from './local-boundary';
-export * as obstacleAvoidance from './obstacle-avoidance';
-export * as pathCorridor from './path-corridor';
+export * as crowd from './crowd.js';
+export * as localBoundary from './local-boundary.js';
+export * as obstacleAvoidance from './obstacle-avoidance.js';
+export * as pathCorridor from './path-corridor.js';

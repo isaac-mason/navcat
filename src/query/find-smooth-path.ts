@@ -1,11 +1,11 @@
 import type { Vec3 } from 'mathcat';
 import { vec3 } from 'mathcat';
-import { findStraightPath, StraightPathPointFlags } from './find-straight-path';
-import type { NavMesh } from './nav-mesh';
-import type { QueryFilter } from './nav-mesh-api';
-import { createFindNearestPolyResult, findNearestPoly, getNodeByRef } from './nav-mesh-api';
-import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
-import { INVALID_NODE_REF, type NodeRef, NodeType } from './node';
+import { findStraightPath, StraightPathPointFlags } from './find-straight-path.js';
+import type { NavMesh } from './nav-mesh.js';
+import type { QueryFilter } from './nav-mesh-api.js';
+import { createFindNearestPolyResult, findNearestPoly, getNodeByRef } from './nav-mesh-api.js';
+import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search.js';
+import { INVALID_NODE_REF, type NodeRef, NodeType } from './node.js';
 
 const _findSmoothPath_delta = vec3.create();
 const _findSmoothPath_moveTarget = vec3.create();
