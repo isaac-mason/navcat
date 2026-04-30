@@ -10,16 +10,16 @@
     "types": "dist/src/index.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/src/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "types": "./dist/src/index.d.ts"
         },
         "./blocks": {
-            "types": "./dist/blocks/index.d.ts",
-            "import": "./dist/blocks.js"
+            "import": "./dist/blocks.js",
+            "types": "./dist/blocks/index.d.ts"
         },
         "./three": {
-            "types": "./dist/three/index.d.ts",
-            "import": "./dist/three.js"
+            "import": "./dist/three.js",
+            "types": "./dist/three/index.d.ts"
         }
     },
     "files": [
