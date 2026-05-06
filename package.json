@@ -1,6 +1,6 @@
 {
     "name": "navcat",
-    "version": "0.4.0",
+    "version": "0.4.1",
     "author": "Isaac Mason <isaac@isaacmason.com>",
     "description": "",
     "keywords": [],
@@ -10,16 +10,16 @@
     "types": "dist/src/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
-            "types": "./dist/src/index.d.ts"
+            "types": "./dist/src/index.d.ts",
+            "import": "./dist/index.js"
         },
         "./blocks": {
-            "import": "./dist/blocks.js",
-            "types": "./dist/blocks/index.d.ts"
+            "types": "./dist/blocks/index.d.ts",
+            "import": "./dist/blocks.js"
         },
         "./three": {
-            "import": "./dist/three.js",
-            "types": "./dist/three/index.d.ts"
+            "types": "./dist/three/index.d.ts",
+            "import": "./dist/three.js"
         }
     },
     "files": [
