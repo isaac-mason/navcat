@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.4.0 (Unreleased)
+## 0.4.0
 
 - feat: update mathcat from v0.0.11 to v0.0.12
 - build: post-process emitted `.d.ts` files to add explicit `.js` extensions on relative specifiers, so consumers can use TypeScript's NodeNext module resolution
