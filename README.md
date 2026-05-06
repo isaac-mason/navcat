@@ -1480,7 +1480,7 @@ export function buildRegions(ctx: BuildContextState, compactHeightfield: Compact
  * Monotone partitioning creates regions by sweeping the heightfield and
  * does not generate overlapping regions.
  */
-export function buildRegionsMonotone(compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number, mergeRegionArea: number): boolean;
+export function buildRegionsMonotone(ctx: BuildContextState, compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number, mergeRegionArea: number): boolean;
 ```
 
 ```ts
@@ -1489,7 +1489,7 @@ export function buildRegionsMonotone(compactHeightfield: CompactHeightfield, bor
  * This creates regions that can be used for building navigation mesh layers.
  * Layer regions handle overlapping walkable areas by creating separate layers.
  */
-export function buildLayerRegions(compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number): boolean;
+export function buildLayerRegions(_ctx: BuildContextState, compactHeightfield: CompactHeightfield, borderSize: number, minRegionArea: number): boolean;
 ```
 
 ```ts

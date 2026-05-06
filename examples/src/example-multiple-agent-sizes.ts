@@ -205,7 +205,7 @@ function generateSoloNavMesh(input: SoloNavMeshInput, options: SoloNavMeshOption
     BuildContext.start(ctx, 'build compact heightfield regions');
 
     // NOTE: buildRegionsMonotone provides a better result than buildRegions for this use case, given we have marked lots of smaller areas
-    buildRegionsMonotone(compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
+    buildRegionsMonotone(ctx, compactHeightfield, borderSize, minRegionArea, mergeRegionArea);
 
     BuildContext.end(ctx, 'build compact heightfield regions');
 

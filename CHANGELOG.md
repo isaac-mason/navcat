@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 0.4.0
+
+- feat: update mathcat from v0.0.11 to v0.0.12
+- build: post-process emitted `.d.ts` files to add explicit `.js` extensions on relative specifiers, so consumers can use TypeScript's NodeNext module resolution
+- feat: change console.warn to build context warning log in compact-heightfield-regions walkContour, add ctx to buildLayerRegions
+- feat: surface a silent walkContour failure with build context warning 
+- feat: remove redundant local EPS shadow in closestHeightPointTriangle
+- feat: add rasterizeTriangles timing entry; fix intersectConvex bound check
+- feat: replace for...in over tile.polys with numeric for loops in debug helpers
+
 ## 0.3.0
 
 - feat: add any-angle path shortcut support to findNodePath with new `raycastDistance` option, previously only supported in sliced find node path (@FlorentMasson)

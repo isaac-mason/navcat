@@ -276,8 +276,6 @@ export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
  * @returns Height at position, or NaN if point is not inside triangle
  */
 export const closestHeightPointTriangle = (p: Vec3, a: Vec3, b: Vec3, c: Vec3): number => {
-    const EPS = 1e-6;
-
     const v0x = c[0] - a[0];
     const v0y = c[1] - a[1];
     const v0z = c[2] - a[2];

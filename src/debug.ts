@@ -1036,7 +1036,7 @@ export const createNavMeshHelper = (navMesh: NavMesh): DebugPrimitive[] => {
         if (!tile) continue;
 
         // Draw detail triangles for each polygon
-        for (const polyId in tile.polys) {
+        for (let polyId = 0; polyId < tile.polys.length; polyId++) {
             const poly = tile.polys[polyId];
             const polyDetail = tile.detailMeshes[polyId];
             if (!polyDetail) continue;
@@ -1088,7 +1088,7 @@ export const createNavMeshHelper = (navMesh: NavMesh): DebugPrimitive[] => {
         const innerColor = [0.2, 0.2, 0.2];
         const outerColor = [0.6, 0.6, 1];
 
-        for (const polyId in tile.polys) {
+        for (let polyId = 0; polyId < tile.polys.length; polyId++) {
             const poly = tile.polys[polyId];
 
             for (let j = 0; j < poly.vertices.length; j++) {
@@ -1208,7 +1208,7 @@ export const createNavMeshTileHelper = (tile: NavMeshTile): DebugPrimitive[] => 
     const vertexColors: number[] = [];
 
     // Draw detail triangles for each polygon
-    for (const polyId in tile.polys) {
+    for (let polyId = 0; polyId < tile.polys.length; polyId++) {
         const poly = tile.polys[polyId];
         const polyDetail = tile.detailMeshes[polyId];
         if (!polyDetail) continue;
@@ -1260,7 +1260,7 @@ export const createNavMeshTileHelper = (tile: NavMeshTile): DebugPrimitive[] => 
     const innerColor = [0.2, 0.2, 0.2];
     const outerColor = [0.6, 0.6, 1];
 
-    for (const polyId in tile.polys) {
+    for (let polyId = 0; polyId < tile.polys.length; polyId++) {
         const poly = tile.polys[polyId];
 
         for (let j = 0; j < poly.vertices.length; j++) {
@@ -1769,7 +1769,7 @@ export const createNavMeshTilePortalsHelper = (navMeshTile: NavMeshTile): DebugP
         const color = sideColors[side];
         if (!color) continue;
 
-        for (const polyId in navMeshTile.polys) {
+        for (let polyId = 0; polyId < navMeshTile.polys.length; polyId++) {
             const poly = navMeshTile.polys[polyId];
             const nv = poly.vertices.length;
             for (let j = 0; j < nv; j++) {

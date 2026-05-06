@@ -123,7 +123,15 @@ const getCornerHeight = (
 };
 
 // Helper function to walk contour
-const walkContour = (x: number, y: number, i: number, chf: CompactHeightfield, flags: number[], points: number[]): void => {
+const walkContour = (
+    ctx: BuildContextState,
+    x: number,
+    y: number,
+    i: number,
+    chf: CompactHeightfield,
+    flags: number[],
+    points: number[],
+): void => {
     // Choose the first non-connected edge
     let dir = 0;
     while ((flags[i] & (1 << dir)) === 0) {
@@ -195,6 +203,7 @@ const walkContour = (x: number, y: number, i: number, chf: CompactHeightfield, f
             }
             if (ni === -1) {
                 // Should not happen.
+                BuildContext.warn(ctx, `walkContour: encountered unexpected disconnected neighbour at (${currentX}, ${currentY})`);
                 return;
             }
             currentX = nx;
@@ -886,7 +895,7 @@ export const buildContours = (
                 verts.length = 0;
                 simplified.length = 0;
 
-                walkContour(x, y, i, compactHeightfield, flags, verts);
+                walkContour(ctx, x, y, i, compactHeightfield, flags, verts);
                 simplifyContour(verts, simplified, maxSimplificationError, maxEdgeLength, buildFlags);
                 removeDegenerateSegments(simplified);
 
