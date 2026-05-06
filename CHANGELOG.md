@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.4.1 (Unreleased)
+## 0.4.1
 
 - fix: reorder 'types' and 'import' in package.json 'exports'
 
