@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 0.3.1 (Unreleased)
+
+- feat: update mathcat from v0.0.11 to v0.0.12
+- build: post-process emitted `.d.ts` files to add explicit `.js` extensions on relative specifiers, so consumers can use TypeScript's NodeNext module resolution
+
 ## 0.3.0
 
 - feat: add any-angle path shortcut support to findNodePath with new `raycastDistance` option, previously only supported in sliced find node path (@FlorentMasson)
