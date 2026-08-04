@@ -1,4 +1,5 @@
-import { box3, vec2 } from 'mathcat';
+import { vec2 } from 'mathcat';
+import { box3 } from 'mathcat/shapes';
 import {
     addTile,
     BuildContext,

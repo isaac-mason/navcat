@@ -1,4 +1,5 @@
-import { type Box3, box3, vec3 } from 'mathcat';
+import { vec3 } from 'mathcat';
+import { type Box3, box3 } from 'mathcat/shapes';
 import { BuildContext, type BuildContextState } from './build-context';
 import { BORDER_VERTEX, MESH_NULL_IDX, MULTIPLE_REGS } from './common';
 import type { ContourSet } from './contour-set';

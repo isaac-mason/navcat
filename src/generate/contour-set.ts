@@ -1,4 +1,5 @@
-import { box3, type Box3, type Vec2, vec2 } from 'mathcat';
+import { type Vec2, vec2 } from 'mathcat';
+import { box3, type Box3 } from 'mathcat/shapes';
 import { BuildContext, type BuildContextState } from './build-context';
 import { AREA_BORDER, BORDER_REG, BORDER_VERTEX, CONTOUR_REG_MASK, getDirOffsetX, getDirOffsetY, NOT_CONNECTED } from './common';
 import type { CompactHeightfield } from './compact-heightfield';

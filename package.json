@@ -41,13 +41,13 @@
     },
     "packageManager": "pnpm@8.15.2+sha1.798034f615aa211c6c2ae00010cc20be5fc102ee",
     "dependencies": {
-        "mathcat": "0.0.12"
+        "mathcat": "github:isaac-mason/mathcat#dev"
     },
     "peerDependencies": {
         "three": ">=0.180.0"
     },
     "peerDependenciesMeta": {
-        "three": { 
+        "three": {
             "optional": true
         }
     },

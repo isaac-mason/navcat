@@ -1,4 +1,4 @@
-import type { Box3 } from 'mathcat';
+import type { Box3 } from 'mathcat/shapes';
 import { MESH_NULL_IDX } from '../generate';
 import type { NavMeshBvNode, NavMeshTileBvTree, NavMeshTileParams } from './nav-mesh';
 

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.5.0 (Unreleased)
+
+- feat: update mathcat to v0.1.0
+
 ## 0.4.1
 
 - fix: reorder 'types' and 'import' in package.json 'exports'
