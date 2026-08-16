@@ -3,6 +3,7 @@
 ## 0.5.0 (Unreleased)
 
 - feat: update mathcat to v0.1.0
+- feat: replace `mathcat` dependency with the API-compatible `math` package (canary)
 
 ## 0.4.1
 
