@@ -1,5 +1,5 @@
 import Rapier from '@dimforge/rapier3d-compat';
-import { type Box3, box3, vec2, type Vec3, vec3 } from 'mathcat';
+import { type Box3, box3, vec2, type Vec3, vec3 } from 'math';
 import {
     addOffMeshConnection,
     addTile,

@@ -1,5 +1,5 @@
-import type { Vec2, Vec3 } from 'mathcat';
-import { vec2, vec3 } from 'mathcat';
+import type { Vec2, Vec3 } from 'math';
+import { vec2, vec3 } from 'math';
 
 const EPS = 1e-6;
 

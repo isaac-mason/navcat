@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      mathcat:
-        specifier: 0.0.12
-        version: 0.0.12
+      math:
+        specifier: canary
+        version: 1.0.0-canary-872f3be9-20260816
       three:
         specifier: '>=0.180.0'
         version: 0.183.0
@@ -2183,8 +2183,8 @@ packages:
       uc.micro: 2.1.0
     dev: true
 
-  /mathcat@0.0.12:
-    resolution: {integrity: sha512-gUBe1U/sh7JQ+aSMJDiLG++B3t5rSGAYdEIqPBSEEFUHK9mAcC7yE0f7RZ1SjXI57bDLSYJyrA74XQPT1tJxoA==}
+  /math@1.0.0-canary-872f3be9-20260816:
+    resolution: {integrity: sha512-VRuAlhGeSJVDAu18vs2o7FCTxVVP7wUMg3nLeS6XpTfAbezQgPsUgpfWbsAFpT5Gnpd1QKEDqNk9Gy2sKqvjew==}
     dev: false
 
   /mdurl@2.0.0:
