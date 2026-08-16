@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      mathcat:
-        specifier: github:isaac-mason/mathcat#dev
-        version: github.com/isaac-mason/mathcat/c25a32156b50b228a9d846e0ec835396343b7a73
+      math:
+        specifier: canary
+        version: 1.0.0-canary-872f3be9-20260816
       three:
         specifier: '>=0.180.0'
         version: 0.183.0
@@ -2183,6 +2183,10 @@ packages:
       uc.micro: 2.1.0
     dev: true
 
+  /math@1.0.0-canary-872f3be9-20260816:
+    resolution: {integrity: sha512-VRuAlhGeSJVDAu18vs2o7FCTxVVP7wUMg3nLeS6XpTfAbezQgPsUgpfWbsAFpT5Gnpd1QKEDqNk9Gy2sKqvjew==}
+    dev: false
+
   /mdurl@2.0.0:
     resolution: {integrity: sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w==}
     dev: true
@@ -3351,9 +3355,3 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
     dev: true
-
-  github.com/isaac-mason/mathcat/c25a32156b50b228a9d846e0ec835396343b7a73:
-    resolution: {tarball: https://codeload.github.com/isaac-mason/mathcat/tar.gz/c25a32156b50b228a9d846e0ec835396343b7a73}
-    name: mathcat
-    version: 0.0.14
-    dev: false

@@ -1,5 +1,5 @@
-import type { Vec3 } from 'mathcat';
-import { vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import { vec3 } from 'math';
 import { DEFAULT_QUERY_FILTER, findNearestPoly, createFindNearestPolyResult, moveAlongSurface } from 'navcat';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';

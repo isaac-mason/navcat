@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
-import type { Box3, Vec3 } from 'mathcat';
-import { box3, degreesToRadians, vec2 } from 'mathcat';
+import type { Box3, Vec3 } from 'math';
+import { box3, degreesToRadians, vec2 } from 'math';
 import {
     addTile,
     buildCompactHeightfield,

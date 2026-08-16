@@ -1,5 +1,5 @@
-import type { Vec3 } from 'mathcat';
-import { vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import { vec3 } from 'math';
 import { findStraightPath, StraightPathPointFlags } from './find-straight-path';
 import type { NavMesh } from './nav-mesh';
 import type { QueryFilter } from './nav-mesh-api';

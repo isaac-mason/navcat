@@ -1,4 +1,4 @@
-import type { Vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
 import {
     createFindNearestPolyResult,
     DEFAULT_QUERY_FILTER,

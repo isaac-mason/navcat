@@ -1,5 +1,5 @@
-import type { Vec3 } from 'mathcat';
-import { vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import { vec3 } from 'math';
 import {
     createSlicedNodePathQuery,
     finalizeSlicedFindNodePathPartial,
