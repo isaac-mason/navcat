@@ -1,4 +1,4 @@
-import type { Vec2 } from 'mathcat';
+import type { Vec2 } from 'math';
 
 /*
  * Spatial chunking utility for triangles based on Recast's ChunkyTriMesh.

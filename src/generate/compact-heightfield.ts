@@ -1,5 +1,5 @@
-import { type Vec3, vec3 } from 'mathcat';
-import { box3, type Box3 } from 'mathcat/shapes';
+import { type Vec3, vec3 } from 'math';
+import { box3, type Box3 } from 'math/shapes';
 import { pointInPoly } from '../geometry';
 import { BuildContext, type BuildContextState } from './build-context';
 import { DIR_OFFSETS, MAX_HEIGHT, MAX_LAYERS, NOT_CONNECTED, NULL_AREA } from './common';

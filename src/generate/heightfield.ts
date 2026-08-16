@@ -1,5 +1,5 @@
-import { clamp, type Vec2, type Vec3, vec3 } from 'mathcat';
-import { type Box3, box3 } from 'mathcat/shapes';
+import { clamp, type Vec2, type Vec3, vec3 } from 'math';
+import { type Box3, box3 } from 'math/shapes';
 import { BuildContext, type BuildContextState } from './build-context';
 import { type ArrayLike, AXIS_X, AXIS_Z, getDirOffsetX, getDirOffsetY, NULL_AREA } from './common';
 

@@ -1,5 +1,5 @@
-import type { Vec3 } from 'mathcat';
-import { vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import { vec3 } from 'math';
 
 const DT_PI = Math.PI;
 const DT_MAX_PATTERN_DIVS = 32; // Max number of adaptive divs
