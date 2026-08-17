@@ -158,50 +158,69 @@ const dividePoly = (
     let poly2Vert = 0;
 
     for (let inVertA = 0, inVertB = inVertsCount - 1; inVertA < inVertsCount; inVertB = inVertA, ++inVertA) {
-        // If the two vertices are on the same side of the separating axis
-        const sameSide = inVertAxisDelta[inVertA] >= 0 === inVertAxisDelta[inVertB] >= 0;
+        const deltaA = inVertAxisDelta[inVertA];
+        const deltaB = inVertAxisDelta[inVertB];
 
-        if (!sameSide) {
-            const s = inVertAxisDelta[inVertB] / (inVertAxisDelta[inVertB] - inVertAxisDelta[inVertA]);
-            outVerts1[poly1Vert * 3 + 0] = inVerts[inVertB * 3 + 0] + (inVerts[inVertA * 3 + 0] - inVerts[inVertB * 3 + 0]) * s;
-            outVerts1[poly1Vert * 3 + 1] = inVerts[inVertB * 3 + 1] + (inVerts[inVertA * 3 + 1] - inVerts[inVertB * 3 + 1]) * s;
-            outVerts1[poly1Vert * 3 + 2] = inVerts[inVertB * 3 + 2] + (inVerts[inVertA * 3 + 2] - inVerts[inVertB * 3 + 2]) * s;
+        const a3 = inVertA * 3;
+        const ax = inVerts[a3];
+        const ay = inVerts[a3 + 1];
+        const az = inVerts[a3 + 2];
 
-            // Copy to second polygon
-            outVerts2[poly2Vert * 3 + 0] = outVerts1[poly1Vert * 3 + 0];
-            outVerts2[poly2Vert * 3 + 1] = outVerts1[poly1Vert * 3 + 1];
-            outVerts2[poly2Vert * 3 + 2] = outVerts1[poly1Vert * 3 + 2];
+        // If the two vertices are on opposite sides of the separating axis
+        if (deltaA >= 0 !== deltaB >= 0) {
+            const b3 = inVertB * 3;
+            const bx = inVerts[b3];
+            const by = inVerts[b3 + 1];
+            const bz = inVerts[b3 + 2];
 
+            const s = deltaB / (deltaB - deltaA);
+            const cx = bx + (ax - bx) * s;
+            const cy = by + (ay - by) * s;
+            const cz = bz + (az - bz) * s;
+
+            // Crossing point goes to both polygons
+            const c1 = poly1Vert * 3;
+            outVerts1[c1] = cx;
+            outVerts1[c1 + 1] = cy;
+            outVerts1[c1 + 2] = cz;
+            const c2 = poly2Vert * 3;
+            outVerts2[c2] = cx;
+            outVerts2[c2 + 1] = cy;
+            outVerts2[c2 + 2] = cz;
             poly1Vert++;
             poly2Vert++;
 
             // Add the inVertA point to the right polygon. Do NOT add points that are on the dividing line
             // since these were already added above
-            if (inVertAxisDelta[inVertA] > 0) {
-                outVerts1[poly1Vert * 3 + 0] = inVerts[inVertA * 3 + 0];
-                outVerts1[poly1Vert * 3 + 1] = inVerts[inVertA * 3 + 1];
-                outVerts1[poly1Vert * 3 + 2] = inVerts[inVertA * 3 + 2];
+            if (deltaA > 0) {
+                const o1 = poly1Vert * 3;
+                outVerts1[o1] = ax;
+                outVerts1[o1 + 1] = ay;
+                outVerts1[o1 + 2] = az;
                 poly1Vert++;
-            } else if (inVertAxisDelta[inVertA] < 0) {
-                outVerts2[poly2Vert * 3 + 0] = inVerts[inVertA * 3 + 0];
-                outVerts2[poly2Vert * 3 + 1] = inVerts[inVertA * 3 + 1];
-                outVerts2[poly2Vert * 3 + 2] = inVerts[inVertA * 3 + 2];
+            } else if (deltaA < 0) {
+                const o2 = poly2Vert * 3;
+                outVerts2[o2] = ax;
+                outVerts2[o2 + 1] = ay;
+                outVerts2[o2 + 2] = az;
                 poly2Vert++;
             }
         } else {
             // Add the inVertA point to the right polygon. Addition is done even for points on the dividing line
-            if (inVertAxisDelta[inVertA] >= 0) {
-                outVerts1[poly1Vert * 3 + 0] = inVerts[inVertA * 3 + 0];
-                outVerts1[poly1Vert * 3 + 1] = inVerts[inVertA * 3 + 1];
-                outVerts1[poly1Vert * 3 + 2] = inVerts[inVertA * 3 + 2];
+            if (deltaA >= 0) {
+                const o1 = poly1Vert * 3;
+                outVerts1[o1] = ax;
+                outVerts1[o1 + 1] = ay;
+                outVerts1[o1 + 2] = az;
                 poly1Vert++;
-                if (inVertAxisDelta[inVertA] !== 0) {
+                if (deltaA !== 0) {
                     continue;
                 }
             }
-            outVerts2[poly2Vert * 3 + 0] = inVerts[inVertA * 3 + 0];
-            outVerts2[poly2Vert * 3 + 1] = inVerts[inVertA * 3 + 1];
-            outVerts2[poly2Vert * 3 + 2] = inVerts[inVertA * 3 + 2];
+            const o2 = poly2Vert * 3;
+            outVerts2[o2] = ax;
+            outVerts2[o2 + 1] = ay;
+            outVerts2[o2 + 2] = az;
             poly2Vert++;
         }
     }
