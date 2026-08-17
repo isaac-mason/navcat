@@ -36,6 +36,7 @@
         "format": "biome format --write src/.",
         "lint": "biome lint --write src/.",
         "docs": "cd docs && node ./build.js",
+        "bench": "pnpm --filter bench exec labs",
         "typedoc": "typedoc --tsconfig ./tsconfig.json --name \"navcat docs\" --out ./dist-typedoc ./src/index.ts ./blocks/index.ts ./three/index.ts",
         "test": "vitest"
     },
