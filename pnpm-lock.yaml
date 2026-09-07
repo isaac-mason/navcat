@@ -10,7 +10,7 @@ importers:
     dependencies:
       math:
         specifier: canary
-        version: 1.0.0-canary-872f3be9-20260816
+        version: 1.0.0-canary-5e895055-20260907
       three:
         specifier: '>=0.180.0'
         version: 0.183.0
@@ -2488,8 +2488,8 @@ packages:
       uc.micro: 2.1.0
     dev: true
 
-  /math@1.0.0-canary-872f3be9-20260816:
-    resolution: {integrity: sha512-VRuAlhGeSJVDAu18vs2o7FCTxVVP7wUMg3nLeS6XpTfAbezQgPsUgpfWbsAFpT5Gnpd1QKEDqNk9Gy2sKqvjew==}
+  /math@1.0.0-canary-5e895055-20260907:
+    resolution: {integrity: sha512-+Ry7UH0dj/f+Eb4Uh/ViREz7w6+Q1SDQTmtL4fWTISHjJbsX87xsiO8g39ui0Oab/2pid8zTV2D80pR7vQ9Ntw==}
     dev: false
 
   /mdurl@2.0.0:
