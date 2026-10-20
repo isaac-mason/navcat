@@ -1268,6 +1268,9 @@ export const moveAlongSurface = (
 
                 const neighbourRef = link.toNodeRef;
 
+                // skip off-mesh connections, their link edge is the connection side (0 start, 1 end), not a poly edge
+                if (getNodeRefType(neighbourRef) === NodeType.OFFMESH) continue;
+
                 // check if this link corresponds to edge j
                 if (link.edge === j) {
                     // check filter
