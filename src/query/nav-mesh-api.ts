@@ -521,8 +521,10 @@ export const createFindNearestPolyResult = (): FindNearestPolyResult => {
 };
 
 const _findNearestPoly_closestPointResult = createGetClosestPointOnPolyResult();
-const _findNearestPoly_diff = vec3.create();
 const _findNearestPoly_bounds = box3.create();
+
+// slack on the xz bounds lower bound, so a rounding error can't wrongly skip a poly
+const POLY_BOUNDS_SLACK = 1e-3;
 
 export const findNearestPoly = (
     result: FindNearestPolyResult,
@@ -544,46 +546,158 @@ export const findNearestPoly = (
     bounds[4] = center[1] + halfExtents[1];
     bounds[5] = center[2] + halfExtents[2];
 
-    // query polygons within the query bounds
-    const polys = queryPolygons(navMesh, bounds, queryFilter);
+    // visit the polys queryPolygons would return, in the same order
+    box3.min(_queryPolygons_minPos, bounds);
+    box3.max(_queryPolygons_maxPos, bounds);
+    const minTile = worldToTilePosition(_queryPolygons_minTile, navMesh, _queryPolygons_minPos);
+    const maxTile = worldToTilePosition(_queryPolygons_maxTile, navMesh, _queryPolygons_maxPos);
+
+    if (!vec2.finite(minTile) || !vec2.finite(maxTile)) {
+        return result;
+    }
 
     let nearestDistSqr = Number.MAX_VALUE;
 
-    // find the closest polygon
-    for (const ref of polys) {
-        const closestPoint = getClosestPointOnPoly(_findNearestPoly_closestPointResult, navMesh, ref, center);
+    for (let x = minTile[0]; x <= maxTile[0]; x++) {
+        for (let y = minTile[1]; y <= maxTile[1]; y++) {
+            const tileIds = navMesh.tileColumnToTileIds[getTileColumnHash(x, y)];
+            if (!tileIds) continue;
 
-        if (!closestPoint.success) continue;
-
-        const { tileId } = getNodeByRef(navMesh, ref);
-
-        const tile = navMesh.tiles[tileId];
-
-        if (!tile) continue;
-
-        // calculate difference vector
-        vec3.sub(_findNearestPoly_diff, center, closestPoint.position);
-
-        let distSqr: number;
-
-        // if a point is directly over a polygon and closer than
-        // climb height, favor that instead of straight line nearest point.
-        if (closestPoint.isOverPoly) {
-            const heightDiff = Math.abs(_findNearestPoly_diff[1]) - tile.walkableClimb;
-            distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
-        } else {
-            distSqr = vec3.squaredLength(_findNearestPoly_diff);
-        }
-
-        if (distSqr < nearestDistSqr) {
-            nearestDistSqr = distSqr;
-            result.nodeRef = ref;
-            vec3.copy(result.position, closestPoint.position);
-            result.success = true;
+            for (let i = 0; i < tileIds.length; i++) {
+                const tile = navMesh.tiles[tileIds[i]];
+                nearestDistSqr = findNearestPolyInTile(result, navMesh, tile, center, bounds, queryFilter, nearestDistSqr);
+            }
         }
     }
 
     return result;
+};
+
+/**
+ * findNearestPoly over the polys of one tile that queryPolygonsInTile would return, in the same order.
+ * BV nodes whose xz bounds are no nearer than the nearest poly so far are skipped: a poly only replaces
+ * the nearest when strictly nearer, so the result is the same as checking every poly.
+ * @returns the updated nearest distance
+ */
+const findNearestPolyInTile = (
+    result: FindNearestPolyResult,
+    navMesh: NavMesh,
+    tile: NavMeshTile,
+    center: Vec3,
+    bounds: Box3,
+    filter: QueryFilter,
+    nearestDistSqr: number,
+): number => {
+    let nodeIndex = 0;
+    const nodeBounds = tile.bvTree.bounds;
+    const nodeIndices = tile.bvTree.indices;
+    const endIndex = nodeIndices.length;
+    const qfac = tile.bvTree.quantFactor;
+
+    // tile bounds min/max
+    const tbminX = tile.bounds[0], tbminY = tile.bounds[1], tbminZ = tile.bounds[2];
+    const tbmaxX = tile.bounds[3], tbmaxY = tile.bounds[4], tbmaxZ = tile.bounds[5];
+
+    // clamp query box to world box.
+    const minx = Math.max(Math.min(bounds[0], tbmaxX), tbminX) - tbminX;
+    const miny = Math.max(Math.min(bounds[1], tbmaxY), tbminY) - tbminY;
+    const minz = Math.max(Math.min(bounds[2], tbmaxZ), tbminZ) - tbminZ;
+    const maxx = Math.max(Math.min(bounds[3], tbmaxX), tbminX) - tbminX;
+    const maxy = Math.max(Math.min(bounds[4], tbmaxY), tbminY) - tbminY;
+    const maxz = Math.max(Math.min(bounds[5], tbmaxZ), tbminZ) - tbminZ;
+
+    // quantize
+    _queryPolygonsInTile_bmin[0] = Math.floor(qfac * minx) & 0xfffe;
+    _queryPolygonsInTile_bmin[1] = Math.floor(qfac * miny) & 0xfffe;
+    _queryPolygonsInTile_bmin[2] = Math.floor(qfac * minz) & 0xfffe;
+    _queryPolygonsInTile_bmax[0] = Math.floor(qfac * maxx + 1) | 1;
+    _queryPolygonsInTile_bmax[1] = Math.floor(qfac * maxy + 1) | 1;
+    _queryPolygonsInTile_bmax[2] = Math.floor(qfac * maxz + 1) | 1;
+
+    // the query center in bv tree space, for the xz distance lower bound
+    const cx = (center[0] - tbminX) * qfac;
+    const cz = (center[2] - tbminZ) * qfac;
+
+    const closestPoint = _findNearestPoly_closestPointResult;
+    const closestPosition = closestPoint.position;
+
+    // traverse tree
+    while (nodeIndex < endIndex) {
+        const b = nodeIndex * 6;
+        const i = nodeIndices[nodeIndex];
+
+        const overlap =
+            _queryPolygonsInTile_bmin[0] <= nodeBounds[b + 3] &&
+            _queryPolygonsInTile_bmax[0] >= nodeBounds[b] &&
+            _queryPolygonsInTile_bmin[1] <= nodeBounds[b + 4] &&
+            _queryPolygonsInTile_bmax[1] >= nodeBounds[b + 1] &&
+            _queryPolygonsInTile_bmin[2] <= nodeBounds[b + 5] &&
+            _queryPolygonsInTile_bmax[2] >= nodeBounds[b + 2];
+
+        const isLeafNode = i >= 0;
+
+        // every poly under this node is at least this far from the center in xz
+        let nearer = overlap;
+        let boundsDistSqr = 0;
+        if (overlap) {
+            const dx = Math.max(nodeBounds[b] - cx, cx - nodeBounds[b + 3]) / qfac - POLY_BOUNDS_SLACK;
+            const dz = Math.max(nodeBounds[b + 2] - cz, cz - nodeBounds[b + 5]) / qfac - POLY_BOUNDS_SLACK;
+            boundsDistSqr = (dx > 0 ? dx * dx : 0) + (dz > 0 ? dz * dz : 0);
+            nearer = boundsDistSqr < nearestDistSqr;
+        }
+
+        if (isLeafNode && nearer) {
+            const polyIndex = i;
+            const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
+
+            if (filter.passFilter(node.ref, navMesh)) {
+                const poly = tile.polys[polyIndex];
+
+                // a center outside the poly's xz bounds is never inside the poly
+                if (boundsDistSqr === 0 && pointInTilePoly(center, tile.vertices, poly.vertices)) {
+                    closestPosition[0] = center[0];
+                    closestPosition[1] = getDetailMeshHeight(tile, poly, polyIndex, center);
+                    closestPosition[2] = center[2];
+                    closestPoint.isOverPoly = true;
+                } else {
+                    getClosestPointOnDetailEdges(closestPosition, tile, poly, polyIndex, center, true);
+                    closestPoint.isOverPoly = false;
+                }
+
+                // calculate difference vector
+                const dx = center[0] - closestPosition[0];
+                const dy = center[1] - closestPosition[1];
+                const dz = center[2] - closestPosition[2];
+
+                let distSqr: number;
+
+                // if a point is directly over a polygon and closer than
+                // climb height, favor that instead of straight line nearest point.
+                if (closestPoint.isOverPoly) {
+                    const heightDiff = Math.abs(dy) - tile.walkableClimb;
+                    distSqr = heightDiff > 0 ? heightDiff * heightDiff : 0;
+                } else {
+                    distSqr = dx * dx + dy * dy + dz * dz;
+                }
+
+                if (distSqr < nearestDistSqr) {
+                    nearestDistSqr = distSqr;
+                    result.nodeRef = node.ref;
+                    vec3.copy(result.position, closestPosition);
+                    result.success = true;
+                }
+            }
+        }
+
+        if (nearer || isLeafNode) {
+            nodeIndex++;
+        } else {
+            const escapeIndex = -i;
+            nodeIndex += escapeIndex;
+        }
+    }
+
+    return nearestDistSqr;
 };
 
 const _queryPolygonsInTile_bmax: Vec3 = [0.5, 0.5, 0.5];
