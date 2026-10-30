@@ -3,7 +3,7 @@ import { vec3 } from 'math';
 import { POLY_NEIS_FLAG_EXT_LINK } from '../generate';
 import { createDistancePtSegSqr2dResult, distancePtSegSqr2d, overlapPolyPoly2D } from '../geometry';
 import type { NavMesh } from './nav-mesh';
-import { getNodeByRef, getNodeByTileAndPoly, getTileAndPolyByRef, isValidNodeRef } from './nav-mesh-api';
+import { getNodeByRef, getNodeByTileAndPoly, isValidNodeRef } from './nav-mesh-api';
 import {
     addSearchNode,
     getPortalPoints,
@@ -12,7 +12,8 @@ import {
     type SearchNode,
     type SearchNodePool,
 } from './nav-mesh-search';
-import { getNodeRefType, type NodeRef, NodeType } from './node';
+import { getNodeRefIndex, getNodeRefType, type NodeRef, NodeType } from './node';
+import { getPolyRefTile } from './poly-ref-tile';
 import type { QueryFilter } from './nav-mesh-api';
 
 type SegmentInterval = {
@@ -44,6 +45,8 @@ export type FindLocalNeighbourhoodResult = {
 const _findLocalNeighbourhoodPolyVerticesA: number[] = [];
 const _findLocalNeighbourhoodPolyVerticesB: number[] = [];
 const _findLocalNeighbourhood_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
+const _findLocalNeighbourhood_va = vec3.create();
+const _findLocalNeighbourhood_vb = vec3.create();
 
 /**
  * Finds all polygons within a radius of a center position, avoiding overlapping polygons.
@@ -109,14 +112,14 @@ export const findLocalNeighbourhood = (
     const polyVerticesA = _findLocalNeighbourhoodPolyVerticesA;
     const polyVerticesB = _findLocalNeighbourhoodPolyVerticesB;
 
-    while (stack.length > 0) {
+    let stackHead = 0;
+    while (stackHead < stack.length) {
         // pop front (breadth-first search)
-        const curNode = stack.shift()!;
+        const curNode = stack[stackHead++];
         const curRef = curNode.nodeRef;
 
         // get current poly and tile
-        const curTileAndPoly = getTileAndPolyByRef(curRef, navMesh);
-        if (!curTileAndPoly.success) continue;
+        if (!getPolyRefTile(navMesh, curRef)) continue;
 
         // iterate through all links
         const node = getNodeByRef(navMesh, curRef);
@@ -132,9 +135,9 @@ export const findLocalNeighbourhood = (
             if (existingNode && existingNode.flags & NODE_FLAG_CLOSED) continue;
 
             // get neighbour poly and tile
-            const neighbourTileAndPoly = getTileAndPolyByRef(neighbourRef, navMesh);
-            if (!neighbourTileAndPoly.success) continue;
-            const { tile: neighbourTile, poly: neighbourPoly } = neighbourTileAndPoly;
+            const neighbourTile = getPolyRefTile(navMesh, neighbourRef);
+            if (!neighbourTile) continue;
+            const neighbourPoly = neighbourTile.polys[navMesh.nodes[getNodeRefIndex(neighbourRef)].polyIndex];
 
             // skip off-mesh connections
             if (getNodeRefType(neighbourRef) === NodeType.OFFMESH) continue;
@@ -143,8 +146,8 @@ export const findLocalNeighbourhood = (
             if (!filter.passFilter(neighbourRef, navMesh)) continue;
 
             // find edge and calc distance to the edge
-            const va = vec3.create();
-            const vb = vec3.create();
+            const va = _findLocalNeighbourhood_va;
+            const vb = _findLocalNeighbourhood_vb;
             if (!getPortalPoints(navMesh, curRef, neighbourRef, va, vb)) continue;
 
             // if the circle is not touching the next polygon, skip it
@@ -180,8 +183,7 @@ export const findLocalNeighbourhood = (
 
                 // connected polys do not overlap
                 let connected = false;
-                const curNode = getNodeByRef(navMesh, curRef);
-                for (const pastLinkIndex of curNode.links) {
+                for (const pastLinkIndex of node.links) {
                     if (navMesh.links[pastLinkIndex]?.toNodeRef === pastRef) {
                         connected = true;
                         break;
@@ -190,9 +192,9 @@ export const findLocalNeighbourhood = (
                 if (connected) continue;
 
                 // potentially overlapping - get vertices and test overlap
-                const pastTileAndPoly = getTileAndPolyByRef(pastRef, navMesh);
-                if (!pastTileAndPoly.success) continue;
-                const { tile: pastTile, poly: pastPoly } = pastTileAndPoly;
+                const pastTile = getPolyRefTile(navMesh, pastRef);
+                if (!pastTile) continue;
+                const pastPoly = pastTile.polys[navMesh.nodes[getNodeRefIndex(pastRef)].polyIndex];
 
                 const npb = pastPoly.vertices.length;
                 for (let k = 0; k < npb; ++k) {
@@ -245,7 +247,17 @@ export type PolyWallSegmentsResult = {
  * @param filter The query filter to apply
  * @param includePortals Whether to include portal segments in the result
  */
-export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: QueryFilter, includePortals: boolean): PolyWallSegmentsResult => {
+const _getPolyWallSegments_vj = vec3.create();
+const _getPolyWallSegments_vi = vec3.create();
+const _getPolyWallSegments_segStart = vec3.create();
+const _getPolyWallSegments_segEnd = vec3.create();
+
+export const getPolyWallSegments = (
+    navMesh: NavMesh,
+    nodeRef: NodeRef,
+    filter: QueryFilter,
+    includePortals: boolean,
+): PolyWallSegmentsResult => {
     const result: PolyWallSegmentsResult = {
         success: false,
         segmentVerts: [],
@@ -253,12 +265,12 @@ export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: 
     };
 
     // validate input
-    const tileAndPoly = getTileAndPolyByRef(nodeRef, navMesh);
-    if (!tileAndPoly.success || !filter) {
+    const tile = getPolyRefTile(navMesh, nodeRef);
+    if (!tile || !filter) {
         return result;
     }
 
-    const { tile, poly } = tileAndPoly;
+    const poly = tile.polys[navMesh.nodes[getNodeRefIndex(nodeRef)].polyIndex];
     const segmentVerts: number[] = result.segmentVerts;
     const segmentRefs: (NodeRef | null)[] = result.segmentRefs;
 
@@ -276,8 +288,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: 
                 if (!link || link.edge !== j) continue;
 
                 if (link.toNodeRef) {
-                    const neighbourTileAndPoly = getTileAndPolyByRef(link.toNodeRef, navMesh);
-                    if (neighbourTileAndPoly.success) {
+                    if (getPolyRefTile(navMesh, link.toNodeRef)) {
                         if (filter.passFilter(link.toNodeRef, navMesh)) {
                             insertInterval(intervals, link.bmin, link.bmax, link.toNodeRef);
                         }
@@ -292,8 +303,7 @@ export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: 
                 neiRef = getNodeByTileAndPoly(navMesh, tile, idx).ref;
 
                 // check if neighbor passes filter
-                const neighbourTileAndPoly = getTileAndPolyByRef(neiRef, navMesh);
-                if (neighbourTileAndPoly.success) {
+                if (getPolyRefTile(navMesh, neiRef)) {
                     if (!filter.passFilter(neiRef, navMesh)) {
                         neiRef = null;
                     }
@@ -306,10 +316,11 @@ export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: 
             }
 
             // add the full edge as a segment
-            const vj = vec3.fromBuffer(vec3.create(), tile.vertices, poly.vertices[j] * 3);
-            const vi = vec3.fromBuffer(vec3.create(), tile.vertices, poly.vertices[i] * 3);
+            const vjo = poly.vertices[j] * 3;
+            const vio = poly.vertices[i] * 3;
+            const tv = tile.vertices;
 
-            segmentVerts.push(vj[0], vj[1], vj[2], vi[0], vi[1], vi[2]);
+            segmentVerts.push(tv[vjo], tv[vjo + 1], tv[vjo + 2], tv[vio], tv[vio + 1], tv[vio + 2]);
             segmentRefs.push(neiRef);
             continue;
         }
@@ -319,8 +330,8 @@ export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: 
         insertInterval(intervals, 255, 256, null);
 
         // store segments based on intervals
-        const vj = vec3.fromBuffer(vec3.create(), tile.vertices, poly.vertices[j] * 3);
-        const vi = vec3.fromBuffer(vec3.create(), tile.vertices, poly.vertices[i] * 3);
+        const vj = vec3.fromBuffer(_getPolyWallSegments_vj, tile.vertices, poly.vertices[j] * 3);
+        const vi = vec3.fromBuffer(_getPolyWallSegments_vi, tile.vertices, poly.vertices[i] * 3);
 
         for (let k = 1; k < intervals.length; ++k) {
             // portal segment
@@ -328,8 +339,8 @@ export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: 
                 const tmin = intervals[k].tmin / 255.0;
                 const tmax = intervals[k].tmax / 255.0;
 
-                const segStart = vec3.create();
-                const segEnd = vec3.create();
+                const segStart = _getPolyWallSegments_segStart;
+                const segEnd = _getPolyWallSegments_segEnd;
                 vec3.lerp(segStart, vj, vi, tmin);
                 vec3.lerp(segEnd, vj, vi, tmax);
 
@@ -344,8 +355,8 @@ export const getPolyWallSegments = (navMesh: NavMesh, nodeRef: NodeRef, filter: 
                 const tmin = imin / 255.0;
                 const tmax = imax / 255.0;
 
-                const segStart = vec3.create();
-                const segEnd = vec3.create();
+                const segStart = _getPolyWallSegments_segStart;
+                const segEnd = _getPolyWallSegments_segEnd;
                 vec3.lerp(segStart, vj, vi, tmin);
                 vec3.lerp(segEnd, vj, vi, tmax);
 
