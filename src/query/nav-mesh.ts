@@ -90,7 +90,6 @@ export type NavMeshPolyDetail = {
     trianglesCount: number;
 };
 
-
 export type NavMeshNode = {
     /** whether the node is currently allocated */
     allocated: boolean;
@@ -235,7 +234,7 @@ export type NavMeshTile = {
     /** the detail meshes */
     detailMeshes: NavMeshPolyDetail[];
 
-    /** the detail mesh's unique vertices, in local tile space */
+    /** the detail mesh's unique vertices, in world space */
     detailVertices: number[];
 
     /** the detail mesh's triangles */
@@ -245,7 +244,7 @@ export type NavMeshTile = {
     polys: NavMeshPoly[];
 
     /** poly index to global node index */
-    polyNodes: number[]
+    polyNodes: number[];
 
     /** the tile's bounding volume tree */
     bvTree: NavMeshTileBvTree;
