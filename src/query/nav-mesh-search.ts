@@ -22,7 +22,7 @@ import {
     getTileAndPolyByRef,
     isValidNodeRef,
 } from './nav-mesh-api';
-import { getNodeRefType, INVALID_NODE_REF, type NodeRef, NodeType } from './node';
+import { getNodeRefIndex, getNodeRefType, INVALID_NODE_REF, type NodeRef, NodeType } from './node';
 
 export const NODE_FLAG_OPEN = 0x01;
 export const NODE_FLAG_CLOSED = 0x02;
@@ -260,6 +260,64 @@ export const getEdgeMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRe
     return true;
 };
 
+/** getLinkMidPoint for a link between two polys, from the vertices of the link's poly */
+const getPolyLinkMidPoint = (vertices: number[], polyVertices: number[], link: NavMeshLink, out: Vec3): void => {
+    const a = polyVertices[link.edge] * 3;
+    const next = link.edge + 1;
+    const b = polyVertices[next === polyVertices.length ? 0 : next] * 3;
+
+    if (link.side !== 0xff && (link.bmin !== 0 || link.bmax !== 255)) {
+        const s = 1.0 / 255.0;
+        const tmin = link.bmin * s;
+        const tmax = link.bmax * s;
+        const ax = vertices[a];
+        const ay = vertices[a + 1];
+        const az = vertices[a + 2];
+        const dx = vertices[b] - ax;
+        const dy = vertices[b + 1] - ay;
+        const dz = vertices[b + 2] - az;
+        out[0] = (ax + tmin * dx + (ax + tmax * dx)) * 0.5;
+        out[1] = (ay + tmin * dy + (ay + tmax * dy)) * 0.5;
+        out[2] = (az + tmin * dz + (az + tmax * dz)) * 0.5;
+    } else {
+        out[0] = (vertices[a] + vertices[b]) * 0.5;
+        out[1] = (vertices[a + 1] + vertices[b + 1]) * 0.5;
+        out[2] = (vertices[a + 2] + vertices[b + 2]) * 0.5;
+    }
+};
+
+/**
+ * Same result as getEdgeMidPoint for the first link from `fromNode` to `link.toNodeRef`,
+ * without searching the links of `fromNode` again.
+ */
+const getLinkMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, fromNode: NavMeshNode, link: NavMeshLink, out: Vec3): void => {
+    const fromNodeType = getNodeRefType(fromNodeRef);
+    const toNodeType = getNodeRefType(link.toNodeRef);
+
+    if (fromNodeType === NodeType.POLY && toNodeType === NodeType.POLY) {
+        const tile = navMesh.tiles[fromNode.tileId];
+        getPolyLinkMidPoint(tile.vertices, tile.polys[fromNode.polyIndex].vertices, link, out);
+        return;
+    }
+
+    let offMeshConnectionId: number;
+    if (fromNodeType === NodeType.POLY && toNodeType === NodeType.OFFMESH) {
+        offMeshConnectionId = getNodeByRef(navMesh, link.toNodeRef).offMeshConnectionId;
+    } else if (fromNodeType === NodeType.OFFMESH && toNodeType === NodeType.POLY) {
+        offMeshConnectionId = fromNode.offMeshConnectionId;
+    } else {
+        return;
+    }
+
+    const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+    if (!offMeshConnection) return;
+
+    const position = link.edge === 0 ? offMeshConnection.start : offMeshConnection.end;
+    out[0] = (position[0] + position[0]) * 0.5;
+    out[1] = (position[1] + position[1]) * 0.5;
+    out[2] = (position[2] + position[2]) * 0.5;
+};
+
 export enum FindNodePathResultFlags {
     NONE = 0,
     SUCCESS = 1 << 0,
@@ -293,6 +351,105 @@ export type FindNodePathOptions = {
 };
 
 /**
+ * Search nodes of a findNodePath call, at node index * 4 + crossing state (0-3).
+ * Reused across calls: a slot belongs to the current search when its stamp equals the epoch.
+ */
+type SearchNodeSlots = {
+    epoch: number;
+    stamps: number[];
+    nodes: (SearchNode | undefined)[];
+    inUse: boolean;
+};
+
+const createSearchNodeSlots = (): SearchNodeSlots => ({ epoch: 0, stamps: [], nodes: [], inUse: false });
+
+const _searchNodeSlots = createSearchNodeSlots();
+
+const acquireSearchNodeSlots = (navMesh: NavMesh): SearchNodeSlots => {
+    // a filter callback that runs a search of its own gets fresh slots
+    const slots = _searchNodeSlots.inUse ? createSearchNodeSlots() : _searchNodeSlots;
+    const size = navMesh.nodes.length * 4;
+
+    if (slots.stamps.length < size) {
+        slots.stamps = new Array(size).fill(0);
+        slots.nodes = new Array(size).fill(undefined);
+    }
+
+    // keep epochs within the small integer range of every engine, so stamps stays an array of small integers
+    if (slots.epoch === 0x3fffffff) {
+        slots.stamps.fill(0);
+        slots.epoch = 0;
+    }
+
+    slots.epoch++;
+    slots.inUse = true;
+
+    return slots;
+};
+
+const releaseSearchNodeSlots = (slots: SearchNodeSlots, searchNodes: SearchNode[]): void => {
+    const nodes = slots.nodes;
+    for (let i = 0; i < searchNodes.length; i++) {
+        const node = searchNodes[i];
+        nodes[searchNodeKey(node.nodeRef, node.state)] = undefined;
+    }
+    slots.inUse = false;
+};
+
+const searchNodeKey = (nodeRef: NodeRef, state: number): number => getNodeRefIndex(nodeRef) * 4 + state;
+
+/** A findNodePath result whose `nodes` pool is built on first access. */
+class FindNodePathResultWithLazyNodes implements FindNodePathResult {
+    flags: FindNodePathResultFlags;
+    success: boolean;
+    path: NodeRef[];
+    openList: SearchNodeQueue;
+    #searchNodes: SearchNode[];
+    #nodes: SearchNodePool | undefined;
+
+    constructor(
+        flags: FindNodePathResultFlags,
+        success: boolean,
+        path: NodeRef[],
+        searchNodes: SearchNode[],
+        openList: SearchNodeQueue,
+    ) {
+        this.flags = flags;
+        this.success = success;
+        this.path = path;
+        this.openList = openList;
+        this.#searchNodes = searchNodes;
+        this.#nodes = undefined;
+    }
+
+    get nodes(): SearchNodePool {
+        if (!this.#nodes) {
+            const nodes: SearchNodePool = {};
+            const searchNodes = this.#searchNodes;
+            for (let i = 0; i < searchNodes.length; i++) addSearchNode(nodes, searchNodes[i]);
+            this.#nodes = nodes;
+        }
+        return this.#nodes;
+    }
+
+    set nodes(value: SearchNodePool) {
+        this.#nodes = value;
+    }
+
+    toJSON(): FindNodePathResult {
+        return { flags: this.flags, success: this.success, path: this.path, nodes: this.nodes, openList: this.openList };
+    }
+}
+
+const createFindNodePathResult = (
+    flags: FindNodePathResultFlags,
+    success: boolean,
+    path: NodeRef[],
+    searchNodes: SearchNode[],
+    openList: SearchNodeQueue,
+): FindNodePathResult => new FindNodePathResultWithLazyNodes(flags, success, path, searchNodes, openList);
+
+/**
  * Find a path between two nodes.
  *
  * If the end node cannot be reached through the navigation graph,
@@ -318,8 +475,7 @@ export const findNodePath = (
     filter: QueryFilter,
     options?: FindNodePathOptions,
 ): FindNodePathResult => {
-    const raycastDistance = options?.raycastDistance ?? 0;
-    const nodes: SearchNodePool = {};
+    const searchNodes: SearchNode[] = [];
     const openList: SearchNodeQueue = [];
 
     // validate input
@@ -329,28 +485,97 @@ export const findNodePath = (
         !vec3.finite(startPosition) ||
         !vec3.finite(endPosition)
     ) {
-        return {
-            flags: FindNodePathResultFlags.NONE | FindNodePathResultFlags.INVALID_INPUT,
-            success: false,
-            path: [],
-            nodes,
+        return createFindNodePathResult(
+            FindNodePathResultFlags.NONE | FindNodePathResultFlags.INVALID_INPUT,
+            false,
+            [],
+            searchNodes,
             openList,
-        };
+        );
     }
 
     // early exit if start and end are the same
     if (startNodeRef === endNodeRef) {
-        return {
-            flags: FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
-            success: true,
-            path: [startNodeRef],
-            nodes,
+        return createFindNodePathResult(
+            FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
+            true,
+            [startNodeRef],
+            searchNodes,
             openList,
-        };
+        );
     }
 
-    // prepare search
+    const slots = acquireSearchNodeSlots(navMesh);
+    try {
+        const lastBestNode = searchNodePath(
+            navMesh,
+            slots,
+            searchNodes,
+            openList,
+            startNodeRef,
+            endNodeRef,
+            startPosition,
+            endPosition,
+            filter,
+            options?.raycastDistance ?? 0,
+        );
+
+        // assemble the path to the node
+        const path: NodeRef[] = [];
+        let currentNode: SearchNode | undefined = lastBestNode;
+
+        while (currentNode) {
+            path.push(currentNode.nodeRef);
+
+            if (currentNode.parentNodeRef !== null && currentNode.parentState !== null) {
+                const key = searchNodeKey(currentNode.parentNodeRef, currentNode.parentState);
+                currentNode = slots.stamps[key] === slots.epoch ? slots.nodes[key] : undefined;
+            } else {
+                currentNode = undefined;
+            }
+        }
+
+        path.reverse();
+
+        // if the end node was not reached, return with the partial result status
+        if (lastBestNode.nodeRef !== endNodeRef) {
+            return createFindNodePathResult(FindNodePathResultFlags.PARTIAL_PATH, true, path, searchNodes, openList);
+        }
+
+        // the path is complete, return with the complete path status
+        return createFindNodePathResult(
+            FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
+            true,
+            path,
+            searchNodes,
+            openList,
+        );
+    } finally {
+        releaseSearchNodeSlots(slots, searchNodes);
+    }
+};
+
+/** The A* loop of findNodePath. Returns the node reached, or the one nearest the end. */
+const searchNodePath = (
+    navMesh: NavMesh,
+    slots: SearchNodeSlots,
+    searchNodes: SearchNode[],
+    openList: SearchNodeQueue,
+    startNodeRef: NodeRef,
+    endNodeRef: NodeRef,
+    startPosition: Vec3,
+    endPosition: Vec3,
+    filter: QueryFilter,
+    raycastDistance: number,
+): SearchNode => {
     const getCost = filter.getCost;
+    const links = navMesh.links;
+    const endX = endPosition[0];
+    const endY = endPosition[1];
+    const endZ = endPosition[2];
+    const epoch = slots.epoch;
+    const stamps = slots.stamps;
+    const slotNodes = slots.nodes;
 
     const startNode: SearchNode = {
         cost: 0,
@@ -363,7 +588,10 @@ export const findNodePath = (
         position: [startPosition[0], startPosition[1], startPosition[2]],
     };
 
-    addSearchNode(nodes, startNode);
+    const startKey = searchNodeKey(startNodeRef, 0);
+    stamps[startKey] = epoch;
+    slotNodes[startKey] = startNode;
+    searchNodes.push(startNode);
     pushNodeToQueue(openList, startNode);
 
     let lastBestNode: SearchNode = startNode;
@@ -385,13 +613,18 @@ export const findNodePath = (
 
         // get best node
         const bestNode = getNodeByRef(navMesh, bestNodeRef);
+        const bestNodeLinks = bestNode.links;
+
+        // the best poly's vertices, for link midpoints, looked up on the first new neighbour
+        let bestTileVertices: number[] | undefined;
+        let bestPolyVertices: number[] | undefined;
 
         // get parent node ref
         const parentNodeRef = bestSearchNode.parentNodeRef ?? undefined;
 
         // expand the search with node links
-        for (const linkIndex of bestNode.links) {
-            const link = navMesh.links[linkIndex];
+        for (let l = 0; l < bestNodeLinks.length; l++) {
+            const link = links[bestNodeLinks[l]];
             const neighbourNodeRef = link.toNodeRef;
 
             // do not expand back to where we came from
@@ -411,8 +644,23 @@ export const findNodePath = (
             }
 
             // get the neighbour node
-            let neighbourSearchNode = getSearchNode(nodes, neighbourNodeRef, state);
+            // searchNodeKey(neighbourNodeRef, state)
+            const neighbourKey = link.toNodeIndex * 4 + state;
+            let neighbourSearchNode = stamps[neighbourKey] === epoch ? slotNodes[neighbourKey] : undefined;
             if (!neighbourSearchNode) {
+                // the link midpoint, or zero if the link has none
+                const position: Vec3 = [0, 0, 0];
+                if (bestNodeIsPoly && getNodeRefType(neighbourNodeRef) === NodeType.POLY) {
+                    if (bestTileVertices === undefined || bestPolyVertices === undefined) {
+                        const tile = navMesh.tiles[bestNode.tileId];
+                        bestTileVertices = tile.vertices;
+                        bestPolyVertices = tile.polys[bestNode.polyIndex].vertices;
+                    }
+                    getPolyLinkMidPoint(bestTileVertices, bestPolyVertices, link, position);
+                } else {
+                    getLinkMidPoint(navMesh, bestNodeRef, bestNode, link, position);
+                }
+
                 neighbourSearchNode = {
                     cost: 0,
                     total: 0,
@@ -421,12 +669,12 @@ export const findNodePath = (
                     nodeRef: neighbourNodeRef,
                     state,
                     flags: 0,
-                    position: [0, 0, 0],
+                    position,
                 };
 
-                addSearchNode(nodes, neighbourSearchNode);
-
-                getEdgeMidPoint(navMesh, bestNodeRef, neighbourNodeRef, neighbourSearchNode.position);
+                stamps[neighbourKey] = epoch;
+                slotNodes[neighbourKey] = neighbourSearchNode;
+                searchNodes.push(neighbourSearchNode);
             }
 
             // calculate cost and heuristic
@@ -443,7 +691,8 @@ export const findNodePath = (
                 bestSearchNode.parentState !== null
             ) {
                 // get grandparent node for potential raycast shortcut
-                const grandparentNode = getSearchNode(nodes, parentNodeRef, bestSearchNode.parentState);
+                const grandparentKey = searchNodeKey(parentNodeRef, bestSearchNode.parentState);
+                const grandparentNode = stamps[grandparentKey] === epoch ? slotNodes[grandparentKey] : undefined;
 
                 if (grandparentNode) {
                     const rayLength = vec3.distance(grandparentNode.position, neighbourSearchNode.position);
@@ -494,7 +743,11 @@ export const findNodePath = (
                 cost = cost + endCost;
                 heuristic = 0;
             } else {
-                heuristic = vec3.distance(neighbourSearchNode.position, endPosition) * HEURISTIC_SCALE;
+                const position = neighbourSearchNode.position;
+                const x = endX - position[0];
+                const y = endY - position[1];
+                const z = endZ - position[2];
+                heuristic = Math.sqrt(x * x + y * y + z * z) * HEURISTIC_SCALE;
             }
 
             const total = cost + heuristic;
@@ -539,41 +792,7 @@ export const findNodePath = (
         }
     }
 
-    // assemble the path to the node
-    const path: NodeRef[] = [];
-    let currentNode: SearchNode | null = lastBestNode;
-
-    while (currentNode) {
-        path.push(currentNode.nodeRef);
-
-        if (currentNode.parentNodeRef !== null && currentNode.parentState !== null) {
-            currentNode = getSearchNode(nodes, currentNode.parentNodeRef, currentNode.parentState) ?? null;
-        } else {
-            currentNode = null;
-        }
-    }
-
-    path.reverse();
-
-    // if the end node was not reached, return with the partial result status
-    if (lastBestNode.nodeRef !== endNodeRef) {
-        return {
-            flags: FindNodePathResultFlags.PARTIAL_PATH,
-            success: true,
-            path,
-            nodes,
-            openList,
-        };
-    }
-
-    // the path is complete, return with the complete path status
-    return {
-        flags: FindNodePathResultFlags.SUCCESS | FindNodePathResultFlags.COMPLETE_PATH,
-        success: true,
-        path,
-        nodes,
-        openList,
-    };
+    return lastBestNode;
 };
 
 export enum SlicedFindNodePathStatusFlags {
