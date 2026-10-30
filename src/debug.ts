@@ -1483,7 +1483,7 @@ export const createNavMeshPolyHelper = (
 export const createNavMeshTileBvTreeHelper = (navMeshTile: NavMeshTile): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];
 
-    if (navMeshTile.bvTree.nodes.length === 0) {
+    if (navMeshTile.bvTree.indices.length === 0) {
         return primitives;
     }
 
@@ -1498,19 +1498,19 @@ export const createNavMeshTileBvTreeHelper = (navMeshTile: NavMeshTile): DebugPr
     const cs = 1.0 / navMeshTile.bvTree.quantFactor;
 
     // Draw BV nodes - only internal nodes (leaf indices are positive, internal are negative)
-    for (let i = 0; i < navMeshTile.bvTree.nodes.length; i++) {
-        const node = navMeshTile.bvTree.nodes[i];
-
+    const nodeBounds = navMeshTile.bvTree.bounds;
+    for (let i = 0; i < navMeshTile.bvTree.indices.length; i++) {
         // Leaf indices are positive.
-        if (node.i < 0) continue;
+        if (navMeshTile.bvTree.indices[i] < 0) continue;
 
         // Calculate world coordinates from quantized bounds
-        const minX = navMeshTile.bounds[0] + node.bounds[0] * cs;
-        const minY = navMeshTile.bounds[1] + node.bounds[1] * cs;
-        const minZ = navMeshTile.bounds[2] + node.bounds[2] * cs;
-        const maxX = navMeshTile.bounds[0] + node.bounds[3] * cs;
-        const maxY = navMeshTile.bounds[1] + node.bounds[4] * cs;
-        const maxZ = navMeshTile.bounds[2] + node.bounds[5] * cs;
+        const b = i * 6;
+        const minX = navMeshTile.bounds[0] + nodeBounds[b] * cs;
+        const minY = navMeshTile.bounds[1] + nodeBounds[b + 1] * cs;
+        const minZ = navMeshTile.bounds[2] + nodeBounds[b + 2] * cs;
+        const maxX = navMeshTile.bounds[0] + nodeBounds[b + 3] * cs;
+        const maxY = navMeshTile.bounds[1] + nodeBounds[b + 4] * cs;
+        const maxZ = navMeshTile.bounds[2] + nodeBounds[b + 5] * cs;
 
         // Create wireframe box edges
         // Bottom face

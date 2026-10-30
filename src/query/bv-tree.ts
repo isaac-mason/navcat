@@ -148,7 +148,8 @@ export const buildNavMeshBvTree = (params: NavMeshTileParams): NavMeshTileBvTree
     // early exit if the tile has no polys
     if (params.polys.length === 0) {
         return {
-            nodes: [],
+            bounds: [],
+            indices: [],
             quantFactor,
         };
     }
@@ -234,13 +235,18 @@ export const buildNavMeshBvTree = (params: NavMeshTileParams): NavMeshTileBvTree
 
     subdivide(items, 0, nPolys, curNode, nodes);
 
-    // trim the nodes array to actual size
-    const trimmedNodes = nodes.slice(0, curNode.value);
+    // flatten the nodes, in traversal order
+    const bounds: number[] = [];
+    const indices: number[] = [];
+    for (let n = 0; n < curNode.value; n++) {
+        const node = nodes[n];
+        bounds.push(node.bounds[0], node.bounds[1], node.bounds[2], node.bounds[3], node.bounds[4], node.bounds[5]);
+        indices.push(node.i);
+    }
 
-    const bvTree = {
-        nodes: trimmedNodes,
-        quantFactor: quantFactor,
+    return {
+        bounds,
+        indices,
+        quantFactor,
     };
-
-    return bvTree;
 };

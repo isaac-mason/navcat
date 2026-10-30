@@ -746,8 +746,8 @@ export const findNearestPoly = (
     return result;
 };
 
-const _queryPolygonsInTile_bmax = vec3.create();
-const _queryPolygonsInTile_bmin = vec3.create();
+const _queryPolygonsInTile_bmax: Vec3 = [0.5, 0.5, 0.5];
+const _queryPolygonsInTile_bmin: Vec3 = [0.5, 0.5, 0.5];
 
 export const queryPolygonsInTile = (
     out: NodeRef[],
@@ -757,7 +757,9 @@ export const queryPolygonsInTile = (
     filter: QueryFilter,
 ): void => {
     let nodeIndex = 0;
-    const endIndex = tile.bvTree.nodes.length;
+    const nodeBounds = tile.bvTree.bounds;
+    const nodeIndices = tile.bvTree.indices;
+    const endIndex = nodeIndices.length;
     const qfac = tile.bvTree.quantFactor;
 
     // tile bounds min/max
@@ -782,21 +784,21 @@ export const queryPolygonsInTile = (
 
     // traverse tree
     while (nodeIndex < endIndex) {
-        const bvNode = tile.bvTree.nodes[nodeIndex];
+        const b = nodeIndex * 6;
+        const i = nodeIndices[nodeIndex];
 
-        const nodeBounds = bvNode.bounds;
         const overlap =
-            _queryPolygonsInTile_bmin[0] <= nodeBounds[3] &&
-            _queryPolygonsInTile_bmax[0] >= nodeBounds[0] &&
-            _queryPolygonsInTile_bmin[1] <= nodeBounds[4] &&
-            _queryPolygonsInTile_bmax[1] >= nodeBounds[1] &&
-            _queryPolygonsInTile_bmin[2] <= nodeBounds[5] &&
-            _queryPolygonsInTile_bmax[2] >= nodeBounds[2];
+            _queryPolygonsInTile_bmin[0] <= nodeBounds[b + 3] &&
+            _queryPolygonsInTile_bmax[0] >= nodeBounds[b] &&
+            _queryPolygonsInTile_bmin[1] <= nodeBounds[b + 4] &&
+            _queryPolygonsInTile_bmax[1] >= nodeBounds[b + 1] &&
+            _queryPolygonsInTile_bmin[2] <= nodeBounds[b + 5] &&
+            _queryPolygonsInTile_bmax[2] >= nodeBounds[b + 2];
 
-        const isLeafNode = bvNode.i >= 0;
+        const isLeafNode = i >= 0;
 
         if (isLeafNode && overlap) {
-            const polyIndex = bvNode.i;
+            const polyIndex = i;
             const node = getNodeByTileAndPoly(navMesh, tile, polyIndex);
 
             if (filter.passFilter(node.ref, navMesh)) {
@@ -807,7 +809,7 @@ export const queryPolygonsInTile = (
         if (overlap || isLeafNode) {
             nodeIndex++;
         } else {
-            const escapeIndex = -bvNode.i;
+            const escapeIndex = -i;
             nodeIndex += escapeIndex;
         }
     }

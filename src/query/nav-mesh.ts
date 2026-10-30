@@ -200,8 +200,11 @@ export type NavMeshBvNode = {
 };
 
 export type NavMeshTileBvTree = {
-    /** the tile bounding volume nodes */
-    nodes: NavMeshBvNode[];
+    /** bounds of each node, 6 per node: min x, y, z then max x, y, z, quantized relative to the tile bounds */
+    bounds: number[];
+
+    /** per node: the poly index for a leaf node, or the negated escape index (nodes to skip) for an internal node */
+    indices: number[];
 
     /** the quantisation factor for the bounding volume tree */
     quantFactor: number;

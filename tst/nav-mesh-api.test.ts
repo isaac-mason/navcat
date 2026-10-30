@@ -18,7 +18,8 @@ const mockTile = (tileX: number, tileY: number, tileLayer: number): NavMeshTile 
     polys: [],
     polyNodes: [],
     bvTree: {
-        nodes: [],
+        bounds: [],
+        indices: [],
         quantFactor: 0,
     },
     cellSize: 0.3,
