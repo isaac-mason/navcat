@@ -1,6 +1,8 @@
-import { type Box3, box3, type Vec3, vec3 } from 'mathcat';
+import { type Vec3, vec3 } from 'math';
+import { type Box3, box3 } from 'math/shapes';
 import { describe, expect, test } from 'vitest';
 import {
+    addOffMeshConnection,
     addTile,
     buildTile,
     createNavMesh,
@@ -9,6 +11,7 @@ import {
     moveAlongSurface,
     type NavMesh,
     type NavMeshTileParams,
+    OffMeshConnectionDirection,
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
 } from '../src';
@@ -136,6 +139,33 @@ describe('moveAlongSurface', () => {
         
         expect(result.visited.length).toBe(1);
         expect(vec3.distance(startPos, result.position)).toBeGreaterThan(0.9);
+    });
+
+    test('should stop at a wall edge whose index matches an off-mesh link edge', () => {
+        const navMesh = createSimpleQuadNavMesh();
+
+        // off-mesh links from a poly use edge 0 (connection start) or 1 (connection end),
+        // the same indices as the poly's first two edges
+        addOffMeshConnection(navMesh, {
+            start: [1.5, 0, 0.4],
+            end: [0.5, 0, 1.8],
+            radius: 0.1,
+            direction: OffMeshConnectionDirection.BIDIRECTIONAL,
+            flags: 1,
+            area: 0,
+        });
+
+        const startPos: Vec3 = [1.5, 0, 0.5];
+        const endPos: Vec3 = [1.5, 0, -3.0]; // through the bottom wall (z=0), edge 0 of the start triangle
+
+        const startNodeRef = navMesh.nodes[0].ref;
+
+        const result = moveAlongSurface(navMesh, startNodeRef, startPos, endPos, DEFAULT_QUERY_FILTER);
+
+        expect(result.success).toBe(true);
+        expect(result.visited).toEqual([startNodeRef]);
+        expect(result.position[0]).toBeCloseTo(1.5);
+        expect(result.position[2]).toBeCloseTo(0);
     });
 });
 

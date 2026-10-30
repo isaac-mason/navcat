@@ -1,5 +1,5 @@
-import type { Vec3 } from 'mathcat';
-import { vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import { vec3 } from 'math';
 import { findLocalNeighbourhood, getPolyWallSegments, isValidNodeRef, type NavMesh, type NodeRef, type QueryFilter } from 'navcat';
 
 const MAX_LOCAL_SEGS = 8;

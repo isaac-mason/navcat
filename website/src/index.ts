@@ -1,4 +1,4 @@
-import { createMulberry32Generator, type Vec3, vec3 } from 'mathcat';
+import { createMulberry32Generator, type Vec3, vec3 } from 'math';
 import {
     addOffMeshConnection,
     createFindNearestPolyResult,

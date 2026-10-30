@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ES2022",
+        "lib": ["ES2022", "DOM"],
+        "moduleResolution": "bundler",
+        "strict": true,
+        "isolatedModules": true,
+        "esModuleInterop": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "allowSyntheticDefaultImports": true,
+        "resolveJsonModule": true,
+        "types": ["node"],
+        // blocks import the library by its package name: bench them against src, not a stale dist
+        "paths": {
+            "navcat": ["../src/index.ts"],
+            "navcat/blocks": ["../blocks/index.ts"]
+        }
+    },
+    "include": ["**/*.ts", "../src/**/*.ts", "../blocks/**/*.ts"]
+}

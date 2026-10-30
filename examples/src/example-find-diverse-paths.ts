@@ -1,6 +1,6 @@
 import GUI from 'lil-gui';
-import type { Vec3 } from 'mathcat';
-import { vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import { vec3 } from 'math';
 import {
     createFindNearestPolyResult,
     DEFAULT_QUERY_FILTER,

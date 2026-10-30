@@ -1,5 +1,7 @@
 import { GUI } from 'lil-gui';
-import { box3, createMulberry32Generator, vec2, type Vec3, vec3 } from 'mathcat';
+import { vec2, type Vec3, vec3 } from 'math';
+import { mulberry32 } from 'math/random';
+import { box3 } from 'math/shapes';
 import {
     addOffMeshConnection,
     addTile,
@@ -69,7 +71,8 @@ import * as THREE from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
 import { crowd, pathCorridor } from 'navcat/blocks';
 
-const random = createMulberry32Generator(42);
+const rng = mulberry32.create(42);
+const random = () => mulberry32.sample(rng);
 
 enum AreaId {
     WALKABLE = 1,

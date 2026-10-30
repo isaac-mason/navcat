@@ -1,0 +1,33 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`query regression > findNodePath search state 1`] = `"19246843/308643"`;
+
+exports[`query regression > findPath 1`] = `
+{
+  "digest": "432a6981/18893",
+  "pathsWithCorners": 179,
+}
+`;
+
+exports[`query regression > findStraightPath options and portals 1`] = `"7fcaa6f8/47082"`;
+
+exports[`query regression > navmesh under test 1`] = `
+{
+  "crossTileLinks": 80,
+  "links": 344,
+  "nodes": 155,
+  "tiles": 14,
+}
+`;
+
+exports[`query regression > nearest poly, closest points and queryPolygons 1`] = `"73be6818/32513"`;
+
+exports[`query regression > raycast and moveAlongSurface 1`] = `"b06beec4/6463"`;
+
+exports[`query regression, partial tile portals > paths, portals and rays across partial portals 1`] = `
+{
+  "digest": "60e970dd/40206",
+  "externalLinks": 10,
+  "partialLinks": 5,
+}
+`;

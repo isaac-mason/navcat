@@ -1,5 +1,5 @@
 import GUI from 'lil-gui';
-import type { Vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
 import {
     DEFAULT_QUERY_FILTER,
     FindStraightPathResultFlags,

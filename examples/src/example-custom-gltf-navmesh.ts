@@ -1,5 +1,6 @@
 import GUI from 'lil-gui';
-import { box3, type Vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import { box3 } from 'math/shapes';
 import {
     addTile,
     buildTile,
@@ -14,13 +15,19 @@ import {
     polygonsToNavMeshTilePolys,
     polysToTileDetailMesh,
 } from 'navcat';
-import { createNavMeshHelper, createNavMeshLinksHelper, createNavMeshPolyHelper, createSearchNodesHelper, getPositionsAndIndices } from 'navcat/three';
+import {
+    createNavMeshHelper,
+    createNavMeshLinksHelper,
+    createNavMeshPolyHelper,
+    createSearchNodesHelper,
+    getPositionsAndIndices,
+} from 'navcat/three';
 import { LineGeometry, OrbitControls } from 'three/examples/jsm/Addons.js';
 import { Line2 } from 'three/examples/jsm/lines/webgpu/Line2.js';
 import * as THREE from 'three/webgpu';
 import { Line2NodeMaterial } from 'three/webgpu';
-import { loadGLTF } from './common/load-gltf';
 import { createFlag } from './common/flag';
+import { loadGLTF } from './common/load-gltf';
 
 /* setup example scene */
 const container = document.getElementById('root')!;
@@ -134,11 +141,9 @@ const tile = buildTile(tileParams);
 /* assemble navmesh */
 const navMesh = createNavMesh();
 
-navMesh.tileWidth = bounds[1][0] - bounds[0][0];
-navMesh.tileHeight = bounds[1][2] - bounds[0][2];
-navMesh.origin[0] = bounds[0][0];
-navMesh.origin[1] = bounds[0][1];
-navMesh.origin[2] = bounds[0][2];
+navMesh.tileWidth = bounds[3] - bounds[0];
+navMesh.tileHeight = bounds[5] - bounds[2];
+box3.min(navMesh.origin, bounds);
 
 addTile(navMesh, tile);
 

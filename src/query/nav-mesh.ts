@@ -1,4 +1,5 @@
-import type { Box3, Vec3 } from 'mathcat';
+import type { Vec3 } from 'math';
+import type { Box3 } from 'math/shapes';
 import type { IndexPool } from '../index-pool';
 import type { NodeRef, NodeType } from './node';
 
@@ -88,7 +89,6 @@ export type NavMeshPolyDetail = {
     /** The number of triangles in the sub-mesh */
     trianglesCount: number;
 };
-
 
 export type NavMeshNode = {
     /** whether the node is currently allocated */
@@ -199,8 +199,11 @@ export type NavMeshBvNode = {
 };
 
 export type NavMeshTileBvTree = {
-    /** the tile bounding volume nodes */
-    nodes: NavMeshBvNode[];
+    /** bounds of each node, 6 per node: min x, y, z then max x, y, z, quantized relative to the tile bounds */
+    bounds: number[];
+
+    /** per node: the poly index for a leaf node, or the negated escape index (nodes to skip) for an internal node */
+    indices: number[];
 
     /** the quantisation factor for the bounding volume tree */
     quantFactor: number;
@@ -231,7 +234,7 @@ export type NavMeshTile = {
     /** the detail meshes */
     detailMeshes: NavMeshPolyDetail[];
 
-    /** the detail mesh's unique vertices, in local tile space */
+    /** the detail mesh's unique vertices, in world space */
     detailVertices: number[];
 
     /** the detail mesh's triangles */
@@ -241,7 +244,7 @@ export type NavMeshTile = {
     polys: NavMeshPoly[];
 
     /** poly index to global node index */
-    polyNodes: number[]
+    polyNodes: number[];
 
     /** the tile's bounding volume tree */
     bvTree: NavMeshTileBvTree;
