@@ -1,5 +1,6 @@
 import GUI from 'lil-gui';
-import { box3, type Vec3, vec2 } from 'math';
+import { type Vec3, vec2 } from 'math';
+import { box3 } from 'math/shapes';
 import {
     addTile,
     BuildContext,

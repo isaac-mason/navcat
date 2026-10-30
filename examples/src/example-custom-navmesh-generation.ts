@@ -1,5 +1,8 @@
 import GUI from 'lil-gui';
-import { type Box3, box3, createMulberry32Generator, createSimplex2D, type Vec3 } from 'math';
+import type { Vec3 } from 'math';
+import { simplex2d } from 'math/noise';
+import { mulberry32 } from 'math/random';
+import { type Box3, box3 } from 'math/shapes';
 import {
     addTile,
     buildTile,
@@ -74,7 +77,8 @@ orbitControls.enableDamping = true;
 /* generate hilly terrain with scattered houses */
 const levelMeshes: THREE.Object3D[] = [];
 
-const simplexNoise = createSimplex2D(42);
+const simplex = simplex2d.create(42);
+const simplexNoise = (x: number, y: number) => simplex2d.sample(simplex, x, y);
 const maxHeight = 2;
 
 const terrainSize = 50;
@@ -112,7 +116,8 @@ houseGeometry.computeBoundingSphere();
 
 const houseMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
 
-const random = createMulberry32Generator(42);
+const rng = mulberry32.create(42);
+const random = () => mulberry32.sample(rng);
 for (let i = 0; i < 30; i++) {
     const houseMesh = new THREE.Mesh(houseGeometry, houseMaterial);
     houseMesh.userData.type = 'obstacle';

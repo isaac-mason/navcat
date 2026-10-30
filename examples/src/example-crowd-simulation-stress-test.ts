@@ -1,5 +1,6 @@
 import { GUI } from 'lil-gui';
-import { createMulberry32Generator, type Vec3, vec3 } from 'math';
+import { type Vec3, vec3 } from 'math';
+import { mulberry32 } from 'math/random';
 import {
     createFindNearestPolyResult,
     DEFAULT_QUERY_FILTER,
@@ -16,7 +17,8 @@ import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import * as THREE from 'three/webgpu';
 import { loadGLTF } from './common/load-gltf';
 
-const random = createMulberry32Generator(42);
+const rng = mulberry32.create(42);
+const random = () => mulberry32.sample(rng);
 
 /* controls */
 const guiSettings = {
