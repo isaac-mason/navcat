@@ -4,7 +4,6 @@ import {
     createDistancePtSegSqr2dResult,
     createIntersectSegmentPoly2DResult,
     distancePtSegSqr2d,
-    intersectSegmentPoly2D,
     randomPointInConvexPoly,
     triArea2D,
 } from '../geometry';
@@ -22,7 +21,7 @@ import {
     isValidNodeRef,
 } from './nav-mesh-api';
 import { getNodeRefIndex, getNodeRefType, INVALID_NODE_REF, type NodeRef, NodeType } from './node';
-import { getPolyRefTile, pointInTilePoly } from './poly-ref-tile';
+import { getPolyRefTile, intersectSegmentTilePoly2D, pointInTilePoly } from './poly-ref-tile';
 import { getDetailMeshHeight } from './detail-mesh';
 
 export const NODE_FLAG_OPEN = 0x01;
@@ -1434,8 +1433,6 @@ export const moveAlongSurface = (
     return result;
 };
 
-const _raycast_vertices: number[] = [];
-
 /** The breadth-first search of moveAlongSurface, writing its outcome into `result`. */
 const moveAlongSurfaceSearch = (
     navMesh: NavMesh,
@@ -1662,6 +1659,7 @@ const moveAlongSurfaceSearch = (
         }
     }
 };
+
 const _raycast_dir = vec3.create();
 const _raycast_curPos = vec3.create();
 const _raycast_lastPos = vec3.create();
@@ -1671,6 +1669,7 @@ const _raycast_eDir = vec3.create();
 const _raycast_diff = vec3.create();
 const _raycast_hitNormal_va = vec3.create();
 const _raycast_hitNormal_vb = vec3.create();
+const _raycast_intersectSegmentPoly2DResult = createIntersectSegmentPoly2DResult();
 
 export type RaycastResult = {
     /** The hit parameter along the segment. A value of Number.MAX_VALUE indicates no wall hit. */
@@ -1727,7 +1726,8 @@ const raycastBase = (
     let curRef: NodeRef | null = startNodeRef;
     let prevRefTracking: NodeRef = prevRef;
 
-    const intersectSegmentPoly2DResult = createIntersectSegmentPoly2DResult();
+    const intersectSegmentPoly2DResult = _raycast_intersectSegmentPoly2DResult;
+    const links = navMesh.links;
 
     if (calculateCosts) {
         vec3.sub(_raycast_dir, endPosition, startPosition);
@@ -1736,39 +1736,34 @@ const raycastBase = (
 
     while (curRef !== INVALID_NODE_REF) {
         // get current tile and poly
-        const tileAndPolyResult = getTileAndPolyByRef(curRef, navMesh);
-        if (!tileAndPolyResult.success) break;
-        const { tile, poly } = tileAndPolyResult;
-
-        // collect current poly vertices
-        const nv = poly.vertices.length;
-        const vertices = _raycast_vertices;
-        for (let i = 0; i < nv; i++) {
-            const start = poly.vertices[i] * 3;
-            vertices[i * 3] = tile.vertices[start];
-            vertices[i * 3 + 1] = tile.vertices[start + 1];
-            vertices[i * 3 + 2] = tile.vertices[start + 2];
-        }
+        const tile = getPolyRefTile(navMesh, curRef);
+        if (!tile) break;
+        const curNode = navMesh.nodes[getNodeRefIndex(curRef)];
+        const poly = tile.polys[curNode.polyIndex];
 
         // cast ray against current polygon
-        intersectSegmentPoly2D(intersectSegmentPoly2DResult, startPosition, endPosition, nv, vertices);
+        intersectSegmentTilePoly2D(intersectSegmentPoly2DResult, startPosition, endPosition, tile.vertices, poly.vertices);
         if (!intersectSegmentPoly2DResult.intersects) {
             // could not hit the polygon, keep the old t and report hit
             return result;
         }
 
-        result.hitEdgeIndex = intersectSegmentPoly2DResult.segMax;
+        // read before any filter callback, which may cast rays of its own
+        const segMax = intersectSegmentPoly2DResult.segMax;
+        const tmax = intersectSegmentPoly2DResult.tmax;
+
+        result.hitEdgeIndex = segMax;
 
         // keep track of furthest t so far
-        if (intersectSegmentPoly2DResult.tmax > result.t) {
-            result.t = intersectSegmentPoly2DResult.tmax;
+        if (tmax > result.t) {
+            result.t = tmax;
         }
 
         // add polygon to visited
         result.path.push(curRef);
 
         // ray end is completely inside the polygon
-        if (intersectSegmentPoly2DResult.segMax === -1) {
+        if (segMax === -1) {
             result.t = Number.MAX_VALUE;
 
             if (calculateCosts) {
@@ -1782,20 +1777,19 @@ const raycastBase = (
         // follow neighbors
         let nextRef: NodeRef | undefined;
 
-        const curNode = getNodeByRef(navMesh, curRef);
+        const curLinks = curNode.links;
 
-        for (const linkIndex of curNode.links) {
-            const link = navMesh.links[linkIndex];
+        for (let i = 0; i < curLinks.length; i++) {
+            const link = links[curLinks[i]];
 
             // find link which contains this edge
-            if (link.edge !== intersectSegmentPoly2DResult.segMax) continue;
+            if (link.edge !== segMax) continue;
 
             // skip off-mesh connections
             if (getNodeRefType(link.toNodeRef) === NodeType.OFFMESH) continue;
 
             // get pointer to the next polygon
-            const nextTileAndPolyResult = getTileAndPolyByRef(link.toNodeRef, navMesh);
-            if (!nextTileAndPolyResult.success) continue;
+            if (!getPolyRefTile(navMesh, link.toNodeRef)) continue;
 
             // skip links based on filter
             if (!filter.passFilter(link.toNodeRef, navMesh)) continue;
@@ -1813,21 +1807,25 @@ const raycastBase = (
             }
 
             // check for partial edge links
-            const v0 = poly.vertices[link.edge];
-            const v1 = poly.vertices[(link.edge + 1) % poly.vertices.length];
-            const left = [tile.vertices[v0 * 3], tile.vertices[v0 * 3 + 1], tile.vertices[v0 * 3 + 2]] as Vec3;
-            const right = [tile.vertices[v1 * 3], tile.vertices[v1 * 3 + 1], tile.vertices[v1 * 3 + 2]] as Vec3;
+            const v0 = poly.vertices[link.edge] * 3;
+            const v1 = poly.vertices[(link.edge + 1) % poly.vertices.length] * 3;
 
             // check that the intersection lies inside the link portal
             if (link.side === 0 || link.side === 4) {
                 // calculate link size
                 const s = 1.0 / 255.0;
-                let lmin = left[2] + (right[2] - left[2]) * (link.bmin * s);
-                let lmax = left[2] + (right[2] - left[2]) * (link.bmax * s);
-                if (lmin > lmax) [lmin, lmax] = [lmax, lmin];
+                const left = tile.vertices[v0 + 2];
+                const right = tile.vertices[v1 + 2];
+                let lmin = left + (right - left) * (link.bmin * s);
+                let lmax = left + (right - left) * (link.bmax * s);
+                if (lmin > lmax) {
+                    const swap = lmin;
+                    lmin = lmax;
+                    lmax = swap;
+                }
 
                 // find Z intersection
-                const z = startPosition[2] + (endPosition[2] - startPosition[2]) * intersectSegmentPoly2DResult.tmax;
+                const z = startPosition[2] + (endPosition[2] - startPosition[2]) * tmax;
                 if (z >= lmin && z <= lmax) {
                     nextRef = link.toNodeRef;
                     break;
@@ -1835,12 +1833,18 @@ const raycastBase = (
             } else if (link.side === 2 || link.side === 6) {
                 // calculate link size
                 const s = 1.0 / 255.0;
-                let lmin = left[0] + (right[0] - left[0]) * (link.bmin * s);
-                let lmax = left[0] + (right[0] - left[0]) * (link.bmax * s);
-                if (lmin > lmax) [lmin, lmax] = [lmax, lmin];
+                const left = tile.vertices[v0];
+                const right = tile.vertices[v1];
+                let lmin = left + (right - left) * (link.bmin * s);
+                let lmax = left + (right - left) * (link.bmax * s);
+                if (lmin > lmax) {
+                    const swap = lmin;
+                    lmin = lmax;
+                    lmax = swap;
+                }
 
                 // find X intersection
-                const x = startPosition[0] + (endPosition[0] - startPosition[0]) * intersectSegmentPoly2DResult.tmax;
+                const x = startPosition[0] + (endPosition[0] - startPosition[0]) * tmax;
                 if (x >= lmin && x <= lmax) {
                     nextRef = link.toNodeRef;
                     break;
@@ -1852,12 +1856,11 @@ const raycastBase = (
             // no neighbor, we hit a wall
 
             // calculate hit normal
-            if (intersectSegmentPoly2DResult.segMax >= 0) {
-                const a = intersectSegmentPoly2DResult.segMax;
-                const b =
-                    intersectSegmentPoly2DResult.segMax + 1 < poly.vertices.length ? intersectSegmentPoly2DResult.segMax + 1 : 0;
-                vec3.fromBuffer(_raycast_hitNormal_va, vertices, a * 3);
-                vec3.fromBuffer(_raycast_hitNormal_vb, vertices, b * 3);
+            if (segMax >= 0) {
+                const a = segMax;
+                const b = segMax + 1 < poly.vertices.length ? segMax + 1 : 0;
+                vec3.fromBuffer(_raycast_hitNormal_va, tile.vertices, poly.vertices[a] * 3);
+                vec3.fromBuffer(_raycast_hitNormal_vb, tile.vertices, poly.vertices[b] * 3);
                 const dx = _raycast_hitNormal_vb[0] - _raycast_hitNormal_va[0];
                 const dz = _raycast_hitNormal_vb[2] - _raycast_hitNormal_va[2];
                 result.hitNormal[0] = dz;
@@ -1883,8 +1886,8 @@ const raycastBase = (
             vec3.scaleAndAdd(_raycast_curPos, startPosition, _raycast_dir, result.t);
 
             // calculate height at the hit point by lerping vertices of the hit edge
-            const e0 = poly.vertices[intersectSegmentPoly2DResult.segMax];
-            const e1 = poly.vertices[(intersectSegmentPoly2DResult.segMax + 1) % poly.vertices.length];
+            const e0 = poly.vertices[segMax];
+            const e1 = poly.vertices[(segMax + 1) % poly.vertices.length];
 
             const e1Offset = e1 * 3;
             const e0Offset = e0 * 3;
