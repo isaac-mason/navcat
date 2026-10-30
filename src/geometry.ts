@@ -420,17 +420,6 @@ export const polyMinExtent = (verts: number[], nverts: number): number => {
     return Math.sqrt(minDist);
 };
 
-/**
- * Derives the xz-plane 2D perp product of the two vectors. (uz*vx - ux*vz)
- * The vectors are projected onto the xz-plane, so the y-values are ignored.
- * @param u The LHV vector [(x, y, z)]
- * @param v The RHV vector [(x, y, z)]
- * @returns The perp dot product on the xz-plane.
- */
-const vperp2D = (u: Vec3, v: Vec3): number => {
-    return u[2] * v[0] - u[0] * v[2];
-};
-
 export type IntersectSegmentPoly2DResult = {
     intersects: boolean;
     tmin: number;
@@ -446,12 +435,6 @@ export const createIntersectSegmentPoly2DResult = (): IntersectSegmentPoly2DResu
     segMin: -1,
     segMax: -1,
 });
-
-const _intersectSegmentPoly2DVi = vec3.create();
-const _intersectSegmentPoly2DVj = vec3.create();
-const _intersectSegmentPoly2DDir = vec3.create();
-const _intersectSegmentPoly2DToStart = vec3.create();
-const _intersectSegmentPoly2DEdge = vec3.create();
 
 /**
  * Intersects a segment with a polygon in 2D (ignoring Y).
@@ -476,22 +459,20 @@ export const intersectSegmentPoly2D = (
     result.segMin = -1;
     result.segMax = -1;
 
-    const dir = vec3.subtract(_intersectSegmentPoly2DDir, endPosition, startPosition);
-
-    const vi = _intersectSegmentPoly2DVi;
-    const vj = _intersectSegmentPoly2DVj;
-    const edge = _intersectSegmentPoly2DEdge;
-    const diff = _intersectSegmentPoly2DToStart;
+    const startX = startPosition[0];
+    const startZ = startPosition[2];
+    const dirX = endPosition[0] - startX;
+    const dirZ = endPosition[2] - startZ;
 
     for (let i = 0, j = nv - 1; i < nv; j = i, i++) {
-        vec3.fromBuffer(vi, verts, i * 3);
-        vec3.fromBuffer(vj, verts, j * 3);
+        const vjX = verts[j * 3];
+        const vjZ = verts[j * 3 + 2];
+        const edgeX = verts[i * 3] - vjX;
+        const edgeZ = verts[i * 3 + 2] - vjZ;
 
-        vec3.subtract(edge, vi, vj);
-        vec3.subtract(diff, startPosition, vj);
-
-        const n = vperp2D(edge, diff);
-        const d = vperp2D(dir, edge);
+        // xz-plane perp products (uz*vx - ux*vz) of (edge, start - vj) and (dir, edge)
+        const n = edgeZ * (startX - vjX) - edgeX * (startZ - vjZ);
+        const d = dirZ * edgeX - dirX * edgeZ;
 
         if (Math.abs(d) < EPS) {
             // S is nearly parallel to this edge
