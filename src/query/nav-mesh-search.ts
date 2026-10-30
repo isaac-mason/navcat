@@ -75,12 +75,12 @@ export const addSearchNode = (pool: SearchNodePool, node: SearchNode): void => {
 
 export const bubbleUpQueue = (queue: SearchNodeQueue, i: number, node: SearchNode) => {
     // note: (index > 0) means there is a parent
-    let parent = Math.floor((i - 1) / 2);
+    let parent = (i - 1) >> 1;
 
     while (i > 0 && queue[parent].total > node.total) {
         queue[i] = queue[parent];
         i = parent;
-        parent = Math.floor((i - 1) / 2);
+        parent = (i - 1) >> 1;
     }
 
     queue[i] = node;
