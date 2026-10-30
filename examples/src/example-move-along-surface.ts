@@ -292,13 +292,7 @@ renderer.domElement.addEventListener('contextmenu', (event) => {
 
 // Add instructions
 const instructions = document.createElement('div');
-instructions.style.position = 'absolute';
-instructions.style.top = '10px';
-instructions.style.left = '10px';
-instructions.style.color = 'white';
-instructions.style.backgroundColor = 'rgba(0,0,0,0.7)';
-instructions.style.padding = '10px';
-instructions.style.fontFamily = 'monospace';
+instructions.className = 'mc-info mc-panel';
 instructions.innerHTML = `
 <b>Move Along Surface Example</b><br/>
 <br/>

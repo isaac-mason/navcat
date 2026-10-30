@@ -140,15 +140,7 @@ gui.add(params, 'calculateCosts')
 
 // Info panel
 const controlsDiv = document.createElement('div');
-controlsDiv.style.position = 'absolute';
-controlsDiv.style.top = '10px';
-controlsDiv.style.left = '10px';
-controlsDiv.style.padding = '10px';
-controlsDiv.style.background = 'rgba(0, 0, 0, 0.7)';
-controlsDiv.style.color = 'white';
-controlsDiv.style.fontFamily = 'monospace';
-controlsDiv.style.fontSize = '14px';
-controlsDiv.style.borderRadius = '4px';
+controlsDiv.className = 'mc-info mc-panel';
 controlsDiv.style.pointerEvents = 'auto';
 
 const infoPanelTitle = document.createElement('div');

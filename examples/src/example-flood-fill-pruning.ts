@@ -224,8 +224,8 @@ const COLOR_PRUNED = 0xcc3333; // unreachable - removed by the prune
 
 // info overlay (top-left)
 const info = document.createElement('div');
-info.style.cssText =
-    'position:absolute;top:10px;left:10px;padding:8px 10px;font:12px/1.6 monospace;color:#fff;background:rgba(0,0,0,0.6);border-radius:4px;pointer-events:none;white-space:pre;';
+info.className = 'mc-info mc-panel';
+info.style.whiteSpace = 'pre';
 container.appendChild(info);
 
 function showFullInfo() {

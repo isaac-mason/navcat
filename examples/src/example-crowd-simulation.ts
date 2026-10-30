@@ -913,17 +913,7 @@ container.appendChild(selectionBoxDiv);
 
 // create controls info overlay (bottom left)
 const controlsInfoDiv = document.createElement('div');
-controlsInfoDiv.style.position = 'absolute';
-controlsInfoDiv.style.bottom = '10px';
-controlsInfoDiv.style.left = '10px';
-controlsInfoDiv.style.color = 'white';
-controlsInfoDiv.style.fontFamily = 'monospace';
-controlsInfoDiv.style.fontSize = '12px';
-controlsInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-controlsInfoDiv.style.padding = '10px';
-controlsInfoDiv.style.borderRadius = '4px';
-controlsInfoDiv.style.pointerEvents = 'none';
-controlsInfoDiv.style.lineHeight = '1.5';
+controlsInfoDiv.className = 'mc-info mc-hint';
 controlsInfoDiv.innerHTML = `
     <div style="margin-bottom: 5px; font-weight: bold; color: #00aaff;">Controls</div>
     <div><span style="color: #aaa;">Left Click:</span> Select agent</div>
@@ -936,18 +926,9 @@ controlsInfoDiv.innerHTML = `
 `;
 container.appendChild(controlsInfoDiv);
 
-// create selected agents info overlay (top right)
+// create selected agents info overlay (top left)
 const selectedAgentsInfoDiv = document.createElement('div');
-selectedAgentsInfoDiv.style.position = 'absolute';
-selectedAgentsInfoDiv.style.top = '10px';
-selectedAgentsInfoDiv.style.left = '10px';
-selectedAgentsInfoDiv.style.color = 'white';
-selectedAgentsInfoDiv.style.fontFamily = 'monospace';
-selectedAgentsInfoDiv.style.fontSize = '11px';
-selectedAgentsInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-selectedAgentsInfoDiv.style.padding = '10px';
-selectedAgentsInfoDiv.style.borderRadius = '4px';
-selectedAgentsInfoDiv.style.pointerEvents = 'none';
+selectedAgentsInfoDiv.className = 'mc-info mc-panel';
 selectedAgentsInfoDiv.style.maxWidth = '300px';
 selectedAgentsInfoDiv.style.maxHeight = '400px';
 selectedAgentsInfoDiv.style.overflowY = 'auto';

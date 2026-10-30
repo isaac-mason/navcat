@@ -2,161 +2,193 @@
     "example-crowd-simulation": {
         "title": "Crowd Simulation",
         "description": "Example of crowd simulation with agent and wall avoidance",
-        "tags": ["movement", "agent"]
+        "tags": ["movement", "agent"],
+        "category": "agents"
     },
     "example-navmesh-constrained-character-controller": {
         "title": "NavMesh Constrained Character Controller",
         "description": "Example of a simple character controller constrained to a navmesh",
-        "tags": ["movement", "character controller"]
+        "tags": ["movement", "character controller"],
+        "category": "agents"
     },
     "example-area-filters": {
         "title": "Area Filters",
         "description": "Example of filtering passable areas in a navmesh",
-        "tags": ["navmesh", "areas"]
+        "tags": ["navmesh", "areas"],
+        "category": "areas"
     },
     "example-area-costs": {
         "title": "Area Costs",
         "description": "Example of cost-aware pathfinding that prefers a longer green detour over a red slow zone",
-        "tags": ["path", "cost", "areas"]
+        "tags": ["path", "cost", "areas"],
+        "category": "areas"
     },
     "example-doors-and-keys": {
         "title": "Doors and Keys",
         "description": "Example of using query filters to create conditional areas in a navmesh",
-        "tags": ["navmesh", "areas", "query", "door", "key"]
+        "tags": ["navmesh", "areas", "query", "door", "key"],
+        "category": "areas"
     },
     "example-dynamic-obstacles": {
         "title": "Dynamic Obstacles",
         "description": "Example of navmesh generation with moving physics objects as obstacles",
-        "tags": ["dynamic", "obstacles", "physics", "fps"]
+        "tags": ["dynamic", "obstacles", "physics", "fps"],
+        "category": "dynamic"
     },
     "example-dynamic-navmesh": {
         "title": "Dynamic NavMesh",
         "description": "Minimal example of dynamic navmesh generation with moving physics objects as changes to the navmesh",
-        "tags": ["dynamic", "navmesh", "physics"]
+        "tags": ["dynamic", "navmesh", "physics"],
+        "category": "dynamic"
     },
     "example-fps-dynamic-navmesh": {
         "title": "FPS Dynamic NavMesh",
         "description": "Showcase example of dynamic navmesh generation with moving physics objects as changes to the navmesh, in a first-person shooter style environment",
-        "tags": ["dynamic", "navmesh", "physics", "fps"]
+        "tags": ["dynamic", "navmesh", "physics", "fps"],
+        "category": "dynamic"
     },
     "example-multiple-agent-sizes": {
         "title": "Multiple Agent Sizes",
         "description": "Example of crowd simulation with agents of multiple sizes",
-        "tags": ["movement", "agent", "sizes"]
+        "tags": ["movement", "agent", "sizes"],
+        "category": "agents"
     },
     "example-crowd-simulation-stress-test": {
         "title": "Crowd Simulation Stress Test",
         "description": "Stress test example of crowd simulation with a large number of agents",
-        "tags": ["movement", "agent"]
+        "tags": ["movement", "agent"],
+        "category": "agents"
     },
     "example-flow-field-pathfinding": {
         "title": "Flow Field Pathfinding",
         "description": "Example of flow field pathfinding on a navmesh",
-        "tags": ["pathfinding", "navmesh"]
+        "tags": ["pathfinding", "navmesh"],
+        "category": "queries"
     },
     "example-find-path": {
         "title": "Find Path",
         "description": "Example of finding a path on the navmesh",
-        "tags": ["path"]
+        "tags": ["path"],
+        "category": "queries"
     },
     "example-find-node-path": {
         "title": "Find Node Path",
         "description": "Example of finding a node path on the navmesh",
-        "tags": ["path", "nodes"]
+        "tags": ["path", "nodes"],
+        "category": "queries"
     },
     "example-find-straight-path": {
         "title": "Find Straight Path",
         "description": "Example of using findNodePath and findStraightPath together",
-        "tags": ["path", "straight"]
+        "tags": ["path", "straight"],
+        "category": "queries"
     },
     "example-find-smooth-path": {
         "title": "Find Smooth Path",
         "description": "Example of finding a smooth path on the navmesh",
-        "tags": ["path"]
+        "tags": ["path"],
+        "category": "queries"
     },
     "example-find-shortest-paths": {
         "title": "Find Shortest Paths",
         "description": "Example of finding shortest paths on the navmesh using Yen's algorithm",
-        "tags": ["path", "shortest"]
+        "tags": ["path", "shortest"],
+        "category": "queries"
     },
     "example-find-diverse-paths": {
         "title": "Find Diverse Paths",
         "description": "Example of finding diverse paths on the navmesh with a heuristic method",
-        "tags": ["path", "diverse"]
+        "tags": ["path", "diverse"],
+        "category": "queries"
     },
     "example-raycast": {
         "title": "Raycast",
         "description": "Example of a walkability raycast on a navmesh",
-        "tags": ["raycast"]
+        "tags": ["raycast"],
+        "category": "queries"
     },
     "example-off-mesh-connections": {
         "title": "Off-Mesh Connections",
         "description": "Example of using off-mesh connections in a navmesh",
-        "tags": ["navmesh", "off-mesh"]
+        "tags": ["navmesh", "off-mesh"],
+        "category": "areas"
     },
     "example-upload-model": {
         "title": "Upload Model",
         "description": "Example of uploading a model and generating a navmesh from it",
-        "tags": ["upload", "custom"]
+        "tags": ["upload", "custom"],
+        "category": "generation"
     },
     "example-custom-gltf-navmesh": {
         "title": "Custom GLTF NavMesh",
         "description": "Example of loading a level model and navmesh from a GLTF file",
-        "tags": ["navmesh", "custom", "gltf"]
+        "tags": ["navmesh", "custom", "gltf"],
+        "category": "generation"
     },
     "example-solo-navmesh": {
         "title": "Solo NavMesh",
         "description": "Example of generating a single tile navmesh",
-        "tags": ["navmesh generation"]
+        "tags": ["navmesh generation"],
+        "category": "generation"
     },
     "example-tiled-navmesh": {
         "title": "Tiled NavMesh",
         "description": "Example of generating a tiled navmesh",
-        "tags": ["navmesh generation"]
+        "tags": ["navmesh generation"],
+        "category": "generation"
     },
     "example-flood-fill-pruning": {
         "title": "Flood Fill Pruning",
         "description": "Example of flood fill pruning to remove disconnected polygon regions from a tiled navmesh",
-        "tags": ["navmesh", "pruning", "algorithm"]
+        "tags": ["navmesh", "pruning", "algorithm"],
+        "category": "generation"
     },
     "example-find-nearest-poly": {
         "title": "Find Nearest Poly",
         "description": "Example of finding the nearest polygon on the navmesh",
-        "tags": ["query"]
+        "tags": ["query"],
+        "category": "queries"
     },
     "example-find-random-point": {
         "title": "Find Random Point",
         "description": "Example of finding a random point on the navmesh",
-        "tags": ["random"]
+        "tags": ["random"],
+        "category": "queries"
     },
     "example-find-random-point-around-circle": {
         "title": "Find Random Point Around Circle",
         "description": "Example of finding a random point around a circle on the navmesh",
-        "tags": ["random"]
+        "tags": ["random"],
+        "category": "queries"
     },
     "example-mark-compact-heightfield-areas": {
         "title": "Mark Compact Heightfield Areas",
         "description": "Example showcasing marking areas in a compact heightfield",
-        "tags": ["navmesh", "areas", "heightfield", "generation"]
+        "tags": ["navmesh", "areas", "heightfield", "generation"],
+        "category": "generation"
     },
     "example-custom-navmesh-generation": {
         "title": "Custom NavMesh Generation",
         "description": "Example of generating a navmesh with a custom approach",
-        "tags": ["navmesh", "custom"]
+        "tags": ["navmesh", "custom"],
+        "category": "generation"
     },
     "example-move-along-surface": {
         "title": "Move Along Surface",
         "description": "Example of moving along the surface of a navmesh",
-        "tags": ["movement"]
+        "tags": ["movement"],
+        "category": "agents"
     },
     "example-chunky-tri-mesh": {
         "title": "Chunky Tri Mesh",
         "description": "Example of using a chunky triangle mesh for querying triangles within areas",
-        "tags": ["geometry", "spatial", "chunky", "tri-mesh"]
+        "tags": ["geometry", "spatial", "chunky", "tri-mesh"],
+        "category": "generation"
     },
     "example-rasterize-filled-volume": {
         "title": "Rasterize Filled Volume",
         "description": "Example of rasterizing filled volumes into a heightfield",
-        "tags": ["heightfield", "rasterize", "generation", "shape", "volume"]
+        "tags": ["heightfield", "rasterize", "generation", "shape", "volume"],
+        "category": "generation"
     }
 }

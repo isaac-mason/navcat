@@ -381,15 +381,7 @@ renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
 /* path stats */
 const statsDiv = document.createElement('div');
-statsDiv.style.position = 'absolute';
-statsDiv.style.top = '10px';
-statsDiv.style.left = '10px';
-statsDiv.style.color = 'white';
-statsDiv.style.fontFamily = 'monospace';
-statsDiv.style.fontSize = '11px';
-statsDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-statsDiv.style.padding = '10px';
-statsDiv.style.borderRadius = '4px';
+statsDiv.className = 'mc-info mc-panel';
 statsDiv.style.minWidth = '200px';
 container.appendChild(statsDiv);
 
