@@ -38,7 +38,8 @@
         "docs": "cd docs && node ./build.js",
         "bench": "pnpm --filter bench exec labs",
         "typedoc": "typedoc --tsconfig ./tsconfig.json --name \"navcat docs\" --out ./dist-typedoc ./src/index.ts ./blocks/index.ts ./three/index.ts",
-        "test": "vitest"
+        "test": "vitest",
+        "release": "pnpm run build && vitest run"
     },
     "packageManager": "pnpm@8.15.2+sha1.798034f615aa211c6c2ae00010cc20be5fc102ee",
     "dependencies": {

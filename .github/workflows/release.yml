@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+
+# one release at a time; never cancel a publish in flight
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and test
+        run: pnpm run release
+
+      - name: Resolve release mode
+        id: mode
+        shell: bash
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+
+          if npm view "${name}@${version}" version >/dev/null 2>&1; then
+            # the version in package.json is already on npm, so this is a canary
+            mode=canary
+          else
+            mode=release
+          fi
+
+          {
+            echo "name=${name}"
+            echo "version=${version}"
+            echo "mode=${mode}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Set canary version
+        id: canary
+        if: steps.mode.outputs.mode == 'canary'
+        shell: bash
+        run: |
+          # canaries publish from 0.0.0 so they satisfy no range and the canary tag is the only way to install one
+          # the date leads the sha so canaries sort chronologically
+          canary_version="0.0.0-canary-$(date -u +%Y%m%d)-${GITHUB_SHA::8}"
+          npm version "${canary_version}" --no-git-tag-version
+          echo "version=${canary_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish canary
+        if: steps.mode.outputs.mode == 'canary'
+        run: npm publish --tag canary --access public
+
+      - name: Publish release
+        if: steps.mode.outputs.mode == 'release'
+        run: npm publish --access public
+
+      - name: Create GitHub release
+        if: steps.mode.outputs.mode == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.mode.outputs.name }}@${{ steps.mode.outputs.version }}" \
+            --target "${GITHUB_SHA}" \
+            --title "${{ steps.mode.outputs.name }}@${{ steps.mode.outputs.version }}" \
+            --generate-notes \
+            --latest
+
+      - name: Add release summary
+        shell: bash
+        run: |
+          case "${{ steps.mode.outputs.mode }}" in
+            canary)
+              echo "Published ${{ steps.mode.outputs.name }}@${{ steps.canary.outputs.version }} with the canary tag." >> "${GITHUB_STEP_SUMMARY}"
+              ;;
+            release)
+              echo "Published ${{ steps.mode.outputs.name }}@${{ steps.mode.outputs.version }} with the latest tag." >> "${GITHUB_STEP_SUMMARY}"
+              ;;
+          esac
