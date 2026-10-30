@@ -3,7 +3,7 @@
 ## 0.5.0 (Unreleased)
 
 - feat: replace `mathcat` dependency with the API-compatible `math` package
-- feat: flatten the tile BV tree into flat number arrays: `NavMeshTileBvTree.nodes` is replaced by `bounds` (6 numbers per node, min xyz then max xyz) and `indices` (the poly index for a leaf, or the negated escape index for an internal node). the `NavMeshBvNode` type is now internal
+- feat: flatten the tile BV tree into flat number arrays: `NavMeshTileBvTree.nodes` is replaced by `bounds` (6 numbers per node, min xyz then max xyz) and `indices` (the poly index for a leaf, or the negated escape index for an internal node)
   - nav meshes serialized with an earlier version need to be rebuilt
 - fix(moveAlongSurface): ignore off-mesh links when finding wall edges
 - perf: faster queries, with identical results
