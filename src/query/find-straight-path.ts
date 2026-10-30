@@ -161,6 +161,8 @@ const _findStraightPathPortalRight = vec3.create();
 const _findStraightPathLeftPortalPoint = vec3.create();
 const _findStraightPathRightPortalPoint = vec3.create();
 const _findStraightPath_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
+const _findStraightPathClosestStart = vec3.create();
+const _findStraightPathClosestEnd = vec3.create();
 
 const makeFindStraightPathResult = (flags: FindStraightPathResultFlags, path: StraightPathPoint[]): FindStraightPathResult => ({
     flags,
@@ -198,11 +200,11 @@ export const findStraightPath = (
     }
 
     // clamp start & end to poly boundaries
-    const closestStartPos = vec3.create();
+    const closestStartPos = _findStraightPathClosestStart;
     if (!getClosestPointOnPolyBoundary(closestStartPos, navMesh, pathNodeRefs[0], start))
         return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
-    const closestEndPos = vec3.create();
+    const closestEndPos = _findStraightPathClosestEnd;
     if (!getClosestPointOnPolyBoundary(closestEndPos, navMesh, pathNodeRefs[pathNodeRefs.length - 1], end))
         return makeFindStraightPathResult(FindStraightPathResultFlags.NONE | FindStraightPathResultFlags.INVALID_INPUT, path);
 
