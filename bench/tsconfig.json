@@ -11,7 +11,12 @@
         "skipLibCheck": true,
         "allowSyntheticDefaultImports": true,
         "resolveJsonModule": true,
-        "types": ["node"]
+        "types": ["node"],
+        // blocks import the library by its package name: bench them against src, not a stale dist
+        "paths": {
+            "navcat": ["../src/index.ts"],
+            "navcat/blocks": ["../blocks/index.ts"]
+        }
     },
     "include": ["**/*.ts", "../src/**/*.ts", "../blocks/**/*.ts"]
 }
