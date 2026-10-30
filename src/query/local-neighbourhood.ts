@@ -233,6 +233,11 @@ export type PolyWallSegmentsResult = {
     segmentRefs: (NodeRef | null)[];
 };
 
+const _getPolyWallSegments_vj = vec3.create();
+const _getPolyWallSegments_vi = vec3.create();
+const _getPolyWallSegments_segStart = vec3.create();
+const _getPolyWallSegments_segEnd = vec3.create();
+
 /**
  * Returns the wall segments of a polygon, optionally including portal segments.
  *
@@ -247,11 +252,6 @@ export type PolyWallSegmentsResult = {
  * @param filter The query filter to apply
  * @param includePortals Whether to include portal segments in the result
  */
-const _getPolyWallSegments_vj = vec3.create();
-const _getPolyWallSegments_vi = vec3.create();
-const _getPolyWallSegments_segStart = vec3.create();
-const _getPolyWallSegments_segEnd = vec3.create();
-
 export const getPolyWallSegments = (
     navMesh: NavMesh,
     nodeRef: NodeRef,
