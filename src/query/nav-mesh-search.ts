@@ -9,7 +9,7 @@ import {
     randomPointInConvexPoly,
     triArea2D,
 } from '../geometry';
-import type { NavMesh, NavMeshLink, NavMeshPoly, NavMeshTile } from './nav-mesh';
+import type { NavMesh, NavMeshLink, NavMeshNode, NavMeshPoly, NavMeshTile } from './nav-mesh';
 import type { QueryFilter } from './nav-mesh-api';
 import {
     createGetClosestPointOnPolyResult,
@@ -141,9 +141,6 @@ export const reindexNodeInQueue = (queue: SearchNodeQueue, node: SearchNode): vo
     }
 };
 
-const _getPortalPoints_start = vec3.create();
-const _getPortalPoints_end = vec3.create();
-
 /**
  * Retrieves the left and right points of the portal edge between two adjacent polygons.
  * Or if one of the polygons is an off-mesh connection, returns the connection endpoint for both left and right.
@@ -156,89 +153,96 @@ export const getPortalPoints = (
     outRight: Vec3,
 ): boolean => {
     // find the link that points to the 'to' polygon.
-    let toLink: NavMeshLink | undefined;
-
     const fromNode = getNodeByRef(navMesh, fromNodeRef);
+    const fromNodeLinks = fromNode.links;
+    const links = navMesh.links;
 
-    for (const linkIndex of fromNode.links) {
-        const link = navMesh.links[linkIndex];
+    for (let i = 0; i < fromNodeLinks.length; i++) {
+        const link = links[fromNodeLinks[i]];
 
         if (link.toNodeRef === toNodeRef) {
-            // found the link to the target polygon.
-            toLink = link;
-            break;
+            return getLinkPortalPoints(navMesh, fromNodeRef, fromNode, link, outLeft, outRight);
         }
     }
 
-    if (!toLink) {
-        // no link found to the target polygon.
-        return false;
-    }
+    // no link found to the target polygon.
+    return false;
+};
 
+/** getPortalPoints once the link to the 'to' node is known. */
+const getLinkPortalPoints = (
+    navMesh: NavMesh,
+    fromNodeRef: NodeRef,
+    fromNode: NavMeshNode,
+    link: NavMeshLink,
+    outLeft: Vec3,
+    outRight: Vec3,
+): boolean => {
     const fromNodeType = getNodeRefType(fromNodeRef);
-    const toNodeType = getNodeRefType(toNodeRef);
+    const toNodeType = getNodeRefType(link.toNodeRef);
 
     // handle from poly to poly
     if (fromNodeType === NodeType.POLY && toNodeType === NodeType.POLY) {
-        // get the 'from' and 'to' tiles
-        const { tileId: fromTileId, polyIndex: fromPolyIndex } = getNodeByRef(navMesh, fromNodeRef);
-        const fromTile = navMesh.tiles[fromTileId];
-        const fromPoly = fromTile.polys[fromPolyIndex];
+        const fromTile = navMesh.tiles[fromNode.tileId];
+        const polyVertices = fromTile.polys[fromNode.polyIndex].vertices;
+        const vertices = fromTile.vertices;
 
         // find portal vertices
-        const v0Index = fromPoly.vertices[toLink.edge];
-        const v1Index = fromPoly.vertices[(toLink.edge + 1) % fromPoly.vertices.length];
-        const v0Offset = v0Index * 3;
-        const v1Offset = v1Index * 3;
+        const v0 = polyVertices[link.edge] * 3;
+        const v1 = polyVertices[(link.edge + 1) % polyVertices.length] * 3;
 
         // if the link is at tile boundary, clamp the vertices to the link width.
-        if (toLink.side !== 0xff && (toLink.bmin !== 0 || toLink.bmax !== 255)) {
+        if (link.side !== 0xff && (link.bmin !== 0 || link.bmax !== 255)) {
             // unpack portal limits and lerp
             const s = 1.0 / 255.0;
-            const tmin = toLink.bmin * s;
-            const tmax = toLink.bmax * s;
+            const tmin = link.bmin * s;
+            const tmax = link.bmax * s;
+            const ax = vertices[v0];
+            const ay = vertices[v0 + 1];
+            const az = vertices[v0 + 2];
+            const dx = vertices[v1] - ax;
+            const dy = vertices[v1 + 1] - ay;
+            const dz = vertices[v1 + 2] - az;
 
-            vec3.fromBuffer(_getPortalPoints_start, fromTile.vertices, v0Offset);
-            vec3.fromBuffer(_getPortalPoints_end, fromTile.vertices, v1Offset);
-            vec3.lerp(outLeft, _getPortalPoints_start, _getPortalPoints_end, tmin);
-            vec3.lerp(outRight, _getPortalPoints_start, _getPortalPoints_end, tmax);
+            outLeft[0] = ax + tmin * dx;
+            outLeft[1] = ay + tmin * dy;
+            outLeft[2] = az + tmin * dz;
+            outRight[0] = ax + tmax * dx;
+            outRight[1] = ay + tmax * dy;
+            outRight[2] = az + tmax * dz;
         } else {
             // no clamping needed - direct copy
-            vec3.fromBuffer(outLeft, fromTile.vertices, v0Offset);
-            vec3.fromBuffer(outRight, fromTile.vertices, v1Offset);
+            outLeft[0] = vertices[v0];
+            outLeft[1] = vertices[v0 + 1];
+            outLeft[2] = vertices[v0 + 2];
+            outRight[0] = vertices[v1];
+            outRight[1] = vertices[v1 + 1];
+            outRight[2] = vertices[v1 + 2];
         }
 
         return true;
     }
 
-    // handle from poly to offmesh connection
+    let offMeshConnectionId: number;
     if (fromNodeType === NodeType.POLY && toNodeType === NodeType.OFFMESH) {
-        const toNode = getNodeByRef(navMesh, toNodeRef);
-        const offMeshConnection = navMesh.offMeshConnections[toNode.offMeshConnectionId];
-        if (!offMeshConnection) return false;
-
-        const position = toLink && toLink.edge === 0 ? offMeshConnection.start : offMeshConnection.end;
-
-        vec3.copy(outLeft, position);
-        vec3.copy(outRight, position);
-
-        return true;
+        // handle from poly to offmesh connection
+        offMeshConnectionId = getNodeByRef(navMesh, link.toNodeRef).offMeshConnectionId;
+    } else if (fromNodeType === NodeType.OFFMESH && toNodeType === NodeType.POLY) {
+        // handle from offmesh connection to poly
+        offMeshConnectionId = fromNode.offMeshConnectionId;
+    } else {
+        return false;
     }
 
-    // handle from offmesh connection to poly
-    if (fromNodeType === NodeType.OFFMESH && toNodeType === NodeType.POLY) {
-        const offMeshConnection = navMesh.offMeshConnections[fromNode.offMeshConnectionId];
-        if (!offMeshConnection) return false;
+    const offMeshConnection = navMesh.offMeshConnections[offMeshConnectionId];
+    if (!offMeshConnection) return false;
 
-        const position = toLink && toLink.edge === 0 ? offMeshConnection.start : offMeshConnection.end;
+    const position = link.edge === 0 ? offMeshConnection.start : offMeshConnection.end;
 
-        vec3.copy(outLeft, position);
-        vec3.copy(outRight, position);
+    vec3.copy(outLeft, position);
+    vec3.copy(outRight, position);
 
-        return true;
-    }
-
-    return false;
+    return true;
 };
 
 const _edgeMidPointPortalLeft = vec3.create();
