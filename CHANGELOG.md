@@ -2,8 +2,19 @@
 
 ## 0.5.0 (Unreleased)
 
-- feat: update mathcat to v0.1.0
-- feat: replace `mathcat` dependency with the API-compatible `math` package (canary)
+- feat: replace `mathcat` dependency with the API-compatible `math` package
+- feat: flatten the tile BV tree into flat number arrays: `NavMeshTileBvTree.nodes` is replaced by `bounds` (6 numbers per node, min xyz then max xyz) and `indices` (the poly index for a leaf, or the negated escape index for an internal node). the `NavMeshBvNode` type is now internal
+  - nav meshes serialized with an earlier version need to be rebuilt
+- fix(moveAlongSurface): ignore off-mesh links when finding wall edges
+- perf: faster queries, with identical results
+  - findNearestPoly walks the BV tree in order and skips nodes no nearer than the nearest poly found so far
+  - queryPolygons looks up tile columns without allocating
+  - findNodePath and moveAlongSurface reuse search node slots, and findNodePath computes link midpoints in place
+  - poly height, closest point, detail mesh, portal, raycast and findStraightPath math reads vertices in place and uses scalars instead of temporary vectors
+  - findLocalNeighbourhood and getPolyWallSegments no longer allocate
+- perf: tighten the heightfield dividePoly clipping inner loop
+- docs: `detailVertices` is documented as being in world space
+- ci: publish releases from main, and canaries (`navcat@canary`) when the version is already published
 
 ## 0.4.1
 
