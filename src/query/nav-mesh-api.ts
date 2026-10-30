@@ -836,10 +836,11 @@ export const queryPolygons = (navMesh: NavMesh, bounds: Box3, filter: QueryFilte
 
     for (let x = minTile[0]; x <= maxTile[0]; x++) {
         for (let y = minTile[1]; y <= maxTile[1]; y++) {
-            const tiles = getTilesAt(navMesh, x, y);
+            const tileIds = navMesh.tileColumnToTileIds[getTileColumnHash(x, y)];
+            if (!tileIds) continue;
 
-            for (const tile of tiles) {
-                queryPolygonsInTile(result, navMesh, tile, bounds, filter);
+            for (let i = 0; i < tileIds.length; i++) {
+                queryPolygonsInTile(result, navMesh, navMesh.tiles[tileIds[i]], bounds, filter);
             }
         }
     }
