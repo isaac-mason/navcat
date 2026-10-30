@@ -1,4 +1,5 @@
-import { createMulberry32Generator, type Vec3, vec3 } from 'math';
+import { type Vec3, vec3 } from 'math';
+import { mulberry32 } from 'math/random';
 import {
     addOffMeshConnection,
     createFindNearestPolyResult,
@@ -16,7 +17,8 @@ import * as THREE from 'three';
 import { Line2, LineGeometry, LineMaterial } from 'three/examples/jsm/Addons.js';
 import { loadGLTF } from './load-gltf';
 
-const random = createMulberry32Generator(42);
+const rng = mulberry32.create(42);
+const random = () => mulberry32.sample(rng);
 
 /* setup example scene */
 const container = document.getElementById('root')!;
