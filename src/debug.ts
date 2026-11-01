@@ -5,15 +5,17 @@ import type { NavMesh, NavMeshTile, NodeRef, SearchNode, SearchNodePool } from '
 import { getNodeByRef, OffMeshConnectionDirection } from './query';
 
 // debug primitive types
-export enum DebugPrimitiveType {
-    Triangles = 0,
-    Lines = 1,
-    Points = 2,
-    Boxes = 3,
-}
+export const DebugPrimitiveType = {
+    Triangles: 0,
+    Lines: 1,
+    Points: 2,
+    Boxes: 3,
+} as const;
+
+export type DebugPrimitiveType = (typeof DebugPrimitiveType)[keyof typeof DebugPrimitiveType];
 
 export type DebugTriangles = {
-    type: DebugPrimitiveType.Triangles;
+    type: typeof DebugPrimitiveType.Triangles;
     positions: number[]; // x,y,z for each vertex
     colors: number[]; // r,g,b for each vertex
     indices: number[]; // triangle indices
@@ -23,7 +25,7 @@ export type DebugTriangles = {
 };
 
 export type DebugLines = {
-    type: DebugPrimitiveType.Lines;
+    type: typeof DebugPrimitiveType.Lines;
     positions: number[]; // x,y,z for each line endpoint
     colors: number[]; // r,g,b for each line endpoint
     lineWidth?: number;
@@ -32,7 +34,7 @@ export type DebugLines = {
 };
 
 export type DebugPoints = {
-    type: DebugPrimitiveType.Points;
+    type: typeof DebugPrimitiveType.Points;
     positions: number[]; // x,y,z for each point
     colors: number[]; // r,g,b for each point
     size: number;
@@ -41,7 +43,7 @@ export type DebugPoints = {
 };
 
 export type DebugBoxes = {
-    type: DebugPrimitiveType.Boxes;
+    type: typeof DebugPrimitiveType.Boxes;
     positions: number[]; // x,y,z center for each box
     colors: number[]; // r,g,b for each box
     scales: number[]; // sx,sy,sz for each box
@@ -103,7 +105,7 @@ const areaToColor = (out: Vec3, area: number, alpha = 1.0): Vec3 => {
     return out;
 };
 
-const _color = vec3.create();
+const _color = /* @__PURE__ */ vec3.create();
 
 export const createTriangleAreaIdsHelper = (
     input: { positions: ArrayLike<number>; indices: ArrayLike<number> },
@@ -1567,13 +1569,13 @@ export const createNavMeshBvTreeHelper = (navMesh: NavMesh): DebugPrimitive[] =>
     return primitives;
 };
 
-const _createNavMeshLinksHelper_sourceCenter = vec3.create();
-const _createNavMeshLinksHelper_targetCenter = vec3.create();
-const _createNavMeshLinksHelper_edgeStart = vec3.create();
-const _createNavMeshLinksHelper_edgeEnd = vec3.create();
-const _createNavMeshLinksHelper_edgeMidpoint = vec3.create();
-const _createNavMeshLinksHelper_sourcePoint = vec3.create();
-const _createNavMeshLinksHelper_targetPoint = vec3.create();
+const _createNavMeshLinksHelper_sourceCenter = /* @__PURE__ */ vec3.create();
+const _createNavMeshLinksHelper_targetCenter = /* @__PURE__ */ vec3.create();
+const _createNavMeshLinksHelper_edgeStart = /* @__PURE__ */ vec3.create();
+const _createNavMeshLinksHelper_edgeEnd = /* @__PURE__ */ vec3.create();
+const _createNavMeshLinksHelper_edgeMidpoint = /* @__PURE__ */ vec3.create();
+const _createNavMeshLinksHelper_sourcePoint = /* @__PURE__ */ vec3.create();
+const _createNavMeshLinksHelper_targetPoint = /* @__PURE__ */ vec3.create();
 
 export const createNavMeshLinksHelper = (navMesh: NavMesh): DebugPrimitive[] => {
     const primitives: DebugPrimitive[] = [];

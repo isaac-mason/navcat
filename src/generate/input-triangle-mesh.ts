@@ -3,8 +3,8 @@ import type { Box3 } from 'math/shapes';
 import type { ArrayLike } from './common';
 import { NULL_AREA, WALKABLE_AREA } from './common';
 
-const _edge0 = vec3.create();
-const _edge1 = vec3.create();
+const _edge0 = /* @__PURE__ */ vec3.create();
+const _edge1 = /* @__PURE__ */ vec3.create();
 
 /**
  * Calculates the normal vector of a triangle
@@ -25,10 +25,10 @@ const calcTriNormal = (inV0: Vec3, inV1: Vec3, inV2: Vec3, outFaceNormal: Vec3) 
     vec3.normalize(outFaceNormal, outFaceNormal);
 };
 
-const _triangleNormal = vec3.create();
-const _v0 = vec3.create();
-const _v1 = vec3.create();
-const _v2 = vec3.create();
+const _triangleNormal = /* @__PURE__ */ vec3.create();
+const _v0 = /* @__PURE__ */ vec3.create();
+const _v1 = /* @__PURE__ */ vec3.create();
+const _v2 = /* @__PURE__ */ vec3.create();
 
 /**
  * Marks triangles as walkable based on their slope angle

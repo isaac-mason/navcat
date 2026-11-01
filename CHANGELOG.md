@@ -3,8 +3,15 @@
 ## 0.5.0 (Unreleased)
 
 - feat: replace `mathcat` dependency with the API-compatible `math` package
+- feat: replace TypeScript enums with `as const` objects so they can be better tree-shaken
+  - each keeps a same-named type, so `NodeType.POLY` and `flags: NodeType` work as before
+  - enum members are no longer types: use `typeof DebugPrimitiveType.Triangles` in place of `DebugPrimitiveType.Triangles`
+  - reverse mappings such as `NodeType[0]` are removed
+  - members have literal types, so annotate variables that are reassigned: `let state: AgentState = AgentState.WALKING`
+- fix: support tree-shaking with esbuild: add `"sideEffects": false` and mark module-level allocations as pure
+- fix: keep `math` external in the build, instead of bundling a copy into each entry point
 - feat: flatten the tile BV tree into flat number arrays: `NavMeshTileBvTree.nodes` is replaced by `bounds` (6 numbers per node, min xyz then max xyz) and `indices` (the poly index for a leaf, or the negated escape index for an internal node)
-  - nav meshes serialized with an earlier version need to be rebuilt
+  - nav meshes serialized with an earlier version need to be rebuilt. generally there is no guarantee for serialized structures to remain compatible across versions. if you need this guarantee, you must create your own format!
 - fix(moveAlongSurface): ignore off-mesh links when finding wall edges
 - perf: faster queries, with identical results
   - findNearestPoly walks the BV tree in order and skips nodes no nearer than the nearest poly found so far

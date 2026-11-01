@@ -330,8 +330,8 @@ export const optimizePathTopology = (corridor: PathCorridor, navMesh: NavMesh, f
     return false;
 };
 
-const _optimizePathVisibility_goal = vec3.create();
-const _optimizePathVisibility_delta = vec3.create();
+const _optimizePathVisibility_goal = /* @__PURE__ */ vec3.create();
+const _optimizePathVisibility_delta = /* @__PURE__ */ vec3.create();
 
 /**
  * Attempts to optimize the path if the specified point is visible from the current position.

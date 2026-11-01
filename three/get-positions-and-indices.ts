@@ -1,7 +1,7 @@
 import { mergePositionsAndIndices } from 'navcat/blocks';
 import { type BufferAttribute, type Mesh, Vector3 } from 'three';
 
-const _position = new Vector3();
+const _position = /* @__PURE__ */ new Vector3();
 
 export const getPositionsAndIndices = (meshes: Mesh[]): [positions: number[], indices: number[]] => {
     const toMerge: {

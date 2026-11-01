@@ -13,16 +13,21 @@ import { getClosestPointOnPolyBoundary, getNodeByRef } from './nav-mesh-api';
 import { getPortalPoints } from './nav-mesh-search';
 import { getNodeRefType, type NodeRef, NodeType } from './node';
 
-export enum FindStraightPathOptions {
-    ALL_CROSSINGS = 1,
-    AREA_CROSSINGS = 2,
-}
+export const FindStraightPathOptions = {
+    ALL_CROSSINGS: 1,
+    AREA_CROSSINGS: 2,
+} as const;
 
-export enum StraightPathPointFlags {
-    START = 0,
-    END = 1,
-    OFFMESH = 2,
-}
+/** @see FindStraightPathOptions */
+export type FindStraightPathOptions = number;
+
+export const StraightPathPointFlags = {
+    START: 0,
+    END: 1,
+    OFFMESH: 2,
+} as const;
+
+export type StraightPathPointFlags = (typeof StraightPathPointFlags)[keyof typeof StraightPathPointFlags];
 
 export type StraightPathPoint = {
     position: Vec3;
@@ -32,13 +37,16 @@ export type StraightPathPoint = {
     flags: number;
 };
 
-export enum FindStraightPathResultFlags {
-    NONE = 0,
-    SUCCESS = 1 << 0,
-    PARTIAL_PATH = 1 << 2,
-    MAX_POINTS_REACHED = 1 << 3,
-    INVALID_INPUT = 1 << 4,
-}
+export const FindStraightPathResultFlags = {
+    NONE: 0,
+    SUCCESS: 1 << 0,
+    PARTIAL_PATH: 1 << 2,
+    MAX_POINTS_REACHED: 1 << 3,
+    INVALID_INPUT: 1 << 4,
+} as const;
+
+/** @see FindStraightPathResultFlags */
+export type FindStraightPathResultFlags = number;
 
 export type FindStraightPathResult = {
     flags: FindStraightPathResultFlags;
@@ -46,11 +54,14 @@ export type FindStraightPathResult = {
     path: StraightPathPoint[];
 };
 
-enum AppendVertexStatus {
-    SUCCESS = 1 << 0,
-    MAX_POINTS_REACHED = 1 << 1,
-    IN_PROGRESS = 1 << 2,
-}
+const AppendVertexStatus = {
+    SUCCESS: 1 << 0,
+    MAX_POINTS_REACHED: 1 << 1,
+    IN_PROGRESS: 1 << 2,
+} as const;
+
+/** @see AppendVertexStatus */
+type AppendVertexStatus = number;
 
 const appendVertex = (
     position: Vec3,
@@ -98,11 +109,11 @@ const appendVertex = (
     return AppendVertexStatus.IN_PROGRESS;
 };
 
-const _intersectSegSeg2DResult: IntersectSegSeg2DResult = createIntersectSegSeg2DResult();
+const _intersectSegSeg2DResult: IntersectSegSeg2DResult = /* @__PURE__ */ createIntersectSegSeg2DResult();
 
-const _appendPortalsPoint = vec3.create();
-const _appendPortalsLeft = vec3.create();
-const _appendPortalsRight = vec3.create();
+const _appendPortalsPoint = /* @__PURE__ */ vec3.create();
+const _appendPortalsLeft = /* @__PURE__ */ vec3.create();
+const _appendPortalsRight = /* @__PURE__ */ vec3.create();
 
 const appendPortals = (
     navMesh: NavMesh,
@@ -155,14 +166,14 @@ const appendPortals = (
     return AppendVertexStatus.IN_PROGRESS;
 };
 
-const _findStraightPathPortalApex = vec3.create();
-const _findStraightPathPortalLeft = vec3.create();
-const _findStraightPathPortalRight = vec3.create();
-const _findStraightPathLeftPortalPoint = vec3.create();
-const _findStraightPathRightPortalPoint = vec3.create();
-const _findStraightPath_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
-const _findStraightPathClosestStart = vec3.create();
-const _findStraightPathClosestEnd = vec3.create();
+const _findStraightPathPortalApex = /* @__PURE__ */ vec3.create();
+const _findStraightPathPortalLeft = /* @__PURE__ */ vec3.create();
+const _findStraightPathPortalRight = /* @__PURE__ */ vec3.create();
+const _findStraightPathLeftPortalPoint = /* @__PURE__ */ vec3.create();
+const _findStraightPathRightPortalPoint = /* @__PURE__ */ vec3.create();
+const _findStraightPath_distancePtSegSqr2dResult = /* @__PURE__ */ createDistancePtSegSqr2dResult();
+const _findStraightPathClosestStart = /* @__PURE__ */ vec3.create();
+const _findStraightPathClosestEnd = /* @__PURE__ */ vec3.create();
 
 const makeFindStraightPathResult = (flags: FindStraightPathResultFlags, path: StraightPathPoint[]): FindStraightPathResult => ({
     flags,

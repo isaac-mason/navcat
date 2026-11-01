@@ -243,7 +243,7 @@ const distancePtSegSqr2D = (pt: Vec3, p: Vec3, q: Vec3): number => {
     return distX * distX + distZ * distZ;
 };
 
-const _sweepCircleCircle_s = vec3.create();
+const _sweepCircleCircle_s = /* @__PURE__ */ vec3.create();
 
 /**
  * Sweep test between two circles.
@@ -299,8 +299,8 @@ const sweepCircleCircle = (
     out.tmax = (b + rd) * invA;
 };
 
-const _intersectRaySegment_v = vec3.create();
-const _intersectRaySegment_w = vec3.create();
+const _intersectRaySegment_v = /* @__PURE__ */ vec3.create();
+const _intersectRaySegment_w = /* @__PURE__ */ vec3.create();
 
 /**
  * Ray-segment intersection test.
@@ -348,8 +348,8 @@ const intersectRaySegment = (
     out.t = t;
 };
 
-const _prepareObstacles_orig = vec3.create();
-const _prepareObstacles_dv = vec3.create();
+const _prepareObstacles_orig = /* @__PURE__ */ vec3.create();
+const _prepareObstacles_dv = /* @__PURE__ */ vec3.create();
 
 /**
  * Prepares obstacles for sampling by calculating side information.
@@ -408,9 +408,9 @@ const copyParams = (dest: ObstacleAvoidanceParams, src: ObstacleAvoidanceParams)
     dest.adaptiveDepth = src.adaptiveDepth;
 };
 
-const _vab = vec3.create();
-const _sdir = vec3.create();
-const _snorm = vec3.create();
+const _vab = /* @__PURE__ */ vec3.create();
+const _sdir = /* @__PURE__ */ vec3.create();
+const _snorm = /* @__PURE__ */ vec3.create();
 const _sweepResult = { hit: false, tmin: 0, tmax: 0 };
 const _intersectionResult = { hit: false, t: 0 };
 
@@ -544,7 +544,7 @@ const processSample = (
     return penalty;
 };
 
-const _sampleVelocityGrid_vcand = vec3.create();
+const _sampleVelocityGrid_vcand = /* @__PURE__ */ vec3.create();
 
 /**
  * Sample velocity using grid-based approach.
@@ -630,11 +630,11 @@ const rotate2D = (dest: Vec3, v: Vec3, ang: number): void => {
     dest[1] = v[1];
 };
 
-const _sampleVelocityAdaptive_ddir = vec3.create();
-const _sampleVelocityAdaptive_ddir2 = vec3.create();
-const _sampleVelocityAdaptive_res = vec3.create();
-const _sampleVelocityAdaptive_bvel = vec3.create();
-const _sampleVelocityAdaptive_vcand = vec3.create();
+const _sampleVelocityAdaptive_ddir = /* @__PURE__ */ vec3.create();
+const _sampleVelocityAdaptive_ddir2 = /* @__PURE__ */ vec3.create();
+const _sampleVelocityAdaptive_res = /* @__PURE__ */ vec3.create();
+const _sampleVelocityAdaptive_bvel = /* @__PURE__ */ vec3.create();
+const _sampleVelocityAdaptive_vcand = /* @__PURE__ */ vec3.create();
 
 /**
  * Sample velocity using adaptive approach.

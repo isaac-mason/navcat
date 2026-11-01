@@ -245,8 +245,8 @@ const getLinkPortalPoints = (
     return true;
 };
 
-const _edgeMidPointPortalLeft = vec3.create();
-const _edgeMidPointPortalRight = vec3.create();
+const _edgeMidPointPortalLeft = /* @__PURE__ */ vec3.create();
+const _edgeMidPointPortalRight = /* @__PURE__ */ vec3.create();
 
 export const getEdgeMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, toNodeRef: NodeRef, outMidPoint: Vec3): boolean => {
     if (!getPortalPoints(navMesh, fromNodeRef, toNodeRef, _edgeMidPointPortalLeft, _edgeMidPointPortalRight)) {
@@ -318,13 +318,16 @@ const getLinkMidPoint = (navMesh: NavMesh, fromNodeRef: NodeRef, fromNode: NavMe
     out[2] = (position[2] + position[2]) * 0.5;
 };
 
-export enum FindNodePathResultFlags {
-    NONE = 0,
-    SUCCESS = 1 << 0,
-    COMPLETE_PATH = 1 << 1,
-    PARTIAL_PATH = 1 << 2,
-    INVALID_INPUT = 1 << 3,
-}
+export const FindNodePathResultFlags = {
+    NONE: 0,
+    SUCCESS: 1 << 0,
+    COMPLETE_PATH: 1 << 1,
+    PARTIAL_PATH: 1 << 2,
+    INVALID_INPUT: 1 << 3,
+} as const;
+
+/** @see FindNodePathResultFlags */
+export type FindNodePathResultFlags = number;
 
 export type FindNodePathResult = {
     /** whether the search completed successfully, with either a partial or complete path */
@@ -363,7 +366,7 @@ type SearchNodeSlots = {
 
 const createSearchNodeSlots = (): SearchNodeSlots => ({ epoch: 0, stamps: [], nodes: [], inUse: false });
 
-const _searchNodeSlots = createSearchNodeSlots();
+const _searchNodeSlots = /* @__PURE__ */ createSearchNodeSlots();
 
 const acquireSearchNodeSlots = (navMesh: NavMesh): SearchNodeSlots => {
     // a filter callback that runs a search of its own gets fresh slots
@@ -795,19 +798,25 @@ const searchNodePath = (
     return lastBestNode;
 };
 
-export enum SlicedFindNodePathStatusFlags {
-    NOT_INITIALIZED = 0,
-    IN_PROGRESS = 1,
-    SUCCESS = 2,
-    PARTIAL_RESULT = 4,
-    FAILURE = 8,
-    INVALID_PARAM = 16,
-}
+export const SlicedFindNodePathStatusFlags = {
+    NOT_INITIALIZED: 0,
+    IN_PROGRESS: 1,
+    SUCCESS: 2,
+    PARTIAL_RESULT: 4,
+    FAILURE: 8,
+    INVALID_PARAM: 16,
+} as const;
 
-export enum SlicedFindNodePathInitFlags {
+/** @see SlicedFindNodePathStatusFlags */
+export type SlicedFindNodePathStatusFlags = number;
+
+export const SlicedFindNodePathInitFlags = {
     /** Enable any-angle pathfinding with raycast optimization */
-    ANY_ANGLE = 1,
-}
+    ANY_ANGLE: 1,
+} as const;
+
+/** @see SlicedFindNodePathInitFlags */
+export type SlicedFindNodePathInitFlags = number;
 
 export type SlicedNodePathQuery = {
     status: SlicedFindNodePathStatusFlags;
@@ -1137,6 +1146,12 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
     return itersDone;
 };
 
+export type FinalizeSlicedFindNodePathResult = {
+    status: SlicedFindNodePathStatusFlags;
+    path: NodeRef[];
+    pathCount: number;
+};
+
 /**
  * Finalizes and returns the results of a sliced path query.
  *
@@ -1147,10 +1162,10 @@ export const updateSlicedFindNodePath = (navMesh: NavMesh, query: SlicedNodePath
 export const finalizeSlicedFindNodePath = (
     navMesh: NavMesh,
     query: SlicedNodePathQuery,
-): { status: SlicedFindNodePathStatusFlags; path: NodeRef[]; pathCount: number } => {
-    const result = {
+): FinalizeSlicedFindNodePathResult => {
+    const result: FinalizeSlicedFindNodePathResult = {
         status: SlicedFindNodePathStatusFlags.FAILURE,
-        path: [] as NodeRef[],
+        path: [],
         pathCount: 0,
     };
 
@@ -1252,10 +1267,10 @@ export const finalizeSlicedFindNodePathPartial = (
     navMesh: NavMesh,
     query: SlicedNodePathQuery,
     existingPath: NodeRef[],
-): { status: SlicedFindNodePathStatusFlags; path: NodeRef[]; pathCount: number } => {
-    const result = {
+): FinalizeSlicedFindNodePathResult => {
+    const result: FinalizeSlicedFindNodePathResult = {
         status: SlicedFindNodePathStatusFlags.FAILURE,
-        path: [] as NodeRef[],
+        path: [],
         pathCount: 0,
     };
 
@@ -1370,7 +1385,7 @@ export const finalizeSlicedFindNodePathPartial = (
     return result;
 };
 
-const _moveAlongSurface_polyHeightResult = createGetPolyHeightResult();
+const _moveAlongSurface_polyHeightResult = /* @__PURE__ */ createGetPolyHeightResult();
 
 // moveAlongSurface search nodes never leave the search and their positions are never read: they share this one
 const _moveAlongSurface_unusedPosition: Vec3 = [0, 0, 0];
@@ -1660,16 +1675,16 @@ const moveAlongSurfaceSearch = (
     }
 };
 
-const _raycast_dir = vec3.create();
-const _raycast_curPos = vec3.create();
-const _raycast_lastPos = vec3.create();
-const _raycast_e1Vec = vec3.create();
-const _raycast_e0Vec = vec3.create();
-const _raycast_eDir = vec3.create();
-const _raycast_diff = vec3.create();
-const _raycast_hitNormal_va = vec3.create();
-const _raycast_hitNormal_vb = vec3.create();
-const _raycast_intersectSegmentPoly2DResult = createIntersectSegmentPoly2DResult();
+const _raycast_dir = /* @__PURE__ */ vec3.create();
+const _raycast_curPos = /* @__PURE__ */ vec3.create();
+const _raycast_lastPos = /* @__PURE__ */ vec3.create();
+const _raycast_e1Vec = /* @__PURE__ */ vec3.create();
+const _raycast_e0Vec = /* @__PURE__ */ vec3.create();
+const _raycast_eDir = /* @__PURE__ */ vec3.create();
+const _raycast_diff = /* @__PURE__ */ vec3.create();
+const _raycast_hitNormal_va = /* @__PURE__ */ vec3.create();
+const _raycast_hitNormal_vb = /* @__PURE__ */ vec3.create();
+const _raycast_intersectSegmentPoly2DResult = /* @__PURE__ */ createIntersectSegmentPoly2DResult();
 
 export type RaycastResult = {
     /** The hit parameter along the segment. A value of Number.MAX_VALUE indicates no wall hit. */
@@ -1970,9 +1985,9 @@ export const raycastWithCosts = (
 };
 
 const _findRandomPointVertices: number[] = [];
-const _findRandomPointVa: Vec3 = vec3.create();
-const _findRandomPointVb: Vec3 = vec3.create();
-const _findRandomPointVc: Vec3 = vec3.create();
+const _findRandomPointVa: Vec3 = /* @__PURE__ */ vec3.create();
+const _findRandomPointVb: Vec3 = /* @__PURE__ */ vec3.create();
+const _findRandomPointVc: Vec3 = /* @__PURE__ */ vec3.create();
 
 export type FindRandomPointResult = {
     success: boolean;
@@ -2088,10 +2103,10 @@ export const findRandomPoint = (navMesh: NavMesh, filter: QueryFilter, rand: () 
 };
 
 const _findRandomPointAroundCircleVertices: number[] = [];
-const _findRandomPointAroundCircleV0: Vec3 = vec3.create();
-const _findRandomPointAroundCircleV1: Vec3 = vec3.create();
-const _findRandomPointAroundCircleV2: Vec3 = vec3.create();
-const _findRandomPointAroundCircle_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
+const _findRandomPointAroundCircleV0: Vec3 = /* @__PURE__ */ vec3.create();
+const _findRandomPointAroundCircleV1: Vec3 = /* @__PURE__ */ vec3.create();
+const _findRandomPointAroundCircleV2: Vec3 = /* @__PURE__ */ vec3.create();
+const _findRandomPointAroundCircle_distancePtSegSqr2dResult = /* @__PURE__ */ createDistancePtSegSqr2dResult();
 
 export type FindRandomPointAroundCircleResult = {
     success: boolean;

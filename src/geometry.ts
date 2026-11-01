@@ -84,13 +84,13 @@ export const pointInPoly = (point: Vec3, vertices: number[], nVertices: number):
     return inside;
 };
 
-const _distPtTriV0: Vec3 = vec3.create();
-const _distPtTriV1: Vec3 = vec3.create();
-const _distPtTriV2: Vec3 = vec3.create();
+const _distPtTriV0: Vec3 = /* @__PURE__ */ vec3.create();
+const _distPtTriV1: Vec3 = /* @__PURE__ */ vec3.create();
+const _distPtTriV2: Vec3 = /* @__PURE__ */ vec3.create();
 
-const _distPtTriVec0: Vec2 = vec2.create();
-const _distPtTriVec1: Vec2 = vec2.create();
-const _distPtTriVec2: Vec2 = vec2.create();
+const _distPtTriVec0: Vec2 = /* @__PURE__ */ vec2.create();
+const _distPtTriVec1: Vec2 = /* @__PURE__ */ vec2.create();
+const _distPtTriVec2: Vec2 = /* @__PURE__ */ vec2.create();
 
 export const distPtTri = (p: Vec3, a: Vec3, b: Vec3, c: Vec3): number => {
     const v0 = _distPtTriV0;
@@ -130,8 +130,8 @@ export const distPtTri = (p: Vec3, a: Vec3, b: Vec3, c: Vec3): number => {
     return Number.MAX_VALUE;
 };
 
-const _distPtSegP: Vec3 = vec3.create();
-const _distPtSegQ: Vec3 = vec3.create();
+const _distPtSegP: Vec3 = /* @__PURE__ */ vec3.create();
+const _distPtSegQ: Vec3 = /* @__PURE__ */ vec3.create();
 
 export const distancePtSeg = (pt: Vec3, p: Vec3, q: Vec3): number => {
     const pq = _distPtSegP;
@@ -218,9 +218,9 @@ export const distancePtSegSqr2d = (out: DistancePtSegSqr2dResult, pt: Vec3, p: V
     return out;
 };
 
-const _distPtTriA: Vec3 = vec3.create();
-const _distPtTriB: Vec3 = vec3.create();
-const _distPtTriC: Vec3 = vec3.create();
+const _distPtTriA: Vec3 = /* @__PURE__ */ vec3.create();
+const _distPtTriB: Vec3 = /* @__PURE__ */ vec3.create();
+const _distPtTriC: Vec3 = /* @__PURE__ */ vec3.create();
 
 export const distToTriMesh = (p: Vec3, verts: number[], tris: number[], ntris: number): number => {
     let dmin = Number.MAX_VALUE;
@@ -240,9 +240,9 @@ export const distToTriMesh = (p: Vec3, verts: number[], tris: number[], ntris: n
     return dmin;
 };
 
-const _distToPolyVj: Vec3 = vec3.create();
-const _distToPolyVi: Vec3 = vec3.create();
-const _distToPoly_distPtSeg2dResult = createDistPtSeg2dResult();
+const _distToPolyVj: Vec3 = /* @__PURE__ */ vec3.create();
+const _distToPolyVi: Vec3 = /* @__PURE__ */ vec3.create();
+const _distToPoly_distPtSeg2dResult = /* @__PURE__ */ createDistPtSeg2dResult();
 
 export const distToPoly = (nvert: number, verts: number[], p: Vec3): number => {
     let dmin = Number.MAX_VALUE;
@@ -310,11 +310,11 @@ export const closestHeightPointTriangle = (p: Vec3, a: Vec3, b: Vec3, c: Vec3): 
     return NaN;
 };
 
-const _overlapSegAB: Vec2 = vec2.create();
-const _overlapSegAD: Vec2 = vec2.create();
-const _overlapSegAC: Vec2 = vec2.create();
-const _overlapSegCD: Vec2 = vec2.create();
-const _overlapSegCA: Vec2 = vec2.create();
+const _overlapSegAB: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapSegAD: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapSegAC: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapSegCD: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapSegCA: Vec2 = /* @__PURE__ */ vec2.create();
 
 export const overlapSegSeg2d = (a: Vec2, b: Vec2, c: Vec2, d: Vec2): boolean => {
     // calculate cross products for line segment intersection test
@@ -389,10 +389,10 @@ export const intersectSegSeg2D = (out: IntersectSegSeg2DResult, a: Vec3, b: Vec3
     return out;
 };
 
-const _polyMinExtentPt: Vec3 = vec3.create();
-const _polyMinExtentP1: Vec3 = vec3.create();
-const _polyMinExtentP2: Vec3 = vec3.create();
-const _polyMinExtent_distPtSeg2dResult = createDistPtSeg2dResult();
+const _polyMinExtentPt: Vec3 = /* @__PURE__ */ vec3.create();
+const _polyMinExtentP1: Vec3 = /* @__PURE__ */ vec3.create();
+const _polyMinExtentP2: Vec3 = /* @__PURE__ */ vec3.create();
+const _polyMinExtent_distPtSeg2dResult = /* @__PURE__ */ createDistPtSeg2dResult();
 
 // calculate minimum extend of the polygon.
 export const polyMinExtent = (verts: number[], nverts: number): number => {
@@ -513,9 +513,9 @@ export const intersectSegmentPoly2D = (
     return result;
 };
 
-const _randomPointInConvexPolyVa = vec3.create();
-const _randomPointInConvexPolyVb = vec3.create();
-const _randomPointInConvexPolyVc = vec3.create();
+const _randomPointInConvexPolyVa = /* @__PURE__ */ vec3.create();
+const _randomPointInConvexPolyVb = /* @__PURE__ */ vec3.create();
+const _randomPointInConvexPolyVc = /* @__PURE__ */ vec3.create();
 
 /**
  * Generates a random point inside a convex polygon using barycentric coordinates.
@@ -604,9 +604,9 @@ const overlapRange = (amin: number, amax: number, bmin: number, bmax: number, ep
     return !(amin + eps > bmax || amax - eps < bmin);
 };
 
-const _overlapPolyPolyNormal: Vec2 = vec2.create();
-const _overlapPolyPolyVa: Vec2 = vec2.create();
-const _overlapPolyPolyVb: Vec2 = vec2.create();
+const _overlapPolyPolyNormal: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapPolyPolyVa: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapPolyPolyVb: Vec2 = /* @__PURE__ */ vec2.create();
 const _overlapPolyPolyProjA: [number, number] = [0, 0];
 const _overlapPolyPolyProjB: [number, number] = [0, 0];
 

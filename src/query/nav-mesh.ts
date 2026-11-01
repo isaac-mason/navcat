@@ -154,10 +154,12 @@ export type NavMeshLink = {
     bmax: number;
 };
 
-export enum OffMeshConnectionDirection {
-    START_TO_END = 0,
-    BIDIRECTIONAL = 1,
-}
+export const OffMeshConnectionDirection = {
+    START_TO_END: 0,
+    BIDIRECTIONAL: 1,
+} as const;
+
+export type OffMeshConnectionDirection = (typeof OffMeshConnectionDirection)[keyof typeof OffMeshConnectionDirection];
 
 export type OffMeshConnection = {
     /** the id of the off mesh connection */

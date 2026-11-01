@@ -12,6 +12,7 @@
         "rules": {
             "recommended": true,
             "style": {
+                "noEnum": "error",
                 "noNonNullAssertion": "off",
                 "noParameterAssign": "off"
             },

@@ -229,21 +229,21 @@ const dividePoly = (
     out.nv2 = poly2Vert;
 };
 
-const _triangleBounds = box3.create();
-const _rasterize_triMin = vec3.create();
-const _rasterize_triMax = vec3.create();
+const _triangleBounds = /* @__PURE__ */ box3.create();
+const _rasterize_triMin = /* @__PURE__ */ vec3.create();
+const _rasterize_triMax = /* @__PURE__ */ vec3.create();
 
-const _inVerts = new Array(7 * 3);
-const _inRow = new Array(7 * 3);
-const _p1 = new Array(7 * 3);
-const _p2 = new Array(7 * 3);
+const _inVerts = /* @__PURE__ */ new Array(7 * 3);
+const _inRow = /* @__PURE__ */ new Array(7 * 3);
+const _p1 = /* @__PURE__ */ new Array(7 * 3);
+const _p2 = /* @__PURE__ */ new Array(7 * 3);
 
-const _inVertAxisDelta = new Array(12);
+const _inVertAxisDelta = /* @__PURE__ */ new Array(12);
 const _dividePolyResult = { nv1: 0, nv2: 0 };
 
-const _v0 = vec3.create();
-const _v1 = vec3.create();
-const _v2 = vec3.create();
+const _v0 = /* @__PURE__ */ vec3.create();
+const _v1 = /* @__PURE__ */ vec3.create();
+const _v2 = /* @__PURE__ */ vec3.create();
 
 /**
  * Rasterize a single triangle to the heightfield
@@ -628,7 +628,7 @@ const _rasterizeBox_normals: Vec3[] = [
     [0, 0, 0],
     [0, 0, 0],
 ];
-const _rasterizeBox_vertices = new Array<number>(8 * 3);
+const _rasterizeBox_vertices = /* @__PURE__ */ new Array<number>(8 * 3);
 const _rasterizeBox_bounds: Box3 = [0, 0, 0, 0, 0, 0];
 const _rasterizeBox_planes = [
     [0, 0, 0, 0],

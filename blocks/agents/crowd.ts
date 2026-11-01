@@ -24,29 +24,36 @@ import * as localBoundary from './local-boundary';
 import * as obstacleAvoidance from './obstacle-avoidance';
 import * as pathCorridor from './path-corridor';
 
-export enum AgentState {
-    INVALID,
-    WALKING,
-    OFFMESH,
-}
+export const AgentState = {
+    INVALID: 0,
+    WALKING: 1,
+    OFFMESH: 2,
+} as const;
 
-export enum AgentTargetState {
-    NONE,
-    FAILED,
-    VALID,
-    REQUESTING,
-    WAITING_FOR_QUEUE,
-    WAITING_FOR_PATH,
-    VELOCITY,
-}
+export type AgentState = (typeof AgentState)[keyof typeof AgentState];
 
-export enum CrowdUpdateFlags {
-    ANTICIPATE_TURNS = 1,
-    OBSTACLE_AVOIDANCE = 2,
-    SEPARATION = 4,
-    OPTIMIZE_VIS = 8,
-    OPTIMIZE_TOPO = 16,
-}
+export const AgentTargetState = {
+    NONE: 0,
+    FAILED: 1,
+    VALID: 2,
+    REQUESTING: 3,
+    WAITING_FOR_QUEUE: 4,
+    WAITING_FOR_PATH: 5,
+    VELOCITY: 6,
+} as const;
+
+export type AgentTargetState = (typeof AgentTargetState)[keyof typeof AgentTargetState];
+
+export const CrowdUpdateFlags = {
+    ANTICIPATE_TURNS: 1,
+    OBSTACLE_AVOIDANCE: 2,
+    SEPARATION: 4,
+    OPTIMIZE_VIS: 8,
+    OPTIMIZE_TOPO: 16,
+} as const;
+
+/** @see CrowdUpdateFlags */
+export type CrowdUpdateFlags = number;
 
 export type AgentParams = {
     /** Agent radius (in world units), used for collision detection and avoidance calculations */
@@ -445,7 +452,7 @@ export const resetMoveTarget = (crowd: Crowd, agentId: string): boolean => {
 const CHECK_LOOKAHEAD = 10;
 const TARGET_REPLAN_DELAY_SECONDS = 1.0;
 
-const _checkPathValidityNearestPolyResult = createFindNearestPolyResult();
+const _checkPathValidityNearestPolyResult = /* @__PURE__ */ createFindNearestPolyResult();
 
 const checkPathValidity = (crowd: Crowd, navMesh: NavMesh, deltaTime: number): void => {
     for (const agentId in crowd.agents) {
@@ -1037,7 +1044,7 @@ export const completeOffMeshConnection = (crowd: Crowd, agentId: string): boolea
     return true;
 };
 
-const _calcStraightSteerDirection_direction = vec3.create();
+const _calcStraightSteerDirection_direction = /* @__PURE__ */ vec3.create();
 
 /**
  * Calculate straight steering direction (no anticipation).
@@ -1057,9 +1064,9 @@ const calcStraightSteerDirection = (agent: Agent, corners: StraightPathPoint[]):
     vec3.scale(agent.desiredVelocity, direction, speed);
 };
 
-const _calcSmoothSteerDirection_dir0 = vec3.create();
-const _calcSmoothSteerDirection_dir1 = vec3.create();
-const _calcSmoothSteerDirection_direction = vec3.create();
+const _calcSmoothSteerDirection_dir0 = /* @__PURE__ */ vec3.create();
+const _calcSmoothSteerDirection_dir1 = /* @__PURE__ */ vec3.create();
+const _calcSmoothSteerDirection_direction = /* @__PURE__ */ vec3.create();
 
 /**
  * Calculate smooth steering direction (with anticipation).
@@ -1099,8 +1106,8 @@ const calcSmoothSteerDirection = (agent: Agent, corners: StraightPathPoint[]): v
     vec3.scale(agent.desiredVelocity, direction, speed);
 };
 
-const _getDistanceToGoalStart = vec2.create();
-const _getDistanceToGoalEnd = vec2.create();
+const _getDistanceToGoalStart = /* @__PURE__ */ vec2.create();
+const _getDistanceToGoalEnd = /* @__PURE__ */ vec2.create();
 
 const getDistanceToGoal = (agent: Agent, range: number) => {
     if (agent.corners.length === 0) return range;
@@ -1118,8 +1125,8 @@ const getDistanceToGoal = (agent: Agent, range: number) => {
     return Math.min(range, dist);
 };
 
-const _updateSteering_separationDisp = vec3.create();
-const _updateSteering_separationDiff = vec3.create();
+const _updateSteering_separationDisp = /* @__PURE__ */ vec3.create();
+const _updateSteering_separationDiff = /* @__PURE__ */ vec3.create();
 
 const updateSteering = (crowd: Crowd): void => {
     for (const agentId in crowd.agents) {
@@ -1248,7 +1255,7 @@ const updateVelocityPlanning = (crowd: Crowd): void => {
     }
 };
 
-const _integrateDv = vec3.create();
+const _integrateDv = /* @__PURE__ */ vec3.create();
 
 const integrate = (crowd: Crowd, deltaTime: number): void => {
     for (const agentId in crowd.agents) {
@@ -1275,7 +1282,7 @@ const integrate = (crowd: Crowd, deltaTime: number): void => {
     }
 };
 
-const _handleCollisions_diff = vec3.create();
+const _handleCollisions_diff = /* @__PURE__ */ vec3.create();
 
 const handleCollisions = (crowd: Crowd): void => {
     const COLLISION_RESOLVE_FACTOR = 0.7;
