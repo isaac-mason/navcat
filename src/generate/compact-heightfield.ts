@@ -657,7 +657,7 @@ export const markRotatedBoxArea = (
     }
 };
 
-const _markConvexPolyArea_point = vec3.create();
+const _markConvexPolyArea_point = /* @__PURE__ */ vec3.create();
 
 /**
  * Marks spans in the heightfield that intersect the specified convex polygon area with the given area ID.
@@ -827,7 +827,7 @@ const insertSort = (arr: number[], length: number) => {
     }
 };
 
-const _neighborAreas = new Array(9);
+const _neighborAreas = /* @__PURE__ */ new Array(9);
 
 /**
  * Applies a median filter to walkable area types (based on area id), removing noise.

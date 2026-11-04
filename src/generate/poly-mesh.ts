@@ -152,10 +152,10 @@ const intersect = (segmentAStart: number[], segmentAEnd: number[], segmentBStart
 // returns whether the two vertices are equal in the XZ plane
 const vec3EqualXZ = (vertexA: number[], vertexB: number[]): boolean => vertexA[0] === vertexB[0] && vertexA[2] === vertexB[2];
 
-const _diagonalStart = vec3.create();
-const _diagonalEnd = vec3.create();
-const _edgeStart = vec3.create();
-const _edgeEnd = vec3.create();
+const _diagonalStart = /* @__PURE__ */ vec3.create();
+const _diagonalEnd = /* @__PURE__ */ vec3.create();
+const _edgeStart = /* @__PURE__ */ vec3.create();
+const _edgeEnd = /* @__PURE__ */ vec3.create();
 
 // returns T iff (v_i, v_j) is a proper internal *or* external
 // diagonal of P, *ignoring edges incident to v_i and v_j*.
@@ -192,10 +192,10 @@ const diagonalie = (
     return true;
 };
 
-const _coneVertex = vec3.create();
-const _testVertex = vec3.create();
-const _nextVertex = vec3.create();
-const _prevVertex = vec3.create();
+const _coneVertex = /* @__PURE__ */ vec3.create();
+const _testVertex = /* @__PURE__ */ vec3.create();
+const _nextVertex = /* @__PURE__ */ vec3.create();
+const _prevVertex = /* @__PURE__ */ vec3.create();
 
 const inCone = (
     coneVertexIdx: number,
@@ -310,8 +310,8 @@ const diagonalLoose = (
     );
 };
 
-const _triangulateP0 = vec3.create();
-const _triangulateP2 = vec3.create();
+const _triangulateP0 = /* @__PURE__ */ vec3.create();
+const _triangulateP2 = /* @__PURE__ */ vec3.create();
 
 const triangulate = (
     polygonVertexCount: number,

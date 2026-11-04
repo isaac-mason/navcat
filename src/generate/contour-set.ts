@@ -42,12 +42,15 @@ export type ContourSet = {
     maxError: number;
 };
 
-export enum ContourBuildFlags {
+export const ContourBuildFlags = {
     /** tessellate solid (impassable) edges during contour simplification */
-    CONTOUR_TESS_WALL_EDGES = 0x01,
+    CONTOUR_TESS_WALL_EDGES: 0x01,
     /** tessellate edges between areas during contour simplification */
-    CONTOUR_TESS_AREA_EDGES = 0x02,
-}
+    CONTOUR_TESS_AREA_EDGES: 0x02,
+} as const;
+
+/** @see ContourBuildFlags */
+export type ContourBuildFlags = number;
 
 // Helper function to get corner height
 const getCornerHeight = (
@@ -533,8 +536,8 @@ const intersect = (a: Vec2, b: Vec2, c: Vec2, d: Vec2) => {
     else return false;
 };
 
-const _intersectSegContour_p0 = vec2.create();
-const _intersectSegContour_p1 = vec2.create();
+const _intersectSegContour_p0 = /* @__PURE__ */ vec2.create();
+const _intersectSegContour_p1 = /* @__PURE__ */ vec2.create();
 
 const intersectSegContour = (d0: Vec2, d1: Vec2, i: number, n: number, verts: number[]) => {
     // For each edge (k,k+1) of P
@@ -561,9 +564,9 @@ const intersectSegContour = (d0: Vec2, d1: Vec2, i: number, n: number, verts: nu
     return false;
 };
 
-const _inCone_pi = vec2.create();
-const _inCone_pi1 = vec2.create();
-const _inCone_pin1 = vec2.create();
+const _inCone_pi = /* @__PURE__ */ vec2.create();
+const _inCone_pi1 = /* @__PURE__ */ vec2.create();
+const _inCone_pin1 = /* @__PURE__ */ vec2.create();
 
 const inCone = (i: number, n: number, verts: number[], pj: Vec2) => {
     const piIdx = i * 4;
@@ -703,8 +706,8 @@ const compareHoles = (a: ContourHole, b: ContourHole): number => {
     return 0;
 };
 
-const _mergeRegionHoles_corner = vec2.create();
-const _mergeRegionHoles_pt = vec2.create();
+const _mergeRegionHoles_corner = /* @__PURE__ */ vec2.create();
+const _mergeRegionHoles_pt = /* @__PURE__ */ vec2.create();
 
 const mergeRegionHoles = (ctx: BuildContextState, region: ContourRegion): void => {
     // Sort holes from left to right.

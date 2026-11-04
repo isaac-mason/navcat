@@ -44,9 +44,9 @@ export type FindLocalNeighbourhoodResult = {
 
 const _findLocalNeighbourhoodPolyVerticesA: number[] = [];
 const _findLocalNeighbourhoodPolyVerticesB: number[] = [];
-const _findLocalNeighbourhood_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
-const _findLocalNeighbourhood_va = vec3.create();
-const _findLocalNeighbourhood_vb = vec3.create();
+const _findLocalNeighbourhood_distancePtSegSqr2dResult = /* @__PURE__ */ createDistancePtSegSqr2dResult();
+const _findLocalNeighbourhood_va = /* @__PURE__ */ vec3.create();
+const _findLocalNeighbourhood_vb = /* @__PURE__ */ vec3.create();
 
 /**
  * Finds all polygons within a radius of a center position, avoiding overlapping polygons.
@@ -233,10 +233,10 @@ export type PolyWallSegmentsResult = {
     segmentRefs: (NodeRef | null)[];
 };
 
-const _getPolyWallSegments_vj = vec3.create();
-const _getPolyWallSegments_vi = vec3.create();
-const _getPolyWallSegments_segStart = vec3.create();
-const _getPolyWallSegments_segEnd = vec3.create();
+const _getPolyWallSegments_vj = /* @__PURE__ */ vec3.create();
+const _getPolyWallSegments_vi = /* @__PURE__ */ vec3.create();
+const _getPolyWallSegments_segStart = /* @__PURE__ */ vec3.create();
+const _getPolyWallSegments_segEnd = /* @__PURE__ */ vec3.create();
 
 /**
  * Returns the wall segments of a polygon, optionally including portal segments.

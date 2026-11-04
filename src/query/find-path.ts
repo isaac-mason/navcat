@@ -7,16 +7,19 @@ import { createFindNearestPolyResult, findNearestPoly } from './nav-mesh-api';
 import { type FindNodePathResult, FindNodePathResultFlags, findNodePath } from './nav-mesh-search';
 import type { NodeRef } from './node';
 
-export enum FindPathResultFlags {
-    NONE = 0,
-    SUCCESS = 1 << 0,
-    COMPLETE_PATH = 1 << 1,
-    PARTIAL_PATH = 1 << 2,
-    MAX_POINTS_REACHED = 1 << 3,
-    INVALID_INPUT = 1 << 4,
-    FIND_NODE_PATH_FAILED = 1 << 5,
-    FIND_STRAIGHT_PATH_FAILED = 1 << 6,
-}
+export const FindPathResultFlags = {
+    NONE: 0,
+    SUCCESS: 1 << 0,
+    COMPLETE_PATH: 1 << 1,
+    PARTIAL_PATH: 1 << 2,
+    MAX_POINTS_REACHED: 1 << 3,
+    INVALID_INPUT: 1 << 4,
+    FIND_NODE_PATH_FAILED: 1 << 5,
+    FIND_STRAIGHT_PATH_FAILED: 1 << 6,
+} as const;
+
+/** @see FindPathResultFlags */
+export type FindPathResultFlags = number;
 
 export type FindPathResult = {
     /** whether the search completed successfully, with either a partial or complete path */
@@ -50,8 +53,8 @@ export type FindPathResult = {
     nodePathFlags: FindNodePathResultFlags;
 };
 
-const _findPathStartNearestPolyResult = createFindNearestPolyResult();
-const _findPathEndNearestPolyResult = createFindNearestPolyResult();
+const _findPathStartNearestPolyResult = /* @__PURE__ */ createFindNearestPolyResult();
+const _findPathEndNearestPolyResult = /* @__PURE__ */ createFindNearestPolyResult();
 
 export type FindPathOptions = {
     /** Maximum raycast distance for any-angle shortcutting. 0 or undefined disables. */

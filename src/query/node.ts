@@ -1,9 +1,11 @@
-export enum NodeType {
+export const NodeType = {
     /** the node is a standard ground convex polygon that is part of the surface of the mesh */
-    POLY = 0,
+    POLY: 0,
     /** the node is an off-mesh connection */
-    OFFMESH = 1,
-}
+    OFFMESH: 1,
+} as const;
+
+export type NodeType = (typeof NodeType)[keyof typeof NodeType];
 
 /** 
  * Serialized node reference

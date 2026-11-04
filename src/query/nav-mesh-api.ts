@@ -358,7 +358,7 @@ export const createGetClosestPointOnPolyResult = (): GetClosestPointOnPolyResult
     };
 };
 
-const _getClosestPointOnPoly_getPolyHeightResult = createGetPolyHeightResult();
+const _getClosestPointOnPoly_getPolyHeightResult = /* @__PURE__ */ createGetPolyHeightResult();
 
 /** getClosestPointOnPoly once the tile and poly are known. Overwrites all of `result`. */
 const closestPointOnTilePoly = (
@@ -413,10 +413,10 @@ export const getClosestPointOnPoly = (
     return result;
 };
 
-const _closestPointOnPolyBoundary_lineStart = vec3.create();
-const _closestPointOnPolyBoundary_lineEnd = vec3.create();
+const _closestPointOnPolyBoundary_lineStart = /* @__PURE__ */ vec3.create();
+const _closestPointOnPolyBoundary_lineEnd = /* @__PURE__ */ vec3.create();
 const _closestPointOnPolyBoundary_vertices: number[] = [];
-const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = createDistancePtSegSqr2dResult();
+const _closestPointOnPolyBoundary_distancePtSegSqr2dResult = /* @__PURE__ */ createDistancePtSegSqr2dResult();
 
 /**
  * Gets the closest point on the boundary of a polygon to a given point.
@@ -520,8 +520,8 @@ export const createFindNearestPolyResult = (): FindNearestPolyResult => {
     };
 };
 
-const _findNearestPoly_closestPointResult = createGetClosestPointOnPolyResult();
-const _findNearestPoly_bounds = box3.create();
+const _findNearestPoly_closestPointResult = /* @__PURE__ */ createGetClosestPointOnPolyResult();
+const _findNearestPoly_bounds = /* @__PURE__ */ box3.create();
 
 // slack on the xz bounds lower bound, so a rounding error can't wrongly skip a poly
 const POLY_BOUNDS_SLACK = 1e-3;
@@ -769,10 +769,10 @@ export const queryPolygonsInTile = (
     }
 };
 
-const _queryPolygons_minTile = vec2.create();
-const _queryPolygons_maxTile = vec2.create();
-const _queryPolygons_minPos = vec3.create();
-const _queryPolygons_maxPos = vec3.create();
+const _queryPolygons_minTile = /* @__PURE__ */ vec2.create();
+const _queryPolygons_maxTile = /* @__PURE__ */ vec2.create();
+const _queryPolygons_minPos = /* @__PURE__ */ vec3.create();
+const _queryPolygons_maxPos = /* @__PURE__ */ vec3.create();
 
 export const queryPolygons = (navMesh: NavMesh, bounds: Box3, filter: QueryFilter): NodeRef[] => {
     const result: NodeRef[] = [];
@@ -992,10 +992,10 @@ const overlapSlabs = (amin: Vec3, amax: Vec3, bmin: Vec3, bmax: Vec3, px: number
     return false;
 };
 
-const _amin = vec3.create();
-const _amax = vec3.create();
-const _bmin = vec3.create();
-const _bmax = vec3.create();
+const _amin = /* @__PURE__ */ vec3.create();
+const _amax = /* @__PURE__ */ vec3.create();
+const _bmin = /* @__PURE__ */ vec3.create();
+const _bmax = /* @__PURE__ */ vec3.create();
 
 /**
  * Find connecting external polys between edge va->vb in target tile on opposite side.
@@ -1063,8 +1063,8 @@ const findConnectingPolys = (
     return results;
 };
 
-const _va = vec3.create();
-const _vb = vec3.create();
+const _va = /* @__PURE__ */ vec3.create();
+const _vb = /* @__PURE__ */ vec3.create();
 
 const connectExternalLinks = (navMesh: NavMesh, tile: NavMeshTile, target: NavMeshTile, side: number) => {
     // connect border links
@@ -1180,9 +1180,9 @@ const createOffMeshLink = (navMesh: NavMesh, from: NavMeshNode, to: NavMeshNode,
     from.links.push(linkIndex);
 };
 
-const _connectOffMeshConnection_nearestPolyStart = createFindNearestPolyResult();
-const _connectOffMeshConnection_nearestPolyEnd = createFindNearestPolyResult();
-const _connectOffMeshConnection_halfExtents = vec3.create();
+const _connectOffMeshConnection_nearestPolyStart = /* @__PURE__ */ createFindNearestPolyResult();
+const _connectOffMeshConnection_nearestPolyEnd = /* @__PURE__ */ createFindNearestPolyResult();
+const _connectOffMeshConnection_halfExtents = /* @__PURE__ */ vec3.create();
 
 const connectOffMeshConnection = (navMesh: NavMesh, offMeshConnection: OffMeshConnection): boolean => {
     // find polys for the start and end positions
@@ -1649,4 +1649,4 @@ export const createDefaultQueryFilter = (): DefaultQueryFilter => {
     };
 };
 
-export const DEFAULT_QUERY_FILTER = createDefaultQueryFilter();
+export const DEFAULT_QUERY_FILTER = /* @__PURE__ */ createDefaultQueryFilter();

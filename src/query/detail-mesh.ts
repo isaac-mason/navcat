@@ -3,7 +3,7 @@ import { vec3 } from 'math';
 import { DETAIL_EDGE_BOUNDARY } from '../generate';
 import type { NavMeshPoly, NavMeshTile } from './nav-mesh';
 
-const _getDetailMeshHeight_closest = vec3.create();
+const _getDetailMeshHeight_closest = /* @__PURE__ */ vec3.create();
 
 const HEIGHT_EPS = 1e-6;
 

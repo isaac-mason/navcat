@@ -1,8 +1,10 @@
-export enum BuildContextLogType {
-    INFO = 0,
-    WARNING = 1,
-    ERROR = 2,
-}
+export const BuildContextLogType = {
+    INFO: 0,
+    WARNING: 1,
+    ERROR: 2,
+} as const;
+
+export type BuildContextLogType = (typeof BuildContextLogType)[keyof typeof BuildContextLogType];
 
 export type BuildContextLog = {
     type: BuildContextLogType;

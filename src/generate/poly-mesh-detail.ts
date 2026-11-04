@@ -190,17 +190,17 @@ const addEdge = (
     return EV_UNDEF;
 };
 
-const _completeFacetC = vec3.create();
-const _completeFacetPointS: Vec2 = vec2.create();
-const _completeFacetPointT: Vec2 = vec2.create();
-const _completeFacetPointU: Vec2 = vec2.create();
-const _completeFacetCircleCenter: Vec2 = vec2.create();
-const _completeFacetDistanceCalc: Vec2 = vec2.create();
+const _completeFacetC = /* @__PURE__ */ vec3.create();
+const _completeFacetPointS: Vec2 = /* @__PURE__ */ vec2.create();
+const _completeFacetPointT: Vec2 = /* @__PURE__ */ vec2.create();
+const _completeFacetPointU: Vec2 = /* @__PURE__ */ vec2.create();
+const _completeFacetCircleCenter: Vec2 = /* @__PURE__ */ vec2.create();
+const _completeFacetDistanceCalc: Vec2 = /* @__PURE__ */ vec2.create();
 
-const _triangleV1 = vec2.create();
-const _triangleV2 = vec2.create();
-const _triangleV3 = vec2.create();
-const _circumcircleResult = circle.create();
+const _triangleV1 = /* @__PURE__ */ vec2.create();
+const _triangleV2 = /* @__PURE__ */ vec2.create();
+const _triangleV3 = /* @__PURE__ */ vec2.create();
+const _circumcircleResult = /* @__PURE__ */ circle.create();
 
 // Triangle completion function for Delaunay triangulation
 const completeFacet = (
@@ -335,10 +335,10 @@ const updateLeftFace = (edges: number[], edgeIdx: number, s: number, t: number, 
     }
 };
 
-const _overlapEdgesS0: Vec2 = vec2.create();
-const _overlapEdgesT0: Vec2 = vec2.create();
-const _overlapEdgesS1: Vec2 = vec2.create();
-const _overlapEdgesT1: Vec2 = vec2.create();
+const _overlapEdgesS0: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapEdgesT0: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapEdgesS1: Vec2 = /* @__PURE__ */ vec2.create();
+const _overlapEdgesT1: Vec2 = /* @__PURE__ */ vec2.create();
 
 const overlapEdges = (pts: number[], edges: number[], nedges: number, s1: number, t1: number): boolean => {
     for (let i = 0; i < nedges; ++i) {
@@ -779,16 +779,16 @@ const getHeightData = (
     }
 };
 
-const _buildPolyDetail_vj: Vec3 = vec3.create();
-const _buildPolyDetail_vi: Vec3 = vec3.create();
-const _buildPolyDetail_pt: Vec3 = vec3.create();
-const _buildPolyDetail_va: Vec3 = vec3.create();
-const _buildPolyDetail_vb: Vec3 = vec3.create();
-const _buildPolyDetailSamplePt: Vec3 = vec3.create();
-const _buildPolyDetailGridPt: Vec3 = vec3.create();
+const _buildPolyDetail_vj: Vec3 = /* @__PURE__ */ vec3.create();
+const _buildPolyDetail_vi: Vec3 = /* @__PURE__ */ vec3.create();
+const _buildPolyDetail_pt: Vec3 = /* @__PURE__ */ vec3.create();
+const _buildPolyDetail_va: Vec3 = /* @__PURE__ */ vec3.create();
+const _buildPolyDetail_vb: Vec3 = /* @__PURE__ */ vec3.create();
+const _buildPolyDetailSamplePt: Vec3 = /* @__PURE__ */ vec3.create();
+const _buildPolyDetailGridPt: Vec3 = /* @__PURE__ */ vec3.create();
 
-const _bmin = vec3.create();
-const _bmax = vec3.create();
+const _bmin = /* @__PURE__ */ vec3.create();
+const _bmax = /* @__PURE__ */ vec3.create();
 
 const buildPolyDetail = (
     ctx: BuildContextState,
@@ -1044,10 +1044,10 @@ const buildPolyDetail = (
     return true;
 };
 
-const _triangulateHullPrev: Vec2 = vec2.create();
-const _triangulateHullCurrent: Vec2 = vec2.create();
-const _triangulateHullNext: Vec2 = vec2.create();
-const _triangulateHullRight: Vec2 = vec2.create();
+const _triangulateHullPrev: Vec2 = /* @__PURE__ */ vec2.create();
+const _triangulateHullCurrent: Vec2 = /* @__PURE__ */ vec2.create();
+const _triangulateHullNext: Vec2 = /* @__PURE__ */ vec2.create();
+const _triangulateHullRight: Vec2 = /* @__PURE__ */ vec2.create();
 
 export const buildPolyMeshDetail = (
     ctx: BuildContextState,

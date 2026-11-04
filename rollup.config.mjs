@@ -33,7 +33,7 @@ const addJsExtensionsToDts = () => ({
 export default [
     {
         input: './src/index.ts',
-        external: ['mathcat'],
+        external: [/^math(\/|$)/],
         output: [
             {
                 file: 'dist/index.js',
@@ -54,7 +54,7 @@ export default [
     },
     {
         input: './blocks/index.ts',
-        external: ['mathcat', 'navcat'],
+        external: [/^math(\/|$)/, 'navcat'],
         output: [
             {
                 file: 'dist/blocks.js',
@@ -75,7 +75,7 @@ export default [
     },
     {
         input: './three/index.ts',
-        external: ['mathcat', 'navcat', 'navcat/blocks', 'three'],
+        external: [/^math(\/|$)/, 'navcat', 'navcat/blocks', 'three'],
         output: [
             {
                 file: 'dist/three.js',

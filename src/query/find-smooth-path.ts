@@ -7,26 +7,31 @@ import { createFindNearestPolyResult, findNearestPoly, getNodeByRef } from './na
 import { type FindNodePathResult, FindNodePathResultFlags, findNodePath, moveAlongSurface } from './nav-mesh-search';
 import { INVALID_NODE_REF, type NodeRef, NodeType } from './node';
 
-const _findSmoothPath_delta = vec3.create();
-const _findSmoothPath_moveTarget = vec3.create();
-const _findSmoothPath_startNearestPolyResult = createFindNearestPolyResult();
-const _findSmoothPath_endNearestPolyResult = createFindNearestPolyResult();
+const _findSmoothPath_delta = /* @__PURE__ */ vec3.create();
+const _findSmoothPath_moveTarget = /* @__PURE__ */ vec3.create();
+const _findSmoothPath_startNearestPolyResult = /* @__PURE__ */ createFindNearestPolyResult();
+const _findSmoothPath_endNearestPolyResult = /* @__PURE__ */ createFindNearestPolyResult();
 
-export enum FindSmoothPathResultFlags {
-    NONE = 0,
-    SUCCESS = 1 << 0,
-    COMPLETE_PATH = 1 << 1,
-    PARTIAL_PATH = 1 << 2,
-    INVALID_INPUT = 1 << 3,
-    FIND_NODE_PATH_FAILED = 1 << 4,
-    FIND_STRAIGHT_PATH_FAILED = 1 << 5,
-}
+export const FindSmoothPathResultFlags = {
+    NONE: 0,
+    SUCCESS: 1 << 0,
+    COMPLETE_PATH: 1 << 1,
+    PARTIAL_PATH: 1 << 2,
+    INVALID_INPUT: 1 << 3,
+    FIND_NODE_PATH_FAILED: 1 << 4,
+    FIND_STRAIGHT_PATH_FAILED: 1 << 5,
+} as const;
 
-export enum SmoothPathPointFlags {
-    START = 0,
-    END = 1,
-    OFFMESH = 2,
-}
+/** @see FindSmoothPathResultFlags */
+export type FindSmoothPathResultFlags = number;
+
+export const SmoothPathPointFlags = {
+    START: 0,
+    END: 1,
+    OFFMESH: 2,
+} as const;
+
+export type SmoothPathPointFlags = (typeof SmoothPathPointFlags)[keyof typeof SmoothPathPointFlags];
 
 export type SmoothPathPoint = {
     position: Vec3;
