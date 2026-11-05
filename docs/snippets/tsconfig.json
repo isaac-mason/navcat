@@ -15,7 +15,6 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "skipLibCheck": true,
-    "baseUrl": "./",
     "rootDir": "./",
     "allowSyntheticDefaultImports": true,
     "outDir": "dist",

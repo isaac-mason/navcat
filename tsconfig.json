@@ -17,12 +17,11 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "skipLibCheck": true,
-    "baseUrl": "./",
     "rootDir": "./",
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "three": ["node_modules/@types/three"],
-      "three/*": ["node_modules/@types/three/*"]
+      "three": ["./node_modules/@types/three"],
+      "three/*": ["./node_modules/@types/three/*"]
     }
   },
   "include": ["./src", "./blocks", "./three"],
